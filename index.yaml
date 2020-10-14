@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  akri:
+  - apiVersion: v2
+    appVersion: 0.0.34
+    created: "2020-10-14T17:01:27.824226505Z"
+    description: A Helm chart for Akri
+    digest: 7de3828affe7184c6bc9376092499cfd0afbf7d12c2bada21d9d85aeddbbea4f
+    name: akri
+    type: application
+    urls:
+    - https://deislabs.github.io/akri/akri-0.0.34.tgz
+    version: 0.0.34
+generated: "2020-10-14T17:01:27.823127791Z"
