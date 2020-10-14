@@ -1,3 +1,5 @@
+USE_OPENCV_BASE_VERSION = 0.0.5
+
 #
 #
 # INSTALL-CROSS: install cargo cross building tool:
