@@ -1,0 +1,119 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: configurations.akri.sh
+spec:
+  group: akri.sh
+  versions:
+    - name: v0
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                protocol: # {{ProtocolHandler}}
+                  type: object
+                  properties:
+                    debugEcho: # {{DebugEchoDiscoveryHandler}}
+                      type: object
+                      properties:
+                        shared:
+                          type: boolean
+                        descriptions:
+                          type: array
+                          items:
+                            type: string
+                    onvif: # {{OnvifDiscoveryHandler}}
+                      type: object
+                      properties:
+                        ipAddresses: # {{FilterList}}
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                              enum:
+                                - Include
+                                - Exclude
+                            items:
+                              type: array
+                              items:
+                                type: string
+                        macAddresses: # {{FilterList}}
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                              enum:
+                                - Include
+                                - Exclude
+                            items:
+                              type: array
+                              items:
+                                type: string
+                        scopes: # {{FilterList}}
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                              enum:
+                                - Include
+                                - Exclude
+                            items:
+                              type: array
+                              items:
+                                type: string
+                        discoveryTimeoutSeconds:
+                          type: integer
+                    udev:
+                      type: object
+                      properties:
+                        udevRules:
+                          type: array
+                          items:
+                            type: string
+                    opcua:
+                      type: object
+                  oneOf:
+                    - required: ["debugEcho"]
+                    - required: ["onvif"]
+                    - required: ["udev"]
+                    - required: ["opcua"]
+                capacity:
+                  type: integer
+                units:
+                  type: string
+                brokerPodSpec: # {{PodSpec}}
+                  x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                  nullable: true
+                instanceServiceSpec: # {{ServiceSpec}}
+                  x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                  nullable: true
+                configurationServiceSpec: # {{ServiceSpec}}
+                  x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                  nullable: true
+                properties: # map<string, string>
+                  additionalProperties:
+                    type: string
+                  type: object
+      additionalPrinterColumns:
+      - name: Capacity
+        type: string
+        description: The capacity for each Instance discovered
+        jsonPath: .spec.capacity
+      - name: Age
+        type: date
+        jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: configurations
+    singular: configuration
+    kind: Configuration
+    shortNames:
+      - akric

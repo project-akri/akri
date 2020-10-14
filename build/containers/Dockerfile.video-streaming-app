@@ -1,0 +1,24 @@
+ARG PLATFORM=amd64
+FROM ${PLATFORM}/debian:buster-slim
+
+# Avoid tzdata prompt 
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim" && \
+    apt update && \
+    apt install -y protobuf-compiler libprotoc-dev python3-pip python3-grpcio && \
+    apt clean
+
+RUN pip3 install --upgrade pip && \
+    pip3 install protobuf flask
+
+WORKDIR /app
+COPY ./samples/apps/video-streaming-app .
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
+
+CMD python3 ./streaming.py

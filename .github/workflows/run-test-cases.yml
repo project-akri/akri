@@ -1,0 +1,106 @@
+name: Run End-to-End Scenario
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+    - test/run-end-to-end.py
+    - test/run-conservation-of-broker-pod.py
+    - test/run-helm-install-delete.py
+    - test/shared_test_code.py
+    - .github/workflows/run-test-cases.yml
+  push:
+    branches: [ main ]
+    paths:
+    - version.txt
+    
+jobs:
+  test-cases:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        test-case:
+          - end-to-end
+          - helm-install-delete
+          - conservation-of-broker-pods
+        include:
+          - test-case: end-to-end
+            test-file: test/run-end-to-end.py
+          - test-case: helm-install-delete
+            test-file: test/run-helm-install-delete.py
+          - test-case: conservation-of-broker-pods
+            test-file: test/run-conservation-of-broker-pod.py
+
+    steps:
+    - name: Checkout repository content
+      uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+       python-version: 3.8 
+    - name: Install Python kubernetes dependency
+      run: |
+        python -m pip install --upgrade pip
+        pip install kubernetes
+    - name: Install MicroK8s
+      run: sudo snap install microk8s --classic --channel=1.18/stable
+    - name: wait for Microk8s to be ready
+      run: sudo microk8s status --wait-ready
+    - name: Add user to MicroK8s
+      run:  sudo usermod -a -G microk8s $USER
+    - name: make user kube owner
+      run:  |
+        sudo ls -la $HOME/.kube
+        echo sudo chown $(id -u):$(id -g) $HOME/.kube
+        sudo chown -f -R $USER $HOME/.kube --verbose
+    - name: Enable Helm
+      run: | 
+        sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
+        sudo cat ~/.kube/config
+        sudo microk8s.enable helm3
+    - name: MicroK8s enable DNS
+      run: sudo microk8s.enable dns
+    - name: MicroK8s allow privileged pods
+      run: |
+        echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kube-apiserver
+    - name: MicroK8s stop
+      run: sudo microk8s.stop
+    - name: MicroK8s start
+      run: sudo microk8s.start
+      # Check for error with wait ready in next step
+      continue-on-error: true
+    - name: MicroK8s wait ready
+      run: sudo microk8s.status --wait-ready
+    - name: Label master node
+      run: sudo microk8s kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+    - name: Apply Docker secret
+      run: sudo microk8s kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=${{ secrets.crUsername }} --docker-password=${{ secrets.crPassword }}
+    - name: Add Akri Helm Chart
+      run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
+    - if: github.event_name == 'push'
+      name: Set sleep duration before running script to 1500
+      run: echo 1500 > /tmp/sleep_duration.txt
+    - if: github.event_name != 'push'
+      name: Use main version for non-push
+      run: |
+        git fetch origin main
+        git show origin/main:version.txt > /tmp/version_to_test.txt
+    - if: github.event_name == 'push'
+      name: Use current version for push
+      run: cat version.txt > /tmp/version_to_test.txt
+    - name: Execute test script ${{ matrix.test-file }}
+      run: python ${{ matrix.test-file }}
+    - name: Upload Agent log as artifact
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.test-case }}-agent-log
+        path: /tmp/agent_log.txt
+    - name: Upload controller log as artifact
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.test-case }}-controller-log
+        path: /tmp/controller_log.txt

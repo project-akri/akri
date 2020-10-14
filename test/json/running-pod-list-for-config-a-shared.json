@@ -1,0 +1,37 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "labels": {
+                    "app": "node-a-config-a-359973-pod",
+                    "controller": "akri.sh",
+                    "akri.sh/configuration": "config-a",
+                    "akri.sh/instance": "config-a-359973",
+                    "akri.sh/target-node": "node-a"
+                },
+                "name": "node-a-config-a-359973-pod",
+                "namespace": "config-a-namespace"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "image": "nginx:latest",
+                        "name": "config-a-broker"
+                    }
+                ]
+            },
+            "status": {
+                "startTime": "2020-02-25T20:48:03Z",
+                "phase": "Running"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

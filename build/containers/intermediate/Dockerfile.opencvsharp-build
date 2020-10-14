@@ -1,0 +1,74 @@
+#
+# This Dockerfile is used to create intermediate containers used
+# by the Akri build.
+#
+# Any changes to this file need to be made in its own Pull Request
+# and need include a change to Makefile's BUILD_OPENCV_BASE_VERSION.
+#
+# A second Pull Request should subsequently be made to update
+# Makefile's USE_OPENCV_BASE_VERSION.
+#
+
+ARG PLATFORM_TAG=3.1-buster-slim
+FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG} AS base
+WORKDIR /app
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
+
+# based on https://xaviergeerinck.com/opencv-in-dotnet-core
+ENV OPENCV_VERSION="4.1.1"
+ENV OPENCV_INSTALLATION_DIR="/opt/opencv/"
+ENV OPENCV_SHARP_VERSION="4.1.0.20190417"
+
+RUN whoami
+RUN pwd
+
+RUN apt update && \
+	apt -y install build-essential cmake pkg-config yasm git gfortran \
+	libjpeg-dev libpng-dev libtiff-dev libavcodec-dev \ 
+	libavformat-dev libswscale-dev libdc1394-22-dev libxine2-dev libv4l-dev \
+	libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgtk2.0-dev libtbb-dev \
+	qt5-default libatlas-base-dev libmp3lame-dev libtheora-dev \
+	libvorbis-dev libxvidcore-dev libopencore-amrnb-dev libopencore-amrwb-dev \
+	libavresample-dev x264 v4l-utils libprotobuf-dev protobuf-compiler \
+	libgoogle-glog-dev libgflags-dev libgphoto2-dev libeigen3-dev libhdf5-dev doxygen \
+	libtbb2 libdc1394-22-dev unzip wget && \
+	apt clean
+
+RUN mkdir ${OPENCV_INSTALLATION_DIR} && \
+	cd ${OPENCV_INSTALLATION_DIR} && \
+	wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip -Oopencv-${OPENCV_VERSION}.zip && \
+	unzip opencv-${OPENCV_VERSION}.zip && \
+	wget https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip -Oopencv_contrib-${OPENCV_VERSION}.zip && \
+	unzip opencv_contrib-${OPENCV_VERSION}.zip && \
+	rm ${OPENCV_INSTALLATION_DIR}/*.zip && \
+	cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
+	ln -s /usr/include/eigen3/Eigen /usr/include/Eigen
+	
+RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
+    mkdir build && cd build && \
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules && \
+	make -j$(grep -c ^processor /proc/cpuinfo) && \
+	make install -j8 && \
+	ldconfig && \
+	cd && \
+	rm -r ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
+	rm -r ${OPENCV_INSTALLATION_DIR}/opencv_contrib-${OPENCV_VERSION}
+	
+RUN cd ${OPENCV_INSTALLATION_DIR} && \
+	git clone https://github.com/shimat/opencvsharp.git opencvsharp && \
+	cd opencvsharp && \
+	git fetch --all --tags --prune && git checkout ${OPENCV_SHARP_VERSION} && \
+	cd src && \
+	mkdir build && \
+	cd build && \
+	cmake -D CMAKE_INSTALL_PREFIX=${OPENCV_INSTALLATION_DIR} .. && \
+	make -j$(grep -c ^processor /proc/cpuinfo) && \
+	make install && \
+	ldconfig && \
+	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib && \
+	cd && \
+	rm -r ${OPENCV_INSTALLATION_DIR}/opencvsharp && \
+	apt remove -y git unzip wget build-essential cmake && \
+	apt autoremove -y

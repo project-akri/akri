@@ -1,0 +1,39 @@
+name: 'build-component-per-arch'
+description: 'Build Akri Component Container'
+inputs:
+  container_registry_base_url:
+    description: Azure Container Registry
+    required: true
+  container_registry_username:
+    description: Azure Container Registry name
+    required: true
+  container_registry_password:
+    description: Azure Container Registry password
+    required: true
+  container_name:
+    description: Container name
+    required: true
+  container_prefix:
+    description: Container prefix (i.e. 'myacr.acr.io/foo' for myacr.acr.io/foo/container:label)
+    required: true
+  makefile_component_name:
+    description: Component prefix used by Makefile
+    required: true
+  platform:
+    description: Platform to build (amd64|arm64|arm32)
+    required: true
+  github_event_name:
+    description: Specify the github event name (push, pull_request, release, etc)
+    required: true
+  github_ref:
+    description: Specify the github ref
+    required: true
+  github_event_action:
+    description: Specify the github event action (i.e. closed)
+    required: true
+  github_merged:
+    description: Specify whether a PR has been merged
+    required: true
+runs:
+  using: 'node12'
+  main: 'main.js'

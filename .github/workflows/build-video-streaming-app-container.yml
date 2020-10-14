@@ -1,0 +1,103 @@
+name: Build Video Streaming App Container
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-component-per-arch/**
+    - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-video-streaming-app-container.yml
+    - build/containers/Dockerfile.video-streaming-app
+    - samples/apps/video-streaming-app/**
+    - version.txt
+    - build/akri-containers.mk
+    - Makefile
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-component-per-arch/**
+    - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-video-streaming-app-container.yml
+    - build/containers/Dockerfile.video-streaming-app
+    - samples/apps/video-streaming-app/**
+    - version.txt
+    - build/akri-containers.mk
+    - Makefile
+  release:
+    types:
+      - published
+
+env:
+  AKRI_COMPONENT: video-streaming-app
+  MAKEFILE_COMPONENT: streaming
+
+jobs:
+
+  per-arch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        arch:
+          - arm64v8
+          # - arm32v7
+          - amd64
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+
+    - name: Prepare To Install
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: Install Deps
+      run: |
+        yarn install
+        yarn add @actions/core @actions/github @actions/exec fs
+
+    - name: Run Per-Arch component build for ${{ env.AKRI_COMPONENT }}
+      uses: ./.github/actions/build-component-per-arch
+      with:
+        github_event_name: ${{ github.event_name }}
+        github_ref: ${{ github.ref }}
+        github_event_action: ${{ github.event.action }}
+        github_merged: ${{ github.event.pull_request.merged }}
+        container_name: ${{ env.AKRI_COMPONENT }}
+        container_prefix: ghcr.io/deislabs/akri
+        container_registry_base_url: ghcr.io
+        container_registry_username: ${{ secrets.crUsername }}
+        container_registry_password: ${{ secrets.crPassword }}
+        makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
+        platform: ${{ matrix.arch }}
+        build_rust: "0"
+
+  multi-arch:
+    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+    needs: per-arch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+
+    - name: Prepare To Install
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: Install Deps
+      run: |
+        yarn install
+        yarn add @actions/core @actions/github @actions/exec fs
+
+    - name: Run Multi-Arch component build for ${{ env.AKRI_COMPONENT }}
+      uses: ./.github/actions/build-component-multi-arch
+      with:
+        github_event_name: ${{ github.event_name }}
+        container_name: ${{ env.AKRI_COMPONENT }}
+        container_prefix: ghcr.io/deislabs/akri
+        container_registry_base_url: ghcr.io
+        container_registry_username: ${{ secrets.crUsername }}
+        container_registry_password: ${{ secrets.crPassword }}
+        makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}

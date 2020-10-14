@@ -1,0 +1,76 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "labels": {
+                    "app": "node-a-config-a-b494b6-svc",
+                    "controller": "akri.sh",
+                    "akri.sh/instance": "config-a-b494b6"
+                },
+                "name": "node-a-config-a-b494b6-svc",
+                "namespace": "config-a-namespace"
+            },
+            "spec": {
+                "clusterIP": "10.103.66.209",
+                "ports": [
+                    {
+                        "name": "http",
+                        "port": 6052,
+                        "protocol": "TCP",
+                        "targetPort": 6052
+                    }
+                ],
+                "selector": {
+                    "controller": "akri.sh",
+                    "akri.sh/instance": "config-a-b494b6"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "labels": {
+                    "app": "config-a-svc",
+                    "controller": "akri.sh",
+                    "akri.sh/configuration": "config-a"
+                },
+                "name": "config-a-svc",
+                "namespace": "config-a-namespace"
+            },
+            "spec": {
+                "clusterIP": "10.103.66.209",
+                "ports": [
+                    {
+                        "name": "http",
+                        "port": 6052,
+                        "protocol": "TCP",
+                        "targetPort": 6052
+                    }
+                ],
+                "selector": {
+                    "controller": "akri.sh",
+                    "akri.sh/configuration": "config-a"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

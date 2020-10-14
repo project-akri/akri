@@ -1,0 +1,25 @@
+#
+# This Dockerfile is used to create intermediate containers used
+# by the Akri build.
+#
+# Any changes to this file need to be made in its own Pull Request
+# and need include a change to Makefile's BUILD_RUST_CROSSBUILD_VERSION.
+#
+# A second Pull Request should subsequently be made to update
+# Cross.toml to point at the new versions.
+#
+
+FROM rustembedded/cross:aarch64-unknown-linux-gnu-0.1.16
+ 
+RUN sed -i 's/^deb h'/'deb [arch=amd64,i386] h/' /etc/apt/sources.list && \
+    dpkg --add-architecture arm64 && \
+    echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -c -s) main restricted universe multiverse >> /etc/apt/sources.list && \
+    echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -c -s)-updates main restricted universe multiverse >> /etc/apt/sources.list && \
+    echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -c -s)-backports main restricted universe multiverse >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends pkg-config:arm64 \
+            g++ ca-certificates curl libssl-dev:arm64 \
+            libv4l-dev:arm64 libudev-dev:arm64
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .

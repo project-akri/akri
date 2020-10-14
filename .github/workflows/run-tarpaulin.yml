@@ -1,0 +1,39 @@
+name: Tarpaulin Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - .github/workflows/check-rust.yml
+    - '**.rs'
+    - '**/Cargo.toml'
+    - build/setup.sh
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/workflows/check-rust.yml
+    - '**.rs'
+    - '**/Cargo.toml'
+    - build/setup.sh
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Create tarpaulin instance
+      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2 bash -c "echo 'sleep 20m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+    - name: Start tarpaulin instance
+      run: docker start $(cat container_id.txt)
+    - name: Install linux requirement in tarpaulin instance
+      run: docker exec $(cat container_id.txt) sh -c "./build/setup.sh"
+    - name: Install rust requirements in tarpaulin instance
+      run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
+    - name: Run tarpaulin
+      run: docker exec $(cat container_id.txt) sh -c "RUST_LOG=trace cargo tarpaulin -v --all-features --out Xml"

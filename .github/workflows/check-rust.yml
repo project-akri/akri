@@ -1,0 +1,55 @@
+name: Check Rust
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - .github/workflows/check-rust.yml
+    - '**.rs'
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    - build/setup.sh
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/workflows/check-rust.yml
+    - '**.rs'
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    - build/setup.sh
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Rust install
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: 1.41.0
+        override: true
+        components: clippy, rustfmt
+    - name: Install linux requirement
+      run: ./build/setup.sh
+    - name: Check rust format
+      run: cargo fmt --all -- --check
+    - name: Check clippy
+      run: cargo clippy --all
+    - name: Run check
+      run:  cargo check
+    - name: Check for H2 patch not being applied
+      run: |
+        cargo check >& h2-check.txt
+        cat h2-check.txt | grep "h2" | grep "was not used in the crate graph" | wc -l | grep 0
+    - name: Run tests
+      run: cargo test
+    - name: Run tests --ignored
+      run: cargo test -- --ignored
+    - name: Run doc
+      run: cargo doc --no-deps

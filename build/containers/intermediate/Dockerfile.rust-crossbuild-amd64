@@ -1,0 +1,20 @@
+#
+# This Dockerfile is used to create intermediate containers used
+# by the Akri build.
+#
+# Any changes to this file need to be made in its own Pull Request
+# and need include a change to Makefile's BUILD_RUST_CROSSBUILD_VERSION.
+#
+# A second Pull Request should subsequently be made to update
+# Cross.toml to point at the new versions.
+#
+
+FROM rustembedded/cross:x86_64-unknown-linux-gnu-0.1.16
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends pkg-config \
+            g++ ca-certificates curl libssl-dev \
+            libv4l-dev libudev-dev
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .

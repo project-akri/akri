@@ -1,0 +1,30 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "metadata": {
+                "name": "config-a-359973",
+                "namespace": "config-a-namespace",
+                "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+            }, 
+            "spec": {
+                "configurationName": "config-a",
+                "deviceUsage": {
+                    "config-a-359973-0": "node-b",
+                    "config-a-359973-1": "node-a",
+                    "config-a-359973-2": "node-b",
+                    "config-a-359973-3": "node-a",
+                    "config-a-359973-4": "node-c",
+                    "config-a-359973-5": ""
+                },
+                "nodes": [ "node-a", "node-b", "node-c" ],
+                "shared": true
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

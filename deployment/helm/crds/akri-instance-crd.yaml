@@ -1,0 +1,58 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: instances.akri.sh
+spec:
+  group: akri.sh
+  versions:
+    - name: v0
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                configurationName:
+                  type: string
+                metadata:
+                  additionalProperties:
+                    type: string
+                  type: object
+                shared:
+                  type: boolean
+                nodes:
+                  type: array
+                  items:
+                    type: string
+                deviceUsage: # map<string, string>
+                  additionalProperties:
+                    type: string
+                  type: object
+                rbac:
+                  type: string
+      additionalPrinterColumns:
+      - name: Config
+        type: string
+        description: The Configuration this Instance belongs to
+        jsonPath: .spec.configurationName
+      - name: Shared
+        type: boolean
+        description: Describes whether this Instance is shared
+        jsonPath: .spec.shared
+      - name: Nodes
+        type: string
+        description: Nodes that expose this Instance
+        jsonPath: .spec.nodes
+      - name: Age
+        type: date
+        jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: instances
+    singular: instance
+    kind: Instance
+    shortNames:
+    - akrii

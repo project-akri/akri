@@ -1,0 +1,20 @@
+<html>
+  <head>
+    <title>Akri Demo</title>
+  </head>
+  <body>
+    <div style="max-width: 800px;  margin: auto;text-align:center">
+      <h1>Akri Demo</h1>
+      <div style="display: inline-block;clear:both;margin-bottom:30px">
+        <img src="{{ url_for('camera_frame_feed', camera_id = 0) }}" style="width:480px">
+      </div>
+      <ul style="display: block;list-style-type: none;padding:0;">
+        {%for camera_id in range(1, camera_count + 1)%}
+        <li style="display: inline-block; padding: 0 25">
+          <img src="{{ url_for('camera_frame_feed', camera_id = camera_id) }}" style="width:200px">
+        </li>
+        {%endfor%}
+      </ul>
+    </div>
+  </body>
+</html>

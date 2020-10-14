@@ -1,0 +1,49 @@
+{{- if .Values.controller.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: akri-controller-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: akri-controller
+  template:
+    metadata:
+      labels:
+        app: akri-controller
+    spec:
+      containers:
+      - name: akri-controller
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest-dev" .Values.controller.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest" .Values.controller.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.controller.linuxOnly }}
+      nodeSelector:
+        "kubernetes.io/os": linux
+      {{- end }}
+      {{- if .Values.controller.onlyOnMaster }}
+      # Only run this pod on the master.
+      tolerations:
+        # Allow this pod to run on the master.
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      {{- end }}
+{{- end }}

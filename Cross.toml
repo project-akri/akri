@@ -1,0 +1,14 @@
+[build.env]
+passthrough = [
+    "PKG_CONFIG_ALLOW_CROSS",
+    "RUST_LOG",
+]
+
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/deislabs/akri/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-0.0.4"
+
+[target.arm-unknown-linux-gnueabihf]
+image = "ghcr.io/deislabs/akri/rust-crossbuild:arm-unknown-linux-gnueabihf-0.1.16-0.0.4"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/deislabs/akri/rust-crossbuild:aarch64-unknown-linux-gnu-0.1.16-0.0.4"

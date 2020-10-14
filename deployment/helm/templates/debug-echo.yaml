@@ -1,0 +1,49 @@
+{{- if .Values.debugEcho.enabled }}
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: {{ .Values.debugEcho.name }}
+spec:
+  protocol: 
+    debugEcho:
+      {{- if .Values.debugEcho.descriptions}}
+      descriptions:
+      {{- toYaml .Values.debugEcho.descriptions | nindent 6 }}
+      {{- else }}
+      descriptions: []
+      {{- end }}
+      shared: {{ .Values.debugEcho.shared }}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.debugEcho.name }}-broker
+      image: {{ .Values.debugEcho.brokerPod.image | quote }}
+      imagePullPolicy: {{ .Values.debugEcho.pullPolicy }}
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  instanceServiceSpec:
+    type: {{ .Values.debugEcho.instanceService.type }}
+    ports:
+    - name: {{ .Values.debugEcho.instanceService.name }}
+      port: {{ .Values.debugEcho.instanceService.port }}
+      protocol: {{ .Values.debugEcho.instanceService.protocol }}
+      targetPort: {{ .Values.debugEcho.instanceService.targetPort }}
+  configurationServiceSpec:
+    type: {{ .Values.debugEcho.configurationService.type }}
+    ports:
+    - name: {{ .Values.debugEcho.configurationService.name }}
+      port: {{ .Values.debugEcho.configurationService.port }}
+      protocol: {{ .Values.debugEcho.configurationService.protocol }}
+      targetPort: {{ .Values.debugEcho.configurationService.port }}
+  {{- if .Values.debugEcho.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  {{- end }}
+  capacity: {{ .Values.debugEcho.capacity }}
+{{- end }}

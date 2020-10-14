@@ -1,0 +1,5 @@
+## pluginapi.proto
+
+**Purpose:** Upon building, this protocol file auto-generates `../v1beta1.rs`, which contains structures and implementations for Device Plugin messages, client, and server.
+
+**Versioning:** This file is kubernetes Device Plugin protocol/API version **v1beta1** from kubernetes version **1.15**. Device Plugins declare their protocol version to kubelet when registering with it, as kubelet's Registration server and Device Plugin client should be built against the same version. Check for newer versions of v1beta1 protocol [here](https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1/api.proto); however, all versions of v1beta1 after 1.15 include Device Plugin Integration with Topology Manager via an additional `TopologyInfo` field in the `Device` struct. Topology support is not needed for this project and kubelet does not require it when registering a device.

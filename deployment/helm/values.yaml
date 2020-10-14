@@ -1,0 +1,219 @@
+# Default values for akri.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# useLatestContainers is specified if the latest or latest-dev
+# tags should be used.  This will be overridden if *.image.tag
+# is specified.
+useLatestContainers: false
+
+# useDevelopmentContainers is specified if the non-release (*-dev)
+# tags should be used.  This will be overridden if *.image.tag
+# is specified.
+useDevelopmentContainers: true
+
+# imagePullSecrets is the array of secrets needed to pull images.
+# This can be set from the helm command line using `--set imagePullSecrets[0].name="mysecret"`
+imagePullSecrets: []
+
+controller:
+  # enabled defines whether to apply the Akri Controller
+  enabled: true
+  image:
+    # repository is the Akri Controller container reference
+    repository: ghcr.io/deislabs/akri/controller
+    # tag is the Akri Controller container tag
+    # controller.yaml will default to v(AppVersion)-dev
+    tag:
+    # pullPolicy is the Akri Controller pull policy
+    pullPolicy: Always
+  # onlyOnMaster dictates whether the Akri Controller will only run on a master node
+  onlyOnMaster: true
+  # linuxOnly dictates whether the Akri Controller will only run on a linux node
+  linuxOnly: true
+
+agent:
+  # enabled defines whether to apply the Akri Agent
+  enabled: true
+  image:
+    # repository is the Akri Agent container reference
+    repository: ghcr.io/deislabs/akri/agent
+    # tag is the Akri Agent container tag
+    # agent.yaml will default to v(AppVersion)-dev
+    tag:
+    # pullPolicy is the Akri Agent pull policy
+    pullPolicy: Always
+  host:
+    # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
+    kubeletDevicePlugins: /var/lib/kubelet/device-plugins
+    # crictl is the node path to crictl
+    crictl: /usr/bin/crictl
+    # dockerShimSock is the node path of the docker socket
+    dockerShimSock: /var/run/dockershim.sock
+    # udev is the node path of udev
+    udev: /run/udev
+  # allowDebugEcho dictates whether the Akri Agent will allow DebugEcho Configurations
+  allowDebugEcho: false
+  # linuxOnly dictates whether the Akri Agent will only run on a linux node
+  linuxOnly: true
+
+debugEcho:
+  # enabled defines whether to load a debugEcho configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # debugEcho configuration
+  name: akri-debug-echo-foo
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this debugEcho configuration
+  properties:
+  # capacity is the capacity for any instances created as a result of
+  # applying this debugEcho configuration
+  capacity: 5
+  # descriptions is the list of instances created as a result of
+  # applying this debugEcho configuration
+  descriptions:
+  - "foo0"
+  - "foo1"
+  # shared defines whether instances created as a result of
+  # applying this debugEcho configuration as shared
+  shared: true
+  brokerPod:
+    # container used by debugEcho
+    image: nginx:latest
+    # pullPolicy is the debugEcho pull policy
+    pullPolicy: Always
+  instanceService:
+    # name is the description of the instance service
+    name: akri-debug-echo-foo-instance-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 6052
+    # targetPort is the service targetPort of the instance service
+    targetPort: 6052
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  configurationService:
+    # name is the description of the configuration service
+    name: akri-debug-echo-foo-configuration-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 6052
+    # targetPort is the service targetPort of the instance service
+    targetPort: 6052
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+
+onvifVideo:
+  # enabled defines whether to load a onvifVideo configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # onvifVideo configuration
+  name: akri-onvif-video
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this onvifVideo configuration
+  properties:
+  ipAddresses: 
+    action: Exclude
+    items: []
+  macAddresses:
+    action: Exclude
+    items: []
+  scopes:
+    action: Exclude
+    items: []
+  discoveryTimeoutSeconds: 1
+  # capacity is the capacity for any instances created as a result of
+  # applying this onvifVideo configuration
+  capacity: 5
+  brokerPod:
+    image:
+      # repository is the Akri onvif broker container reference
+      repository: ghcr.io/deislabs/akri/onvif-video-broker
+      # tag is the Akri onvif broker container tag
+      # akri-onvif-video.yaml will default to
+      # v(AppVersion)-dev
+      tag:
+      # pullPolicy is the Akri onvif broker pull policy
+      pullPolicy: Always
+  instanceService:
+    # name is the description of the instance service
+    name: akri-onvif-video-instance-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  configurationService:
+    # name is the description of the configuration service
+    name: akri-onvif-video-configuration-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+
+udevVideo:
+  # enabled defines whether to load a udevVideo configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # udevVideo configuration
+  name: akri-udev-video
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this udevVideo configuration
+  properties:
+  # udevRules is the list of udev rules used to find instances created as a result of
+  # applying this debugEcho configuration
+  udevRules:
+  - 'KERNEL=="video[0-9]*"'
+  # capacity is the capacity for any instances created as a result of
+  # applying this udevVideo configuration
+  capacity: 5
+  brokerPod:
+    image:
+      # repository is the Akri udev broker container reference
+      repository: ghcr.io/deislabs/akri/udev-video-broker
+      # tag is the Akri udev broker container tag
+      # akri-udev-video.yaml will default to
+      # v(AppVersion)-dev
+      tag:
+      # pullPolicy is the Akri udev broker pull policy
+      pullPolicy: Always
+    env:
+      # format is the format v4l2 should use to read from the camera
+      format: "MJPG"
+      # width is the frame width v4l2 should use to read from the camera
+      width: "640"
+      # height is the frame height v4l2 should use to read from the camera
+      height: "480"
+      # fps is the frames per second v4l2 should use to read from the camera
+      fps: "10"
+  instanceService:
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  configurationService:
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+
+
+
+

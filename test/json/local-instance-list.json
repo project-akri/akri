@@ -1,0 +1,22 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "metadata": {
+                "name": "config-a-b494b6",
+                "namespace": "config-a-namespace",
+                "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+            }, 
+            "spec": {
+                "configurationName": "config-a",
+                "nodes": [ "node-a" ],
+                "shared": false
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

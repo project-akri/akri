@@ -1,0 +1,79 @@
+{{- if .Values.agent.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-agent-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-agent
+  template:
+    metadata:
+      labels:
+        name: akri-agent
+    spec:
+      hostNetwork: true
+      {{- if .Values.agent.linuxOnly }}
+      nodeSelector:
+        "kubernetes.io/os": linux
+      {{- end }}
+      containers:
+      - name: akri-agent
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest-dev" .Values.agent.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest" .Values.agent.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+        env:
+          {{- if .Values.agent.allowDebugEcho }}
+          - name: ENABLE_DEBUG_ECHO
+            value: "1"
+          {{- end }}
+          - name: HOST_CRICTL_PATH
+            value: /host/usr/bin/crictl
+          - name: HOST_RUNTIME_ENDPOINT
+            value: unix:///host/var/run/dockershim.sock
+          - name: HOST_IMAGE_ENDPOINT
+            value: unix:///host/var/run/dockershim.sock
+          - name: AGENT_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        volumeMounts:
+          - name: device-plugin
+            mountPath: /var/lib/kubelet/device-plugins
+          - name: usr-bin-crictl
+            mountPath: /host/usr/bin/crictl
+          - name: var-run-dockershim
+            mountPath: /host/var/run/dockershim.sock
+          - name: devices
+            mountPath: /run/udev
+        securityContext:
+          privileged: true
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: "{{ .Values.agent.host.kubeletDevicePlugins }}"
+      - name: usr-bin-crictl
+        hostPath:
+          path: "{{ .Values.agent.host.crictl }}"
+      - name: var-run-dockershim
+        hostPath:
+          path: "{{ .Values.agent.host.dockerShimSock }}"
+      - name: devices
+        hostPath:
+          path: "{{ .Values.agent.host.udev }}"
+{{- end }}

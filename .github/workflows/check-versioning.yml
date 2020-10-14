@@ -1,0 +1,45 @@
+name: Check versioning
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '**.md'
+      - .vscode/**
+      - docs/**
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '**.md'
+      - .vscode/**
+      - docs/**
+  release:
+    types:
+      - published
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
+    # version.txt is different from what is in main.
+    - if: github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[SAME VERSION]') == false
+      name: Run version check
+      run: ./version.sh -c
+    # If PR title does contain "[SAME VERSION]", then do not check that version.txt is different from
+    # what is in main.
+    - if: github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[SAME VERSION]') == true
+      name: Run version check
+      run: ./version.sh -c -s

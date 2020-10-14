@@ -1,0 +1,4 @@
+**/target/
+**/obj
+**/bin
+**/cobertura.xml

@@ -1,0 +1,6 @@
+1. Get the Akri Controller:
+  kubectl get -o wide pods | grep controller
+2. Get the Akri Agent(s):
+  kubectl get -o wide pods | grep agent
+3. Get the Akri Configuration(s):
+  kubectl get -o wide akric

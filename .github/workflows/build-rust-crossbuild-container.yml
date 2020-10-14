@@ -1,0 +1,84 @@
+name: Build Rust CrossBuild
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-intermediate/**
+    - .github/workflows/build-rust-crossbuild-container.yml
+    - build/containers/intermediate/Dockerfile.rust-crossbuild-*
+    - build/intermediate-containers.mk
+    - Makefile
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-intermediate/**
+    - .github/workflows/build-rust-crossbuild-container.yml
+    - build/containers/intermediate/Dockerfile.rust-crossbuild-*
+    - build/intermediate-containers.mk
+    - Makefile
+
+env:
+  AKRI_COMPONENT: rust-crossbuild
+  MAKEFILE_COMPONENT: rust-crossbuild
+
+jobs:
+
+  per-arch:
+    if: >-
+      !contains(github.event.pull_request.title, '[IGNORE INTERMEDIATE BUILDS]') &&
+      !contains(github.event.commits[0].message, '[IGNORE INTERMEDIATE BUILDS]')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - arm64v8
+          # - arm32v7
+          - amd64
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+
+    - name: Akri intermediate builds are LONG running and should only be run when absolutely needed
+      if: >-
+        !contains(github.event.pull_request.title, '[ALLOW INTERMEDIATE BUILDS]') &&
+        !contains(github.event.commits[0].message, '[ALLOW INTERMEDIATE BUILDS]')
+      run: |
+        echo "Akri intermediate builds are LONG running and should only be run when absolutely needed."
+        echo "Add [IGNORE INTERMEDIATE BUILDS] to first commit message to skip building intermediate containers."
+        echo "Add [ALLOW INTERMEDIATE BUILDS] to first commit message if needed."
+        exit 1
+
+    # Only run build version change check if PR title and Merge commit message do NOT contain "[SAME VERSION]"
+    - if: >-
+        github.event_name == 'pull_request' &&
+        !contains(github.event.pull_request.title, '[SAME VERSION]') &&
+        !contains(github.event.commits[0].message, '[SAME VERSION]')
+      name: Ensure that ${{ env.AKRI_COMPONENT }} version has changed
+      run: |
+        git fetch origin main
+        git diff origin/main -- ./build/intermediate-containers.mk | grep "BUILD_RUST_CROSSBUILD_VERSION = " | wc -l | grep -v 0
+
+    - name: Prepare To Install
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: Install Deps
+      run: |
+        yarn install
+        yarn add @actions/core @actions/github @actions/exec fs
+
+    - name: Run Per-Arch component build for ${{ env.AKRI_COMPONENT }}
+      uses: ./.github/actions/build-intermediate
+      with:
+        github_event_name: ${{ github.event_name }}
+        github_ref: ${{ github.ref }}
+        github_event_action: ${{ github.event.action }}
+        github_merged: ${{ github.event.pull_request.merged }}
+        container_name: ${{ env.AKRI_COMPONENT }}
+        container_prefix: ghcr.io/deislabs/akri
+        container_registry_base_url: ghcr.io
+        container_registry_username: ${{ secrets.crUsername }}
+        container_registry_password: ${{ secrets.crPassword }}
+        makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
+        platform: ${{ matrix.arch }}

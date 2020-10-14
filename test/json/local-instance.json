@@ -1,0 +1,19 @@
+{
+    "metadata": {
+        "name": "config-a-b494b6",
+        "namespace": "config-a-namespace",
+        "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+    }, 
+    "spec": {
+        "configurationName": "config-a",
+        "nodes": [ "node-a" ],
+        "shared": false,
+        "deviceUsage": {
+            "config-a-b494b6-0":"",
+            "config-a-b494b6-1":"",
+            "config-a-b494b6-2":"",
+            "config-a-b494b6-3":"",
+            "config-a-b494b6-4":""
+        }
+    }
+}

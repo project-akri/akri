@@ -1,0 +1,38 @@
+# Contributing 
+This project welcomes contributions and suggestions.
+
+## What do I need to know to help?
+Akri utilizes a variety of technologies, and different background knowledge is more or less useful depending on what you are interested in contributing. 
+- Some understanding of [Kubernetes](https://kubernetes.io/) and [Helm](https://helm.sh/) is needed to deploy and use Akri. 
+- The Akri Controller and Agent are written in the [Rust programming language](https://www.rust-lang.org/learn). 
+- All of Akri's components run on Linux, so you will need to set up an Ubuntu VM if you do not already have a Linux environment. 
+- Sample brokers and end applications can be written in any language and are individually containerized.
+- We use Docker to build our [containers](https://www.docker.com/resources/what-container).
+
+## How do I get started developing?
+Contributions can be made by forking the repository and creating a pull request.  Ideally, every pull request should have a corresponding issue that it is resolving.  Each pull request will kick off a set of CI builds to validate that:
+
+* the code adheres to standard Rust formatting (`cargo fmt`)
+* the code builds properly (`cargo build`)
+* the code is free of common mistakes (`cargo clippy`)
+* the Akri tests all pass (`cargo test`)
+* the inline documentation builds (`cargo doc`)
+
+See the [Development](./development.md) documentation for more information on how to set up your environment and build Akri components locally.
+
+## Versioning
+We follow the [SymVer](https://semver.org/) versioning strategy: [MAJOR].[MINOR].[PATCH].  Our current version can be found in `./version.txt`.
+
+* For non-breaking bug fixes and small code changes, [PATCH] should be incremented.  This can be accomplished by running `version.sh -u -p`
+* For non-breaking feature changes, [MINOR] should be incremented.  This can be accomplished by running `version.sh -u -n`
+* For major and/or breaking changes, [MAJOR] should be incremented.  This can be accomplished by running `version.sh -u -m`
+
+To ensure that all product versioning is consistent, our CI builds will execute `version.sh -c` to check all known instances of version in our YAML, TOML, and code.  This will also check to make sure that version.txt has been changed.  If a pull request is needed where the version should not be changed, include `[SAME VERSION]` in the pull request title.
+
+## CLA
+Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
+
+When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
+
+## Code of Conduct
+This project has adopted the Microsoft Open Source Code of Conduct. For more information see the Code of Conduct FAQ or contact opencode@microsoft.com with any additional questions or comments.

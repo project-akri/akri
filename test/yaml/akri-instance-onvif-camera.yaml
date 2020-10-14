@@ -1,0 +1,19 @@
+apiVersion: akri.sh/v0
+kind: Instance
+metadata:
+  name: onvif-camera-ffffff
+spec:
+  configurationName: onvif-camera
+  shared: true
+  nodes:
+  - "linux-dev3"
+  - "linux-dev2"
+  deviceUsage:
+    onvif-camera-ffffff-0: ""
+    onvif-camera-ffffff-1: "linux-dev2"
+    onvif-camera-ffffff-2: "linux-dev3"
+    onvif-camera-ffffff-3: "linux-dev3"
+    onvif-camera-ffffff-4: "linux-dev2"
+  metadata:
+    resolution-width: "800"
+    resolution-height: "600"
