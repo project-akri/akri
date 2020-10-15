@@ -29,18 +29,27 @@ If you are using [MicroK8s](https://microk8s.io/docs), be sure to allow privileg
     kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
     ```
 
+If you are using [K3s](https://k3s.io/), modify the control plane node(s) `node-role.kubernetes.io/master=true` label to remove the `true` value:
+```sh
+kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
+```
+
 ### Deploying Akri
 1. Install Helm
     ```sh
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
     ```
-1. Start Kubernetes cluster
 1. If using MicroK8s, enable Helm.
     ```sh
     kubectl config view --raw >~/.kube/config
+    chmod go-rwx ~/.kube/config
     microk8s enable helm3
     ```
-1. Install Akri Helm chart (referencing the docker secret, `recred`, created in the Prerequisites) and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
+1. If using K3s, point to `kubeconfig` for Helm.
+    ```sh
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    ```
+1. Install Akri Helm chart (referencing the docker secret, `regcred`, created in the Prerequisites) and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
