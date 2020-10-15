@@ -17,6 +17,7 @@ spec:
       nodeSelector:
         "kubernetes.io/os": linux
       {{- end }}
+      serviceAccountName: 'akri-agent-sa'
       containers:
       - name: akri-agent
         {{- if .Values.useDevelopmentContainers }}

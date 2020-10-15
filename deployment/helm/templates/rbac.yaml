@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: akri-controller-sa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: akri-agent-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: "akri-controller-role"
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["akri.sh"]
+  resources: ["instances"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["akri.sh"]
+  resources: ["configurations"]
+  verbs: ["get", "list", "watch"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: "akri-agent-role"
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["akri.sh"]
+  resources: ["instances"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["akri.sh"]
+  resources: ["configurations"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: 'rbac.authorization.k8s.io/v1'
+kind: 'ClusterRoleBinding'
+metadata:
+  name: 'akri-controller-binding'
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: ''
+  kind: 'ClusterRole'
+  name: 'akri-controller-role'
+subjects:
+  - kind: 'ServiceAccount'
+    name: 'akri-controller-sa'
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: 'rbac.authorization.k8s.io/v1'
+kind: 'ClusterRoleBinding'
+metadata:
+  name: 'akri-agent-binding'
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: ''
+  kind: 'ClusterRole'
+  name: 'akri-agent-role'
+subjects:
+  - kind: 'ServiceAccount'
+    name: 'akri-agent-sa'
+    namespace: {{ .Release.Namespace }}

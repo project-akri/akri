@@ -33,10 +33,6 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh
     kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
     ```
-1. Set up RBAC: Since Akri does not have RBAC policy set up yet, for now, grant all pods admin access.
-    ```sh
-    kubectl create clusterrolebinding serviceaccounts-cluster-admin  --clusterrole=cluster-admin  --group=system:serviceaccounts
-    ```
 1. Apply a network provider to the cluster.
     ```sh
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
