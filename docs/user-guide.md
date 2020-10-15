@@ -12,11 +12,6 @@ To get started using Akri, you must first decide what you want to discover and w
     kubectl create clusterrolebinding serviceaccounts-cluster-admin --clusterrole=cluster-admin --group=system:serviceaccounts
     ```
 
-1. Apply the Docker secret to the cluster in order to pull down Akri Agent, Controller, brokers, and sample app containers from the Akri container registry.
-    ```sh
-    kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
-    ```
-
 If you are using [MicroK8s](https://microk8s.io/docs), be sure to allow privileged pods and label the master node:
 1. Enable privileged pods and restart MicroK8s.
     ```sh
@@ -49,11 +44,10 @@ kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
     ```sh
     export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
     ```
-1. Install Akri Helm chart (referencing the docker secret, `regcred`, created in the Prerequisites) and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
+1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        --set imagePullSecrets[0].name="regcred" \
         --set useLatestContainers=true \
         --set onvifVideo.enabled=true
     watch kubectl get pods,akric,akrii -o wide
