@@ -7,7 +7,7 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
     ```
-2. Grant admin privilege for running MicroK8s commands.
+1. Grant admin privilege for running MicroK8s commands.
     ```sh
     sudo usermod -a -G microk8s $USER
     sudo chown -f -R $USER ~/.kube
@@ -50,6 +50,44 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
     ```
 
+## Set up single node cluster using K3s
+1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
+1. Install [K3s](https://k3s.io/).
+    ```sh
+    curl -sfL https://get.k3s.io | sh -
+    ```
+1. Grant admin privilege to access kubeconfig.
+    ```sh
+    sudo addgroup k3s-admin
+    sudo adduser $USER k3s-admin
+    sudo usermod -a -G k3s-admin $USER
+    sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
+    sudo chmod g+r /etc/rancher/k3s/k3s.yaml
+    su - $USER
+    ```
+1. Check K3s status.
+    ```sh
+    kubectl get node
+    ```
+1. Install Helm.
+    ```sh
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    sudo apt install -y curl
+    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+    ```
+1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
+    ```sh
+    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+    ```
+1. Apply Docker secret to cluster in order to pull down Akri Agent, Controller, Broker, and Sample App pods.
+    ```sh
+    kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
+    ```
+1. Set up role-based access control (RBAC): Since Akri does not have RBAC policy set up yet, for now, grant all pods admin access.
+    ```sh
+    kubectl create clusterrolebinding serviceaccounts-cluster-admin --clusterrole=cluster-admin --group=system:serviceaccounts
+    ```
+
 ## Set up mock udev video devices
 1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
     ```sh
@@ -90,7 +128,14 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
         --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
+    ```
+    For MicroK8s
+    ```sh
     watch microk8s kubectl get pods,akric,akrii -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods,akric,akrii -o wide
     ```
     Run `kubectl get crd`, and you should see the crds listed.
     Run `kubectl get pods -o wide`, and you should see the Akri pods.
@@ -107,7 +152,14 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     # and click the "Raw" button ... this will generate a link with a token that can be used below.
     curl -o akri-video-streaming-app.yaml <RAW LINK WITH TOKEN>
     kubectl apply -f akri-video-streaming-app.yaml
+    ```
+    For MicroK8s
+    ```sh
     watch microk8s kubectl get pods -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods -o wide
     ```
 1. Determine which port the service is running on.
     ```sh
@@ -129,12 +181,26 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     kubectl delete service akri-video-streaming-app
     kubectl delete deployment akri-video-streaming-app
+    ```
+    For MicroK8s
+    ```sh
     watch microk8s kubectl get pods
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods
     ```
 1. Delete the configuration and watch the instances, pods, and services be deleted.
     ```sh
     kubectl delete akric akri-udev-video
+    ```
+    For MicroK8s
+    ```sh
     watch microk8s kubectl get pods,services,akric,akrii -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods,services,akric,akrii -o wide
     ```
 1. Bring down the Akri Agent, Controller, and CRDs.
     ```sh
