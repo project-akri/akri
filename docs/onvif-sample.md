@@ -16,7 +16,6 @@ To use the default ONVIF Configuration in your Akri-enabled cluster, you can sim
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true
 ```
@@ -42,7 +41,6 @@ For example, you can enable cluster access for every camera that does not have a
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \
@@ -53,7 +51,6 @@ You can enable cluster access for every camera with a specific name, you can mod
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.scopes.action=Include \
@@ -67,7 +64,6 @@ decreased as desired, and defaults to 1 second if left unconfigured. It can be s
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.discoveryTimeoutSeconds=2
@@ -80,7 +76,6 @@ pod, you can update the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.capacity=2

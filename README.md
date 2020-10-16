@@ -26,6 +26,7 @@ Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discove
 ## Documentation
 - [Running Akri using our currently supported protocols](./docs/user-guide.md) 
 - [Akri architecture in depth](./docs/architecture.md)
+- [How to build Akri](./docs/development.md)
 - [How to extend Akri for protocols that haven't been supported yet](./docs/extensibility.md).
 - Proposals for enhancements such as new protocol implementations can be found in the [proposals folder](./docs/proposals)
 
