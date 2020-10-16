@@ -37,4 +37,4 @@ Akri was built to be extensible. We currently have ONVIF and udev discovery prot
 This project welcomes contributions, whether by [creating new issues](https://github.com/deislabs/akri/issues/new/choose) or pull requests. See our [contributing document](./docs/contributing.md) on how to get started.
 
 ## Licensing
-This project is released under the [MIT License](./License).
+This project is released under the [MIT License](./LICENSE).
