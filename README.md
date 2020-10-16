@@ -14,7 +14,7 @@ Akri is made for the edge, **handling the dynamic appearance and disappearance o
 
 Most importantly, Akri **was built to be extensible**. We currently have ONVIF and udev discovery protocols and are [working](./docs/roadmap.md#implement-additional-protocol-handlers) to implement [OPC UA](./docs/proposals/opcua.md), but more can be easily added by community members like you. The more protocols Akri can support, the wider an array of leaf devices Akri can discover. We are excited to work with you to build a more connected edge.
 
-## Architecture in Short
+## How Akri Works
 Akri’s architecture is made up of four key components: two custom resources, a device plugin implementation, and a custom controller. The first custom resource, the Akri Configuration, is where **you name it**. This tells Akri what kind of device it should look for. At this point, **Akri finds it**! Akri's device plugin implementation looks for the device and tracks its availability using Akri's second custom resource, the Akri Instance. Having found your device, the Akri Controller helps **you use it**. It sees each Akri Instance (which represents a leaf device) and deploys a ("broker") pod that knows how to connect to the resource and utilize it.
 
 <img src="./docs/media/akri-architecture.svg" alt="Akri ONVIF Flow" style="padding-bottom: 10px padding-top: 10px;
@@ -35,3 +35,6 @@ Akri was built to be extensible. We currently have ONVIF and udev discovery prot
 
 ## Contributing
 This project welcomes contributions, whether by [creating new issues](https://github.com/deislabs/akri/issues/new/choose) or pull requests. See our [contributing document](./docs/contributing.md) on how to get started.
+
+## Licensing
+This project is released under the [MIT License](./License).
