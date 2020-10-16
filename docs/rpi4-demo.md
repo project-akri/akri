@@ -114,12 +114,12 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh
     kubectl delete service akri-video-streaming-app
     kubectl delete deployment akri-video-streaming-app
-    watch microk8s kubectl get pods
+    watch kubectl get pods
     ```
 1. Delete the configuration and watch the instances, pods, and services be deleted.
     ```sh
     kubectl delete akric akri-udev-video
-    watch microk8s kubectl get pods,services,akric,akrii -o wide
+    watch kubectl get pods,services,akric,akrii -o wide
     ```
 1. Bring down the Akri Agent, Controller, and CRDs.
     ```sh

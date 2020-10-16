@@ -7,7 +7,15 @@ To get started using Akri, you must first decide what you want to discover and w
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
 
-If you are using [MicroK8s](https://microk8s.io/docs), be sure to allow privileged pods and label the master node:
+If you are using [MicroK8s](https://microk8s.io/docs), enable dns and rbac, allow privileged pods and label the master node:
+1. Enable dns.
+    ```sh
+    microk8s enable dns
+    ```
+1. Optionally enable rbac.
+    ```sh
+    microk8s enable rbac
+    ```
 1. Enable privileged pods and restart MicroK8s.
     ```sh
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver

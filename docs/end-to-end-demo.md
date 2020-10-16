@@ -35,6 +35,10 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     microk8s enable dns
     ```
+1. Optionally enable rbac.
+    ```sh
+    microk8s enable rbac
+    ```
 1. Enable privileged pods and restart microk8s.
     ```sh
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
