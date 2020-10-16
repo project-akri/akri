@@ -118,11 +118,12 @@ exit
 ```
 
 ## Install Akri with newly built containers
-When installing Akri using helm, you can set the `image.repository` and `image.tag` [Helm values](../deployment/helm/values.yaml) to point to your newly created containers. For example, to install Akri with with custom Controller and Agent containers, run the following, specifying the `image.tag` version to reflect [version.txt](../version.txt):
+When installing Akri using helm, you can set the `imagePullSecrets`, `image.repository` and `image.tag` [Helm values](../deployment/helm/values.yaml) to point to your newly created containers. For example, to install Akri with with custom Controller and Agent containers, run the following, specifying the `image.tag` version to reflect [version.txt](../version.txt):
 ```bash
+kubectl create secret docker-registry <your-secret-name> --docker-server=ghcr.io  --docker-username=<your-github-alias> --docker-password=<your-github-token>
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
+    --set imagePullSecrets[0].name="<your-secret-name>" \
     --set agent.image.repository="ghcr.io/<your-github-alias>/agent" \
     --set agent.image.tag="v<akri-version>-amd64" \
     --set controller.image.repository="ghcr.io/<your-github-alias>/controller" \
@@ -134,7 +135,6 @@ helm install akri akri-helm-charts/akri \
 If you make changes to anything in the [helm folder](../deployment/helm), you will probably need to create a new Helm chart for Akri. This can be done using the [`helm package`](https://helm.sh/docs/helm/helm_package/) command. To create a chart using the current state of the Helm templates and CRDs, run (from one level above the Akri directory) `helm package akri/deployment/helm/`. You will see a tgz file called `akri-<akri-version>.tgz` at the location where you ran the command. Now, install Akri using that chart:
 ```sh
 helm install akri akri-<akri-version>.tgz \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true
 ```
 ### Helm Template
@@ -142,7 +142,7 @@ When you install Akri using Helm, Helm creates the DaemonSet, Deployment, and Co
 For example, you will see the image in the Agent DaemonSet set to `image: "ghcr.io/<your-github-alias>/agent:v<akri-version>-amd64"` if you run the following:
 ```sh
 helm template akri deployment/helm/ \
-  --set imagePullSecrets[0].name="regcred" \
+  --set imagePullSecrets[0].name="<your-secret-name>" \
   --set agent.image.repository="ghcr.io/<your-github-alias>/agent" \
   --set agent.image.tag="v<akri-version>-amd64"
 ```

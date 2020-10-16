@@ -29,10 +29,6 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh
     kubectl taint nodes --all node-role.kubernetes.io/master-
     ```
-1. Apply Docker secret to cluster in order to pull down Akri Agent, Controller, Broker, and Sample App pods.
-    ```sh
-    kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
-    ```
 1. Set up RBAC: Since Akri does not have RBAC policy set up yet, for now, grant all pods admin access.
     ```sh
     kubectl create clusterrolebinding serviceaccounts-cluster-admin  --clusterrole=cluster-admin  --group=system:serviceaccounts
@@ -80,7 +76,6 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        --set imagePullSecrets[0].name="regcred" \
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
         --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'

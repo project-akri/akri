@@ -12,7 +12,6 @@ To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true
 ```
 This will start the Akri controller and deploy Akri Agents.
@@ -23,7 +22,6 @@ installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -46,7 +44,6 @@ say an IP camera with IP address 10.0.0.1 is malfunctioning and should be filter
 command could be run:
 ```bash 
 helm upgrade akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \
@@ -151,7 +148,6 @@ Another Configuration can be added to the cluster by using `helm upgrade`. If yo
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
 ```bash
 helm upgrade akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -170,7 +166,6 @@ have been installed in a cluster, the udev Configuration can be deleted by only 
 `helm upgrade` command like the following:
 ```bash
 helm upgrade akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true 
 ```

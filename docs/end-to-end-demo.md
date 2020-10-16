@@ -45,10 +45,6 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
-1. Apply Docker secret to cluster in order to pull down Akri Agent, Controller, Broker, and Sample App pods.
-    ```sh
-    kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
-    ```
 
 ## Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
@@ -78,10 +74,6 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
 1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
-    ```
-1. Apply Docker secret to cluster in order to pull down Akri Agent, Controller, Broker, and Sample App pods.
-    ```sh
-    kubectl create secret docker-registry regcred --docker-server=ghcr.io  --docker-username=<request username> --docker-password=<request password>
     ```
 1. Set up role-based access control (RBAC): Since Akri does not have RBAC policy set up yet, for now, grant all pods admin access.
     ```sh
@@ -124,7 +116,6 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        --set imagePullSecrets[0].name="regcred" \
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
         --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
