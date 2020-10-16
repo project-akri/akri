@@ -26,8 +26,7 @@ def main():
     print("Testing major version: {}".format(shared_test_code.major_version))
 
     print("Installing Akri Helm chart: {}".format(test_version))
-    # TODO: paramaterize or remove "regcred" secret name
-    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set imagePullSecrets[0].name='regcred' --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true".format(test_version, shared_test_code.DEBUG_ECHO_NAME)
+    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true".format(test_version, shared_test_code.DEBUG_ECHO_NAME)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     
