@@ -1,9 +1,9 @@
 # v0.0.35
 
 ## Announcing the Akri v0.0.35 pre-release!
-Akri v0.0.35 is the first pre-release of Akri.  To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/main/README.md).  
+Akri v0.0.35 is the first pre-release of Akri.
 
-Join the discussion in the [#akri](https://kubernetes.slack.com/messages/akri) Kubernetes slack channel!
+To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/main/README.md) and start [contributing](https://github.com/deislabs/akri/blob/main/docs/contributing.md) today!
 
 ## New Features
 The v0.0.35 release introduces a number of significant features!
