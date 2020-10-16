@@ -9,6 +9,7 @@ To develop, you'll need:
     sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.41.0
     cargo version
     ```
+- .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/en-us/dotnet/core/install/linux-ubuntu)
 
 In order to cross-build containers for both ARM and x64, several tools are leveraged:
 
@@ -28,9 +29,22 @@ In order to cross-build containers for both ARM and x64, several tools are lever
 ## Build and Test
 
 ### Local builds and tests
-Navigate to the repo's top folder (where this README is) and type `cargo build`
+1. Navigate to the repo's top folder (where this README is)
+1. Install prerequisites
+    ```sh
+    ./build/setup.sh
+    ```
+1. Build Controller, Agent, and udev broker
+    ```sh
+    cargo build
+    ```
+1. Build ONVIF broker
+    ```sh
+    cd ./samples/brokers/onvif-video-broker
+    dotnet build
+    ```
 
-To run all unit tests, simply navigate to the repo's top folder (where this README is) and type `cargo test`
+There are unit tests for all of the Rust code.  To run all unit tests, simply navigate to the repo's top folder (where this README is) and type `cargo test`
 
 To locally run the controller as part of a k8s cluster, follow these steps:
 
