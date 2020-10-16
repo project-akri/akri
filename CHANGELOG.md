@@ -22,7 +22,7 @@ View the [full change log](https://github.com/deislabs/akri/commits/v0.0.35)
 N/A
 
 ## Known Issues
-* Missing RBAC support
+N/A
 
 ## What's next?
 Check out our [roadmap](https://github.com/deislabs/akri/blob/main/docs/roadmap.md) to see the features we are looking forward to!
