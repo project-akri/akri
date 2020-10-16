@@ -12,7 +12,7 @@ If you are using [MicroK8s](https://microk8s.io/docs), enable dns and rbac, allo
     ```sh
     microk8s enable dns
     ```
-1. Enable rbac.
+1. Optionally enable rbac.
     ```sh
     microk8s enable rbac
     ```
