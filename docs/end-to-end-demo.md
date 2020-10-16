@@ -35,7 +35,7 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     microk8s enable dns
     ```
-1. Enable rbac.
+1. Optionally enable rbac.
     ```sh
     microk8s enable rbac
     ```
