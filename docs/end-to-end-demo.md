@@ -75,10 +75,6 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
-1. Set up role-based access control (RBAC): Since Akri does not have RBAC policy set up yet, for now, grant all pods admin access.
-    ```sh
-    kubectl create clusterrolebinding serviceaccounts-cluster-admin --clusterrole=cluster-admin --group=system:serviceaccounts
-    ```
 
 ## Set up mock udev video devices
 1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
