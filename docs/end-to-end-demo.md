@@ -1,7 +1,10 @@
-# End to End Demo   
-This demo will demonstrate end to end Akri flow, all the way from discovering local video cameras to the footage being streamed on a web application. This will show how akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
+# End-to-End Demo
+In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
-## Set up single node cluster using MicroK8s
+**Note:** The first step can be performed either via MicroK8s or K3s. Select and
+carry out one or the other, then continue on with the rest of the steps. 
+
+## Option 1: Set up single node cluster using MicroK8s
 1. Acquire an Ubuntu 18.04 LTS or 16.04 LTS environment to run the commands.
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
@@ -50,7 +53,7 @@ This demo will demonstrate end to end Akri flow, all the way from discovering lo
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
 
-## Set up single node cluster using K3s
+## Option 2: Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
 1. Install [K3s](https://k3s.io/).
     ```sh
