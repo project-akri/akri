@@ -9,12 +9,12 @@ Join the discussion in the [#akri](https://kubernetes.slack.com/messages/akri) K
 The v0.0.35 release introduces a number of significant features!
 
 * CRDs to allow the discovery and utilization of leaf devices
-* an agent and controller to find, advertise, and utilize leaf devices
-* discovery for IP cameras using the ONVIF protocol
-* an ONVIF broker to serve the camera frames
-* discovery for leaf devices expsed through udev
-* a udev camera broker to serve the camera frames
-* a Helm chart to simplify Akri deployment
+* An agent and controller to find, advertise, and utilize leaf devices
+* Discovery for IP cameras using the ONVIF protocol
+* An ONVIF broker to serve the camera frames
+* Discovery for leaf devices exposed through udev
+* A udev camera broker to serve the camera frames
+* A Helm chart to simplify Akri deployment
 
 View the [full change log](https://github.com/deislabs/akri/commits/v0.0.35)
 
