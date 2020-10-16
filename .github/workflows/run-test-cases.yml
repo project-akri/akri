@@ -60,6 +60,8 @@ jobs:
         sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
         sudo cat ~/.kube/config
         sudo microk8s.enable helm3
+    - name: MicroK8s enable RBAC
+      run: sudo microk8s.enable rbac
     - name: MicroK8s enable DNS
       run: sudo microk8s.enable dns
     - name: MicroK8s allow privileged pods
