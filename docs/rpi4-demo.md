@@ -1,5 +1,5 @@
 # Raspberry Pi 4 Demo   
-This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all the way from discovering local video cameras to the footage being streamed on a web application. This will show how akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
+This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all the way from discovering local video cameras to the footage being streamed on a web application. This will show how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabbing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
 ## Set up single node cluster on a Raspberry Pi 4
 1. Using instructions found [here](https://ubuntu.com/download/raspberry-pi), download 64-bit Ubuntu:18.04
@@ -79,7 +79,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```
     Run `kubectl get crd`, and you should see the crds listed.
     Run `kubectl get pods -o wide`, and you should see the Akri pods.
-    Run `kubectl get akric`, and you should see `akri-udev-video`. If IP cameras were discovered and pods spun up, the instances can be seen by running `kubectl get akrii` and further inspected by runing `kubectl get akrii akri-udev-video-<ID> -o yaml`
+    Run `kubectl get akric`, and you should see `akri-udev-video`. If IP cameras were discovered and pods spun up, the instances can be seen by running `kubectl get akrii` and further inspected by running `kubectl get akrii akri-udev-video-<ID> -o yaml`
 
 1. Inspect the two instances, seeing that the correct devnodes in the metadata and that one of the usage slots for each instance was reseved for this node.
     ```sh 
