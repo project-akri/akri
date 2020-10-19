@@ -62,7 +62,7 @@ The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/refe
     --set udevVideo.brokerPod.env.fps=30
 ```
 
-**Note:** that udev broker pods must run as priveleged in order for udev to be able to access the video device.
+**Note:** that udev broker pods must run as privileged in order for udev to be able to access the video device.
 
 Reference [Modifying a Akri Installation](./modifying-akri-installation#modifying-the-brokerpodspec)) for more examples of how the broker spec can be modified. 
 

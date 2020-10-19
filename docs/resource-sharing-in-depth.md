@@ -34,7 +34,7 @@ During this initialization, a separate, but similar, mapping is sent to the kube
     my-resource-00095f-4: "Healthy"
 ```
 
-When the kubelet attempts to schedule a workload on a specific Node, that Node's Akri Agent will be queried with a slot name (this slot name is chosen by the kubelet from the mapping list that Akri Agent sent it).  Akri Agent will query the appropriate Instance to see if that resource is still visisble and if the mapping for that slot is still empty.  If both of these requirements are met, then the Akri Agent will update the `Instance.deviceUsage` map to claim the slot, and will allow the kubelet to schedule its intended workload.  After this, the `Instance.deviceUsage` may look something like this:
+When the kubelet attempts to schedule a workload on a specific Node, that Node's Akri Agent will be queried with a slot name (this slot name is chosen by the kubelet from the mapping list that Akri Agent sent it).  Akri Agent will query the appropriate Instance to see if that resource is still visible and if the mapping for that slot is still empty.  If both of these requirements are met, then the Akri Agent will update the `Instance.deviceUsage` map to claim the slot, and will allow the kubelet to schedule its intended workload.  After this, the `Instance.deviceUsage` may look something like this:
 
 ```yaml
   deviceUsage:
@@ -59,7 +59,7 @@ These two steps will ensure that a specific slot is only used by one Node.
 
 There is a possible race condition here.  What happens if Kubernetes tries to schedule a workload after the `Instance.deviceUsage` slot has been claimed, but before other Nodes have reported the slot as Unhealthy?
 
-In this case, we can depend on the Instance as the truth.  If the kubelet sends a query with a slot name that is claimed by another node in `DevicresourceInstance.deviceUsage`, an error is returned to the kubelet and the workload will not be scheduled.
+In this case, we can depend on the Instance as the truth.  If the kubelet sends a query with a slot name that is claimed by another node in `Instance.deviceUsage`, an error is returned to the kubelet and the workload will not be scheduled.
 
 ### Special case: workload disappearance
 There is one case that is not addressed above: when a workload fails, finishes, or generally no longer exists.  In this case, the slot that the workload claimed needs to be released.

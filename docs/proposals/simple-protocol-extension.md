@@ -3,7 +3,7 @@
 ## Background
 All protocol discovery is currently implemented in each Akri Agent. This is a simple model, but one can imagine some drawbacks:
 
-1. Potentially, this can make each Agent bigger than it needs to be.  For example, Agent contains implements for ONVIF, udev, and OPCUA discovery … but someone may simply want OPCUA.
+1. Potentially, this can make each Agent bigger than it needs to be.  For example, Agent contains implementations for ONVIF, udev discovery … but someone may simply want ONVIF.
 1. Choosing what protocols are distributed is a build-time decision.  If someone only expected to use the udev implementation, they would need to rebuild Agent, excluding the other protocols.
 1. Implementing a new protocol requires changes to Agent.  To add a Foo protocol, the Configuration CRD needs to be changed, Agent's Configuration parsing/handling code needs to be changed, and Agent needs to implement discovery for Foo.
 
@@ -40,5 +40,5 @@ Wouldn't it be great if users could deploy only the implementations they wanted?
     ```
 
 ### Issues
-* The Akri.Configuration CRD, which Agent parses, explicitly describes all possible protocols.  The protocol definition will need to change to be more genericly parsable (maybe to a named property list, where the name is the protocol)
+* The Akri.Configuration CRD, which Agent parses, explicitly describes all possible protocols.  The protocol definition will need to change to be more generically parsable (maybe to a named property list, where the name is the protocol)
 * Rust doesn't have a built-in plug-in system

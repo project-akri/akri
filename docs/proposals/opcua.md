@@ -26,7 +26,7 @@ maintains a list of OPC UA Servers that are available on the network and provide
 list”.<sup>1</sup> A LocalDiscoveryServer is a DiscoveryServer implementation, which usually runs on a host at the URL
 `opc.tcp://localhost:4840/UADiscovery` for TCP.<sup>2</sup> An LDS maintains a list of all servers that have
 **registered with it**, which are usually servers running on the same host. An operator can specify a list of
-DiscoveryURLs for LDSes in the OPC UA Configuration. 
+DiscoveryURLs for LDSs in the OPC UA Configuration. 
 
 **Note**: Agent's `OpcuaDiscoveryMethod::standard`, which does
 both of the discovery via Server DiscoveryURLs and discovery via a Local Discovery Server listed above, only supports

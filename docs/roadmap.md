@@ -19,7 +19,6 @@ for more details.
 ### Prioritization of protocols to support
 1. OPC UA (to discovery OPC UA Servers) 
     - [Proposal uploaded](./proposals/opcua.md)
-    - Working end to end solution in [opcua branch](https://github.com/deislabs/akri/tree/opcua) has yet to be merged into main
 1. MQTT
 1. Bluetooth
 1. AMQP
