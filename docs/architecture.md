@@ -81,7 +81,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       nodes:
       - "<this-node>"
     ```
-1. Controller reaches out to API Server for Instance changes. It sees that a new Instance has been created. It schedules a pod to one of the nodes on the Instance’s nodes list, adding the Instance’s name as a resource limit of the pod. Note that the pod is currently in pending state.
+1. The Controller is notified by the API Server of Instance changes. It is informed that a new Instance has been created. It schedules a pod to one of the nodes on the Instance’s nodes list, adding the Instance’s name as a resource limit of the pod. Note that the pod is currently in pending state.
     ```yaml
     kind: Pod
     metadata:
@@ -132,4 +132,4 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       nodes:
       - "<this-node>"
     ```
-1. The kubelet will run the pod. (Else, if allocate returns false, the pod will stay in a pending state and the controller will eventually bring it down.) The broker is now running and has the information necessary to communicate with the specific device. 
+1. Allocate will return `false` if kubelet requests a `deviceUsage` slot that is already taken. See the [resource sharing document](./resource-sharing-in-depth#instance.deviceUsage) for a better understanding on how this is resolved. Otherwise, upon a `true` result, the kubelet will run the pod. The broker is now running and has the information necessary to communicate with the specific device. 

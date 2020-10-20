@@ -59,7 +59,7 @@ These two steps will ensure that a specific slot is only used by one Node.
 
 There is a possible race condition here.  What happens if Kubernetes tries to schedule a workload after the `Instance.deviceUsage` slot has been claimed, but before other Nodes have reported the slot as Unhealthy?
 
-In this case, we can depend on the Instance as the truth.  If the kubelet sends a query with a slot name that is claimed by another node in `Instance.deviceUsage`, an error is returned to the kubelet and the workload will not be scheduled.
+In this case, we can depend on the Instance as the truth.  If the kubelet sends a query with a slot name that is claimed by another node in `Instance.deviceUsage`, an error is returned to the kubelet and the workload will not be scheduled. Instead, the pod will stay in a `Pending` state until the Akri Controller brings it down. The Akri Agent will immediately notify the kubelet of the accurate `deviceUsage` slot availability and continue to periodically do this (as usual). Once the pod has been brought down by the Controller, if there are still some slots available, the Controller may reschedule the pod to that Node. Then, the kubelet can attempt to reserve a slot again, this time hopefully not hitting a collision. 
 
 ### Special case: workload disappearance
 There is one case that is not addressed above: when a workload fails, finishes, or generally no longer exists.  In this case, the slot that the workload claimed needs to be released.
