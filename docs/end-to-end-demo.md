@@ -1,11 +1,41 @@
 # End-to-End Demo
 In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
-**Note:** The first step can be performed either via MicroK8s or K3s. Select and
+**Note:** The first step can be performed either via K3s or MicroK8s. Select and
 carry out one or the other, then continue on with the rest of the steps. 
 
-## Option 1: Set up single node cluster using MicroK8s
-1. Acquire an Ubuntu 18.04 LTS or 16.04 LTS environment to run the commands.
+## Option 1: Set up single node cluster using K3s
+1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
+1. Install [K3s](https://k3s.io/).
+    ```sh
+    curl -sfL https://get.k3s.io | sh -
+    ```
+1. Grant admin privilege to access kubeconfig.
+    ```sh
+    sudo addgroup k3s-admin
+    sudo adduser $USER k3s-admin
+    sudo usermod -a -G k3s-admin $USER
+    sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
+    sudo chmod g+r /etc/rancher/k3s/k3s.yaml
+    su - $USER
+    ```
+1. Check K3s status.
+    ```sh
+    kubectl get node
+    ```
+1. Install Helm.
+    ```sh
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    sudo apt install -y curl
+    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+    ```
+1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
+    ```sh
+    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+    ```
+
+## Option 2: Set up single node cluster using MicroK8s
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands.
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
@@ -49,36 +79,6 @@ carry out one or the other, then continue on with the rest of the steps.
     microk8s.start
     ```
 1. Since MicroK8s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
-    ```
-
-## Option 2: Set up single node cluster using K3s
-1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
-1. Install [K3s](https://k3s.io/).
-    ```sh
-    curl -sfL https://get.k3s.io | sh -
-    ```
-1. Grant admin privilege to access kubeconfig.
-    ```sh
-    sudo addgroup k3s-admin
-    sudo adduser $USER k3s-admin
-    sudo usermod -a -G k3s-admin $USER
-    sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
-    sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-    su - $USER
-    ```
-1. Check K3s status.
-    ```sh
-    kubectl get node
-    ```
-1. Install Helm.
-    ```sh
-    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
