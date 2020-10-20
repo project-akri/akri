@@ -7,58 +7,44 @@ To get started using Akri, you must first decide what you want to discover and w
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
 
-If you are using [MicroK8s](https://microk8s.io/docs), enable dns and rbac, allow privileged pods and label the master node:
-1. Enable dns.
-    ```sh
-    microk8s enable dns
-    ```
-1. Optionally enable rbac.
-    ```sh
-    microk8s enable rbac
-    ```
-1. Enable privileged pods and restart MicroK8s.
-    ```sh
-    echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
-    microk8s.stop
-    microk8s.start
-    ```
- 1. Since MicroK8s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
-    ```
-
-If you are using [K3s](https://k3s.io/), modify the control plane node(s) `node-role.kubernetes.io/master=true` label to remove the `true` value:
-```sh
-kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
-```
-
 ### Deploying Akri
 1. Install Helm
     ```sh
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
     ```
-1. Provide runtime-specific configuration
+1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using K3s, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl
+    1. If using **K3s**, add the `node-role.kubernetes.io/master=` label to the control plane, point to `kubeconfig` for Helm, and configure Akri to use the K3s embedded crictl.
         ```sh
+        # Add master label to control plane so that Akri can schedule the controller
+        kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
+        # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        # Configure Akri to use K3s' embedded crictl and CNI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
-    1. If using MicroK8s, enable Helm, install crictl, and configure Akri to use MicroK8s' CNI socket.
+    1. If using **MicroK8s**, enable dns, rbac (optional), enable privileged pods, enable Helm, install crictl, and configure Akri to use MicroK8s' CNI socket.
         ```sh
+        # Enable dns
+        microk8s enable dns
+        # Enable rbac (optional)
+        microk8s enable rbac
+        # Enable Helm for MicroK8s
         kubectl config view --raw >~/.kube/config
         chmod go-rwx ~/.kube/config
         microk8s enable helm3
-
-        # Note that we aren't aware of any version restrictions
+        
+        # Install crictl locally (note: there are no known version
+        # limitations, any crictl version is expected to work)
         VERSION="v1.17.0"
         curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
         sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
         rm -f crictl-$VERSION-linux-amd64.tar.gz
 
+        # Configure Akri to use MicroK8s' CNI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
         ```
-    1. If using Kubernetes, Helm and crictl do not require additional configuration.
+    1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
 
 1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
     ```sh
