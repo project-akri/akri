@@ -12,6 +12,9 @@ GROUP = "akri.sh"
 AGENT_LOG_PATH = "/tmp/agent_log.txt"
 CONTROLLER_LOG_PATH = "/tmp/controller_log.txt"
 DEBUG_ECHO_NAME = "akri-debug-echo-foo"
+KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
+RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
+HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
 VERSION_FILE = "/tmp/version_to_test.txt"
 SLEEP_DURATION_FILE = "/tmp/sleep_duration.txt"
 SLEEP_INTERVAL = 20
@@ -39,6 +42,18 @@ def helm_update():
     # Update Helm and install this version's chart
     os.system("helm repo update")
 
+def get_kubeconfig_path():
+    # Get kubeconfig path
+    return open(KUBE_CONFIG_PATH_FILE, "r").readline().rstrip()
+
+def get_kubectl_command():
+    # Get kubectl command
+    return open(RUNTIME_COMMAND_FILE, "r").readline().rstrip()
+
+def get_cri_args():
+    # Get CRI args for Akri Helm
+    return open(HELM_CRI_ARGS_FILE, "r").readline().rstrip()
+
 def get_test_version():
     # Get version of akri to test
     if os.path.exists(VERSION_FILE):
@@ -46,8 +61,9 @@ def get_test_version():
     return  open("version.txt", "r").readline().rstrip()
 
 def save_agent_and_controller_logs():
-    os.system("sudo microk8s kubectl logs {} >> {}".format(agent_pod_name, AGENT_LOG_PATH))
-    os.system("sudo microk8s kubectl logs {} >> {}".format(controller_pod_name, CONTROLLER_LOG_PATH))
+    kubectl_cmd = get_kubectl_command()
+    os.system("sudo {} logs {} >> {}".format(kubectl_cmd, agent_pod_name, AGENT_LOG_PATH))
+    os.system("sudo {} logs {} >> {}".format(kubectl_cmd, controller_pod_name, CONTROLLER_LOG_PATH))
 
 
 def crds_applied():

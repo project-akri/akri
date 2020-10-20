@@ -26,7 +26,9 @@ def main():
     print("Testing major version: {}".format(shared_test_code.major_version))
 
     print("Installing Akri Helm chart: {}".format(test_version))
-    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true".format(test_version, shared_test_code.DEBUG_ECHO_NAME)
+    cri_args = shared_test_code.get_cri_args()
+    print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
+    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true {}".format(test_version, shared_test_code.DEBUG_ECHO_NAME, cri_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     
@@ -53,8 +55,9 @@ def main():
         raise RuntimeError("Scenario Failed")
 
 def do_test():
-    print("Loading k8s config")
-    config.load_kube_config(config_file="~/.kube/config")
+    kubeconfig_path = shared_test_code.get_kubeconfig_path()
+    print("Loading k8s config: {}".format(kubeconfig_path))
+    config.load_kube_config(config_file=kubeconfig_path)
 
     # Ensure Helm Akri installation applied CRDs and set up agent and controller
     print("Checking for CRDs")
