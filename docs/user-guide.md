@@ -14,7 +14,7 @@ To get started using Akri, you must first decide what you want to discover and w
     ```
 1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using **K3s**, add the `node-role.kubernetes.io/master=` label to the control plane, point to `kubeconfig` for Helm, and configure Akri to use the K3s embedded crictl
+    1. If using **K3s**, add the `node-role.kubernetes.io/master=` label to the control plane, point to `kubeconfig` for Helm, and configure Akri to use the K3s embedded crictl.
         ```sh
         # Add master label to control plane so that Akri can schedule the controller
         kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
