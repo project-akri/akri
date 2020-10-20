@@ -37,15 +37,24 @@ kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
     ```sh
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
     ```
-1. If using MicroK8s, enable Helm.
+1. If using MicroK8s, enable Helm, install crictl, and configure Akri to use MicroK8s' CNI socket.
     ```sh
     kubectl config view --raw >~/.kube/config
     chmod go-rwx ~/.kube/config
     microk8s enable helm3
+
+    # Note that we aren't aware of any version restrictions
+    VERSION="v1.17.0"
+    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-$VERSION-linux-amd64.tar.gz
+
+    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
     ```
-1. If using K3s, point to `kubeconfig` for Helm.
+1. If using K3s, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl
     ```sh
     export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
 1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
     ```sh
