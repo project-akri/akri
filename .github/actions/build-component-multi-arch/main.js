@@ -30,7 +30,7 @@ async function shell_cmd(cmd) {
         const latest_label = `latest${dev_suffix}`;
         console.log(`Use labels: versioned=${versioned_label} latest=${latest_label}`);
 
-        console.log(`Login into Dockerhub user=${core.getInput('dockerhub_username')}`);
+        console.log(`Log into dockerhub to avoid throttled anonymous dockerhub pulls user=${core.getInput('dockerhub_username')}`);
         await shell_cmd(`echo "${core.getInput('dockerhub_password')}" | docker login -u ${core.getInput('dockerhub_username')} --password-stdin`);
 
         console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);
