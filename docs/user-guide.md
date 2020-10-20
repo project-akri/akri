@@ -20,10 +20,10 @@ To get started using Akri, you must first decide what you want to discover and w
         kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
         # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-        # Configure Akri to use K3s' embedded crictl and CNI socket
+        # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
-    1. If using **MicroK8s**, enable dns, rbac (optional), enable privileged pods, enable Helm, install crictl, and configure Akri to use MicroK8s' CNI socket.
+    1. If using **MicroK8s**, enable dns, rbac (optional), enable privileged pods, enable Helm, install crictl, and configure Akri to use MicroK8s' CRI socket.
         ```sh
         # Enable dns
         microk8s enable dns
@@ -41,7 +41,7 @@ To get started using Akri, you must first decide what you want to discover and w
         sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
         rm -f crictl-$VERSION-linux-amd64.tar.gz
 
-        # Configure Akri to use MicroK8s' CNI socket
+        # Configure Akri to use MicroK8s' CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
         ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
