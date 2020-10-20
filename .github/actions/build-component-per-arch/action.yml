@@ -2,13 +2,13 @@ name: 'build-component-per-arch'
 description: 'Build Akri Component Container'
 inputs:
   container_registry_base_url:
-    description: Azure Container Registry
+    description: Container Registry
     required: true
   container_registry_username:
-    description: Azure Container Registry name
+    description: Container Registry name
     required: true
   container_registry_password:
-    description: Azure Container Registry password
+    description: Container Registry password
     required: true
   container_name:
     description: Component container name
@@ -36,6 +36,12 @@ inputs:
     required: true
   github_merged:
     description: Specify whether a PR has been merged
+    required: true
+  dockerhub_username:
+    description: Dockerhub name
+    required: true
+  dockerhub_password:
+    description: Dockerhub password
     required: true
 runs:
   using: 'node12'
