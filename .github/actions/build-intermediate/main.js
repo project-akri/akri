@@ -25,7 +25,7 @@ async function shell_cmd(cmd) {
     try {
         console.log(`Start main.js`)
 
-        console.log(`Login into Dockerhub user=${core.getInput('dockerhub_username')}`);
+        console.log(`Log into dockerhub to avoid throttled anonymous dockerhub pulls user=${core.getInput('dockerhub_username')}`);
         await shell_cmd(`echo "${core.getInput('dockerhub_password')}" | docker login -u ${core.getInput('dockerhub_username')} --password-stdin`);
 
         console.log(`Use multiarch/qemu-user-static to configure cross-plat`);
