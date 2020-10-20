@@ -33,7 +33,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
-1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket
+1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket.
     ```sh
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
@@ -86,7 +86,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
-1. Akri depends on crictl to track some Pod information and becase Microk8s does not install crictl locally, crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and Microk8s containerd socket
+1. Akri depends on crictl to track some Pod information. MicroK8s does not install crictl locally, so crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and MicroK8s containerd socket.
     ```sh
     # Note that we aren't aware of any version restrictions
     VERSION="v1.17.0"
