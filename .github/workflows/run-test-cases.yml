@@ -49,7 +49,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install kubernetes
     
-    - if: matrix.runtime == 'k3s'
+    - if: matrix.kube-runtime == 'k3s'
       name: Install K3s
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
@@ -63,7 +63,7 @@ jobs:
         echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '/etc/rancher/k3s/k3s.yaml' > /tmp/kubeconfig_path_to_test.txt
 
-    - if: matrix.runtime == 'microk8s'
+    - if: matrix.kube-runtime == 'microk8s'
       continue-on-error: true
       name: Install K3s
       run: |
