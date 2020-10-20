@@ -64,6 +64,7 @@ kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
+        $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set onvifVideo.enabled=true
     watch kubectl get pods,akric,akrii -o wide
