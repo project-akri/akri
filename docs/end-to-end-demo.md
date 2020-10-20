@@ -33,6 +33,10 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
+1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket.
+    ```sh
+    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
+    ```
 
 ## Option 2: Set up single node cluster using MicroK8s
 1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands.
@@ -82,6 +86,16 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
+1. Akri depends on crictl to track some Pod information. MicroK8s does not install crictl locally, so crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and MicroK8s containerd socket.
+    ```sh
+    # Note that we aren't aware of any version restrictions
+    VERSION="v1.17.0"
+    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+    rm -f crictl-$VERSION-linux-amd64.tar.gz
+
+    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
+    ```
 
 ## Set up mock udev video devices
 1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
@@ -119,6 +133,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
+        $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
         --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'

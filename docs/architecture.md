@@ -132,4 +132,4 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       nodes:
       - "<this-node>"
     ```
-1. Allocate will return `false` if kubelet requests a `deviceUsage` slot that is already taken. See the [resource sharing document](./resource-sharing-in-depth#instance.deviceUsage) for a better understanding on how this is resolved. Otherwise, upon a `true` result, the kubelet will run the pod. The broker is now running and has the information necessary to communicate with the specific device. 
+1. Allocate will return `false` if kubelet requests a `deviceUsage` slot that is already taken. See the [resource sharing document](./resource-sharing-in-depth.md#instancedeviceusage) for a better understanding on how this is resolved. Otherwise, upon a `true` result, the kubelet will run the pod. The broker is now running and has the information necessary to communicate with the specific device. 
