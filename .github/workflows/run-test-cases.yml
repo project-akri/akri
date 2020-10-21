@@ -1,4 +1,4 @@
-name: Run End-to-End Scenario
+name: Test K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
@@ -18,9 +18,15 @@ on:
 jobs:
   test-cases:
     runs-on: ubuntu-18.04
+    timeout-minutes: 20
+
     strategy:
       fail-fast: false
       matrix:
+        kube-runtime:
+          - K3s
+          - MicroK8s
+          - Kubernetes
         test-case:
           - end-to-end
           - helm-install-delete
@@ -44,39 +50,68 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install kubernetes
-    - name: Install MicroK8s
-      run: sudo snap install microk8s --classic --channel=1.18/stable
-    - name: wait for Microk8s to be ready
-      run: sudo microk8s status --wait-ready
-    - name: Add user to MicroK8s
-      run:  sudo usermod -a -G microk8s $USER
-    - name: make user kube owner
-      run:  |
+    
+    - if: matrix.kube-runtime == 'K3s'
+      name: Install K3s
+      run: |
+        sudo curl -sfL https://get.k3s.io | sh -
+        sudo addgroup k3s-admin
+        sudo adduser $USER k3s-admin
+        sudo usermod -a -G k3s-admin $USER
+        sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
+        sudo chmod g+r /etc/rancher/k3s/k3s.yaml
+        sudo chmod 666 /etc/rancher/k3s/* 
+        mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+        echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
+        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
+        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+        until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+
+    - if: matrix.kube-runtime == 'Kubernetes'
+      name: Install Kubernetes
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y kubelet kubeadm kubectl kubernetes-cni
+        sudo swapoff -a              
+        sudo kubeadm init
+        sudo mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        kubectl taint nodes --all node-role.kubernetes.io/master-
+        echo '--set agent.host.crictl=/usr/bin/crictl --set agent.host.dockerShimSock=/var/run/dockershim.sock' > /tmp/cri_args_to_test.txt
+        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
+        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+        until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
+        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+
+    - if: matrix.kube-runtime == 'MicroK8s'
+      name: Install MicroK8s
+      run: |
+        sudo snap install microk8s --classic --channel=1.18/stable
+        sudo microk8s status --wait-ready
+        sudo usermod -a -G microk8s $USER
         sudo ls -la $HOME/.kube
         echo sudo chown $(id -u):$(id -g) $HOME/.kube
         sudo chown -f -R $USER $HOME/.kube --verbose
-    - name: Enable Helm
-      run: | 
         sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
         sudo cat ~/.kube/config
         sudo microk8s.enable helm3
-    - name: MicroK8s enable RBAC
-      run: sudo microk8s.enable rbac
-    - name: MicroK8s enable DNS
-      run: sudo microk8s.enable dns
-    - name: MicroK8s allow privileged pods
-      run: |
+        sudo microk8s.enable rbac
+        sudo microk8s.enable dns
         echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kube-apiserver
-    - name: MicroK8s stop
-      run: sudo microk8s.stop
-    - name: MicroK8s start
-      run: sudo microk8s.start
-      # Check for error with wait ready in next step
-      continue-on-error: true
-    - name: MicroK8s wait ready
-      run: sudo microk8s.status --wait-ready
-    - name: Label master node
-      run: sudo microk8s kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+        sudo microk8s.stop
+        sudo microk8s.start
+        sudo microk8s.status --wait-ready
+        sudo microk8s kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+        VERSION="v1.17.0"
+        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+        rm -f crictl-$VERSION-linux-amd64.tar.gz
+        echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock' > /tmp/cri_args_to_test.txt
+        echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
+        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
     - if: github.event_name == 'push'
@@ -96,11 +131,11 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ matrix.test-case }}-agent-log
+        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-agent-log
         path: /tmp/agent_log.txt
     - name: Upload controller log as artifact
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ matrix.test-case }}-controller-log
+        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-controller-log
         path: /tmp/controller_log.txt

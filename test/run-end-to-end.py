@@ -26,7 +26,9 @@ def main():
     print("Testing major version: {}".format(shared_test_code.major_version))
 
     print("Installing Akri Helm chart: {}".format(test_version))
-    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true".format(test_version, shared_test_code.DEBUG_ECHO_NAME)
+    cri_args = shared_test_code.get_cri_args()
+    print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
+    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true {}".format(test_version, shared_test_code.DEBUG_ECHO_NAME, cri_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     
@@ -55,8 +57,12 @@ def main():
 
 
 def do_test():
-    print("Loading k8s config")
-    config.load_kube_config(config_file="~/.kube/config")
+    kubeconfig_path = shared_test_code.get_kubeconfig_path()
+    print("Loading k8s config: {}".format(kubeconfig_path))
+    config.load_kube_config(config_file=kubeconfig_path)
+
+    # Get kubectl command
+    kubectl_cmd = shared_test_code.get_kubectl_command()
 
     # Ensure Helm Akri installation applied CRDs and set up agent and controller
     print("Checking for CRDs")
@@ -67,37 +73,44 @@ def do_test():
     print("Checking for initial Akri state")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
         print("Akri not running in expected state")
-        os.system('sudo microk8s  kubectl get pods,services,akric,akrii --show-labels')
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
     
     # Do offline scenario
     print("Writing to Agent pod {} that device offline".format(shared_test_code.agent_pod_name))
-    os.system('sudo microk8s kubectl exec -i {} -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
 
     print("Checking Akri state after taking device offline")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state after taking device offline")
-        os.system('sudo microk8s  kubectl get pods,services,akric,akrii --show-labels')
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
 
     # Do back online scenario
     print("Writing to Agent pod {} that device online".format(shared_test_code.agent_pod_name))
-    os.system('sudo microk8s kubectl exec -i {} -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
     
     print("Checking Akri state after bringing device back online")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
         print("Akri not running in expected state after bringing device back online")
-        os.system('sudo microk8s  kubectl get pods,services,akric,akrii --show-labels')
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        return False
+
+    # Check Akri slot reconiliation logs for success
+    print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
+    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    if result != 0:
+        print("Akri failed to successfully connect to crictl via the CRI socket")
         return False
 
     # Do cleanup scenario
     print("Deleting Akri configuration: {}".format(shared_test_code.DEBUG_ECHO_NAME))
-    os.system("sudo microk8s kubectl delete akric {}".format(shared_test_code.DEBUG_ECHO_NAME))
+    os.system("sudo {} delete akric {}".format(kubectl_cmd, shared_test_code.DEBUG_ECHO_NAME))
 
     print("Checking Akri state after deleting configuration")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state after deleting configuration")
-        os.system('sudo microk8s  kubectl get pods,services,akric,akrii --show-labels')
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
 
     return True    
