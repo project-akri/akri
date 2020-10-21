@@ -63,6 +63,7 @@ jobs:
         echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'microk8s'
       continue-on-error: true
