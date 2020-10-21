@@ -1,4 +1,4 @@
-name: Test Akri with K3s, Kubernetes, and MicroK8s
+name: Test K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
