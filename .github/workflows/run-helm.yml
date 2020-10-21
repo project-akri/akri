@@ -51,6 +51,21 @@ jobs:
 
       - uses: azure/setup-helm@v1
 
+      # We should generate two sets of akri charts.  One for our releases (akri)
+      # and one for our merged PRs (akri-dev).  'akri' should only be created for
+      # our releases and should default to not use dev containers.  'akri-dev'
+      # should build for any merged PR and should default to use our dev containers.
+      - name: Split into akri and akri-dev charts (this step is for release == akri)
+        if: (github.event_name == 'release')
+        run: |
+          sed -i s/"name: akri"/"name: akri"/g ./deployment/helm/Chart.yaml
+          sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: false"/g ./deployment/helm/values.yaml
+      - name: Split into akri and akri-dev charts (this step is for !release == akri-dev)
+        if: (github.event_name == 'release')
+        run: |
+          sed -i s/"name: akri"/"name: akri-dev"/g ./deployment/helm/Chart.yaml
+          sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: true"/g ./deployment/helm/values.yaml
+
       - name: Lint helm chart
         run: helm lint deployment/helm
 
