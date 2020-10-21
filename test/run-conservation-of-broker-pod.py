@@ -117,7 +117,7 @@ def do_test():
 
     # Check Akri slot reconiliation logs for success
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} logs $({} get pods | grep agent | awk \'{{print $1}}\') | grep "get_node_slots - crictl called successfully"'.format(kubectl_cmd, kubectl_cmd))
+    os.system('sudo {} logs $(sudo {} get pods | grep agent | awk \'{{print $1}}\') | grep "get_node_slots - crictl called successfullyd" | wc -l | grep -v 0'.format(kubectl_cmd, kubectl_cmd))
 
     return True    
 
