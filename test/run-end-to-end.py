@@ -96,6 +96,10 @@ def do_test():
         os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
 
+    # Check Akri slot reconiliation logs for success
+    print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
+    os.system('sudo {} logs $(sudo {} get pods | grep agent | awk \'{{print $1}}\') | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, kubectl_cmd))
+
     # Do cleanup scenario
     print("Deleting Akri configuration: {}".format(shared_test_code.DEBUG_ECHO_NAME))
     os.system("sudo {} delete akric {}".format(kubectl_cmd, shared_test_code.DEBUG_ECHO_NAME))
