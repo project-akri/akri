@@ -1,28 +1,28 @@
 # Roadmap
 ## Implement additional protocol handlers
 There are endless sensors, controllers, and MCU class devices on the edge and each type of device has a different
-discovery protocol. Akri is an interface for helping expose those devices as resources to your Kubernetes cluster on
-the edge. Before it can add a device as a cluster resource, Akri must first discover the device using the appropriate
+discovery protocol. Akri is an interface for helping expose those devices as resources to your Kubernetes cluster on the
+edge. Before it can add a device as a cluster resource, Akri must first discover the device using the appropriate
 protocol. Akri currently supports several protocols and was built in a modular way so as to continually support more.
-The question is, which protocols should Akri prioritize? This lays out a prioritization based off of our understanding
-of which protocols Akri users want handlers implemented for first. If there is a protocol that you would like
-implemented, check our [Issues](https://github.com/deislabs/akri/issues) to see if that protocol has been requested,
-and thumbs up it so we know you, too, would like it implemented. If there is no existing request for your protocol,
-create a [new feature request](https://github.com/deislabs/akri/issues/new/choose). Rather than waiting for it to be
-prioritized, you could implement discovery via that protocol in Agent. See [the extensibility document](./extensibility.md) 
-for more details.
+The question is, which protocols should Akri prioritize? We are looking for community feedback to make this decision. If
+there is a protocol that you would like implemented, check our [Issues](https://github.com/deislabs/akri/issues) to see
+if that protocol has been requested, and thumbs up it so we know you, too, would like it implemented. If there is no
+existing request for your protocol, create a [new feature request](https://github.com/deislabs/akri/issues/new/choose).
+Rather than waiting for it to be prioritized, you could implement discovery via that protocol in Agent. See [the
+extensibility document](./extensibility.md) for more details.
 
 ### Currently supported protocols
 1. ONVIF (to discover IP cameras)
 1. udev (to discover anything in the Linux file system)
 
-### Prioritization of protocols to support
-1. OPC UA (to discovery OPC UA Servers) 
+### Protocols we are thinking about adding support for
+- OPC UA (to discovery OPC UA Servers) 
     - [Proposal uploaded](./proposals/opcua.md)
-1. MQTT
-1. Bluetooth
-1. AMQP
-1. LoRaWAN
+- Bluetooth
+- Simple scan for IP/MAC addresses
+- LoRaWAN
+- Zeroconf
+- Looking for community feedback for more!
 
 ## Akri enhancements
 Provide new features and enhancements that build on existing Akri functionality.
