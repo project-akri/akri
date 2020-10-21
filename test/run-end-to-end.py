@@ -98,9 +98,9 @@ def do_test():
 
     # Check Akri slot reconiliation logs for success
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
-    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfullyd" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
     if result != 0:
-        print("Akri successfully connecting to crictl via the CRI socket")
+        print("Akri failed to successfully connect to crictl via the CRI socket")
         return False
 
     # Do cleanup scenario
