@@ -1,7 +1,9 @@
 # Akri
 [![Check Rust](https://github.com/deislabs/akri/workflows/Check%20Rust/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Check+Rust%22) [![Tarpaulin Code Coverage](https://github.com/deislabs/akri/workflows/Tarpaulin%20Code%20Coverage/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22) [![Version](https://img.shields.io/badge/rustc-1.41.0-blue.svg)](https://blog.rust-lang.org/2020/01/30/Rust-1.41.0.html) 
 
-[![Build Controller](https://github.com/deislabs/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Controller%22) [![Build Agent](https://github.com/deislabs/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Agent%22) [![Run End-to-End Scenario](https://github.com/deislabs/akri/workflows/Run%20End-to-End%20Scenario/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Run+End-to-End+Scenario%22)
+[![Build Controller](https://github.com/deislabs/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Controller%22) [![Build Agent](https://github.com/deislabs/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Agent%22)
+
+[![Validate Akri with K3s, Kubernetes, and MicroK8s](https://github.com/deislabs/akri/workflows/Validate%20Akri%20with%20K3s,%20Kubernetes,%20and%20MicroK8s/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Run+End-to-End+Scenario%22)
 
 Akri lets you easily expose heterogeneous leaf devices (such as IP cameras and USB devices) as resources in a Kubernetes cluster, while also supporting the exposure of embedded hardware resources such as GPUs and FPGAs. Akri continually detects nodes that have access to these devices and schedules workloads based on them. 
 
