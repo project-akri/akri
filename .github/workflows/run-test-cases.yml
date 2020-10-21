@@ -77,7 +77,6 @@ jobs:
         sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
         sudo chown $(id -u):$(id -g) $HOME/.kube/config
         kubectl taint nodes --all node-role.kubernetes.io/master-
-        which crictl
         echo '--set agent.host.crictl=/usr/bin/crictl --set agent.host.dockerShimSock=/var/run/dockershim.sock' > /tmp/cri_args_to_test.txt
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
@@ -85,7 +84,6 @@ jobs:
         kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'MicroK8s'
-      continue-on-error: true
       name: Install MicroK8s
       run: |
         sudo snap install microk8s --classic --channel=1.18/stable
