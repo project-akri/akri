@@ -47,6 +47,8 @@ jobs:
     steps:
     - name: Checkout repository content
       uses: actions/checkout@v2
+    - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
+      run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
     - name: Setup Python
       uses: actions/setup-python@v2
       with:

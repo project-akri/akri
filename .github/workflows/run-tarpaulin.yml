@@ -27,6 +27,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
+      run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
     - name: Create tarpaulin instance
       run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2 bash -c "echo 'sleep 20m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
