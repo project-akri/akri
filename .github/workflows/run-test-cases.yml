@@ -23,6 +23,7 @@ on:
 jobs:
   test-cases:
     runs-on: ubuntu-18.04
+    timeout-minutes: 35
 
     strategy:
       fail-fast: false
