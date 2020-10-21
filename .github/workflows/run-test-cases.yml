@@ -22,8 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         kube-runtime:
-          - k3s
-          - microk8s
+          - K3s
+          - MicroK8s
           # - kubernetes
         test-case:
           - end-to-end
@@ -49,7 +49,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install kubernetes
     
-    - if: matrix.kube-runtime == 'k3s'
+    - if: matrix.kube-runtime == 'K3s'
       name: Install K3s
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
@@ -65,7 +65,7 @@ jobs:
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
-    - if: matrix.kube-runtime == 'microk8s'
+    - if: matrix.kube-runtime == 'MicroK8s'
       continue-on-error: true
       name: Install MicroK8s
       run: |
