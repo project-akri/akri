@@ -131,11 +131,11 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ matrix.test-case }}-agent-log
+        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-agent-log
         path: /tmp/agent_log.txt
     - name: Upload controller log as artifact
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ matrix.test-case }}-controller-log
+        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-controller-log
         path: /tmp/controller_log.txt
