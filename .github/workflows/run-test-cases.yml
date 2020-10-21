@@ -1,4 +1,4 @@
-name: Run End-to-End Scenario
+name: Validate Akri with K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
