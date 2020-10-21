@@ -24,7 +24,7 @@ jobs:
         kube-runtime:
           - K3s
           - MicroK8s
-          # - kubernetes
+          - Kubernetes
         test-case:
           - end-to-end
           - helm-install-delete
@@ -61,6 +61,21 @@ jobs:
         sudo chmod 666 /etc/rancher/k3s/* 
         mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
         echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
+        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
+        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+        until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
+
+    - if: matrix.kube-runtime == 'Kubernetes'
+      name: Install Kubernetes
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y kubelet kubeadm kubectl kubernetes-cni
+        sudo kubeadm init
+        sudo mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        kubectl taint nodes --all node-role.kubernetes.io/master-
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
