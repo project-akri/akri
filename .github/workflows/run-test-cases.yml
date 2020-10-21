@@ -60,7 +60,7 @@ jobs:
         sudo chmod g+r /etc/rancher/k3s/k3s.yaml
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
         echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
-        echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
+        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '/etc/rancher/k3s/k3s.yaml' > /tmp/kubeconfig_path_to_test.txt
 
     - if: matrix.kube-runtime == 'microk8s'
