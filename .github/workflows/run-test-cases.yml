@@ -58,10 +58,11 @@ jobs:
         sudo usermod -a -G k3s-admin $USER
         sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
         sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        sudo chmod 666 /etc/rancher/k3s/* 
+        mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
         echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-        echo '/etc/rancher/k3s/k3s.yaml' > /tmp/kubeconfig_path_to_test.txt
+        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
     - if: matrix.kube-runtime == 'microk8s'
       continue-on-error: true
