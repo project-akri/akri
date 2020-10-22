@@ -45,8 +45,19 @@ jobs:
             test-file: test/run-conservation-of-broker-pod.py
 
     steps:
-    - name: Checkout repository content
+    - name: Checkout the merged commit from PR and base branch
       uses: actions/checkout@v2
+      if: github.event_name == 'pull_request_target'
+      with:
+        # pull_request_target is run in the context of the base repository
+        # of the pull request, so the default ref is master branch and
+        # ref should be manually set to the head of the PR
+        ref: refs/pull/${{ github.event.pull_request.number }}/head
+
+    - name: Checkout the head commit of the branch
+      if: ${{ github.event_name != 'pull_request_target' }}
+      uses: actions/checkout@v2
+
     - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
       run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
     - name: Setup Python
