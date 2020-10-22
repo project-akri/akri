@@ -4,14 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
-    - .github/workflows/check-rust.yml
+    - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
     - build/setup.sh
   pull_request:
     branches: [ main ]
     paths:
-    - .github/workflows/check-rust.yml
+    - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
     - build/setup.sh
@@ -39,3 +39,7 @@ jobs:
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin
       run: docker exec $(cat container_id.txt) sh -c "RUST_LOG=trace cargo tarpaulin -v --all-features --out Xml"
+    - name: Upload report to codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: bash <(curl -s https://codecov.io/bash)
