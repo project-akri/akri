@@ -15,7 +15,6 @@ on:
     - build/akri-containers.mk
     - Makefile
   pull_request_target:
-    branches: [ main ]
     paths:
     - .github/actions/build-component-per-arch/**
     - .github/actions/build-component-multi-arch/**

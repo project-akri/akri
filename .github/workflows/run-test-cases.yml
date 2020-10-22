@@ -3,7 +3,6 @@ name: Run End-to-End Scenario
 on:
   workflow_dispatch:
   pull_request_target:
-    branches: [ main ]
     paths:
     - test/run-end-to-end.py
     - test/run-conservation-of-broker-pod.py

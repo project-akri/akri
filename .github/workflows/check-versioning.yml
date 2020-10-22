@@ -10,7 +10,6 @@ on:
       - .vscode/**
       - docs/**
   pull_request_target:
-    branches: [ main ]
     paths-ignore:
       - '.gitignore'
       - 'LICENSE'

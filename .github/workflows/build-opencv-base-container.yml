@@ -10,7 +10,6 @@ on:
     - build/intermediate-containers.mk
     - Makefile
   pull_request_target:
-    branches: [ main ]
     paths:
     - .github/actions/build-intermediate/**
     - .github/workflows/build-opencv-base-container.yml

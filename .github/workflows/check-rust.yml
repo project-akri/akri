@@ -10,7 +10,6 @@ on:
     - '**/Cargo.lock'
     - build/setup.sh
   pull_request_target:
-    branches: [ main ]
     paths:
     - .github/workflows/check-rust.yml
     - '**.rs'
