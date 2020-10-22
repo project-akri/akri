@@ -12,7 +12,7 @@ on:
     - version.txt
     - build/akri-containers.mk
     - Makefile
-  pull_request:
+  pull_request_target:
     branches: [ main ]
     paths:
     - .github/actions/build-component-per-arch/**
@@ -75,7 +75,7 @@ jobs:
         build_rust: "0"
 
   multi-arch:
-    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 5
