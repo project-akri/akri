@@ -9,7 +9,7 @@ on:
       - '**.md'
       - .vscode/**
       - docs/**
-  pull_request:
+  pull_request_target:
     branches: [ main ]
     paths-ignore:
       - '.gitignore'
@@ -35,11 +35,11 @@ jobs:
 
     # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
     # version.txt is different from what is in main.
-    - if: github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[SAME VERSION]') == false
+    - if: github.event_name == 'pull_request_target' && contains(github.event.pull_request.title, '[SAME VERSION]') == false
       name: Run version check
       run: ./version.sh -c
     # If PR title does contain "[SAME VERSION]", then do not check that version.txt is different from
     # what is in main.
-    - if: github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[SAME VERSION]') == true
+    - if: github.event_name == 'pull_request_target' && contains(github.event.pull_request.title, '[SAME VERSION]') == true
       name: Run version check
       run: ./version.sh -c -s
