@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# exit on failures
-set -e
-
 echo "User: $(whoami)"
 
 apt_dependencies="git curl libssl-dev pkg-config libudev-dev libv4l-dev"
@@ -17,6 +14,9 @@ else
     echo "Run apt update and apt install without sudo"
     apt update
     apt install -y $apt_dependencies
+fi
+if [ $? -ne 0 ]; then
+   exit $?
 fi
 
 which rustup > /dev/null 2>&1
@@ -34,5 +34,8 @@ then
 fi
 echo "Install rustfmt"
 rustup component add rustfmt
+if [ $? -ne 0 ]; then
+   exit $?
+fi
 
 exit 0
