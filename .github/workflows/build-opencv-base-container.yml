@@ -9,7 +9,7 @@ on:
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
     - Makefile
-  pull_request:
+  pull_request_target:
     branches: [ main ]
     paths:
     - .github/actions/build-intermediate/**
@@ -51,7 +51,7 @@ jobs:
 
     # Only run build version change check if PR title and Merge commit message do NOT contain "[SAME VERSION]"
     - if: >-
-        github.event_name == 'pull_request' &&
+        github.event_name == 'pull_request_target' &&
         !contains(github.event.pull_request.title, '[SAME VERSION]') &&
         !contains(github.event.commits[0].message, '[SAME VERSION]')
       name: Ensure that ${{ env.AKRI_COMPONENT }} version has changed

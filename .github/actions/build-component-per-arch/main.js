@@ -37,7 +37,7 @@ async function shell_cmd(cmd) {
         if (core.getInput('github_event_name') == 'release') push_containers = 1;
         else if (core.getInput('github_event_name') == 'push' && 
                 core.getInput('github_ref') == 'refs/heads/main') push_containers = 1;
-        else if (core.getInput('github_event_name') == 'pull_request' && 
+        else if (core.getInput('github_event_name') == 'pull_request_target' && 
                 core.getInput('github_event_action') == 'closed' && 
                 core.getInput('github_ref') == 'refs/heads/main' && 
                 core.getInput('github_merged') == 'true') push_containers = 1;
