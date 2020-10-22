@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# exit on failures
+set -e
+
 
 apt_dependencies="git curl libssl-dev pkg-config libudev-dev libv4l-dev"
 
