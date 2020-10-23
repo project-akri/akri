@@ -32,7 +32,7 @@ To ensure that all product versioning is consistent, our CI builds will execute 
 ## PR title flags
 Akri's workflows check for three flags in the titles of PRs in order to decide whether to execute certain checks. 
 
-The [version check workflow](../.github/workflows/check-versioning.yml) will run, ensuring you have increased the version number, unless you (A) only change a a file that is on an ignored path of the workflow, such as all `*.md` files OR (B) specify the `[SAME VERSION]` flag. Use this flag if your change will trigger the workflow and the version should not be changed due to your PR. The flag will cause the check to automatically succeed.
+The [version check workflow](../.github/workflows/check-versioning.yml) will run, ensuring you have increased the version number, unless you (A) only change a a file that is on an ignored path of the workflow, such as all `*.md` files OR (B) specify the `[SAME VERSION]` flag. Use this flag if your change will trigger the workflow and the version should not be changed by your PR. The flag will cause the check to automatically succeed.
 
 Akri has some intermediate containers that decrease the build time of the more frequently built final containers. These intermediate builds are long running and should only be run when absolutely needed. If your PR triggers a workflow to build them, you will see the workflow fail and get a message that requests that you add a tag to your PR to either allow them to build (`[ALLOW INTERMEDIATE BUILDS]`) or (`[IGNORE INTERMEDIATE BUILDS]`). 
 
