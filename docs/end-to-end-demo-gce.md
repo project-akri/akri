@@ -39,7 +39,7 @@ gcloud services enable compute.googleapis.com \
 
 > **NOTE** You will be billed while this instance is running.
 
-The creation of the Compute Engine instance uses a startup script ([link](/scripts/end_to_end_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md).
+The creation of the Compute Engine instance uses a startup script ([link](/scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md).
 
 ```bash
 gcloud compute instances create ${INSTANCE} \
@@ -50,7 +50,7 @@ gcloud compute instances create ${INSTANCE} \
 --image-project=ubuntu-os-cloud \
 --zone=${ZONE} \
 --project=${PROJECT} \
---metadata-from-file=startup-script=./scripts/end_to_end_demo.sh
+--metadata-from-file=startup-script=./scripts/end_to_end_microk8s_demo.sh
 ```
 
 > **NOTE** Ensure the `startup-script` points to the location of the file. If you git cloned akri, the startup script is in the scripts directory.
