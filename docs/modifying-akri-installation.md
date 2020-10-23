@@ -69,6 +69,7 @@ substitute `onvifVideo.enabled` with `udevVideo.enabled`.)
 helm template akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
+    --set rbac.enabled=false \
     --set controller.enabled=false \
     --set agent.enabled=false > configuration.yaml
 ```
