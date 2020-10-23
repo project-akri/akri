@@ -8,13 +8,13 @@ on:
       - 'LICENSE'
       - '**.md'
       - Notice.txt
-      - .github/workflows/check-versioning.yml
-      - .github/workflows/check-rust.yml
-      - .github/workflows/run-tarpaulin.yml
-      - .github/workflows/run-test-cases.yml
-      - .github/ISSUE_TEMPLATE/**
-      - .github/CODEOWNERS
-      - .vscode/**
+      - '.github/workflows/check-versioning.yml'
+      - '.github/workflows/check-rust.yml'
+      - '.github/workflows/run-tarpaulin.yml'
+      - '.github/workflows/run-test-cases.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
       - docs/**
       - scripts/**
       - tests/**
@@ -25,13 +25,13 @@ on:
       - 'LICENSE'
       - '**.md'
       - Notice.txt
-      - .github/workflows/check-versioning.yml
-      - .github/workflows/check-rust.yml
-      - .github/workflows/run-tarpaulin.yml
-      - .github/workflows/run-test-cases.yml
-      - .github/ISSUE_TEMPLATE/**
-      - .github/CODEOWNERS
-      - .vscode/**
+      - '.github/workflows/check-versioning.yml'
+      - '.github/workflows/check-rust.yml'
+      - '.github/workflows/run-tarpaulin.yml'
+      - '.github/workflows/run-test-cases.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
       - docs/**
       - scripts/**
       - tests/**
