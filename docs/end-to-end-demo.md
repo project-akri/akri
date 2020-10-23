@@ -58,18 +58,10 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     alias kubectl='microk8s kubectl'
     ```
-1. Enable Helm for MicroK8s.
+1. Enable CloudDNS, Helm and RBAC for MicroK8s.
     ```sh
     kubectl config view --raw >~/.kube/config
-    microk8s enable helm3
-    ```
-1. Enable dns.
-    ```sh
-    microk8s enable dns
-    ```
-1. Optionally enable rbac.
-    ```sh
-    microk8s enable rbac
+    microk8s enable dns helm3 rbac
     ```
 1. Enable privileged pods and restart microk8s.
     ```sh
