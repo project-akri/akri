@@ -13,7 +13,9 @@ spec:
       labels:
         app: akri-controller
     spec:
+      {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-controller-sa'
+      {{- end }}
       containers:
       - name: akri-controller
         {{- if .Values.useDevelopmentContainers }}

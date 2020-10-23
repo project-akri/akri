@@ -17,7 +17,9 @@ spec:
       nodeSelector:
         "kubernetes.io/os": linux
       {{- end }}
+      {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-agent-sa'
+      {{- end }}
       containers:
       - name: akri-agent
         {{- if .Values.useDevelopmentContainers }}

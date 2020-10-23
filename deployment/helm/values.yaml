@@ -16,6 +16,10 @@ useDevelopmentContainers: true
 # This can be set from the helm command line using `--set imagePullSecrets[0].name="mysecret"`
 imagePullSecrets: []
 
+rbac:
+  # enabled defines whether to apply rbac to Akri
+  enabled: true
+
 controller:
   # enabled defines whether to apply the Akri Controller
   enabled: true
