@@ -45,5 +45,11 @@ sudo microk8s.helm3 install akri akri-helm-charts/akri \
   --set udevVideo.enabled=true \
   --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
 
+until sudo microk8s.kubectl wait pod --for=condition=ready --selector=akri.sh/configuration=akri-udev-video
+do
+  echo "Waiting Pods to become ready"
+  sleep 10s
+done
+
 sudo microk8s.kubectl apply \
 --filename=https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
