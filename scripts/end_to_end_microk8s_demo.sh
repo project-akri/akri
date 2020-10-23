@@ -6,7 +6,7 @@ sudo microk8s status --wait-ready
 
 sudo microk8s enable dns helm3 rbac
 
-echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
+echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kube-apiserver
 
 sudo microk8s stop && microk8s start
 
