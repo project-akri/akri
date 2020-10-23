@@ -58,11 +58,6 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     alias kubectl='microk8s kubectl'
     ```
-1. Install Helm.
-    ```sh
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
 1. Enable Helm for MicroK8s.
     ```sh
     kubectl config view --raw >~/.kube/config
