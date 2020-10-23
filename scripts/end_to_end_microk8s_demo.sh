@@ -47,7 +47,7 @@ sudo microk8s.helm3 install akri akri-helm-charts/akri \
 
 until sudo microk8s.kubectl wait pod --for=condition=ready --selector=akri.sh/configuration=akri-udev-video
 do
-  echo "Waiting Pods to become ready"
+  echo "Waiting for udev video brokers to become ready"
   sleep 10s
 done
 
