@@ -15,7 +15,7 @@ else
     apt update
     apt install -y $apt_dependencies
 fi
-if [ $? -ne 0 ]; then
+if [ "$?" -ne "0" ]; then
     echo "Failed to apt install: $apt_dependencies"
     exit $?
 fi
@@ -32,7 +32,7 @@ then
         echo "Install rustup"
         curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.41.0
     fi
-    if [ $? -ne 0 ]; then
+    if [ "$?" -ne "0" ]; then
         echo "Failed to install rustup"
         exit $?
     fi
@@ -42,7 +42,7 @@ fi
 
 echo "Install rustfmt"
 rustup component add rustfmt
-if [ $? -ne 0 ]; then
+if [ "$?" -ne "0" ]; then
     echo "Failed to install rustfmt"
     exit $?
 fi
