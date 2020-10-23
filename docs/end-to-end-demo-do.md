@@ -20,7 +20,7 @@ SSHKEYID=[[YOUR-SSH-KEY-ID]] # doctl compute ssh-key list
 
 > **NOTE** You will be billed while the droplet exists
 
-The creation of the DigitalOcean droplet uses a startup script ([link](/scripts/end_to_end_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md)
+The creation of the DigitalOcean droplet uses a startup script ([link](/scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md)
 
 ```bash
 doctl compute droplet create ${INSTANCE} \
@@ -29,7 +29,7 @@ doctl compute droplet create ${INSTANCE} \
 --size g-2vcpu-8gb \
 --ssh-keys ${SSHKEYID} \
 --tag-names microk8s,akri,end-to-end-demo \
---user-data-file=./scripts/end_to_end_demo.sh
+--user-data-file=./scripts/end_to_end_microk8s_demo.sh
 ```
 
  > **NOTE** Ensure `user-data-file` points to the location of the script. If you git cloned akri, the startup script is in the `./scripts` directory.
