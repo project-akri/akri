@@ -2,8 +2,6 @@
 
 sudo snap install microk8s --classic --channel=1.18/stable
 
-sudo usermod -a -G microk8s dazwilkin
-
 sudo microk8s status --wait-ready
 
 sudo microk8s enable dns helm3 rbac
