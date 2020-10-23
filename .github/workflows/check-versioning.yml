@@ -9,6 +9,8 @@ on:
       - '**.md'
       - .vscode/**
       - docs/**
+      - Notice.txt
+      - scripts/**
   pull_request_target:
     branches: [ main ]
     paths-ignore:
@@ -17,6 +19,8 @@ on:
       - '**.md'
       - .vscode/**
       - docs/**
+      - Notice.txt
+      - scripts/**
   release:
     types:
       - published
