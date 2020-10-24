@@ -43,7 +43,9 @@ jobs:
           # pull_request_target is run in the context of the base repository
           # of the pull request, so the default ref is master branch and
           # ref should be manually set to the head of the PR
-          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          # ref: refs/pull/${{ github.event.pull_request.number }}/head
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout the head commit of the branch
         if: ${{ github.event_name != 'pull_request_target' }}
