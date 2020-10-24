@@ -43,9 +43,9 @@ jobs:
           # pull_request_target is run in the context of the base repository
           # of the pull request, so the default ref is master branch and
           # ref should be manually set to the head of the PR
-          # ref: refs/pull/${{ github.event.pull_request.number }}/head
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          # repository: ${{ github.event.pull_request.head.repo.full_name }}
+          # ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout the head commit of the branch
         if: ${{ github.event_name != 'pull_request_target' }}
@@ -58,13 +58,13 @@ jobs:
       # our releases and should default to not use dev containers.  'akri-dev'
       # should build for any merged PR and should default to use our dev containers.
       - name: Split into akri and akri-dev charts (this step is for release == akri)
-        if: (github.event_name == 'release')
+        if: github.event_name == 'pull_request_target'
         run: |
           sed -i s/"name: akri"/"name: akri"/g ./deployment/helm/Chart.yaml
           sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri releases"/g ./deployment/helm/Chart.yaml
           sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: false"/g ./deployment/helm/values.yaml
       - name: Split into akri and akri-dev charts (this step is for !release == akri-dev)
-        if: (github.event_name == 'push') || (github.event_name == 'pull_request_target')
+        if: github.event_name != 'pull_request_target'
         run: |
           sed -i s/"name: akri"/"name: akri-dev"/g ./deployment/helm/Chart.yaml
           sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri development"/g ./deployment/helm/Chart.yaml
