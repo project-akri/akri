@@ -62,7 +62,7 @@ jobs:
           sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri releases"/g ./deployment/helm/Chart.yaml
           sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: false"/g ./deployment/helm/values.yaml
       - name: Split into akri and akri-dev charts (this step is for !release == akri-dev)
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'push') || (github.event_name == 'pull_request_target')
         run: |
           sed -i s/"name: akri"/"name: akri-dev"/g ./deployment/helm/Chart.yaml
           sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri development"/g ./deployment/helm/Chart.yaml
