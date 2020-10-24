@@ -7,16 +7,34 @@ on:
       - '.gitignore'
       - 'LICENSE'
       - '**.md'
-      - .vscode/**
+      - Notice.txt
+      - '.github/workflows/check-versioning.yml'
+      - '.github/workflows/check-rust.yml'
+      - '.github/workflows/run-tarpaulin.yml'
+      - '.github/workflows/run-test-cases.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
       - docs/**
+      - scripts/**
+      - tests/**
   pull_request_target:
     branches: [ main ]
     paths-ignore:
       - '.gitignore'
       - 'LICENSE'
       - '**.md'
-      - .vscode/**
+      - Notice.txt
+      - '.github/workflows/check-versioning.yml'
+      - '.github/workflows/check-rust.yml'
+      - '.github/workflows/run-tarpaulin.yml'
+      - '.github/workflows/run-test-cases.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
       - docs/**
+      - scripts/**
+      - tests/**
   release:
     types:
       - published
