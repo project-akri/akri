@@ -53,6 +53,11 @@ jobs:
 
       - uses: azure/setup-helm@v1
 
+      - name: foo
+        run: |
+          printenv
+          echo ${{ github.event_name }}
+
       # We should generate two sets of akri charts.
       # One for our releases (akri) and one for our merged PRs (akri-dev).  'akri' should only be created for
       # our releases and should default to not use dev containers.  'akri-dev'
