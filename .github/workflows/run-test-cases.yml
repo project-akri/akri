@@ -2,6 +2,14 @@ name: Test K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+    - test/run-end-to-end.py
+    - test/run-conservation-of-broker-pod.py
+    - test/run-helm-install-delete.py
+    - test/shared_test_code.py
+    - .github/workflows/run-test-cases.yml
   pull_request_target:
     branches: [ main ]
     paths:
@@ -22,6 +30,11 @@ on:
     
 jobs:
   test-cases:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-18.04
     timeout-minutes: 35
 

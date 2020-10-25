@@ -12,6 +12,17 @@ on:
     - version.txt
     - build/akri-containers.mk
     - Makefile
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-component-per-arch/**
+    - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-video-streaming-app-container.yml
+    - build/containers/Dockerfile.video-streaming-app
+    - samples/apps/video-streaming-app/**
+    - version.txt
+    - build/akri-containers.mk
+    - Makefile
   pull_request_target:
     branches: [ main ]
     paths:
@@ -34,6 +45,11 @@ env:
 jobs:
 
   per-arch:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -85,7 +101,11 @@ jobs:
         build_rust: "0"
 
   multi-arch:
-    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+    if: >-
+      (github.event_name == 'release') || 
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') || 
+      (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 5

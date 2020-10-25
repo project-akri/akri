@@ -18,6 +18,23 @@ on:
       - docs/**
       - scripts/**
       - tests/**
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '**.md'
+      - Notice.txt
+      - '.github/workflows/check-versioning.yml'
+      - '.github/workflows/check-rust.yml'
+      - '.github/workflows/run-tarpaulin.yml'
+      - '.github/workflows/run-test-cases.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/CODEOWNERS'
+      - '.vscode/**'
+      - docs/**
+      - scripts/**
+      - tests/**
   pull_request_target:
     branches: [ main ]
     paths-ignore:
@@ -44,7 +61,11 @@ env:
 
 jobs:
   build:
-
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -64,11 +85,11 @@ jobs:
 
     # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
     # version.txt is different from what is in main.
-    - if: github.event_name == 'pull_request_target' && contains(github.event.pull_request.title, '[SAME VERSION]') == false
+    - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.title, '[SAME VERSION]') == false
       name: Run version check
       run: ./version.sh -c
     # If PR title does contain "[SAME VERSION]", then do not check that version.txt is different from
     # what is in main.
-    - if: github.event_name == 'pull_request_target' && contains(github.event.pull_request.title, '[SAME VERSION]') == true
+    - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.title, '[SAME VERSION]') == true
       name: Run version check
       run: ./version.sh -c -s
