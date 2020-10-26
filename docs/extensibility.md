@@ -109,7 +109,7 @@ The first step is to create a DiscoveryHandler configuration struct. This struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NessieDiscoveryHandlerConfig {
-    nessie_url: String
+    pub nessie_url: String
 }
 ```
 
