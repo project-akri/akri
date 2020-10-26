@@ -18,6 +18,11 @@ spec:
                 protocol: # {{ProtocolHandler}}
                   type: object
                   properties:
+                    nessie: # {{NessieDiscoveryHandler}} <--- add this line
+                      type: object                                # <--- add this line
+                      properties:                                 # <--- add this line
+                        nessieUrl:                                # <--- add this line
+                          type: string                            # <--- add this line
                     debugEcho: # {{DebugEchoDiscoveryHandler}}
                       type: object
                       properties:
@@ -78,6 +83,7 @@ spec:
                     opcua:
                       type: object
                   oneOf:
+                    - required: ["nessie"]
                     - required: ["debugEcho"]
                     - required: ["onvif"]
                     - required: ["udev"]

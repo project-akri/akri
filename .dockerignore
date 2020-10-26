@@ -47,3 +47,7 @@
 
 # Container image license to be copied into every container
 !build/container-images-legal-notice.md
+
+# Allow nessie to build using docker build
+!shared
+!samples/brokers/nessie

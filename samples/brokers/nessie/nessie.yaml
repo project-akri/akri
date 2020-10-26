@@ -1,0 +1,29 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: nessie
+spec:
+  protocol:
+    nessie:
+      nessieUrl: https://www.lochness.co.uk/livecam/img/lochness.jpg
+  capacity: 5
+  brokerPodSpec:
+    hostNetwork: true
+    imagePullSecrets:
+    - name: regcred
+    containers:
+    - name: nessie-broker
+      image: "ghcr.io/<GITHUB USERNAME>/nessie:extensibility"
+      resources:
+        limits:
+          "{{PLACEHOLDER}}" : "1"
+  instanceServiceSpec:
+    ports:
+    - name: grpc
+      port: 80
+      targetPort: 8083
+  configurationServiceSpec:
+    ports:
+    - name: grpc
+      port: 80
+      targetPort: 8083

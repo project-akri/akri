@@ -64,6 +64,7 @@ pub trait DiscoveryHandler {
 }
 
 pub mod debug_echo;
+mod nessie;
 mod onvif;
 mod opcua;
 mod udev;
@@ -80,6 +81,9 @@ fn inner_get_discovery_handler(
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
+        ProtocolHandler::nessie(nessie) => {
+            Ok(Box::new(nessie::NessieDiscoveryHandler::new(&nessie)))
+        }
         ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),

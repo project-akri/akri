@@ -11,7 +11,11 @@ LABEL org.opencontainers.image.source https://github.com/deislabs/akri
 # Copy over container legal notice
 COPY ./build/container-images-legal-notice.md .
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl-dev openssl && apt-get clean
 COPY ./target/${CROSS_BUILD_TARGET}/release/agent /agent
+
+# Enable HTTPS from https://github.com/rust-embedded/cross/issues/119
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
 ENV RUST_LOG agent,akri_shared
 CMD ["./agent"]

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option csharp_namespace = "Nessie";
+
+package nessie;
+
+service Nessie {
+  rpc GetNessieNow (NotifyRequest) returns (NotifyResponse);
+}
+
+message NotifyRequest {
+}
+
+message NotifyResponse {
+  bytes frame = 1;
+}

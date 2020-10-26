@@ -4,4 +4,4 @@
 h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master"}
 
 [workspace]
-members = ["shared", "controller", "agent", "samples/brokers/udev-video-broker"]
+members = ["shared", "controller", "agent", "samples/brokers/udev-video-broker", "samples/brokers/nessie"]

@@ -23,6 +23,7 @@ pub type KubeAkriConfigList = ObjectList<Object<Configuration, Void>>;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ProtocolHandler {
+    nessie(NessieDiscoveryHandlerConfig),
     onvif(OnvifDiscoveryHandlerConfig),
     udev(UdevDiscoveryHandlerConfig),
     opcua(OpcuaDiscoveryHandlerConfig),
@@ -61,6 +62,12 @@ pub struct FilterList {
     /// is `Include`
     #[serde(default = "default_action")]
     pub action: FilterType,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct NessieDiscoveryHandlerConfig {
+    pub nessie_url: String,
 }
 
 /// This defines the ONVIF data stored in the Configuration
