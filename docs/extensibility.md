@@ -71,7 +71,7 @@ impl DiscoveryHandler for NessieDiscoveryHandler {
                 self.discovery_handler_config.nessie_url.clone(),
             );
             results.push(DiscoveryResult::new(
-                self.discovery_handler_config.nessie_url,
+                &self.discovery_handler_config.nessie_url,
                 props,
                 true,
             ));
