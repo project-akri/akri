@@ -55,13 +55,13 @@ jobs:
       # One for our releases (akri) and one for our merged PRs (akri-dev).  'akri' should only be created for
       # our releases and should default to not use dev containers.  'akri-dev'
       # should build for any merged PR and should default to use our dev containers.
-      - name: Split into akri and akri-dev charts (this step is for release == akri)
+      - name: When event_name == release, create akri chart
         if: (github.event_name == 'release')
         run: |
           sed -i s/"name: akri"/"name: akri"/g ./deployment/helm/Chart.yaml
           sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri releases"/g ./deployment/helm/Chart.yaml
           sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: false"/g ./deployment/helm/values.yaml
-      - name: Split into akri and akri-dev charts (this step is for !release == akri-dev)
+      - name: When event_name != release, create akri-dev chart
         if: (github.event_name != 'release')
         run: |
           sed -i s/"name: akri"/"name: akri-dev"/g ./deployment/helm/Chart.yaml
