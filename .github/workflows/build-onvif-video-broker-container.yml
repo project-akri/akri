@@ -101,11 +101,7 @@ jobs:
         build_rust: "0"
 
   multi-arch:
-    if: >-
-      (github.event_name == 'release') || 
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') || 
-      (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
-
+    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 5

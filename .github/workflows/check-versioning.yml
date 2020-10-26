@@ -83,19 +83,6 @@ jobs:
       if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
     
-    - name: debug info
-      run: |
-        echo event name: ${{ github.event_name }}
-        echo is prt and fork: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true }}
-        echo is pr and not fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false }}
-        echo is not pr or prt: ${{ !(startsWith(github.event_name, 'pull_request')) }}
-        echo repo full name: ${{ github.event.pull_request.head.repo.full_name }}
-        echo repository: ${{ github.repository }}
-        echo fork: ${{ github.event.pull_request.head.repo.fork }}
-        echo repo id: ${{ github.event.pull_request.head.repo.id }}
-        echo base repo id: ${{ github.event.pull_request.base.repo.id }}
-        printenv
-
     # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
     # version.txt is different from what is in main.
     - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.title, '[SAME VERSION]') == false
