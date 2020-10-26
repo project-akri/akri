@@ -65,9 +65,9 @@ impl DiscoveryHandler for NessieDiscoveryHandler {
         if let Ok(_body) = hyper::Client::new().get(url).compat().await {
             // If the Nessie URL can be accessed, we will return a DiscoveryResult
             // instance
-            let props = HashMap::new();
+            let props: HashMap<String, String> = HashMap::new();
             props.insert(
-                "nessie_url",
+                "nessie_url".to_string(),
                 self.discovery_handler_config.nessie_url.clone(),
             );
             results.push(DiscoveryResult::new(
