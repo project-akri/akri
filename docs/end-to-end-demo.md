@@ -54,27 +54,14 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     microk8s status --wait-ready
     ```
-1. If you don't have an existing `kubectl` installation, add a kubectl alias. If you do not want to set an alias, add `microk8s` in front of all kubectl commands.
+1. Enable CloudDNS, Helm and RBAC for MicroK8s.
+    ```sh
+    microk8s enable dns helm3 rbac
+    ```
+1. If you don't have an existing `kubectl` and `helm` installations, add aliases. If you do not want to set an alias, add `microk8s` in front of all `kubectl` and `helm` commands.
     ```sh
     alias kubectl='microk8s kubectl'
-    ```
-1. Install Helm.
-    ```sh
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-1. Enable Helm for MicroK8s.
-    ```sh
-    kubectl config view --raw >~/.kube/config
-    microk8s enable helm3
-    ```
-1. Enable dns.
-    ```sh
-    microk8s enable dns
-    ```
-1. Optionally enable rbac.
-    ```sh
-    microk8s enable rbac
+    alias helm='microk8s helm3'
     ```
 1. Enable privileged pods and restart microk8s.
     ```sh
