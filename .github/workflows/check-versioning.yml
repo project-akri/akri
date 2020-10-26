@@ -82,6 +82,16 @@ jobs:
     - name: Checkout the head commit of the branch
       if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
+    
+    - name: debug info
+      run: |
+        echo event name: ${{ github.event_name }}
+        echo repo full name: ${{ github.event.pull_request.head.repo.full_name }}
+        echo repository: ${{ github.repository }}
+        echo fork: ${{ github.event.pull_request.head.repo.fork }}
+        echo repo id: ${{ github.event.pull_request.head.repo.id }}
+        echo base repo id: ${{ github.event.pull_request.base.repo.id }}
+        printenv
 
     # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
     # version.txt is different from what is in main.
