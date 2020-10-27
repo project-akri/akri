@@ -66,7 +66,7 @@ our Helm chart, we suggest creating a Configuration file using helm and then man
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
 substitute `onvifVideo.enabled` with `udevVideo.enabled`.)
 ```bash
-helm template akri akri-helm-charts/akri \
+helm template akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set rbac.enabled=false \
@@ -148,7 +148,7 @@ template` and kubectl.
 Another Configuration can be added to the cluster by using `helm upgrade`. If you originally installed just the ONVIF
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
 ```bash
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -166,7 +166,7 @@ A Configuration can be deleted from a cluster using `helm upgrade`. For example,
 have been installed in a cluster, the udev Configuration can be deleted by only specifying the ONVIF Configuration in a
 `helm upgrade` command like the following:
 ```bash
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true 
 ```

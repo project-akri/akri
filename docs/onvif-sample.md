@@ -15,7 +15,7 @@ To use the default ONVIF Configuration in your Akri-enabled cluster, you can sim
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true
 ```
@@ -40,7 +40,7 @@ will allow you to either include or exclude specific IP addresses, MAC addresses
 For example, you can enable cluster access for every camera that does not have an IP address of 10.0.0.1 by using this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \
@@ -50,7 +50,7 @@ helm install akri akri-helm-charts/akri \
 You can enable cluster access for every camera with a specific name, you can modify the Configuration like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.scopes.action=Include \
@@ -63,7 +63,7 @@ The ONVIF protocol will search for up to `discoveryTimeoutSeconds` for IP camera
 decreased as desired, and defaults to 1 second if left unconfigured. It can be set in the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.discoveryTimeoutSeconds=2
@@ -75,7 +75,7 @@ property to reflect the correct number.  For example, if your high availability 
 pod, you can update the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.capacity=2
