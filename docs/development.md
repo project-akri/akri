@@ -9,7 +9,7 @@ To develop, you'll need:
     sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.41.0
     cargo version
     ```
-- .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/en-us/dotnet/core/install/linux-ubuntu)
+- .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
 
 In order to cross-build containers for both ARM and x64, several tools are leveraged:
 
@@ -83,6 +83,7 @@ These containers are used by the `cross` tool to crossbuild the Akri Rust code. 
   # To make specific platform(s):
   PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make rust-crossbuild
   ```
+After building the cross container(s), update [Cross.toml](../Cross.toml) to point to your intermediate container(s).
 
 ##### .NET OpenCV containers
 These containers allow the ONVIF broker to be created without rebuilding OpenCV for .NET each time.  There is a container built for AMD64 and it is used to crossbuild to each supported platform.  The dockerfile can be found here: build/containers/intermediate/Dockerfile.opencvsharp-build.
@@ -93,7 +94,7 @@ These containers allow the ONVIF broker to be created without rebuilding OpenCV 
   PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make opencv-base
   ```
 
-#### Build akri component containers
+#### Build Akri component containers
 By default, `Makefile` will try to create containers with tag following this format: `<repo>/$USER/<component>:<label>` where
 * `<component>` = controller | agent | etc
 * `<repo>` = `devcaptest.azurecr.io`
@@ -103,6 +104,7 @@ By default, `Makefile` will try to create containers with tag following this for
 * `<label>` = v$(cat version.txt)
   * `<label>` can be overridden by setting `LABEL_PREFIX=<desired label>`
 
+**Note**: Before building these final component containers, make sure you have built any necessary [intermediate containers](./#build-intermediate-containers). In particular, to build any of the rust containers (the Controller, Agent, or udev broker), you must first [build the cross-build containers](./#rust-cross-build-containers).
 
 ```sh
 # To make all of the Akri containers:
