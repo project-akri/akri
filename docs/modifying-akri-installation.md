@@ -1,6 +1,6 @@
-# Modifying a Akri Installation
+# Modifying an Akri Installation
 The [onvif](./onvif-sample.md) and [udev](./udev-sample.md) documentation explains how to deploy Akri for a specific
-protocol Configuration. This documentation elaborates upon them, covering the following:
+protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
 1. Deploying multiple Configurations
 1. Modifying a deployed Configuration

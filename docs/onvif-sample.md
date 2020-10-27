@@ -11,7 +11,7 @@ margin-right: auto; display: block; margin-left: auto;"/>
 1. The Akri Controller sees the Instances and deploys `akri-onvif-video-broker` pods, which were specified in the Configuration. The Controller also creates a Kubernetes service for each ONVIF camera along with one service for all the ONVIF cameras.
 
 ## Usage
-To use the default ONVIF Configuration in your Akri-enabled cluster, you can simply set `onvifVideo.enabled=true` when installing the Akri helm chart.  
+To use the default ONVIF Configuration in your Akri-enabled cluster, you can simply set `onvifVideo.enabled=true` when installing the Akri Helm chart.  More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/

@@ -80,6 +80,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     Run `kubectl get crd`, and you should see the crds listed.
     Run `kubectl get pods -o wide`, and you should see the Akri pods.
     Run `kubectl get akric`, and you should see `akri-udev-video`. If IP cameras were discovered and pods spun up, the instances can be seen by running `kubectl get akrii` and further inspected by running `kubectl get akrii akri-udev-video-<ID> -o yaml`
+    More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 1. Inspect the two instances, seeing that the correct devnodes in the metadata and that one of the usage slots for each instance was reseved for this node.
     ```sh 

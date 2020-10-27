@@ -146,6 +146,8 @@ helm install akri akri-helm-charts/akri-dev \
     --set controller.image.tag="v<akri-version>-amd64"
 ```
 
+More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
+
 ## Other useful Helm Commands
 ### Helm Package
 If you make changes to anything in the [helm folder](../deployment/helm), you will probably need to create a new Helm chart for Akri. This can be done using the [`helm package`](https://helm.sh/docs/helm/helm_package/) command. To create a chart using the current state of the Helm templates and CRDs, run (from one level above the Akri directory) `helm package akri/deployment/helm/`. You will see a tgz file called `akri-<akri-version>.tgz` at the location where you ran the command. Now, install Akri using that chart:

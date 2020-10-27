@@ -2,7 +2,7 @@
 As an example of handling local capabilities, an implementation was made for video cameras that can be discovered using the udev protocol. Udev is a device manager for the Linux kernel. The udev protocol parses udev rules listed in a Configuration, searches for them using udev, and returns a list of device nodes (ie: /dev/video0). An instance is created for each device node. Since this sample uses a broker that streams frames from a local camera, the rule added to the Configuration is `KERNEL=="video[0-9]*"`. To determine if a node has video devices that will be discovered by this Configuration, run `ls -l /sys/class/video4linux/` or `sudo v4l2-ctl --list-devices`.
 
 ## Usage
-To use enable a udev camera in your Akri-enabled cluster, you can simply set `udevVideo.enabled=true` when installing the Akri helm chart.  
+To use enable a udev camera in your Akri-enabled cluster, you can simply set `udevVideo.enabled=true` when installing the Akri Helm chart.  More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
