@@ -83,7 +83,7 @@ These containers are used by the `cross` tool to crossbuild the Akri Rust code. 
   # To make specific platform(s):
   PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make rust-crossbuild
   ```
-After building the cross container[s], update [Cross.toml](../Cross.toml) to point to your intermediate container[s].
+After building the cross container(s), update [Cross.toml](../Cross.toml) to point to your intermediate container(s).
 
 ##### .NET OpenCV containers
 These containers allow the ONVIF broker to be created without rebuilding OpenCV for .NET each time.  There is a container built for AMD64 and it is used to crossbuild to each supported platform.  The dockerfile can be found here: build/containers/intermediate/Dockerfile.opencvsharp-build.
