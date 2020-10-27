@@ -38,6 +38,7 @@ use super::super::{DiscoveryHandler, DiscoveryResult};
 use async_trait::async_trait;
 use failure::Error;
 use akri_shared::akri::configuration::NessieDiscoveryHandlerConfig;
+use std::collections::HashMap;
 
 pub struct NessieDiscoveryHandler {
     discovery_handler_config: NessieDiscoveryHandlerConfig,
