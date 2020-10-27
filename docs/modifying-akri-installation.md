@@ -11,7 +11,7 @@ protocol Configuration. This documentation elaborates upon them, covering the fo
 To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true
 ```
 This will start the Akri controller and deploy Akri Agents.
@@ -21,7 +21,7 @@ If you want your end application to consume frames from both IP cameras and loca
 installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -43,7 +43,7 @@ state** of Akri and replace `helm install` with `helm upgrade`. Using the ONVIF 
 say an IP camera with IP address 10.0.0.1 is malfunctioning and should be filtered out of discovery, the following
 command could be run:
 ```bash 
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \

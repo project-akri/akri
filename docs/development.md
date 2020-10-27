@@ -138,7 +138,7 @@ When installing Akri using helm, you can set the `imagePullSecrets`, `image.repo
 ```bash
 kubectl create secret docker-registry <your-secret-name> --docker-server=ghcr.io  --docker-username=<your-github-alias> --docker-password=<your-github-token>
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set imagePullSecrets[0].name="<your-secret-name>" \
     --set agent.image.repository="ghcr.io/<your-github-alias>/agent" \
     --set agent.image.tag="v<akri-version>-amd64" \
