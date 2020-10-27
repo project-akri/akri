@@ -2,6 +2,12 @@
 # Ignore everything
 **
 
+# Nessie broker
+# The source code and the shared project need to be
+# available to the container build
+!samples/brokers/nessie
+!shared/
+
 # ONVIF broker is built using a `docker build` command, so
 # the source code needs to be available to the DotNet container
 # build
