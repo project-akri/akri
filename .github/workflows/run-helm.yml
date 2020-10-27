@@ -113,13 +113,21 @@ jobs:
           name: index
           path: index.yaml
   
+      - name: Create push with new akri chart for gh-pages
+        if: (github.event_name == 'release')
+        shell: bash
+        run: git add akri-$(cat version.txt).tgz
+      - name: Create push with new akri-dev chart for gh-pages
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        shell: bash
+        run: git add akri-dev-$(cat version.txt).tgz
+
       - name: Push gh-pages
         if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         shell: bash
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git add akri-$(cat version.txt).tgz
           git add index.yaml
           git status
           echo "Update Helm Repo for version $(cat version.txt)" | git commit --file -
