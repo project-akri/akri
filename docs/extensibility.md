@@ -394,6 +394,7 @@ To build the Nessie container, we need to create a Dockerfile
 FROM amd64/rust:1.41 as build
 RUN apt-get update && apt-get install -y --no-install-recommends \
       g++ ca-certificates curl libssl-dev pkg-config
+RUN rustup component add rustfmt --toolchain 1.41.1-x86_64-unknown-linux-gnu
 
 WORKDIR /nessie
 RUN echo '[workspace]' > ./Cargo.toml && \
@@ -405,12 +406,12 @@ RUN cargo build
 FROM amd64/debian:buster-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && \
       apt-get clean
-COPY --from=build ./target/debug/nessie /nessie
+COPY --from=build /nessie/target/debug/nessie /nessie
 
 # Expose port used by broker service
 EXPOSE 8083
 
-CMD ["./nessie"]
+ENTRYPOINT ["/nessie"]
 ```
 
 ### Create a new Configuration
