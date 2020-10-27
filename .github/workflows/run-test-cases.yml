@@ -27,6 +27,9 @@ on:
     - test/shared_test_code.py
     - .github/workflows/run-test-cases.yml
     - version.txt
+  release:
+    types:
+      - published
     
 jobs:
   test-cases:
@@ -145,17 +148,35 @@ jobs:
 
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    - if: github.event_name == 'push'
+    
+    # When event_name==release, the Helm chart is named 'akri'
+    - if: github.event_name == 'release'
+      name: Pull akri helm chart when event_name == release
+      run: echo akri > /tmp/chart_name.txt
+    # When event_name!=release, the Helm chart is named 'akri-dev'
+    - if: github.event_name != 'release'
+      name: Pull akri-dev helm chart when event_name != release
+      run: echo akri-dev > /tmp/chart_name.txt
+
+    # For push and release, we need to wait for the Helm chart and
+    # associated containers to build.
+    - if: github.event_name == 'push' || github.event_name == 'release'
       name: Set sleep duration before running script to 1500
       run: echo 1500 > /tmp/sleep_duration.txt
-    - if: github.event_name != 'push'
+
+    # For pull_request and pull_request_target, only main's version.txt
+    # has a Helm chart (the version in the PR does not).  Use origin/main.
+    - if: startsWith(github.event_name, 'pull_request')
       name: Use main version for non-push
       run: |
         git fetch origin main
         git show origin/main:version.txt > /tmp/version_to_test.txt
-    - if: github.event_name == 'push'
+    # For non-PR (i.e. push, release, manual), version.txt is corresponds
+    # to an existing Helm chart.
+    - if: (!(startsWith(github.event_name, 'pull_request')))
       name: Use current version for push
       run: cat version.txt > /tmp/version_to_test.txt
+
     - name: Execute test script ${{ matrix.test-file }}
       run: python ${{ matrix.test-file }}
     - name: Upload Agent log as artifact
