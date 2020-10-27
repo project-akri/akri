@@ -236,6 +236,8 @@ fn main() {
 }
 ```
 
+This build file will compile `nessie.proto` into a rust source file `samples/brokers/nessie/src/util/nessie.rs`.
+
 Next, we need to include the gRPC generated code in by adding a reference to `nessie` in `samples/brokers/nessie/src/util/mod.rs`:
 
 ```rust
@@ -244,7 +246,7 @@ pub mod nessie;
 
 With the gRPC implementation created, we can now start utilizing it.
 
-First, we need to leverage the generated gRPC code by creating `samples/brokers/nessie/src/util/nessie.rs`:
+First, we need to leverage the generated gRPC code by creating `samples/brokers/nessie/src/util/nessie_service.rs`:
 
 ```rust
 use super::{
