@@ -388,6 +388,7 @@ async fn handle_addition_work(
 /// Handle Instance change by watching for node
 /// disappearances, starting broker Pods/Services that are missing,
 /// and stopping Pods/Services that are no longer needed.
+/// Before creating new Pods, it checks to see if `capacity` has been met.
 pub async fn handle_instance_change(
     instance: &KubeAkriInstance,
     action: &InstanceAction,
@@ -405,6 +406,7 @@ pub async fn handle_instance_change(
         .uid
         .as_ref()
         .ok_or(format!("UID not found for instance: {}", &instance_name))?;
+    let capacity = instance.spec.device_usage.len();
 
     // If InstanceAction::Remove, assume all nodes require PodAction::NoAction (reflect that there is no running Pod unless we find one)
     // Otherwise, assume all nodes require PodAction::Add (reflect that there is no running Pod, unless we find one)
@@ -472,17 +474,41 @@ pub async fn handle_instance_change(
         .await?
     }
 
-    let nodes_to_add = nodes_to_act_on
+    // Check how many nodes already have pods
+    let num_nodes_already_with_pods: i32 = nodes_to_act_on
         .iter()
-        .filter_map(|(node, context)| {
-            if ((context.action) == PodAction::Add) | ((context.action) == PodAction::RemoveAndAdd)
-            {
-                Some(node.to_string())
+        .filter_map(|(_, context)| {
+            if (context.action) == PodAction::NoAction {
+                Some(1)
             } else {
                 None
             }
         })
-        .collect::<Vec<String>>();
+        .sum();
+
+    // Assert that more nodes don't receive pods than specified by capacity
+    let num_nodes_to_receive_pod = capacity as i32 - num_nodes_already_with_pods;
+    trace!("handle_instance_change - capacity [{}] - number of nodes already with pods [{}] = [{}] node[s] to receive pods", capacity, num_nodes_already_with_pods, num_nodes_to_receive_pod);
+    let nodes_to_add: Vec<String> = if num_nodes_to_receive_pod < 0 {
+        error!(
+            "handle_instance_change - more pods created for an instance than specified by capacity"
+        );
+        Vec::new()
+    } else {
+        nodes_to_act_on
+            .iter()
+            .filter_map(|(node, context)| {
+                if ((context.action) == PodAction::Add)
+                    | ((context.action) == PodAction::RemoveAndAdd)
+                {
+                    Some(node.to_string())
+                } else {
+                    None
+                }
+            })
+            .take(num_nodes_to_receive_pod as usize)
+            .collect::<Vec<String>>()
+    };
 
     let instance_configuration_option = if !nodes_to_add.is_empty() {
         // Only retrieve Config if needed
@@ -642,7 +668,12 @@ mod handle_instance_tests {
         addition_work: Option<HandleAdditionWork>,
     }
 
-    fn configure_for_handle_instance_change(mock: &mut MockKubeImpl, work: &HandleInstanceWork) {
+    // Set `random_pod` to assert that a single pod is created, whether it is the 1st or 2nd Pod does not matter.
+    fn configure_for_handle_instance_change(
+        mock: &mut MockKubeImpl,
+        work: &HandleInstanceWork,
+        random_pod: bool,
+    ) {
         if let Some(phase) = work.find_pods_phase {
             if let Some(start_time) = work.find_pods_start_time {
                 configure_find_pods_with_phase_and_start_time(
@@ -688,7 +719,7 @@ mod handle_instance_tests {
                 addition_work.find_config_result,
                 false,
             );
-            configure_for_handle_addition_work(mock, addition_work);
+            configure_for_handle_addition_work(mock, addition_work, random_pod);
         }
     }
 
@@ -756,16 +787,94 @@ mod handle_instance_tests {
         }
     }
 
-    fn configure_for_handle_addition_work(mock: &mut MockKubeImpl, work: &HandleAdditionWork) {
-        for i in 0..work.new_pod_names.len() {
-            config_for_tests::configure_add_pod(
+    fn configure_for_handle_addition_work(
+        mock: &mut MockKubeImpl,
+        work: &HandleAdditionWork,
+        random_pod: bool,
+    ) {
+        if random_pod {
+            configure_add_pod_for_pod1_or_pod2(
                 mock,
-                work.new_pod_names[i],
-                work.new_pod_namespaces[i],
+                work.new_pod_names[0],
+                work.new_pod_names[1],
+                work.new_pod_namespaces[0],
                 AKRI_INSTANCE_LABEL_NAME,
-                work.new_pod_instance_names[i],
+                work.new_pod_instance_names[0],
             );
+        } else {
+            for i in 0..work.new_pod_names.len() {
+                config_for_tests::configure_add_pod(
+                    mock,
+                    work.new_pod_names[i],
+                    work.new_pod_namespaces[i],
+                    AKRI_INSTANCE_LABEL_NAME,
+                    work.new_pod_instance_names[i],
+                );
+            }
         }
+    }
+
+    fn configure_add_shared_config_a_359973_multiple_nodes(
+        pod1_name: &'static str,
+        pod2_name: &'static str,
+    ) -> HandleAdditionWork {
+        HandleAdditionWork {
+            find_config_name: "config-a",
+            find_config_namespace: "config-a-namespace",
+            find_config_result: "../test/json/config-a.json",
+            new_pod_names: vec![pod1_name, pod2_name],
+            new_pod_instance_names: vec!["config-a-359973", "config-a-359973"],
+            new_pod_namespaces: vec!["config-a-namespace", "config-a-namespace"],
+        }
+    }
+
+    // Asserts that a single pod is created, whether it is the 1st or 2nd Pod does not matter.
+    // Needed because list of nodes that should get pods is grabbed from a HashMap in
+    // `handle_instance_change` so the order cannot be predetermined.
+    pub fn configure_add_pod_for_pod1_or_pod2(
+        mock: &mut MockKubeImpl,
+        pod1_name: &'static str,
+        pod2_name: &'static str,
+        pod_namespace: &'static str,
+        label_id: &'static str,
+        label_value: &'static str,
+    ) {
+        println!(
+            "mock.expect_create_pod pod_names: {}, {}",
+            pod1_name, pod2_name
+        );
+        mock.expect_create_pod()
+            .times(1)
+            .withf(move |pod_to_create, namespace| {
+                pod_to_create
+                    .metadata
+                    .as_ref()
+                    .unwrap()
+                    .name
+                    .as_ref()
+                    .unwrap()
+                    == pod1_name
+                    || (pod_to_create
+                        .metadata
+                        .as_ref()
+                        .unwrap()
+                        .name
+                        .as_ref()
+                        .unwrap()
+                        == pod2_name)
+                        && pod_to_create
+                            .metadata
+                            .as_ref()
+                            .unwrap()
+                            .labels
+                            .as_ref()
+                            .unwrap()
+                            .get(label_id)
+                            .unwrap()
+                            == label_value
+                        && namespace == pod_namespace
+            })
+            .returning(move |_, _| Ok(()));
     }
 
     async fn run_handle_instance_change_test(
@@ -814,6 +923,7 @@ mod handle_instance_tests {
                 deletion_work: None,
                 addition_work: Some(configure_add_local_config_a_b494b6()),
             },
+            false,
         );
         run_handle_instance_change_test(
             &mut mock,
@@ -839,6 +949,7 @@ mod handle_instance_tests {
                 deletion_work: Some(configure_deletion_work_for_config_a_b494b6()),
                 addition_work: None,
             },
+            false,
         );
         run_handle_instance_change_test(
             &mut mock,
@@ -866,10 +977,68 @@ mod handle_instance_tests {
                     "node-a-config-a-359973-pod",
                 )),
             },
+            false,
         );
         run_handle_instance_change_test(
             &mut mock,
             "../test/json/shared-instance.json",
+            &InstanceAction::Add,
+        )
+        .await;
+    }
+
+    // Test scenario when capacity==1 and there is already a Pod created on one node. The second Node should not get a Pod.
+    #[tokio::test]
+    async fn test_handle_instance_change_for_update_shared_instance_more_nodes_than_capacity() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut mock = MockKubeImpl::new();
+        configure_for_handle_instance_change(
+            &mut mock,
+            &HandleInstanceWork {
+                find_pods_selector: "akri.sh/instance=config-a-359973",
+                find_pods_result: "../test/json/running-pod-list-for-config-a-shared.json",
+                find_pods_phase: Some("Running"),
+                find_pods_start_time: Some(Utc::now()),
+                find_pods_delete_start_time: false,
+                deletion_work: None,
+                addition_work: None,
+            },
+            false,
+        );
+        println!("before run_handle_instance_change_test");
+        run_handle_instance_change_test(
+            &mut mock,
+            "../test/json/shared-instance-multiple-nodes.json",
+            &InstanceAction::Update,
+        )
+        .await;
+    }
+
+    // In case where capacity > # nodes that can see an instance, only capacity number of nodes should get a broker Pod.
+    #[tokio::test]
+    async fn test_handle_instance_change_for_add_new_shared_instance_more_nodes_than_capacity() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut mock = MockKubeImpl::new();
+        configure_for_handle_instance_change(
+            &mut mock,
+            &HandleInstanceWork {
+                find_pods_selector: "akri.sh/instance=config-a-359973",
+                find_pods_result: "../test/json/empty-list.json",
+                find_pods_phase: None,
+                find_pods_start_time: None,
+                find_pods_delete_start_time: false,
+                deletion_work: None,
+                addition_work: Some(configure_add_shared_config_a_359973_multiple_nodes(
+                    "node-a-config-a-359973-pod",
+                    "node-b-config-a-359973-pod",
+                )),
+            },
+            true,
+        );
+        println!("before run_handle_instance_change_test");
+        run_handle_instance_change_test(
+            &mut mock,
+            "../test/json/shared-instance-multiple-nodes.json",
             &InstanceAction::Add,
         )
         .await;
@@ -891,6 +1060,7 @@ mod handle_instance_tests {
                 deletion_work: Some(configure_deletion_work_for_config_a_359973()),
                 addition_work: None,
             },
+            false,
         );
         run_handle_instance_change_test(
             &mut mock,
@@ -918,6 +1088,7 @@ mod handle_instance_tests {
                     "node-b-config-a-359973-pod",
                 )),
             },
+            false,
         );
         run_handle_instance_change_test(
             &mut mock,
@@ -973,6 +1144,7 @@ mod handle_instance_tests {
                     "node-b-config-a-359973-pod",
                 )),
             },
+            false,
         );
         run_handle_instance_change_test(&mut mock, &instance_file, &InstanceAction::Update).await;
     }

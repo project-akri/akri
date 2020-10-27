@@ -6,13 +6,9 @@
     }, 
     "spec": {
         "configurationName": "config-a",
-        "nodes": [ "node-a" ],
+        "nodes": [ "node-a", "node-b"],
         "deviceUsage": {
-            "config-a-359973-0": "",
-            "config-a-359973-1": "",
-            "config-a-359973-2": "",
-            "config-a-359973-3": "",
-            "config-a-359973-4": ""
+            "config-a-359973-0":"node-a"
         },
         "shared": true
     }
