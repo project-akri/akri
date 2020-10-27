@@ -5,7 +5,7 @@ To best understand the benefits of Akri and jump into using it, we recommend you
 To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol that can be used to discover resources of that type. To see the list of currently supported protocols, see our [roadmap](./roadmap.md).
 
 ### Setting up your cluster
-1. Before deploying Akri, you must have a Kubernetes cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
+1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
 
 ### Deploying Akri
 1. Install Helm
