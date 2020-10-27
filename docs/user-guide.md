@@ -61,7 +61,7 @@ helm install akri akri-helm-charts/akri
         ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
 
-1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
+1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md). To allow the controller to run on a node other than the control plane, add `--set controller.onlyOnMaster=false` to your install command below. 
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \

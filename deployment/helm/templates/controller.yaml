@@ -40,12 +40,12 @@ spec:
       nodeSelector:
         "kubernetes.io/os": linux
       {{- end }}
-      {{- if .Values.controller.onlyOnMaster }}
-      # Only run this pod on the master.
       tolerations:
         # Allow this pod to run on the master.
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
+      {{- if .Values.controller.onlyOnMaster }}
+      # Only run this pod on the master.
       nodeSelector:
         node-role.kubernetes.io/master: ""
       {{- end }}
