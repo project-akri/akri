@@ -3,7 +3,7 @@ entries:
   akri:
   - apiVersion: v2
     appVersion: 0.0.36
-    created: "2020-10-27T21:21:13.967565921Z"
+    created: "2020-10-27T21:35:21.43871571Z"
     description: A Helm chart for Akri
     digest: dce3b578337732ea279734160399e89264d07e6e05164d721bbb8e1b1aae475a
     name: akri
@@ -13,7 +13,7 @@ entries:
     version: 0.0.36
   - apiVersion: v2
     appVersion: 0.0.35
-    created: "2020-10-27T21:21:13.963851507Z"
+    created: "2020-10-27T21:35:21.437917606Z"
     description: A Helm chart for Akri
     digest: a2f07d58121e44bc9137c69a68e4e00b36888230022386af08135f092d50957f
     name: akri
@@ -23,7 +23,7 @@ entries:
     version: 0.0.35
   - apiVersion: v2
     appVersion: 0.0.34
-    created: "2020-10-27T21:21:13.962752803Z"
+    created: "2020-10-27T21:35:21.437064902Z"
     description: A Helm chart for Akri
     digest: 7de3828affe7184c6bc9376092499cfd0afbf7d12c2bada21d9d85aeddbbea4f
     name: akri
@@ -34,12 +34,12 @@ entries:
   akri-dev:
   - apiVersion: v2
     appVersion: 0.0.36
-    created: "2020-10-27T21:21:13.969053826Z"
+    created: "2020-10-27T21:35:21.440127817Z"
     description: A Helm chart for Akri development
-    digest: a0b06ada39bf256503fefc629ef12208b9d06a1d69376214b51c518a2eb436e3
+    digest: 9e9aa30417050b5a3fa263139f0b9f6013ad60026f4f8436ee2726f46671c249
     name: akri-dev
     type: application
     urls:
     - https://deislabs.github.io/akri/akri-dev-0.0.36.tgz
     version: 0.0.36
-generated: "2020-10-27T21:21:13.960053593Z"
+generated: "2020-10-27T21:35:21.436097797Z"
