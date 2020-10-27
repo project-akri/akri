@@ -31,8 +31,9 @@ controller:
     tag:
     # pullPolicy is the Akri Controller pull policy
     pullPolicy: Always
-  # onlyOnMaster dictates whether the Akri Controller will only run on a master node
-  onlyOnMaster: true
+  # onlyOnMaster dictates whether the Akri Controller will only run on node with 
+  # the master node label 'node-role.kubernetes.io/master'
+  onlyOnMaster: false
   # linuxOnly dictates whether the Akri Controller will only run on a linux node
   linuxOnly: true
 

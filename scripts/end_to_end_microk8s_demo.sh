@@ -10,8 +10,6 @@ echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kub
 
 sudo microk8s stop && microk8s start
 
-sudo microk8s.kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
-
 VERSION="v1.17.0"
 curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
 sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin

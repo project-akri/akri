@@ -29,10 +29,6 @@ carry out one or the other, then continue on with the rest of the steps.
     sudo apt install -y curl
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
     ```
-1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
-    ```
 1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket.
     ```sh
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
@@ -54,7 +50,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     microk8s status --wait-ready
     ```
-1. Enable CloudDNS, Helm and RBAC for MicroK8s.
+1. Enable CoreDNS, Helm and RBAC for MicroK8s.
     ```sh
     microk8s enable dns helm3 rbac
     ```
@@ -68,10 +64,6 @@ carry out one or the other, then continue on with the rest of the steps.
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
     microk8s.stop
     microk8s.start
-    ```
-1. Since MicroK8s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
 1. Akri depends on crictl to track some Pod information. MicroK8s does not install crictl locally, so crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and MicroK8s containerd socket.
     ```sh

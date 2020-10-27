@@ -29,26 +29,22 @@ helm install akri akri-helm-charts/akri
     ```
 1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using **K3s**, add the `node-role.kubernetes.io/master=` label to the control plane, point to `kubeconfig` for Helm, and configure Akri to use the K3s embedded crictl.
+    1. If using **K3s**, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl.
         ```sh
-        # Add master label to control plane so that Akri can schedule the controller
-        kubectl label node $HOSTNAME node-role.kubernetes.io/master= --overwrite=true
         # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
         # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
-    1. If using **MicroK8s**, enable dns, rbac (optional), enable privileged pods, enable Helm, install crictl, and configure Akri to use MicroK8s' CRI socket.
+    1. If using **MicroK8s**, enable CoreDNS, RBAC (optional), Helm, and privileged Pods. Also, install crictl, and configure Akri to use MicroK8s' CRI socket.
         ```sh
-        # Enable dns
-        microk8s enable dns
-        # Enable rbac (optional)
-        microk8s enable rbac
-        # Enable Helm for MicroK8s
-        kubectl config view --raw >~/.kube/config
-        chmod go-rwx ~/.kube/config
-        microk8s enable helm3
-        
+        # Enable CoreDNS, RBAC and Helm
+        microk8s enable dns rbac helm3
+
+        # Enable privileged pods and restart MicroK8s.
+        echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
+        sudo microk8s stop && microk8s start
+
         # Install crictl locally (note: there are no known version
         # limitations, any crictl version is expected to work)
         VERSION="v1.17.0"
@@ -59,9 +55,17 @@ helm install akri akri-helm-charts/akri
         # Configure Akri to use MicroK8s' CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
         ```
+        If you don't have a existing kubectl and helm installations, you can add aliases. If you do not want to set an alias, add microk8s in front of all kubectl and helm commands.
+        ```sh
+        alias kubectl='microk8s kubectl'
+        alias helm='microk8s helm3'
+        ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
 
-1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md). To allow the controller to run on a node other than the control plane, add `--set controller.onlyOnMaster=false` to your install command below. 
+1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md). 
+
+    To ensure that the Akri Controller only runs on the control plane, add `--set controller.onlyOnMaster=true` to your install command below. This will only run the controller on a node with the label `node-role.kubernetes.io/master`, which is the default label for the control plane node for Kubernetes. However, MicroK8s and K3s do not have this label by defaul, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true`.
+
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \
