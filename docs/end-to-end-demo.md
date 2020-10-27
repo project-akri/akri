@@ -113,7 +113,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2
     ```
-    If this generates an error, be sure that there are no existing video streams targeting /dev/video1 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
+    If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
 
 ## Set up Akri
 1. Install Akri Helm chart and enable the udev video configuration which will search for all video devices on the node, as specified by the udev rule `KERNEL=="video[0-9]*"` in the configuration. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
