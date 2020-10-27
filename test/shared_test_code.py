@@ -16,6 +16,7 @@ KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
 RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
 HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
 VERSION_FILE = "/tmp/version_to_test.txt"
+HELM_CHART_NAME_FILE = "/tmp/chart_name.txt"
 SLEEP_DURATION_FILE = "/tmp/sleep_duration.txt"
 SLEEP_INTERVAL = 20
 
@@ -53,6 +54,10 @@ def get_kubectl_command():
 def get_cri_args():
     # Get CRI args for Akri Helm
     return open(HELM_CRI_ARGS_FILE, "r").readline().rstrip()
+
+def get_helm_chart_name():
+    # Get Helm chart name (akri, akri-dev)
+    return open(HELM_CHART_NAME_FILE, "r").readline().rstrip()
 
 def get_test_version():
     # Get version of akri to test
