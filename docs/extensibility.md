@@ -454,7 +454,7 @@ We have provided makefiles for building and pushing containers for the various c
 PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
-Next, you must [generate a new Akri chart](./development#helm-template). You can now [install Akri with the newly built containers](./development#install-akri-with-newly-built-containers), setting the appropriate image address for the Agent and Controller pods in your personal container registry. 
+Next, you must [generate a new Akri chart](./development.md#helm-template). You can now [install Akri with the newly built containers](./development.md#install-akri-with-newly-built-containers), setting the appropriate image address for the Agent and Controller pods in your personal container registry. 
 
 Finally, you can apply your Nessie Configuration and watch as broker pods are created:
 ```sh
