@@ -7,13 +7,13 @@ To get started using Akri, you must first decide what you want to discover and w
 ### Understanding Akri Helm charts
 Akri is most easily deployed with Helm charts.  Helm charts provide convenient packaging and configuration.
 
-Starting in v0.0.36, there will be a Helm chart published in **akri-dev** for each build version.  Each Akri build is verified with end-to-end tests on Kubernetes, K3s, and MicroK8s.  These builds may be less stable than our Releases.  You can deploy these versions of Akri with this command (note: **akri-dev**):
+Starting in v0.0.36, an **akri-dev** Helm chart will be published for each build version.  Each Akri build is verified with end-to-end tests on Kubernetes, K3s, and MicroK8s.  These builds may be less stable than our Releases.  You can deploy these versions of Akri with this command (note: **akri-dev**):
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev
 ```
 
-Starting after Release v0.0.35, a Helm chart will be published in **akri** for each [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
+Starting after Release v0.0.35, an **akri** Helm chart will be published for each [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri
