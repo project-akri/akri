@@ -2,10 +2,10 @@
 As an example of handling local capabilities, an implementation was made for video cameras that can be discovered using the udev protocol. Udev is a device manager for the Linux kernel. The udev protocol parses udev rules listed in a Configuration, searches for them using udev, and returns a list of device nodes (ie: /dev/video0). An instance is created for each device node. Since this sample uses a broker that streams frames from a local camera, the rule added to the Configuration is `KERNEL=="video[0-9]*"`. To determine if a node has video devices that will be discovered by this Configuration, run `ls -l /sys/class/video4linux/` or `sudo v4l2-ctl --list-devices`.
 
 ## Usage
-To use enable a udev camera in your Akri-enabled cluster, you can simply set `udevVideo.enabled=true` when installing the Akri helm chart.  
+To use enable a udev camera in your Akri-enabled cluster, you can simply set `udevVideo.enabled=true` when installing the Akri Helm chart.  More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set udevVideo.enabled=true
 ```
@@ -25,7 +25,7 @@ Instead of finding all video4linux device nodes, the udev rule can be modified t
 For example, the rule can be narrowed by matching cameras with specific properties. To see the properties of a camera on a node, do `udevadm info --query=property --name /dev/video0`, passing in the proper devnode name. In this example, `ID_VENDOR=Microsoft` was one of the outputted properties. To only find cameras made by Microsoft, the rule can be modified like the following:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set udevVideo.enabled=true \
     --set udevVideo.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Microsoft"'
@@ -34,7 +34,7 @@ helm install akri akri-helm-charts/akri \
 As another example, to make sure that the camera has a capture capability rather than just being a video output device, modify the udev rule as follows: 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set udevVideo.enabled=true \
     --set udevVideo.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_V4L_CAPABILITIES}=="*:capture:*"'
@@ -44,7 +44,7 @@ helm install akri akri-helm-charts/akri \
 To modify the Configuration so that a camera is accessed by more or fewer protocol broker Pods, update the `capacity` property to reflect the correct number.  For example, if your high availability needs are met by having only 1 redundant pod, you can update the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set udevVideo.enabled=true \
     --set udevVideo.capacity=2
@@ -53,7 +53,7 @@ helm install akri akri-helm-charts/akri \
 ### Modifying the brokerPod spec
 The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podspec-v1-core) and can be modified as such.  For example, to configure the frame rate, resolution, and image type the broker streams from the discovered video cameras, environment variables can be modified in the podspec. To examine what settings are supported by a camera, install `v4l-utils` and run `sudo v4l2-ctl -d /dev/video0 --list-formats-ext` on the node. By default, the environment variables are set to MJPG format, 640x480 resolution, and 10 frames per second. If the broker sees that those settings are not supported by the camera, it will query the v4l device for supported settings and use the first format, resolution, and fps in the lists returned. The environment variables can be changed when installing the Akri helm chart. The following tells the broker to stream JPEG format, 1000x800 resolution, and 30 frames per second.
 ```bash
-  helm install akri akri-helm-charts/akri \
+  helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set udevVideo.enabled=true \
     --set udevVideo.brokerPod.env.format=JPEG \

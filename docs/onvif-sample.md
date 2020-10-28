@@ -11,11 +11,11 @@ margin-right: auto; display: block; margin-left: auto;"/>
 1. The Akri Controller sees the Instances and deploys `akri-onvif-video-broker` pods, which were specified in the Configuration. The Controller also creates a Kubernetes service for each ONVIF camera along with one service for all the ONVIF cameras.
 
 ## Usage
-To use the default ONVIF Configuration in your Akri-enabled cluster, you can simply set `onvifVideo.enabled=true` when installing the Akri helm chart.  
+To use the default ONVIF Configuration in your Akri-enabled cluster, you can simply set `onvifVideo.enabled=true` when installing the Akri Helm chart.  More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true
 ```
@@ -40,7 +40,7 @@ will allow you to either include or exclude specific IP addresses, MAC addresses
 For example, you can enable cluster access for every camera that does not have an IP address of 10.0.0.1 by using this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \
@@ -50,7 +50,7 @@ helm install akri akri-helm-charts/akri \
 You can enable cluster access for every camera with a specific name, you can modify the Configuration like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.scopes.action=Include \
@@ -63,7 +63,7 @@ The ONVIF protocol will search for up to `discoveryTimeoutSeconds` for IP camera
 decreased as desired, and defaults to 1 second if left unconfigured. It can be set in the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.discoveryTimeoutSeconds=2
@@ -75,7 +75,7 @@ property to reflect the correct number.  For example, if your high availability 
 pod, you can update the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.capacity=2

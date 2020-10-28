@@ -1,6 +1,6 @@
-# Modifying a Akri Installation
+# Modifying an Akri Installation
 The [onvif](./onvif-sample.md) and [udev](./udev-sample.md) documentation explains how to deploy Akri for a specific
-protocol Configuration. This documentation elaborates upon them, covering the following:
+protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
 1. Deploying multiple Configurations
 1. Modifying a deployed Configuration
@@ -11,7 +11,7 @@ protocol Configuration. This documentation elaborates upon them, covering the fo
 To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true
 ```
 This will start the Akri controller and deploy Akri Agents.
@@ -21,7 +21,7 @@ If you want your end application to consume frames from both IP cameras and loca
 installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -43,7 +43,7 @@ state** of Akri and replace `helm install` with `helm upgrade`. Using the ONVIF 
 say an IP camera with IP address 10.0.0.1 is malfunctioning and should be filtered out of discovery, the following
 command could be run:
 ```bash 
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set onvifVideo.ipAddresses.action=Exclude \
@@ -66,7 +66,7 @@ our Helm chart, we suggest creating a Configuration file using helm and then man
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
 substitute `onvifVideo.enabled` with `udevVideo.enabled`.)
 ```bash
-helm template akri akri-helm-charts/akri \
+helm template akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set rbac.enabled=false \
@@ -148,7 +148,7 @@ template` and kubectl.
 Another Configuration can be added to the cluster by using `helm upgrade`. If you originally installed just the ONVIF
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
 ```bash
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
     --set udevVideo.enabled=true
@@ -166,7 +166,7 @@ A Configuration can be deleted from a cluster using `helm upgrade`. For example,
 have been installed in a cluster, the udev Configuration can be deleted by only specifying the ONVIF Configuration in a
 `helm upgrade` command like the following:
 ```bash
-helm upgrade akri akri-helm-charts/akri \
+helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true 
 ```

@@ -4,6 +4,21 @@ To best understand the benefits of Akri and jump into using it, we recommend you
 ## Getting Started
 To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol that can be used to discover resources of that type. To see the list of currently supported protocols, see our [roadmap](./roadmap.md).
 
+### Understanding Akri Helm charts
+Akri is most easily deployed with Helm charts.  Helm charts provide convenient packaging and configuration.
+
+Starting in v0.0.36, an **akri-dev** Helm chart will be published for each build version.  Each Akri build is verified with end-to-end tests on Kubernetes, K3s, and MicroK8s.  These builds may be less stable than our Releases.  You can deploy these versions of Akri with this command (note: **akri-dev**):
+```sh
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri-dev
+```
+
+Starting after Release v0.0.35, an **akri** Helm chart will be published for each [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
+```sh
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri
+```
+
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
 
@@ -49,7 +64,7 @@ To get started using Akri, you must first decide what you want to discover and w
 1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on deploying the udev Configuration can be found in [this document](./udev-sample.md).
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set onvifVideo.enabled=true

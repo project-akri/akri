@@ -39,7 +39,7 @@ sudo gst-launch-1.0 -v videotestsrc pattern=ball ! "video/x-raw,width=640,height
 sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2 &
 
 sudo microk8s.helm3 repo add akri-helm-charts https://deislabs.github.io/akri/
-sudo microk8s.helm3 install akri akri-helm-charts/akri \
+sudo microk8s.helm3 install akri akri-helm-charts/akri-dev \
   $AKRI_HELM_CRICTL_CONFIGURATION \
   --set useLatestContainers=true \
   --set udevVideo.enabled=true \
