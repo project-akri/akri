@@ -9,7 +9,7 @@ To add a new protocol implementation, three things are needed:
 ## The mythical Loch Ness resource
 To demonstrate how new protocols can be added, we will create a protocol to discover Nessie, a mythical Loch Ness monster that lives at a specific url.
 
-For reference, we have created a [nessie branch](https://github.com/deislabs/akri/tree/nessie) with the implementation defined below.
+For reference, we have created a [nessie branch](https://github.com/deislabs/akri/tree/nessie) with the implementation defined below.  For convenience, you can [compare the nessie branch with main here](https://github.com/deislabs/akri/compare/nessie).
 
 ### Container Registry Setup
 Any docker-compatible container registry should work (dockerhub, Github Container Registry, Azure Container Registry, etc).
