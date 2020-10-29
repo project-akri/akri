@@ -526,7 +526,7 @@ LABEL_PREFIX=extensibility PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_
 
 In order to deploy the new, nessie-enabled Akri, we need to build a new Helm chart.  You can follow [these instructions to generate a new Akri chart](./development.md#helm-package). The new Helm chart will be generated in a tgz file called `akri-<VERSION>.tgz` which can be copied to your Kubernetes environment.
 
-Assuming you have a Kubernetes cluster running, you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
+Assuming you have a Kubernetes cluster running (assuming amd64 for this sample), you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
 
 ```sh
 # Add secret to give Kubernetes access to your container repo
@@ -535,9 +535,9 @@ kubectl create secret docker-registry <SECRET NAME> --docker-server=ghcr.io  --d
 helm install akri akri-<VERSION>.tgz \
     --set imagePullSecrets[0].name="<SECRET NAME>" \
     --set agent.image.repository="ghcr.io/<GITHUB USERNAME>/agent" \
-    --set agent.image.tag="extensibility" \
+    --set agent.image.tag="extensibility-amd64" \
     --set controller.image.repository="ghcr.io/<GITHUB USERNAME>/controller" \
-    --set controller.image.tag="extensibility"
+    --set controller.image.tag="extensibility-amd64"
 # Apply nessie Akri Configuration
 kubectl apply -f nessie.yaml
 # Watch as agent, controller, and nessie Pods start
