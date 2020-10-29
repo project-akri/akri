@@ -140,7 +140,7 @@ openAPIV3Schema:
 ```
 
 ### Create a sample protocol broker
-The final step, is to create a protocol broker that will make Nessie available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod; however, for this example, we will make a Rust broker. We can use cargo to create our project by navigating to `samples/brokers` and running `cargo new nessie`.
+The final step, is to create a protocol broker that will make Nessie available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod; however, for this example, we will make a Rust broker. We can use cargo to create our project by navigating to `samples/brokers` and running `cargo new nessie`.  Once the nessie project has been created, it can be added to the greater Akri project by adding `"samples/brokers/nessie"` to the **members** in `./Cargo.toml`.
 
 As a simple strategy, we can split the broker implementation into parts:
 
