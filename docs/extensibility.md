@@ -135,8 +135,8 @@ openAPIV3Schema:
                 nessie: # {{NessieDiscoveryHandler}} <--- add this line
                     type: object                                # <--- add this line
                     properties:                                 # <--- add this line
-                    nessieUrl:                                  # <--- add this line
-                        type: string                            # <--- add this line...
+                        nessieUrl:                              # <--- add this line
+                            type: string                        # <--- add this line...
 ```
 
 ### Create a sample protocol broker
