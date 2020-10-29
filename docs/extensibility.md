@@ -88,6 +88,20 @@ mod discovery_handler;
 pub use self::discovery_handler::NessieDiscoveryHandler;
 ```
 
+In order to enable the nessie discovery handler to access https, we need to make a couple changes to `build/containers/Dockerfile.agent`:
+* Add installation of `ca-certificates`
+* Add `SSL_CERT_FILE` and `SSL_CERT_DIR` ENV lines
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl-dev openssl && apt-get clean
+COPY ./target/${CROSS_BUILD_TARGET}/release/agent /agent
+
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+ENV RUST_LOG agent,akri_shared
+CMD ["./agent"]
+```
+
 The next step is to update `inner_get_discovery_handler` in `agent/src/protocols/mod.rs` to create a NessieDiscoveryHandler:
 
 ```rust
