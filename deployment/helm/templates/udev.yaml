@@ -1,0 +1,52 @@
+{{- if .Values.udev.enabled }}
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: {{ .Values.udev.name }}
+spec:
+  protocol:
+    udev:
+      udevRules:
+      {{- toYaml .Values.udev.udevRules | nindent 6 }}
+  {{- if .Values.udev.brokerPod.image.repository }}
+  # only add broker pod spec if a broker image is provided
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.udev.name }}-broker
+      image: {{ .Values.udev.brokerPod.image.repository | quote }}
+      imagePullPolicy: {{ .Values.udev.brokerPod.image.pullPolicy }}
+      securityContext:
+        privileged: true
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.udev.brokerPod.image.repository }}
+  # only add service specs if a broker image was specified
+  instanceServiceSpec:
+    type: {{ .Values.udev.instanceService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.udev.instanceService.port }}
+      protocol: {{ .Values.udev.instanceService.protocol }}
+      targetPort: {{ .Values.udev.instanceService.targetPort }}
+  configurationServiceSpec:
+    type: {{ .Values.udev.configurationService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.udev.configurationService.port }}
+      protocol: {{ .Values.udev.configurationService.protocol }}
+      targetPort: {{ .Values.udev.configurationService.targetPort }}
+  {{- end }}
+  {{- if .Values.udev.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  capacity: {{ .Values.udev.capacity }}
+  {{- end }}
+{{- end }}

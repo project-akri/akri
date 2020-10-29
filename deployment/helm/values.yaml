@@ -171,6 +171,45 @@ onvifVideo:
     # protocol is the service protocol of the instance service
     protocol: TCP
 
+udev:
+  # enabled defines whether to load a udev configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # udev configuration
+  name: akri-udev
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this udev configuration
+  properties:
+  # udevRules is the list of udev rules used to find instances created as a result of
+  # applying this udev configuration
+  udevRules:
+  # capacity is the capacity for any instances created as a result of
+  # applying this udevVideo configuration
+  capacity: 1
+  brokerPod:
+    image:
+      # repository is the container reference
+      repository:
+      pullPolicy: Always
+  instanceService:
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  configurationService:
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+
 udevVideo:
   # enabled defines whether to load a udevVideo configuration
   enabled: false
@@ -181,7 +220,7 @@ udevVideo:
   # created as a result of applying this udevVideo configuration
   properties:
   # udevRules is the list of udev rules used to find instances created as a result of
-  # applying this debugEcho configuration
+  # applying this udevVideo configuration
   udevRules:
   - 'KERNEL=="video[0-9]*"'
   # capacity is the capacity for any instances created as a result of

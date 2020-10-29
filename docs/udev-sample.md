@@ -1,5 +1,7 @@
 # Udev camera sample
-As an example of handling local capabilities, an implementation was made for video cameras that can be discovered using the udev protocol. Udev is a device manager for the Linux kernel. The udev protocol parses udev rules listed in a Configuration, searches for them using udev, and returns a list of device nodes (ie: /dev/video0). An instance is created for each device node. Since this sample uses a broker that streams frames from a local camera, the rule added to the Configuration is `KERNEL=="video[0-9]*"`. To determine if a node has video devices that will be discovered by this Configuration, run `ls -l /sys/class/video4linux/` or `sudo v4l2-ctl --list-devices`.
+As an example of handling local capabilities, a sample Configuration and broker have been made for discovering and utilizing video cameras using the udev protocol. To create an Akri Configuration to discover other devices via udev, see the [udev Configuration documentation](./udev-configuration.md). 
+
+Udev is a device manager for the Linux kernel. The udev discovery handler parses udev rules listed in a Configuration, searches for them using udev, and returns a list of device nodes (ie: /dev/video0). An instance is created for each device node. Since this example uses a [sample broker](../samples/brokers/udev-video-broker) that streams frames from a local camera, the rule added to the Configuration is `KERNEL=="video[0-9]*"`. To determine if a node has video devices that will be discovered by this Configuration, run `ls -l /sys/class/video4linux/` or `sudo v4l2-ctl --list-devices`. 
 
 ## Usage
 To use enable a udev camera in your Akri-enabled cluster, you can simply set `udevVideo.enabled=true` when installing the Akri Helm chart.  More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
@@ -17,7 +19,7 @@ The udev Configuration can be tailored to your cluster by modifying the [Akri he
 * Modifying the udev rule
 * Changing the capacity
 * Modifying brokerPodSpec
-* Modifying instanceServiceSpec or configurationServiceSpec (See [Modifying a Akri Installation](./modifying-akri-installation#modifying-instanceservicespec-or-configurationservicespec))
+* Modifying instanceServiceSpec or configurationServiceSpec (See [Modifying a Akri Installation](./modifying-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec))
 
 ### Modifying the udev rule
 Instead of finding all video4linux device nodes, the udev rule can be modified to exclude certain device nodes, find devices only made by a certain manufacturer, and more. To learn more about what udev rule fields are currently supported see [udev_rule_grammar.pest](../agent/src/protocols/udev/udev_rule_grammar.pest). To learn more about udev rules in general, see the [udev wiki](https://wiki.archlinux.org/index.php/Udev). 
@@ -64,16 +66,7 @@ The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/refe
 
 **Note:** that udev broker pods must run as privileged in order for udev to be able to access the video device.
 
-Reference [Modifying a Akri Installation](./modifying-akri-installation#modifying-the-brokerpodspec)) for more examples of how the broker spec can be modified. 
+Reference [Modifying a Akri Installation](./modifying-akri-installation.md#modifying-the-brokerpodspec) for more examples of how the broker spec can be modified. 
 
 ## Modifying a Configuration
 More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Modifying a Akri Installation document](./modifying-akri-installation.md).
-
-## Implementation details
-The udev implementation can be understood by looking at several things:
-
-1. [UdevDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties
-1. [The udev property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates the CRD input
-1. [UdevDiscoveryHandler](../agent/src/protocols/udev/discovery_handler.rs) defines udev camera discovery
-1. [samples/brokers/udev-video-broker](../samples/brokers/udev-video-broker) defines the udev protocol broker
-1. [udev_rule_grammar.pest](../agent/src/protocols/udev/udev_rule_grammar.pest) defines the grammar for parsing udev rules and enumerate which fields are supported (such as `ATTR` and `TAG`), which are yet to be supported (`ATTRS` and `TAGS`), and which fields will never be supported, mainly due to be assignment rather than matching fields (such as `ACTION` and `GOTO`).
