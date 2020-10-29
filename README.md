@@ -1,9 +1,13 @@
 # Akri
-[![Check Rust](https://github.com/deislabs/akri/workflows/Check%20Rust/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Check+Rust%22) [![Tarpaulin Code Coverage](https://github.com/deislabs/akri/workflows/Tarpaulin%20Code%20Coverage/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22) [![codecov](https://codecov.io/gh/deislabs/akri/branch/main/graph/badge.svg?token=V468HO7CDE)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22) [![Rust Version](https://img.shields.io/badge/rustc-1.41.0-blue.svg)](https://blog.rust-lang.org/2020/01/30/Rust-1.41.0.html) [![Kubernetes Version](https://img.shields.io/badge/kubernetes-≥%201.16-blue.svg)](https://v1-16.docs.kubernetes.io/) 
+[![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri) 
+[![Rust Version](https://img.shields.io/badge/rustc-1.41.0-blue.svg)](https://blog.rust-lang.org/2020/01/30/Rust-1.41.0.html) 
+[![Kubernetes Version](https://img.shields.io/badge/kubernetes-≥%201.16-blue.svg)](https://v1-16.docs.kubernetes.io/) 
+[![codecov](https://codecov.io/gh/deislabs/akri/branch/main/graph/badge.svg?token=V468HO7CDE)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22) 
 
-
-[![Build Controller](https://github.com/deislabs/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Controller%22) [![Build Agent](https://github.com/deislabs/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Agent%22)
-
+[![Check Rust](https://github.com/deislabs/akri/workflows/Check%20Rust/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Check+Rust%22) 
+[![Tarpaulin Code Coverage](https://github.com/deislabs/akri/workflows/Tarpaulin%20Code%20Coverage/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22) 
+[![Build Controller](https://github.com/deislabs/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Controller%22) 
+[![Build Agent](https://github.com/deislabs/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Agent%22)
 [![Test K3s, Kubernetes, and MicroK8s](https://github.com/deislabs/akri/workflows/Test%20K3s,%20Kubernetes,%20and%20MicroK8s/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Test+K3s%2C+Kubernetes%2C+and+MicroK8s%22)
 
 Akri lets you easily expose heterogeneous leaf devices (such as IP cameras and USB devices) as resources in a Kubernetes cluster, while also supporting the exposure of embedded hardware resources such as GPUs and FPGAs. Akri continually detects nodes that have access to these devices and schedules workloads based on them. 
