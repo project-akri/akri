@@ -415,16 +415,17 @@ ENV SSL_CERT_DIR=/etc/ssl/certs
 ENTRYPOINT ["/nessie"]
 ```
 
-The Akri `.dockerignore` is configured to ignore most files in our repository, so you will need to add an exception for the nessie broker:
+Akri's `.dockerignore` is configured so that docker will ignore most files in our repository, so you will need to add an exception for the nessie broker:
 
-```sh
+```yaml
+!shared
 !samples/brokers/nessie
 ```
 
-Now you are ready to **build the nessie broker**!  To do so, we simply need to run these steps from `samples/brokers/nessie`:
+Now you are ready to **build the nessie broker**!  To do so, we simply need to run these steps from the base folder of the Akri repo:
 
 ```sh
-docker build -t nessie:latest Dockerfile
+docker build -t nessie:extensibility -f samples/brokers/nessie/Dockerfile .
 ```
 
 Having built the nessie container, in order to use it in a cluster, you need to **push the nessie broker** to a container repo.  Any container repo should work, for our purposes, we will assume the [Github container repo](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry):
@@ -434,16 +435,16 @@ Having built the nessie container, in order to use it in a cluster, you need to 
 # and a Github PAT created to access ghcr
 echo <GITHUB PAT> | docker login -u <GITHUB USERNAME> ghcr.io --password-stdin
 # Create a container tag corresponding to your container repo
-docker tag nessie:latest ghcr.io/<GITHUB USERNAME>/nessie:latest
+docker tag nessie:extensibility ghcr.io/<GITHUB USERNAME>/nessie:extensibility
 # Push the nessie container to your container repo
-docker push ghcr.io/<GITHUB USERNAME>/nessie:latest
+docker push ghcr.io/<GITHUB USERNAME>/nessie:extensibility
 ```
 
 ### Create a new Configuration
-Once the components have been created (and assuming the container, `nessie:latest`, is available on the worker nodes), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol.  
+Once the nessie broker has been created (assuming `ghcr.io/<GITHUB USERNAME>/nessie:extensibility`), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol.  
 
 Please change the code below to 
-* Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create containing your container repo credentials.
+* Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create containing your container repo credentials.  Make note of the name you choose, as this will be used later in `kubectl create secret` and `helm install` commands.
 * Specify a value for your container image that corresponds to the container repo you are using
 
 ```yaml
@@ -462,7 +463,7 @@ spec:
     - name: <SECRET NAME>
     containers:
     - name: nessie-broker
-      image: "ghcr.io/<GITHUB USERNAME>/nessie:latest"
+      image: "ghcr.io/<GITHUB USERNAME>/nessie:extensibility"
       resources:
         limits:
           "{{PLACEHOLDER}}" : "1"
@@ -482,28 +483,32 @@ spec:
 Before you can install Akri and apply your Nessie Configuration, you must first build both the Controller and Agent containers and push them to your own container repository. You can use any container registry to host your container repository.We are using the new [GitHub container registry](https://github.blog/2020-09-01-introducing-github-container-registry/). If you want to enable GHCR, you can follow the [getting started guide](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry). 
 
 We have provided makefiles for building and pushing containers for the various components of Akri. See the [development document](./development.md) for example make commands and details on how to install the prerequisites needed for cross-building Akri components. First, you need build containers used to cross-build Rust x64, run the following (after installing cross):
+
 ```sh
 # Build and push ghcr.io/<GITHUB USERNAME>/rust-crossbuild to container repo
 PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make rust-crossbuild
 ```
 
 Update Cross.toml to use your intermediate cross-building container:
+
 ```toml
 [target.x86_64-unknown-linux-gnu]
 image = "ghcr.io/<GITHUB USERNAME>/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-<VERSION>"
 ```
 
 Now build the Controller and Agent for x64 by running the following:
+
 ```sh
 # Build and push ghcr.io/<GITHUB USERNAME>/agent:nessie to container repo
-LABEL_PREFIX=nessie PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
+LABEL_PREFIX=extensibility PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 # Build and push ghcr.io/<GITHUB USERNAME>/controller:nessie to container repo
-LABEL_PREFIX=nessie PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
+LABEL_PREFIX=extensibility PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
 
 Next, you must [generate a new Akri chart](./development.md#helm-package). This will generate a tgz file called `akri-<VERSION>.tgz`.
 
 And finally, assuming you have a Kubernetes cluster running, you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
+
 ```sh
 # Add secret to give Kubernetes access to your container repo
 kubectl create secret docker-registry <SECRET NAME> --docker-server=ghcr.io  --docker-username=<GITHUB USERNAME> --docker-password=<GITHUB PAT>
@@ -511,9 +516,9 @@ kubectl create secret docker-registry <SECRET NAME> --docker-server=ghcr.io  --d
 helm install akri akri-<VERSION>.tgz \
     --set imagePullSecrets[0].name="<SECRET NAME>" \
     --set agent.image.repository="ghcr.io/<GITHUB USERNAME>/agent" \
-    --set agent.image.tag="nessie" \
+    --set agent.image.tag="extensibility" \
     --set controller.image.repository="ghcr.io/<GITHUB USERNAME>/controller" \
-    --set controller.image.tag="nessie"
+    --set controller.image.tag="extensibility"
 # Apply nessie Akri Configuration
 kubectl apply -f nessie.yaml
 # Watch as agent, controller, and nessie Pods start
