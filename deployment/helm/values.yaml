@@ -40,7 +40,7 @@ controller:
   # linuxOnly dictates whether the Akri Controller will only run on a linux node
   linuxOnly: true
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
-  # This can be set from the helm command line using `--set nodeSelectors.label="value"`
+  # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
   nodeSelectors: {}
 
 agent:
