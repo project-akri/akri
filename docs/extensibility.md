@@ -35,9 +35,9 @@ Next, add a few files to our new nessie folder:
 `agent/src/protocols/nessie/discovery_handler.rs`:
 ```rust
 use super::super::{DiscoveryHandler, DiscoveryResult};
+use akri_shared::akri::configuration::NessieDiscoveryHandlerConfig;
 use async_trait::async_trait;
 use failure::Error;
-use akri_shared::akri::configuration::NessieDiscoveryHandlerConfig;
 use std::collections::HashMap;
 
 pub struct NessieDiscoveryHandler {
@@ -45,9 +45,7 @@ pub struct NessieDiscoveryHandler {
 }
 
 impl NessieDiscoveryHandler {
-    pub fn new(
-        discovery_handler_config: &NessieDiscoveryHandlerConfig,
-    ) -> Self {
+    pub fn new(discovery_handler_config: &NessieDiscoveryHandlerConfig) -> Self {
         NessieDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
@@ -57,26 +55,25 @@ impl NessieDiscoveryHandler {
 #[async_trait]
 impl DiscoveryHandler for NessieDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
-        let results = Vec::new();
-        let url = self
-            .discovery_handler_config
-            .nessie_url
-            .parse::<hyper::Uri>()
-            .expect("failed to parse URL");
-        if let Ok(_body) = hyper::Client::new().get(url).compat().await {
-            // If the Nessie URL can be accessed, we will return a DiscoveryResult
-            // instance
-            let props: HashMap<String, String> = HashMap::new();
-            props.insert(
-                "nessie_url".to_string(),
-                self.discovery_handler_config.nessie_url.clone(),
-            );
-            results.push(DiscoveryResult::new(
-                &self.discovery_handler_config.nessie_url,
-                props,
-                true,
-            ));
-        }
+        let src = self.discovery_handler_config.nessie_url.clone();
+        let mut results = Vec::new();
+
+        match reqwest::get(&src).await {
+            Ok(resp) => {
+                trace!("Found nessie url: {:?} => {:?}", &src, &resp);
+                // If the Nessie URL can be accessed, we will return a DiscoveryResult
+                // instance
+                let mut props = HashMap::new();
+                props.insert("nessie_url".to_string(), src.clone());
+
+                results.push(DiscoveryResult::new(&src, props, true));
+            }
+            Err(err) => {
+                println!("Failed to establish connection to {}", &src);
+                println!("Error: {}", err);
+                return Ok(results);
+            }
+        };
         Ok(results)
     }
     fn are_shared(&self) -> Result<bool, Error> {
@@ -110,7 +107,7 @@ The first step is to create a DiscoveryHandler configuration struct. This struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NessieDiscoveryHandlerConfig {
-    pub nessie_url: String
+    pub nessie_url: String,
 }
 ```
 
@@ -135,12 +132,11 @@ openAPIV3Schema:
         protocol: # {{ProtocolHandler}}
             type: object
             properties:
-            nessie: # {{NessieDiscoveryHandler}} <--- add this line
-                type: object                                # <--- add this line
-                properties:                                 # <--- add this line
-                nessieUrl:                                  # <--- add this line
-                    type: string                            # <--- add this line
-...
+                nessie: # {{NessieDiscoveryHandler}} <--- add this line
+                    type: object                                # <--- add this line
+                    properties:                                 # <--- add this line
+                    nessieUrl:                                  # <--- add this line
+                        type: string                            # <--- add this line...
 ```
 
 ### Create a sample protocol broker
@@ -159,7 +155,7 @@ pub mod nessie;
 pub mod nessie_service;
 
 use arraydeque::{ArrayDeque, Wrapping};
-// Create a wrapping (non-blocking) ring buffer with a capacity of 10 
+// Create a wrapping (non-blocking) ring buffer with a capacity of 10
 pub type FrameBuffer = ArrayDeque<[Vec<u8>; 10], Wrapping>;
 ```
 
@@ -167,8 +163,7 @@ To access the "nessie" data, we first need to retrieve any discovery information
 
 ```rust
 fn get_nessie_url() -> String {
-    nessie_url =
-        env::var("nessie_url").unwrap()
+    env::var("nessie_url").unwrap()
 }
 ```
 
@@ -176,24 +171,25 @@ For our Nessie broker, the "nessie" data can be generated with an http get.  In 
 
 ```rust
 async fn get_nessie(nessie_url: &String, frame_buffer: Arc<Mutex<FrameBuffer>>) {
-    let uri = nessie_url
-        .parse::<hyper::Uri>()
-        .expect("failed to parse URL");
-    if let Ok(response) = hyper::Client::new().get(uri).await {
-        let response_body = response
-            .into_body()
-            .try_fold(bytes::BytesMut::new(), |mut acc, chunk| async {
-                acc.extend(chunk);
-                Ok(acc)
-            })
-            .await
-            .unwrap()
-            .freeze();
-        frame_buffer
-            .lock()
-            .unwrap()
-            .push_back(response_body.to_vec());
-    }
+    match reqwest::get(nessie_url).await {
+        Ok(res) => {
+            println!("reqwest result: {:?}", res);
+            let bytes = match res.bytes().await {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    println!("Failed to get nessie bytes from {}", &nessie_url);
+                    println!("Error: {}", err);
+                    return;
+                }
+            };
+            frame_buffer.lock().unwrap().push_back(bytes.to_vec());
+        }
+        Err(err) => {
+            println!("Failed to establish connection to {}", &nessie_url);
+            println!("Error: {}", err);
+            return;
+        }
+    };
 }
 ```
 
@@ -318,7 +314,6 @@ Finally, we can tie all the pieces together in our main and retrieve the url fro
 mod util;
 
 use arraydeque::ArrayDeque;
-use futures_util::stream::TryStreamExt;
 use std::{
     env,
     sync::{Arc, Mutex},
@@ -331,30 +326,32 @@ fn get_nessie_url() -> String {
 }
 
 async fn get_nessie(nessie_url: &String, frame_buffer: Arc<Mutex<FrameBuffer>>) {
-    let uri = nessie_url
-        .parse::<hyper::Uri>()
-        .expect("failed to parse URL");
-    if let Ok(response) = hyper::Client::new().get(uri).await {
-        let response_body = response
-            .into_body()
-            .try_fold(bytes::BytesMut::new(), |mut acc, chunk| async {
-                acc.extend(chunk);
-                Ok(acc)
-            })
-            .await
-            .unwrap()
-            .freeze();
-        frame_buffer
-            .lock()
-            .unwrap()
-            .push_back(response_body.to_vec());
-    }
+    match reqwest::get(nessie_url).await {
+        Ok(res) => {
+            println!("reqwest result: {:?}", res);
+            let bytes = match res.bytes().await {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    println!("Failed to get nessie bytes from {}", &nessie_url);
+                    println!("Error: {}", err);
+                    return;
+                }
+            };
+            frame_buffer.lock().unwrap().push_back(bytes.to_vec());
+        }
+        Err(err) => {
+            println!("Failed to establish connection to {}", &nessie_url);
+            println!("Error: {}", err);
+            return;
+        }
+    };
 }
 
 #[tokio::main]
 async fn main() {
     let frame_buffer: Arc<Mutex<FrameBuffer>> = Arc::new(Mutex::new(ArrayDeque::new()));
     let nessie_url = get_nessie_url();
+    println!("nessie url: {:?}", &nessie_url);
 
     nessie_service::serve(frame_buffer.clone()).await.unwrap();
 
@@ -377,9 +374,9 @@ arraydeque = "0.4"
 bytes = "0.5"
 futures = "0.3"
 futures-util = "0.3"
-hyper = "0.13"
 prost = "0.6"
 akri-shared = { path = "../../../shared" }
+reqwest = "0.10"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
 tonic = "0.1"
 tower = "0.3" 
@@ -388,7 +385,7 @@ tower = "0.3"
 tonic-build = "0.1.1"
 ```
 
-To build the Nessie container, we need to create a Dockerfile
+To build the Nessie container, we need to create a Dockerfile, `/samples/brokers/nessie/Dockerfile`:
 
 ```dockerfile
 FROM amd64/rust:1.41 as build
@@ -404,18 +401,50 @@ COPY ./shared ./shared
 RUN cargo build
 
 FROM amd64/debian:buster-slim
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl-dev openssl && \
       apt-get clean
 COPY --from=build /nessie/target/debug/nessie /nessie
 
 # Expose port used by broker service
 EXPOSE 8083
 
+# Enable HTTPS from https://github.com/rust-embedded/cross/issues/119
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+
 ENTRYPOINT ["/nessie"]
 ```
 
+The Akri `.dockerignore` is configured to ignore most files in our repository, so you will need to add an exception for the nessie broker:
+
+```sh
+!samples/brokers/nessie
+```
+
+Now you are ready to **build the nessie broker**!  To do so, we simply need to run these steps from `samples/brokers/nessie`:
+
+```sh
+docker build -t nessie:latest Dockerfile
+```
+
+Having built the nessie container, in order to use it in a cluster, you need to **push the nessie broker** to a container repo.  Any container repo should work, for our purposes, we will assume the [Github container repo](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry):
+
+```sh
+# Log into your container repo ... in this case, ghcr using your Github username
+# and a Github PAT created to access ghcr
+echo <GITHUB PAT> | docker login -u <GITHUB USERNAME> ghcr.io --password-stdin
+# Create a container tag corresponding to your container repo
+docker tag nessie:latest ghcr.io/<GITHUB USERNAME>/nessie:latest
+# Push the nessie container to your container repo
+docker push ghcr.io/<GITHUB USERNAME>/nessie:latest
+```
+
 ### Create a new Configuration
-Once the components have been created (and assuming the container, `nessie:latest`, is available on the worker nodes), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol:
+Once the components have been created (and assuming the container, `nessie:latest`, is available on the worker nodes), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol.  
+
+Please change the code below to 
+* Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create containing your container repo credentials.
+* Specify a value for your container image that corresponds to the container repo you are using
 
 ```yaml
 apiVersion: akri.sh/v0
@@ -428,9 +457,12 @@ spec:
       nessieUrl: https://www.lochness.co.uk/livecam/img/lochness.jpg
   capacity: 5
   brokerPodSpec:
+    hostNetwork: true
+    imagePullSecrets:
+    - name: <SECRET NAME>
     containers:
     - name: nessie-broker
-      image: "nessie:latest"
+      image: "ghcr.io/<GITHUB USERNAME>/nessie:latest"
       resources:
         limits:
           "{{PLACEHOLDER}}" : "1"
@@ -449,17 +481,43 @@ spec:
 ### Installing Akri with your new Configuration
 Before you can install Akri and apply your Nessie Configuration, you must first build both the Controller and Agent containers and push them to your own container repository. You can use any container registry to host your container repository.We are using the new [GitHub container registry](https://github.blog/2020-09-01-introducing-github-container-registry/). If you want to enable GHCR, you can follow the [getting started guide](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry). 
 
-We have provided makefiles for building and pushing containers for the various components of Akri. See the [development document](./development.md) for example make commands and details on how to install the prerequisites needed for cross-building Akri components. To specifically build the Controller and Agent for x64, run the following (after installing cross):
-```
-PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
-PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
-```
-Next, you must [generate a new Akri chart](./development.md#helm-template). You can now [install Akri with the newly built containers](./development.md#install-akri-with-newly-built-containers), setting the appropriate image address for the Agent and Controller pods in your personal container registry. 
-
-Finally, you can apply your Nessie Configuration and watch as broker pods are created:
+We have provided makefiles for building and pushing containers for the various components of Akri. See the [development document](./development.md) for example make commands and details on how to install the prerequisites needed for cross-building Akri components. First, you need build containers used to cross-build Rust x64, run the following (after installing cross):
 ```sh
+# Build and push ghcr.io/<GITHUB USERNAME>/rust-crossbuild to container repo
+PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make rust-crossbuild
+```
+
+Update Cross.toml to use your intermediate cross-building container:
+```toml
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/<GITHUB USERNAME>/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-<VERSION>"
+```
+
+Now build the Controller and Agent for x64 by running the following:
+```sh
+# Build and push ghcr.io/<GITHUB USERNAME>/agent:nessie to container repo
+LABEL_PREFIX=nessie PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
+# Build and push ghcr.io/<GITHUB USERNAME>/controller:nessie to container repo
+LABEL_PREFIX=nessie PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
+```
+
+Next, you must [generate a new Akri chart](./development.md#helm-package). This will generate a tgz file called `akri-<VERSION>.tgz`.
+
+And finally, assuming you have a Kubernetes cluster running, you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
+```sh
+# Add secret to give Kubernetes access to your container repo
+kubectl create secret docker-registry <SECRET NAME> --docker-server=ghcr.io  --docker-username=<GITHUB USERNAME> --docker-password=<GITHUB PAT>
+# Use Helm to install your nessie-enabled agent and controller
+helm install akri akri-<VERSION>.tgz \
+    --set imagePullSecrets[0].name="<SECRET NAME>" \
+    --set agent.image.repository="ghcr.io/<GITHUB USERNAME>/agent" \
+    --set agent.image.tag="nessie" \
+    --set controller.image.repository="ghcr.io/<GITHUB USERNAME>/controller" \
+    --set controller.image.tag="nessie"
+# Apply nessie Akri Configuration
 kubectl apply -f nessie.yaml
-watch kubectl get pods
+# Watch as agent, controller, and nessie Pods start
+watch kubectl get pods -o wide
 ```
 
 ## Contributing your Protocol Implementation back to Akri
