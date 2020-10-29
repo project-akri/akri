@@ -9,6 +9,11 @@ To add a new protocol implementation, three things are needed:
 ## The mythical Loch Ness resource
 To demonstrate how new protocols can be added, we will create a protocol to discover Nessie, a mythical Loch Ness monster that lives at a specific url.
 
+### Container Registry Setup
+Any docker-compatible container registry should work (dockerhub, Github Container Registry, Azure Container Registry, etc).
+
+For this sample, we are using the [GitHub container registry](https://github.blog/2020-09-01-introducing-github-container-registry/). You can follow the [getting started guide here to enable it for yourself](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry).
+
 ### New DiscoveryHandler implementation
 If the resource you are interested in defining is not accessible through the [included protocols](./roadmap.md#currently-supported-protocols), then you will need to create a DiscoveryHandler for your new protocol.  For the sake of demonstration, we will create a discovery handler in order to discover mythical Nessie resources.
 
@@ -436,13 +441,13 @@ Akri's `.dockerignore` is configured so that docker will ignore most files in ou
 !samples/brokers/nessie
 ```
 
-Now you are ready to **build the nessie broker**!  To do so, we simply need to run these steps from the base folder of the Akri repo:
+Now you are ready to **build the nessie broker**!  To do so, we simply need to run this step from the base folder of the Akri repo:
 
 ```sh
 docker build -t nessie:extensibility -f samples/brokers/nessie/Dockerfile .
 ```
 
-Having built the nessie container, in order to use it in a cluster, you need to **push the nessie broker** to a container repo.  Any container repo should work, for our purposes, we will assume the [Github container repo](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry):
+Having built the nessie container, in order to use it in a cluster, you need to **push the nessie broker** to a container repo:
 
 ```sh
 # Log into your container repo ... in this case, ghcr using your Github username
@@ -458,7 +463,7 @@ docker push ghcr.io/<GITHUB USERNAME>/nessie:extensibility
 Once the nessie broker has been created (assuming `ghcr.io/<GITHUB USERNAME>/nessie:extensibility`), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol.  
 
 Please update the yaml below to:
-* Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create containing your container repo credentials.  Make note of the name you choose, as this will be used later in `kubectl create secret` and `helm install` commands.
+* Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create, which will contain your container repo credentials.  Make note of the name you choose, as this will be used later in `kubectl create secret` and `helm install` commands.
 * Specify a value for your container image that corresponds to the container repo you are using
 
 ```yaml
@@ -494,7 +499,7 @@ spec:
 ```
 
 ### Installing Akri with your new Configuration
-Before you can install Akri and apply your Nessie Configuration, you must first build both the Controller and Agent containers and push them to your own container repository. You can use any container registry to host your container repository.We are using the new [GitHub container registry](https://github.blog/2020-09-01-introducing-github-container-registry/). If you want to enable GHCR, you can follow the [getting started guide](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry). 
+Before you can install Akri and apply your Nessie Configuration, you must first build both the Controller and Agent containers and push them to your own container repository. You can use any container registry to host your container repository.
 
 We have provided makefiles for building and pushing containers for the various components of Akri. See the [development document](./development.md) for example make commands and details on how to install the prerequisites needed for cross-building Akri components. First, you need build containers used to cross-build Rust x64, run the following (after installing cross):
 
