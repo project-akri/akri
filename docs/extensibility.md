@@ -415,7 +415,7 @@ ENV SSL_CERT_DIR=/etc/ssl/certs
 ENTRYPOINT ["/nessie"]
 ```
 
-Akri's `.dockerignore` is configured so that docker will ignore most files in our repository, so you will need to add an exception for the nessie broker:
+Akri's `.dockerignore` is configured so that docker will ignore most files in our repository, some exceptions will need to be added to build the nessie broker:
 
 ```yaml
 !shared
@@ -443,7 +443,7 @@ docker push ghcr.io/<GITHUB USERNAME>/nessie:extensibility
 ### Create a new Configuration
 Once the nessie broker has been created (assuming `ghcr.io/<GITHUB USERNAME>/nessie:extensibility`), the next question is how to deploy it.  For this, we need to create a Configuration called `nessie.yaml` that leverages our new protocol.  
 
-Please change the code below to 
+Please update the yaml below to:
 * Specify a value for the imagePullSecrets. This can be any name and will correspond to a Kubernetes secret you create containing your container repo credentials.  Make note of the name you choose, as this will be used later in `kubectl create secret` and `helm install` commands.
 * Specify a value for your container image that corresponds to the container repo you are using
 
@@ -505,9 +505,9 @@ LABEL_PREFIX=extensibility PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_
 LABEL_PREFIX=extensibility PREFIX=ghcr.io/<GITHUB USERNAME> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
 
-Next, you must [generate a new Akri chart](./development.md#helm-package). This will generate a tgz file called `akri-<VERSION>.tgz`.
+In order to deploy the new, nessie-enabled Akri, we need to build a new Helm chart.  You can follow [these instructions to generate a new Akri chart](./development.md#helm-package). The new Helm chart will be generated in a tgz file called `akri-<VERSION>.tgz` which can be copied to your Kubernetes environment.
 
-And finally, assuming you have a Kubernetes cluster running, you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
+Assuming you have a Kubernetes cluster running, you can start Akri and apply your Nessie Configuration and watch as broker pods are created.
 
 ```sh
 # Add secret to give Kubernetes access to your container repo
