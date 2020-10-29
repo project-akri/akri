@@ -100,7 +100,6 @@ jobs:
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
-        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'Kubernetes'
       name: Install Kubernetes
@@ -117,7 +116,6 @@ jobs:
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
-        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'MicroK8s'
       name: Install MicroK8s
@@ -137,7 +135,6 @@ jobs:
         sudo microk8s.stop
         sudo microk8s.start
         sudo microk8s.status --wait-ready
-        sudo microk8s kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
         VERSION="v1.17.0"
         curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
         sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
