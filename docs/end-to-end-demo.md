@@ -35,7 +35,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 
 ## Option 2: Set up single node cluster using MicroK8s
-1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the Demo to a cloud-based VM, see the instructions for [DigitalOcean](/docs/end-to-end-demo-do.md)
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](/docs/end-to-end-demo-do.md) or [Google Compute Engine](/docs/end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
