@@ -1,3 +1,4 @@
+{{- if .Values.rbac.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -68,3 +69,4 @@ subjects:
   - kind: 'ServiceAccount'
     name: 'akri-agent-sa'
     namespace: {{ .Release.Namespace }}
+{{- end }}

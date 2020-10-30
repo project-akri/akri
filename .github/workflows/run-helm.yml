@@ -7,6 +7,12 @@ on:
     - .github/workflows/run-helm.yml
     - deployment/**
     - version.txt
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/workflows/run-helm.yml
+    - deployment/**
+    - version.txt
   pull_request_target:
     branches: [ main ]
     paths:
@@ -22,6 +28,11 @@ env:
 
 jobs:
   helm:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,6 +51,23 @@ jobs:
 
       - uses: azure/setup-helm@v1
 
+      # We should generate two sets of akri charts.
+      # One for our releases (akri) and one for our merged PRs (akri-dev).  'akri' should only be created for
+      # our releases and should default to not use dev containers.  'akri-dev'
+      # should build for any merged PR and should default to use our dev containers.
+      - name: When event_name == release, create akri chart
+        if: (github.event_name == 'release')
+        run: |
+          sed -i s/"name: akri"/"name: akri"/g ./deployment/helm/Chart.yaml
+          sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri releases"/g ./deployment/helm/Chart.yaml
+          sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: false"/g ./deployment/helm/values.yaml
+      - name: When event_name != release, create akri-dev chart
+        if: (github.event_name != 'release')
+        run: |
+          sed -i s/"name: akri"/"name: akri-dev"/g ./deployment/helm/Chart.yaml
+          sed -i s/"description: A Helm chart for Akri"/"description: A Helm chart for Akri development"/g ./deployment/helm/Chart.yaml
+          sed -i s/"useDevelopmentContainers: true"/"useDevelopmentContainers: true"/g ./deployment/helm/values.yaml
+
       - name: Lint helm chart
         run: helm lint deployment/helm
 
@@ -55,43 +83,51 @@ jobs:
         run: helm inspect all $(find /tmp/helm/repo -name "akri-*.tgz")
 
       - name: Upload new helm package as artifact
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         uses: actions/upload-artifact@v2
         with:
           name: charts
           path: /tmp/helm/repo
 
       - name: Checkout gh-pages
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         uses: actions/checkout@v2
         with:
           ref: gh-pages
 
       - name: Get new chart from artifact path
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         shell: bash
         run: |
           mv /tmp/helm/repo/* .
           find .
 
       - name: Create new merged helm chart index
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         run: helm repo index --url https://deislabs.github.io/akri --merge index.yaml .
 
       - name: Upload new merged helm chart index as artifact
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         uses: actions/upload-artifact@v2
         with:
           name: index
           path: index.yaml
   
+      - name: Create push with new akri chart for gh-pages
+        if: (github.event_name == 'release')
+        shell: bash
+        run: git add akri-$(cat version.txt).tgz
+      - name: Create push with new akri-dev chart for gh-pages
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        shell: bash
+        run: git add akri-dev-$(cat version.txt).tgz
+
       - name: Push gh-pages
-        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
         shell: bash
         run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git add akri-$(cat version.txt).tgz
           git add index.yaml
           git status
           echo "Update Helm Repo for version $(cat version.txt)" | git commit --file -

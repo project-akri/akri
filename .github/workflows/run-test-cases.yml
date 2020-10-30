@@ -2,6 +2,14 @@ name: Test K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+    - test/run-end-to-end.py
+    - test/run-conservation-of-broker-pod.py
+    - test/run-helm-install-delete.py
+    - test/shared_test_code.py
+    - .github/workflows/run-test-cases.yml
   pull_request_target:
     branches: [ main ]
     paths:
@@ -19,9 +27,17 @@ on:
     - test/shared_test_code.py
     - .github/workflows/run-test-cases.yml
     - version.txt
+  release:
+    types:
+      - published
     
 jobs:
   test-cases:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-18.04
     timeout-minutes: 35
 
@@ -84,7 +100,6 @@ jobs:
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
-        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'Kubernetes'
       name: Install Kubernetes
@@ -101,7 +116,6 @@ jobs:
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
-        kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
 
     - if: matrix.kube-runtime == 'MicroK8s'
       name: Install MicroK8s
@@ -121,7 +135,6 @@ jobs:
         sudo microk8s.stop
         sudo microk8s.start
         sudo microk8s.status --wait-ready
-        sudo microk8s kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
         VERSION="v1.17.0"
         curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
         sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
@@ -132,17 +145,35 @@ jobs:
 
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    - if: github.event_name == 'push'
+    
+    # When event_name==release, the Helm chart is named 'akri'
+    - if: github.event_name == 'release'
+      name: Pull akri helm chart when event_name == release
+      run: echo akri > /tmp/chart_name.txt
+    # When event_name!=release, the Helm chart is named 'akri-dev'
+    - if: github.event_name != 'release'
+      name: Pull akri-dev helm chart when event_name != release
+      run: echo akri-dev > /tmp/chart_name.txt
+
+    # For push and release, we need to wait for the Helm chart and
+    # associated containers to build.
+    - if: github.event_name == 'push' || github.event_name == 'release'
       name: Set sleep duration before running script to 1500
       run: echo 1500 > /tmp/sleep_duration.txt
-    - if: github.event_name != 'push'
+
+    # For pull_request and pull_request_target, only main's version.txt
+    # has a Helm chart (the version in the PR does not).  Use origin/main.
+    - if: startsWith(github.event_name, 'pull_request')
       name: Use main version for non-push
       run: |
         git fetch origin main
         git show origin/main:version.txt > /tmp/version_to_test.txt
-    - if: github.event_name == 'push'
+    # For non-PR (i.e. push, release, manual), version.txt is corresponds
+    # to an existing Helm chart.
+    - if: (!(startsWith(github.event_name, 'pull_request')))
       name: Use current version for push
       run: cat version.txt > /tmp/version_to_test.txt
+
     - name: Execute test script ${{ matrix.test-file }}
       run: python ${{ matrix.test-file }}
     - name: Upload Agent log as artifact

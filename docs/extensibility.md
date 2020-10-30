@@ -38,6 +38,7 @@ use super::super::{DiscoveryHandler, DiscoveryResult};
 use async_trait::async_trait;
 use failure::Error;
 use akri_shared::akri::configuration::NessieDiscoveryHandlerConfig;
+use std::collections::HashMap;
 
 pub struct NessieDiscoveryHandler {
     discovery_handler_config: NessieDiscoveryHandlerConfig,
@@ -65,13 +66,13 @@ impl DiscoveryHandler for NessieDiscoveryHandler {
         if let Ok(_body) = hyper::Client::new().get(url).compat().await {
             // If the Nessie URL can be accessed, we will return a DiscoveryResult
             // instance
-            let props = HashMap::new();
+            let props: HashMap<String, String> = HashMap::new();
             props.insert(
-                "nessie_url",
+                "nessie_url".to_string(),
                 self.discovery_handler_config.nessie_url.clone(),
             );
             results.push(DiscoveryResult::new(
-                self.discovery_handler_config.nessie_url,
+                &self.discovery_handler_config.nessie_url,
                 props,
                 true,
             ));
@@ -109,7 +110,7 @@ The first step is to create a DiscoveryHandler configuration struct. This struct
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NessieDiscoveryHandlerConfig {
-    nessie_url: String
+    pub nessie_url: String
 }
 ```
 
@@ -235,6 +236,8 @@ fn main() {
 }
 ```
 
+This build file will compile `nessie.proto` into a rust source file `samples/brokers/nessie/src/util/nessie.rs`.
+
 Next, we need to include the gRPC generated code in by adding a reference to `nessie` in `samples/brokers/nessie/src/util/mod.rs`:
 
 ```rust
@@ -243,7 +246,7 @@ pub mod nessie;
 
 With the gRPC implementation created, we can now start utilizing it.
 
-First, we need to leverage the generated gRPC code by creating `samples/brokers/nessie/src/util/nessie.rs`:
+First, we need to leverage the generated gRPC code by creating `samples/brokers/nessie/src/util/nessie_service.rs`:
 
 ```rust
 use super::{
@@ -391,6 +394,7 @@ To build the Nessie container, we need to create a Dockerfile
 FROM amd64/rust:1.41 as build
 RUN apt-get update && apt-get install -y --no-install-recommends \
       g++ ca-certificates curl libssl-dev pkg-config
+RUN rustup component add rustfmt --toolchain 1.41.1-x86_64-unknown-linux-gnu
 
 WORKDIR /nessie
 RUN echo '[workspace]' > ./Cargo.toml && \
@@ -402,12 +406,12 @@ RUN cargo build
 FROM amd64/debian:buster-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && \
       apt-get clean
-COPY --from=build ./target/debug/nessie /nessie
+COPY --from=build /nessie/target/debug/nessie /nessie
 
 # Expose port used by broker service
 EXPOSE 8083
 
-CMD ["./nessie"]
+ENTRYPOINT ["/nessie"]
 ```
 
 ### Create a new Configuration
@@ -450,7 +454,7 @@ We have provided makefiles for building and pushing containers for the various c
 PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/<your-github-alias> BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
-Next, you must [generate a new Akri chart](./development#helm-template). You can now [install Akri with the newly built containers](./development#install-akri-with-newly-built-containers), setting the appropriate image address for the Agent and Controller pods in your personal container registry. 
+Next, you must [generate a new Akri chart](./development.md#helm-template). You can now [install Akri with the newly built containers](./development.md#install-akri-with-newly-built-containers), setting the appropriate image address for the Agent and Controller pods in your personal container registry. 
 
 Finally, you can apply your Nessie Configuration and watch as broker pods are created:
 ```sh

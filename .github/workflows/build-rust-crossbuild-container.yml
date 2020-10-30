@@ -9,6 +9,14 @@ on:
     - build/containers/intermediate/Dockerfile.rust-crossbuild-*
     - build/intermediate-containers.mk
     - Makefile
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-intermediate/**
+    - .github/workflows/build-rust-crossbuild-container.yml
+    - build/containers/intermediate/Dockerfile.rust-crossbuild-*
+    - build/intermediate-containers.mk
+    - Makefile
   pull_request_target:
     branches: [ main ]
     paths:
@@ -27,7 +35,10 @@ jobs:
   per-arch:
     if: >-
       !contains(github.event.pull_request.title, '[IGNORE INTERMEDIATE BUILDS]') &&
-      !contains(github.event.commits[0].message, '[IGNORE INTERMEDIATE BUILDS]')
+      !contains(github.event.commits[0].message, '[IGNORE INTERMEDIATE BUILDS]') &&
+      (( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) ))
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -61,7 +72,7 @@ jobs:
 
     # Only run build version change check if PR title and Merge commit message do NOT contain "[SAME VERSION]"
     - if: >-
-        github.event_name == 'pull_request_target' &&
+        startsWith(github.event_name, 'pull_request') &&
         !contains(github.event.pull_request.title, '[SAME VERSION]') &&
         !contains(github.event.commits[0].message, '[SAME VERSION]')
       name: Ensure that ${{ env.AKRI_COMPONENT }} version has changed

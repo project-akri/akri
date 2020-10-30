@@ -71,7 +71,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
 1. Install Akri Helm chart and enable the udev video configuration which will search for all video devices on the node, as specified by the udev rule `KERNEL=="video[0-9]*"` in the configuration. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
         --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
@@ -80,6 +80,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     Run `kubectl get crd`, and you should see the crds listed.
     Run `kubectl get pods -o wide`, and you should see the Akri pods.
     Run `kubectl get akric`, and you should see `akri-udev-video`. If IP cameras were discovered and pods spun up, the instances can be seen by running `kubectl get akrii` and further inspected by running `kubectl get akrii akri-udev-video-<ID> -o yaml`
+    More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 1. Inspect the two instances, seeing that the correct devnodes in the metadata and that one of the usage slots for each instance was reseved for this node.
     ```sh 

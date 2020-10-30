@@ -26,9 +26,11 @@ def main():
     print("Testing major version: {}".format(shared_test_code.major_version))
 
     print("Installing Akri Helm chart: {}".format(test_version))
+    helm_chart_name = shared_test_code.get_helm_chart_name()
+    print("Get Akri Helm chart: {}".format(helm_chart_name))
     cri_args = shared_test_code.get_cri_args()
     print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
-    helm_install_command = "helm install akri akri-helm-charts/akri --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true {}".format(test_version, shared_test_code.DEBUG_ECHO_NAME, cri_args)
+    helm_install_command = "helm install akri akri-helm-charts/{} --version {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true {}".format(helm_chart_name, test_version, shared_test_code.DEBUG_ECHO_NAME, cri_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     

@@ -29,19 +29,13 @@ carry out one or the other, then continue on with the rest of the steps.
     sudo apt install -y curl
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
     ```
-1. Since K3s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
-    ```
 1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket.
     ```sh
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
 
 ## Option 2: Set up single node cluster using MicroK8s
-
-1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the Demo to a cloud-based VM, see the instructions for [Google Compute Engine](/docs/end-to-end-demo-gce.md)
-
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](/docs/end-to-end-demo-do.md) or [Google Compute Engine](/docs/end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
@@ -56,37 +50,20 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     microk8s status --wait-ready
     ```
-1. If you don't have an existing `kubectl` installation, add a kubectl alias. If you do not want to set an alias, add `microk8s` in front of all kubectl commands.
+1. Enable CoreDNS, Helm and RBAC for MicroK8s.
+    ```sh
+    microk8s enable dns helm3 rbac
+    ```
+1. If you don't have an existing `kubectl` and `helm` installations, add aliases. If you do not want to set an alias, add `microk8s` in front of all `kubectl` and `helm` commands.
     ```sh
     alias kubectl='microk8s kubectl'
-    ```
-1. Install Helm.
-    ```sh
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-1. Enable Helm for MicroK8s.
-    ```sh
-    kubectl config view --raw >~/.kube/config
-    microk8s enable helm3
-    ```
-1. Enable dns.
-    ```sh
-    microk8s enable dns
-    ```
-1. Optionally enable rbac.
-    ```sh
-    microk8s enable rbac
+    alias helm='microk8s helm3'
     ```
 1. Enable privileged pods and restart microk8s.
     ```sh
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
     microk8s.stop
     microk8s.start
-    ```
-1. Since MicroK8s by default does not have a node with the label `node-role.kubernetes.io/master=`, add the label to the control plane node so the controller gets scheduled.
-    ```sh
-    kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master= --overwrite=true
     ```
 1. Akri depends on crictl to track some Pod information. MicroK8s does not install crictl locally, so crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and MicroK8s containerd socket.
     ```sh
@@ -128,13 +105,13 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh
     sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2
     ```
-    If this generates an error, be sure that there are no existing video streams targeting /dev/video1 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
+    If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
 
 ## Set up Akri
 1. Install Akri Helm chart and enable the udev video configuration which will search for all video devices on the node, as specified by the udev rule `KERNEL=="video[0-9]*"` in the configuration. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set udevVideo.enabled=true \
@@ -151,6 +128,7 @@ carry out one or the other, then continue on with the rest of the steps.
     Run `kubectl get crd`, and you should see the crds listed.
     Run `kubectl get pods -o wide`, and you should see the Akri pods.
     Run `kubectl get akric`, and you should see `akri-udev-video`. If IP cameras were discovered and pods spun up, the instances can be seen by running `kubectl get akrii` and further inspected by runing `kubectl get akrii akri-udev-video-<ID> -o yaml`
+    More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 1. Inspect the two instances, seeing the correct devnodes in the metadata and that one of the usage slots for each instance was reserved for this node.
     ```sh 

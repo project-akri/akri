@@ -29,6 +29,16 @@ We follow the [SymVer](https://semver.org/) versioning strategy: [MAJOR].[MINOR]
 
 To ensure that all product versioning is consistent, our CI builds will execute `version.sh -c` to check all known instances of version in our YAML, TOML, and code.  This will also check to make sure that version.txt has been changed.  If a pull request is needed where the version should not be changed, include `[SAME VERSION]` in the pull request title.
 
+## PR title flags
+Akri's workflows check for three flags in the titles of PRs in order to decide whether to execute certain checks. 
+
+The [version check workflow](../.github/workflows/check-versioning.yml) will run, ensuring you have increased the version number, unless you (A) only change a a file that is on an ignored path of the workflow, such as all `*.md` files OR (B) specify the `[SAME VERSION]` flag. Use this flag if your change will trigger the workflow and the version should not be changed by your PR. The flag will cause the check to automatically succeed.
+
+Akri has some intermediate containers that decrease the build time of the more frequently built final containers. These intermediate builds are long running and should only be run when absolutely needed. If your PR triggers a workflow to build them, you will see the workflow fail and get a message that requests that you add a tag to your PR to either allow them to build (`[ALLOW INTERMEDIATE BUILDS]`) or (`[IGNORE INTERMEDIATE BUILDS]`). 
+
+Please add any appropriate flags to the end of your PR title.
+
+
 ## CLA
 Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.microsoft.com.
 

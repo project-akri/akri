@@ -13,7 +13,9 @@ spec:
       labels:
         app: akri-controller
     spec:
+      {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-controller-sa'
+      {{- end }}
       containers:
       - name: akri-controller
         {{- if .Values.useDevelopmentContainers }}
@@ -34,17 +36,22 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.controller.linuxOnly }}
-      nodeSelector:
-        "kubernetes.io/os": linux
-      {{- end }}
-      {{- if .Values.controller.onlyOnMaster }}
-      # Only run this pod on the master.
+      {{- if .Values.controller.allowOnControlPlane }}
       tolerations:
         # Allow this pod to run on the master.
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
+      {{- end }}
+      {{- if or .Values.controller.linuxOnly .Values.controller.onlyOnControlPlane .Values.controller.nodeSelectors }}
       nodeSelector:
+        {{- if .Values.controller.nodeSelectors }}
+          {{- toYaml .Values.controller.nodeSelectors | nindent 8 }}
+        {{- end }}
+        {{- if .Values.controller.linuxOnly }}
+        "kubernetes.io/os": linux
+        {{- end }}
+        {{- if .Values.controller.onlyOnControlPlane }}
         node-role.kubernetes.io/master: ""
+        {{- end }}
       {{- end }}
 {{- end }}

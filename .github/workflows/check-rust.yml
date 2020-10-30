@@ -9,6 +9,14 @@ on:
     - '**/Cargo.toml'
     - '**/Cargo.lock'
     - build/setup.sh
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/workflows/check-rust.yml
+    - '**.rs'
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    - build/setup.sh
   pull_request_target:
     branches: [ main ]
     paths:
@@ -23,6 +31,11 @@ env:
 
 jobs:
   build:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
 
     runs-on: ubuntu-latest
     timeout-minutes: 20
