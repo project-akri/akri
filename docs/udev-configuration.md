@@ -1,4 +1,4 @@
-# Using the udev Discovery Protocol in a Configuration
+# Using the Udev Discovery Protocol in a Configuration
 ## Background
 Udev is the device manager for Linux. It manages device nodes in the `/dev` directory, such as microphones, security
 chips, usb cameras, and so on. Udev can be used to find devices that are attached to or embedded in nodes. 
@@ -38,8 +38,10 @@ spec:
 ```
 
 ## Using the udev Configuration template
-Instead of having to assemble your own udev Configuration yaml, we have provided a [udev Helm
-template](../deployment/helm/templates/udev.yaml). To add the udev Configuration to your cluster, simply set
+Instead of having to assemble your own udev Configuration yaml, we have provided a [Helm
+template](../deployment/helm/templates/udev.yaml). Helm allows us to parametrize the commonly modified fields in our configuration files, and we have provided many for udev (to see
+them, run `helm inspect values akri-helm-charts/akri`). 
+To add the udev Configuration to your cluster, simply set
 `udev.enabled=true`. Be sure to also **specify one or more udev rules** for the Configuration. If you want Akri to only
 discover and advertize the resources, omit a broker pod image. Helm will automatically apply the udev Configuration yaml
 for you, and the Akri Agent will advertize discovered leaf devices as resources. By default, the udev Configuration does
@@ -53,7 +55,22 @@ helm install akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"'
 ```
-To discover all sound devices by either Great Vendor or Awesome Vendor, you could add a second udev rule.
+
+The udev Configuration can be tailored to your cluster by modifying the [Akri helm chart values](../deployment/helm/values.yaml) in the following ways:
+
+* Modifying the udev rule
+* Specifying a broker pod image
+* Disabling automatic Instance/Configuration Service creation
+* Modifying the broker PodSpec (See [Modifying a Akri
+  Installation](./modifying-akri-installation#modifying-the-brokerpodspec))
+* Modifying instanceServiceSpec or configurationServiceSpec (See [Modifying a Akri
+  Installation](./modifying-akri-installation#modifying-instanceservicespec-or-configurationservicespec))
+
+For more advanced Configuration changes that are not aided by
+our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it. To do this, see our documentation on [Modifying an Akri Installation](./modifying-akri-installation.md#generating-modifying-and-applying-a-configuration-yaml)
+
+## Modifying the udev rule
+The udev protocol will find all devices that are described by ANY of the udev rules. For example, to discover devices made by either Great Vendor or Awesome Vendor, you could add a second udev rule.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
@@ -69,7 +86,7 @@ Configuration and resultant Instances to be `sound-device` by adding `--set udev
 installation command. Now, you can schedule pods that request these Instances as resources, as explained in the
 [requesting akri resources document](./requesting-akri-resources.md). 
 
-## Adding a custom broker to the Configuration
+## Specifying a broker pod image
 Instead of manually deploying Pods to resources advertized by Akri, you can add a broker image to the udev
 Configuration. Then, a broker will automatically be deployed to each discovered device. The controller will inject the
 information the broker needs to find its device as an environment variable. Namely, it injects an environment variable
@@ -91,6 +108,11 @@ Installation](./modifying-akri-installation.md) to learn how to [modify the brok
 spec](./modifying-akri-installation.md#modifying-the-brokerpodspec) and [service
 specs](./modifying-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec) in the Configuration.
 
+## Disabling automatic service creation
+By default, the generic udev Configuration will create services for (all the brokers of) a specific Akri Instance and (all the brokers of) an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.
+
+## Modifying a Configuration
+More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Modifying a Akri Installation document](./modifying-akri-installation.md).
 
 ## Implementation details
 The udev implementation can be understood by looking at several things:

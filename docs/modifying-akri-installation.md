@@ -1,5 +1,5 @@
 # Modifying an Akri Installation
-The [onvif](./onvif-sample.md) and [udev](./udev-sample.md) documentation explains how to deploy Akri for a specific
+The [onvif](./onvif-configuration.md) and [udev](./udev-configuration.md) documentation explains how to deploy Akri for a specific
 protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
 1. Deploying multiple Configurations
@@ -23,13 +23,13 @@ installed from the start with both the ONVIF and udev Configurations like so:
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
-    --set onvifVideo.enabled=true \
+    --set onvif.enabled=true \
     --set udev.enabled=true \
-    --set udev.udevRules[0]='ATTR{some}==\"udev rule\"'
+    --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
 ```
-Note: You must specify a udev rule to successfully built the udev Configuration.
+Note: You must specify a udev rule to successfully build the udev Configuration.
 
-You can confirm that both a akri-onvif-video and akri-udev-video Configuration have been created by running:
+You can confirm that both a `akri-onvif` and `akri-udev` Configuration have been created by running:
 ``` bash
 kubectl get akric
 ```
@@ -48,11 +48,12 @@ command could be run:
 ```bash 
 helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
-    --set onvifVideo.enabled=true \
-    --set onvifVideo.ipAddresses.action=Exclude \
-    --set onvifVideo.ipAddresses.items[0]=10.0.0.1
+    --set onvif.enabled=true \
+    --set onvif.brokerPod.image.repository="ghcr.io/../onvif-broker" \
+    --set onvif.ipAddresses.action=Exclude \
+    --set onvif.ipAddresses.items[0]=10.0.0.1
 ```
-Note that the command is not simply `helm upgrade --set onvifVideo.ipAddresses.items[0]=10.0.0.1`; rather, it includes
+Note that the command is not simply `helm upgrade --set onvif.ipAddresses.items[0]=10.0.0.1`; rather, it includes
 all the old settings along with the new one. 
 
 Helm will create a new ONVIF Configuration and apply it to the cluster.
@@ -64,14 +65,15 @@ camera at IP address 10.0.0.1.
 ### Generating, modifying, and applying a Configuration yaml
 Helm allows us to parametrize the commonly modified fields in our configuration files and we have provided many (to see
 them, run `helm inspect values akri-helm-charts/akri`).  For more advanced configuration changes that are not aided by
-our Helm chart, we suggest creating a Configuration file using helm and then manually modifying it.
+our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it.
 
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
-substitute `onvifVideo.enabled` with `udev.enabled` and add a udev rule.)
+substitute `onvif.enabled` with `udev.enabled` and add a udev rule.)
 ```bash
 helm template akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
-    --set onvifVideo.enabled=true \
+    --set onvif.enabled=true \
+    --set onvif.brokerPod.image.repository="ghcr.io/../onvif-broker" \
     --set rbac.enabled=false \
     --set controller.enabled=false \
     --set agent.enabled=false > configuration.yaml
@@ -126,7 +128,7 @@ spec:
 #### Modifying instanceServiceSpec or configurationServiceSpec
 The `instanceServiceSpec` and `configurationServiceSpec` properties are full
 [ServiceSpecs](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicespec-v1-core) and can be
-modified as such.  The simplest reason to modify either might be to specify different ports (perhaps 8085 and 8086):
+modified as such. The simplest reason to modify either might be to specify different ports (perhaps 8085 and 8086):
 ```yaml
 spec:
   instanceServiceSpec:
@@ -141,21 +143,21 @@ spec:
       targetPort: 8083
 ```
 
-Note: the simple properties of `instanceServiceSpec` and `configurationServiceSpec` (like name, port, targetPort) can be
-set using Helm's `--set` command (`--set onvifVideo.instanceService.targetPort=90`).
+Note: the simple properties of `instanceServiceSpec` and `configurationServiceSpec` (like name, port, targetPort, and protocol) can be
+set using Helm's `--set` command (`--set onvif.instanceService.targetPort=90`).
 
 ## Adding another Configuration to a cluster
 Another Configuration can be added to an existing Akri installation using `helm upgrade` or manually using `helm
 template` and kubectl.
 ### Adding additional Configurations using `helm upgrade`
-Another Configuration can be added to the cluster by using `helm upgrade`. If you originally installed just the ONVIF
+Another Configuration can be added to the cluster by using `helm upgrade`. For example, if you originally installed just the ONVIF
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
 ```bash
 helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
-    --set onvifVideo.enabled=true \
+    --set onvif.enabled=true \
     --set udev.enabled=true \
-    --set udev.udevRules[0]='ATTR{some}==\"udev rule\"'
+    --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
 ```
 ### Adding additional Configurations manually
 An additional Configuration can also be added to an existing Akri installation using the same process of using `helm
@@ -172,17 +174,17 @@ have been installed in a cluster, the udev Configuration can be deleted by only 
 ```bash
 helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
-    --set onvifVideo.enabled=true 
+    --set onvif.enabled=true 
 ```
 ### Deleting a Configuration using kubectl
 A configuration can also be deleted using kubectl. To list all applied Configurations, run `kubectl get akric`. If both
 udev and ONVIF Configurations have been applied with capacities of 5. The output should look like the following:
 ```bash
 NAME                CAPACITY   AGE
-akri-onvif-video   5          3s
-akri-udev-video    5          16m
+akri-onvif          5          3s
+akri-udev           5          16m
 ```
 To delete the ONVIF Configuration and bring down all ONVIF broker pods, run:
 ```bash 
-kubectl delete akric akri-onvif-video
+kubectl delete akric akri-onvif
 ```

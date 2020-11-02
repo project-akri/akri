@@ -1,4 +1,4 @@
-# Udev camera sample
+# Using the Udev Discovery Protocol to Discover USB Cameras
 As an example of handling local capabilities, a sample broker and streaming app have been made for utilizing video cameras discovered by Akri's udev protocol. To create an Akri Configuration to discover other devices via udev, see the [udev Configuration documentation](./udev-configuration.md). 
 
 Udev is a device manager for the Linux kernel. The udev discovery handler parses udev rules listed in a Configuration, searches for them using udev, and returns a list of device nodes (ie: /dev/video0). An instance is created for each device node. Since this example uses a [sample broker](../samples/brokers/udev-video-broker) that streams frames from a local camera, the rule added to the Configuration is `KERNEL=="video[0-9]*"`. To determine if a node has video devices that will be discovered by this Configuration, run `ls -l /sys/class/video4linux/` or `sudo v4l2-ctl --list-devices`. 
@@ -20,7 +20,6 @@ Akri will find all video4linux cameras and ensure that broker Pods are running o
 The udev Configuration can be tailored to your cluster by modifying the [Akri helm chart values](../deployment/helm/values.yaml) in the following ways:
 
 * Modifying the udev rule
-* Changing the capacity
 * Modifying brokerPodSpec
 * Modifying instanceServiceSpec or configurationServiceSpec (See [Modifying a Akri Installation](./modifying-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec))
 

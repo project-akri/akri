@@ -18,13 +18,13 @@ spec:
         imagePullPolicy: Always
         env:
         # Streamer works in two modes; either specify the following commented block of env vars to explicitly target cameras or 
-        # specify a DCI configuration name to pick up cameras automatically on startup
+        # specify a Akri configuration name to pick up cameras automatically on startup
         # - name: CAMERAS_SOURCE_SVC
         #   value: "all-cameras-svc"
         # - name: CAMERA_COUNT
         #   value: "2"
         # - name: CAMERA1_SOURCE_SVC
-        #   value: "akri-onvif-video-svc"
+        #   value: "akri-onvif-svc"
         # - name: CAMERA2_SOURCE_SVC
         #   value: "akri-udev-video-svc"
         - name: CONFIGURATION_NAME
