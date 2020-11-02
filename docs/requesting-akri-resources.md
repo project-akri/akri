@@ -4,7 +4,7 @@ Akri discovers tiny devices, advertizes them as resources, and automatically dep
 Lets walk through how this works for some protocol named `protocolA`. Install Akri with the `protocolA` Configuration, omitting a broker pod image. Note, `protocolA` must be a supported Akri discovery protocol -- currently udev or ONVIF. 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set protocolA.enabled=true
 ```
