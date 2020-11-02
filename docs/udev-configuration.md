@@ -39,18 +39,19 @@ spec:
 
 ## Using the udev Configuration template
 Instead of having to assemble your own udev Configuration yaml, we have provided a [udev Helm
-template](../deployment/helm/templates/udev.yaml). To add the udev Configuration to your cluster, simple set
-`udev.enabled=true`. Be sure to also **specify one or more udev rules** for the Configuration. Helm will automatically
-apply the udev Configuration yaml for you, and the Akri Agent will advertize discovered leaf devices as resources. By
-default, the udev Configuration does not specify a broker pod or services, so upon discovery, broker pods will not be
-deployed nor will services be created. Later, we will discuss [how to add a custom broker to the
+template](../deployment/helm/templates/udev.yaml). To add the udev Configuration to your cluster, simply set
+`udev.enabled=true`. Be sure to also **specify one or more udev rules** for the Configuration. If you want Akri to only
+discover and advertize the resources, omit a broker pod image. Helm will automatically apply the udev Configuration yaml
+for you, and the Akri Agent will advertize discovered leaf devices as resources. By default, the udev Configuration does
+not specify a broker pod or services, so upon discovery, broker pods will not be deployed nor will services be created.
+Later, we will discuss [how to add a custom broker to the
 Configuration](./#adding-a-custom-broker-to-the-configuration).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
-    --set udev.udevRules[0]='SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
+    --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"'
 ```
 To discover all sound devices by either Great Vendor or Awesome Vendor, you could add a second udev rule.
 ```bash
@@ -65,52 +66,8 @@ Akri will now discover these devices and advertize them to the cluster as resour
 represented as an Akri Instance. To list them, run `kubectl get akrii`. Note `akrii` is a short name for Akri Instance.
 All the instances will be named in the format `<configuration-name>-<hash>`. You could change the name of the
 Configuration and resultant Instances to be `sound-device` by adding `--set udev.name=sound-devices` to your
-installation command. Now, you can schedule pods that request these Instances as resources. Assuming the Configuration
-name has been set to `sound-devices`, you can request the `sound-device-ha5h00` Instance as a resource by adding the
-following to the PodSpec of your Deployment or Job:
-```yaml
-  resources:
-    limits:
-      akri.sh/sound-device-ha5h00: "1"
-    requests:
-      akri.sh/sound-device-ha5h00: "1"
-```
-As an example, a Deployment that would deploy an nginx broker to one of the sound devices may look like this:
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sound-broker-deployment
-  labels:
-    app: sound-broker
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sound-broker
-  template:
-    metadata:
-      labels:
-        app: sound-broker
-    spec:
-      containers:
-      - name: sound-broker
-        image: nginx
-        securityContext:
-          privileged: true
-        resources:
-          limits:                        
-            akri.sh/sound-device-ha5h00: "1"
-          requests:
-            akri.sh/sound-device-ha5h00: "1"
-```
-Apply your Deployment to the cluster and watch the broker start to run. If you inspect the Instance of the resource you
-requested in your deployment, you will see one of the slots has now been reserved by the node that is currently running
-the broker.
-```sh
-kubectl apply -f sound-device.yaml                                  
-kubectl get akrii sound-device-ha5h00 -o yaml
-```
+installation command. Now, you can schedule pods that request these Instances as resources, as explained in the
+[requesting akri resources document](./requesting-akri-resources.md). 
 
 ## Adding a custom broker to the Configuration
 Instead of manually deploying Pods to resources advertized by Akri, you can add a broker image to the udev

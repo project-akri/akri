@@ -73,8 +73,10 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \
         --set useLatestContainers=true \
-        --set udevVideo.enabled=true \
-        --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
+        --set udev.enabled=true \
+        --set udev.name=akri-udev-video \
+        --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     watch kubectl get pods,akric,akrii -o wide
     ```
     Run `kubectl get crd`, and you should see the crds listed.

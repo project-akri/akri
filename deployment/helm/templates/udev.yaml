@@ -9,12 +9,27 @@ spec:
       udevRules:
       {{- toYaml .Values.udev.udevRules | nindent 6 }}
   {{- if .Values.udev.brokerPod.image.repository }}
-  # only add broker pod spec if a broker image is provided
+  # Only add broker pod spec if a broker image is provided
   brokerPodSpec:
     containers:
     - name: {{ .Values.udev.name }}-broker
       image: {{ .Values.udev.brokerPod.image.repository | quote }}
       imagePullPolicy: {{ .Values.udev.brokerPod.image.pullPolicy }}
+      {{- if .Values.udev.brokerPod.env }}
+      # Optionally set environment variables in the broker pods. 
+      # Add the environment variable keys and values into an env.yaml
+      # file and apply to your Helm install command with `-f env.yaml`.
+      # Example env.yaml file:
+      # # udev:
+      # #   brokerPod:
+      # #     env:
+      # #       ENV_KEY1: VALUE_1
+      env:
+        {{- range $key, $val := .Values.udev.brokerPod.env }}
+        - name: {{ $key }}
+          value: {{ $val | quote }}
+        {{- end }}
+      {{- end }}
       securityContext:
         privileged: true
       resources:
@@ -25,22 +40,27 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
+  # Only add service specs if a broker image was specified and service
+  # creation was not disabled
   {{- if .Values.udev.brokerPod.image.repository }}
-  # only add service specs if a broker image was specified
+  {{- if .Values.udev.createInstanceServices }}
   instanceServiceSpec:
     type: {{ .Values.udev.instanceService.type }}
     ports:
-    - name: grpc
+    - name: {{ .Values.udev.instanceService.portName }}
       port: {{ .Values.udev.instanceService.port }}
       protocol: {{ .Values.udev.instanceService.protocol }}
       targetPort: {{ .Values.udev.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.udev.createConfigurationService }}
   configurationServiceSpec:
     type: {{ .Values.udev.configurationService.type }}
     ports:
-    - name: grpc
+    - name: {{ .Values.udev.configurationService.portName }}
       port: {{ .Values.udev.configurationService.port }}
       protocol: {{ .Values.udev.configurationService.protocol }}
       targetPort: {{ .Values.udev.configurationService.targetPort }}
+  {{- end }}
   {{- end }}
   {{- if .Values.udev.properties }}
   properties:

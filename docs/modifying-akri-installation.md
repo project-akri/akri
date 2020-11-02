@@ -24,8 +24,11 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
-    --set udevVideo.enabled=true
+    --set udev.enabled=true \
+    --set udev.udevRules[0]='ATTR{some}==\"udev rule\"'
 ```
+Note: You must specify a udev rule to successfully built the udev Configuration.
+
 You can confirm that both a akri-onvif-video and akri-udev-video Configuration have been created by running:
 ``` bash
 kubectl get akric
@@ -64,7 +67,7 @@ them, run `helm inspect values akri-helm-charts/akri`).  For more advanced confi
 our Helm chart, we suggest creating a Configuration file using helm and then manually modifying it.
 
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
-substitute `onvifVideo.enabled` with `udevVideo.enabled`.)
+substitute `onvifVideo.enabled` with `udev.enabled` and add a udev rule.)
 ```bash
 helm template akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
@@ -151,7 +154,8 @@ Configuration and now also want to discover local cameras via udev, as well, sim
 helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvifVideo.enabled=true \
-    --set udevVideo.enabled=true
+    --set udev.enabled=true \
+    --set udev.udevRules[0]='ATTR{some}==\"udev rule\"'
 ```
 ### Adding additional Configurations manually
 An additional Configuration can also be added to an existing Akri installation using the same process of using `helm
