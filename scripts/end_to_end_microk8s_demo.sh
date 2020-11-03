@@ -25,7 +25,7 @@ sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
 sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
 
 sudo apt-get install -y \
-  libgstreamer1.0-0 gstreamer1.0-dev gstreamer1.0-tools \
+  libgstreamer1.0-0 libgstreamer1.0-dev gstreamer1.0-tools \
   gstreamer1.0-doc gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
   gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools \
