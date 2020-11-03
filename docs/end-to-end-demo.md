@@ -61,7 +61,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 1. Enable privileged pods and restart microk8s.
     ```sh
-    echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
+    echo "--allow-privileged=true" >> /snap/microk8s/current/default-args/kube-apiserver
     microk8s.stop
     microk8s.start
     ```
