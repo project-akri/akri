@@ -39,7 +39,7 @@ gcloud services enable compute.googleapis.com \
 
 > **NOTE** You will be billed while this instance is running.
 
-The creation of the Compute Engine instance uses a startup script ([link](/scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md).
+The creation of the Compute Engine instance uses a startup script ([link](../scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](end-to-end-demo.md).
 
 ```bash
 gcloud compute instances create ${INSTANCE} \

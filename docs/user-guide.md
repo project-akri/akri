@@ -2,7 +2,7 @@
 To best understand the benefits of Akri and jump into using it, we recommend you start off by completing the [end to end
 demo](./end-to-end-demo.md). In the demo, you will see Akri discover mock video cameras and a streaming app display the
 footage from those cameras. It includes instructions on K8s cluster setup. If you would like to perform the demo on a
-cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./rpi4-demo.md).
+cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
 To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol

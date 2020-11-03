@@ -20,7 +20,7 @@ SSHKEYID=[[YOUR-SSH-KEY-ID]] # doctl compute ssh-key list
 
 > **NOTE** You will be billed while the droplet exists
 
-The creation of the DigitalOcean droplet uses a startup script ([link](/scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](/docs/end-to-end-demo.md)
+The creation of the DigitalOcean droplet uses a startup script ([link](../scripts/end_to_end_microk8s_demo.sh)). The script combines all the steps described in the [End-to-End Demo](end-to-end-demo.md)
 
 ```bash
 doctl compute droplet create ${INSTANCE} \
