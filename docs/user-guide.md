@@ -100,7 +100,7 @@ helm install akri akri-helm-charts/akri
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set <protocol>.enabled=true \
-        # --set udev.brokerPod.image.repository=<your broker image> \
+        # --set <protocol>.brokerPod.image.repository=<your broker image> \
         # apply any additional settings here
     ```
     Run `kubectl get crd`, and you should see Akri's two CRDs listed. Run `kubectl get pods -o wide`, and you should see

@@ -49,16 +49,16 @@ command could be run:
 helm upgrade akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/../onvif-broker" \
+    --set onvif.brokerPod.image.repository=<your broker image> \
     --set onvif.ipAddresses.action=Exclude \
     --set onvif.ipAddresses.items[0]=10.0.0.1
 ```
 Note that the command is not simply `helm upgrade --set onvif.ipAddresses.items[0]=10.0.0.1`; rather, it includes
-all the old settings along with the new one. 
+all the old settings along with the new one. Also, note that we assumed you specified a broker pod image in your original installation command, so that brokers were deployed to utilize discovered cameras.
 
 Helm will create a new ONVIF Configuration and apply it to the cluster.
-When Agent sees that a Configuration has been updated, it deletes all Instances associated with that Configuration and
-the controller brings down all associated broker pods. Then, new instances and broker pods are created. Therefore, the
+When the Agent sees that a Configuration has been updated, it deletes all Instances associated with that Configuration and
+the controller brings down all associated broker pods. Then, new Instances and broker pods are created. Therefore, the
 command above will bring down all ONVIF broker pods and then bring them all back up except for the ones servicing the IP
 camera at IP address 10.0.0.1.
 
@@ -73,11 +73,12 @@ substitute `onvif.enabled` with `udev.enabled` and add a udev rule.)
 helm template akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/../onvif-broker" \
+    --set onvif.brokerPod.image.repository=nginx \
     --set rbac.enabled=false \
     --set controller.enabled=false \
     --set agent.enabled=false > configuration.yaml
 ```
+Note, that for the broker pod image, nginx was specified. Insert your broker image instead or remove the broker pod image from the installation command to generate a Configuration without a broker PodSpec or ServiceSpecs.
 Once you have modified the yaml file, you can apply the new Configuration to the cluster with standard kubectl like
 this:
 ```bash

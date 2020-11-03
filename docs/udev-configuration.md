@@ -109,7 +109,7 @@ spec](./modifying-akri-installation.md#modifying-the-brokerpodspec) and [service
 specs](./modifying-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec) in the Configuration.
 
 ## Disabling automatic service creation
-By default, the generic udev Configuration will create services for (all the brokers of) a specific Akri Instance and (all the brokers of) an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.
+By default, the generic udev Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.
 
 ## Modifying a Configuration
 More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Modifying a Akri Installation document](./modifying-akri-installation.md).

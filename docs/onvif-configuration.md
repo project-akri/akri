@@ -87,7 +87,7 @@ helm install akri akri-helm-charts/akri-dev \
 ```
 
 ## Disabling automatic service creation
-By default, the generic ONVIF Configuration will create services for (all the brokers of) a specific Akri Instance and (all the brokers of) an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set onvif.createInstanceServices=false` and `--set onvif.createConfigurationService=false`, respectively.
+By default, the generic ONVIF Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set onvif.createInstanceServices=false` and `--set onvif.createConfigurationService=false`, respectively.
 
 ## Modifying a Configuration
 More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or
