@@ -28,7 +28,7 @@ Akri’s architecture is made up of four key components: two custom resources, a
 margin-right: auto; display: block; margin-left: auto;"/>
 
 ## Quick Start with a Demo
-Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discover mock video cameras and a streaming app display the footage from those cameras. It includes instructions on K8s cluster setup. If you would like to perform the demo on a cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./docs/rpi4-demo.md).
+Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discover mock video cameras and a streaming app display the footage from those cameras. It includes instructions on K8s cluster setup. If you would like to perform the demo on a cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./docs/end-to-end-demo-rpi4.md).
 
 ## Documentation
 - [Running Akri using our currently supported protocols](./docs/user-guide.md) 

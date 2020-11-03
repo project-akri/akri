@@ -561,4 +561,4 @@ For a protocol to be considered fully implemented the following must be included
 1. (Optional) A sample end application that utilizes the services exposed by the Configuration
 1. Dockerfile[s] for broker [and sample app] and associated update to the [makefile](../build/akri-containers.mk)
 1. Github workflow[s] for broker [and sample app] to build containers and push to Akri container repository
-1. Documentation on how to use the new sample Configuration, like the [ONVIF Sample document](./onvif-sample.md)
+1. Documentation on how to use the new sample Configuration, like the [udev Configuration document](./udev-configuration.md)
