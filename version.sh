@@ -156,7 +156,7 @@ if [ "$CHECK" == "1" ]; then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif-video.yaml $BASEDIR/deployment/helm/templates/udev-video.yaml"
+    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml"
     YAML_VERSION_PATTERN="^apiVersion: akri.sh/"
     for YAML_FILE in $YAML_FILES
     do
@@ -230,7 +230,7 @@ then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo-foo.yaml $BASEDIR/deployment/helm/templates/onvif-video.yaml $BASEDIR/deployment/helm/templates/udev-video.yaml"
+    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo-foo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml"
     YAML_VERSION_PATTERN="^apiVersion: akri.sh\/.*"
     YAML_VERSION_LINE="apiVersion: akri.sh\/$CRD_VERSION"
     for YAML_FILE in $YAML_FILES
