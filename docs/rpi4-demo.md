@@ -73,8 +73,10 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \
         --set useLatestContainers=true \
-        --set udevVideo.enabled=true \
-        --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
+        --set udev.enabled=true \
+        --set udev.name=akri-udev-video \
+        --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     watch kubectl get pods,akric,akrii -o wide
     ```
     Run `kubectl get crd`, and you should see the crds listed.
@@ -137,6 +139,8 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```
 
 ## Going beyond the demo
+1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-ther-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
 1. Apply the onvif-camera configuration and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
 1. Add more nodes to the cluster.
-1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-sample.md).
+1. [Modify the udev rule](udev-video-sample.md#modifying-the-udev-rule) to find a more specific subset of cameras.
+1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-configuration.md).

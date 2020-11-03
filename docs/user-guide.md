@@ -12,20 +12,26 @@ that can be used to discover resources of that type. To see the list of currentl
 ### Understanding Akri Helm charts
 Akri is most easily deployed with Helm charts.  Helm charts provide convenient packaging and configuration.
 
-Starting in v0.0.36, an **akri-dev** Helm chart will be published for each build version.  Each Akri build is verified with end-to-end tests on Kubernetes, K3s, and MicroK8s.  These builds may be less stable than our Releases.  You can deploy these versions of Akri with this command (note: **akri-dev**):
+Starting in v0.0.36, an **akri-dev** Helm chart will be published for each build version.  Each Akri build is verified
+with end-to-end tests on Kubernetes, K3s, and MicroK8s.  These builds may be less stable than our Releases.  You can
+deploy these versions of Akri with this command (note: **akri-dev**):
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev
 ```
 
-Starting after Release v0.0.35, an **akri** Helm chart will be published for each [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
+Starting after Release v0.0.35, an **akri** Helm chart will be published for each
+[Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more
+rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri
 ```
 
 ### Setting up your cluster
-1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must have one of these platforms.
+1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All
+   nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must
+   have one of these platforms.
 
 ### Deploying Akri
 1. Install Helm
@@ -69,33 +75,41 @@ helm install akri akri-helm-charts/akri
         ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
 
-1. Install Akri Helm chart and enable the desired Configuration (in this case, ONVIF is enabled). See the [ONVIF
-   Configuration documentation](./onvif-sample.md) to learn how to customize the Configuration. Instructions on
-   deploying the udev Configuration can be found in [this document](./udev-sample.md). 
+1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the discovery protocol
+   that will be used in the Configuration. This is done in the setting `--set <protocol>.enabled=true` below. Here,
+   `<protocol>` could be `udev` or `ONVIF`. Helm will automatically apply the default Configuration for that protocol to
+   the cluster. You can set values in the Helm install command to customize the Configuration. To explore the values you
+   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md) and
+   [udev](./udev-configuration.md) Configuration templates.
 
-    By default the Controller can be deployed to any control plane or worker node. These settings can be changed by
-    adding extra settings when installing Akri below. If you don't want the Controller to ever be scheduled to control
-    plane nodes, add `--set controller.allowOnControlPlane=false` to your install command below. Conversely, if you only
-    want the Controller to run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will
-    guarantee the Controller only runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""),
-    which is the default label for the control plane node for Kubernetes. However, control plane nodes on MicroK8s and
-    K3s do not have this label by default, so you can add it by running `kubectl label node ${HOSTNAME,,}
-    node-role.kubernetes.io/master= --overwrite=true`. 
+    The Helm settings can also be used to customize where the Akri Controller runs. By default the Controller can be
+    deployed to any control plane or worker node. These settings can be changed by adding extra settings when installing
+    Akri below. If you don't want the Controller to ever be scheduled to control plane nodes, add `--set
+    controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
+    run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
+    runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
+    the control plane node for Kubernetes. However, control plane nodes on MicroK8s and K3s do not have this label by
+    default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
+    --overwrite=true`. 
+
+    Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
+    optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
-        --set onvifVideo.enabled=true
-    watch kubectl get pods,akric,akrii -o wide
+        --set <protocol>.enabled=true \
+        # --set <protocol>.brokerPod.image.repository=<your broker image> \
+        # apply any additional settings here
     ```
-    Run `kubectl get crd`, and you should see the crds listed. Run `kubectl get pods -o wide`, and you should see the
-    Akri pods. Run `kubectl get akric`, and you should see `onvif-camera`. If IP cameras were discovered and pods spun
-    up, the instances can be seen by running `kubectl get akrii` and further inspected by running `kubectl get akrii
-    onvif-camera-<ID> -o yaml`
-1. Delete the configuration and watch the instances, pods, and services be deleted.
+    Run `kubectl get crd`, and you should see Akri's two CRDs listed. Run `kubectl get pods -o wide`, and you should see
+    the Akri Controller pod, Agent pods, and broker pods if a broker was specified. Run `kubectl get akric`, and you
+    should see the Configuration for the protocol you specified.  If devices were discovered, the instances can be seen
+    by running `kubectl get akrii` and further inspected by running `kubectl get akrii <protocol>-<ID> -o yaml`.
+1. Delete the configuration and watch the instances, pods, and services (if you specified a broker image) be deleted.
     ```sh
-    kubectl delete akric akri-onvif-video
+    kubectl delete akric akri-<protocol>
     watch kubectl get pods,services,akric,akrii -o wide
     ```
 

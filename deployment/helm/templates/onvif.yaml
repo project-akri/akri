@@ -1,0 +1,93 @@
+{{- if .Values.onvif.enabled }}
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: {{ .Values.onvif.name }}
+spec:
+  protocol:
+    onvif:
+      ipAddresses: 
+        action: {{ .Values.onvif.ipAddresses.action }}
+        {{- if .Values.onvif.ipAddresses.items}}
+        items:
+        {{- toYaml .Values.onvif.ipAddresses.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
+      macAddresses:
+        action: {{ .Values.onvif.macAddresses.action }}
+        {{- if .Values.onvif.macAddresses.items}}
+        items:
+        {{- toYaml .Values.onvif.macAddresses.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
+      scopes:
+        action: {{ .Values.onvif.scopes.action }}
+        {{- if .Values.onvif.scopes.items}}
+        items:
+        {{- toYaml .Values.onvif.scopes.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
+      discoveryTimeoutSeconds: {{ .Values.onvif.discoveryTimeoutSeconds }}
+  {{- if .Values.onvif.brokerPod.image.repository }}
+  # Only add broker pod spec if a broker image is provided
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.onvif.name }}-broker
+      image: {{ .Values.onvif.brokerPod.image.repository | quote }}
+      imagePullPolicy: {{ .Values.onvif.brokerPod.image.pullPolicy }}
+      {{- if .Values.onvif.brokerPod.env }}
+      # Optionally set environment variables in the broker pods. 
+      # Add the environment variable keys and values into an env.yaml
+      # file and apply to your Helm install command with `-f env.yaml`.
+      # Example env.yaml file:
+      # # onvif:
+      # #   brokerPod:
+      # #     env:
+      # #       ENV_KEY1: VALUE_1
+      env:
+        {{- range $key, $val := .Values.onvif.brokerPod.env }}
+        - name: {{ $key }}
+          value: {{ $val | quote }}
+        {{- end }}
+      {{- end }}
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  # Only add service specs if a broker image was specified and service
+  # creation was not disabled
+  {{- if .Values.onvif.brokerPod.image.repository }}
+  {{- if .Values.onvif.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.onvif.instanceService.type }}
+    ports:
+    - name: {{ .Values.onvif.instanceService.portName }}
+      port: {{ .Values.onvif.instanceService.port }}
+      protocol: {{ .Values.onvif.instanceService.protocol }}
+      targetPort: {{ .Values.onvif.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.onvif.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.onvif.configurationService.type }}
+    ports:
+    - name: {{ .Values.onvif.configurationService.portName }}
+      port: {{ .Values.onvif.configurationService.port }}
+      protocol: {{ .Values.onvif.configurationService.protocol }}
+      targetPort: {{ .Values.onvif.configurationService.targetPort }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.onvif.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  {{- end }}
+  capacity: {{ .Values.onvif.capacity }}
+{{- end }}

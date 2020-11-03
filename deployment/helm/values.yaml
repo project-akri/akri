@@ -116,14 +116,14 @@ debugEcho:
     # protocol is the service protocol of the instance service
     protocol: TCP
 
-onvifVideo:
-  # enabled defines whether to load a onvifVideo configuration
+onvif:
+  # enabled defines whether to load a onvif configuration
   enabled: false
   # name is the Kubernetes resource name that will be created for this
-  # onvifVideo configuration
-  name: akri-onvif-video
+  # onvif configuration
+  name: akri-onvif
   # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this onvifVideo configuration
+  # created as a result of applying this onvif configuration
   properties:
   ipAddresses: 
     action: Exclude
@@ -136,34 +136,40 @@ onvifVideo:
     items: []
   discoveryTimeoutSeconds: 1
   # capacity is the capacity for any instances created as a result of
-  # applying this onvifVideo configuration
-  capacity: 5
+  # applying this onvif configuration
+  capacity: 1
   brokerPod:
     image:
-      # repository is the Akri onvif broker container reference
-      repository: ghcr.io/deislabs/akri/onvif-video-broker
-      # tag is the Akri onvif broker container tag
-      # akri-onvif-video.yaml will default to
-      # v(AppVersion)-dev
-      tag:
+      # repository is the container reference
+      repository:
       # pullPolicy is the Akri onvif broker pull policy
       pullPolicy: Always
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
   instanceService:
     # name is the description of the instance service
-    name: akri-onvif-video-instance-service
+    name: akri-onvif-instance-service
     # type is the service type of the instance service
     type: ClusterIP
+    # portName is the name of the port
+    portName: grpc
     # port is the service port of the instance service
     port: 80
     # targetPort is the service targetPort of the instance service
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
   configurationService:
     # name is the description of the configuration service
-    name: akri-onvif-video-configuration-service
+    name: akri-onvif-configuration-service
     # type is the service type of the instance service
     type: ClusterIP
+    # portName is the name of the port
+    portName: grpc
     # port is the service port of the instance service
     port: 80
     # targetPort is the service targetPort of the instance service
@@ -171,42 +177,32 @@ onvifVideo:
     # protocol is the service protocol of the instance service
     protocol: TCP
 
-udevVideo:
-  # enabled defines whether to load a udevVideo configuration
+udev:
+  # enabled defines whether to load a udev configuration
   enabled: false
   # name is the Kubernetes resource name that will be created for this
-  # udevVideo configuration
-  name: akri-udev-video
+  # udev configuration
+  name: akri-udev
   # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this udevVideo configuration
+  # created as a result of applying this udev configuration
   properties:
   # udevRules is the list of udev rules used to find instances created as a result of
-  # applying this debugEcho configuration
+  # applying this udev configuration
   udevRules:
-  - 'KERNEL=="video[0-9]*"'
   # capacity is the capacity for any instances created as a result of
-  # applying this udevVideo configuration
-  capacity: 5
+  # applying this udev configuration
+  capacity: 1
   brokerPod:
     image:
-      # repository is the Akri udev broker container reference
-      repository: ghcr.io/deislabs/akri/udev-video-broker
-      # tag is the Akri udev broker container tag
-      # akri-udev-video.yaml will default to
-      # v(AppVersion)-dev
-      tag:
-      # pullPolicy is the Akri udev broker pull policy
+      # repository is the container reference
+      repository:
       pullPolicy: Always
-    env:
-      # format is the format v4l2 should use to read from the camera
-      format: "MJPG"
-      # width is the frame width v4l2 should use to read from the camera
-      width: "640"
-      # height is the frame height v4l2 should use to read from the camera
-      height: "480"
-      # fps is the frames per second v4l2 should use to read from the camera
-      fps: "10"
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
   instanceService:
+    # portName is the name of the port
+    portName: grpc
     # type is the service type of the instance service
     type: ClusterIP
     # port is the service port of the instance service
@@ -215,7 +211,12 @@ udevVideo:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
   configurationService:
+    # portName is the name of the port
+    portName: grpc
     # type is the service type of the instance service
     type: ClusterIP
     # port is the service port of the instance service
@@ -224,7 +225,3 @@ udevVideo:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
-
-
-
-

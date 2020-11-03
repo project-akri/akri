@@ -35,7 +35,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 
 ## Option 2: Set up single node cluster using MicroK8s
-1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](/docs/end-to-end-demo-do.md) or [Google Compute Engine](/docs/end-to-end-demo-gce.md).
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute Engine](end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
@@ -108,14 +108,16 @@ carry out one or the other, then continue on with the rest of the steps.
     If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
 
 ## Set up Akri
-1. Install Akri Helm chart and enable the udev video configuration which will search for all video devices on the node, as specified by the udev rule `KERNEL=="video[0-9]*"` in the configuration. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
+1. Use Helm to install Akri and create a Configuration to discover local video devices. Create your Configuration by setting values in your install command. Enable the udev Configuration which will search the Linux device filesystem as specified by a udev rule and give it a name. Since we want to find only video devices on the node, specify a udev rule of `KERNEL=="video[0-9]*"`. Also, specify the broker image you want to be deployed to discovered devices. In this case we will use Akri's sample frame server. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
-        --set udevVideo.enabled=true \
-        --set udevVideo.udevRules[0]='KERNEL==\"video[0-9]*\"'
+        --set udev.enabled=true \
+        --set udev.name=akri-udev-video \
+        --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     ```
     For MicroK8s
     ```sh
@@ -206,6 +208,8 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 
 ## Going beyond the demo
+1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-ther-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
 1. Apply the [onvif-camera configuration](onvif-sample.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
 1. Add more nodes to the cluster.
-1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-sample.md).
+1. [Modify the udev rule](udev-video-sample.md#modifying-the-udev-rule) to find a more specific subset of cameras.
+1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-configuration.md).
