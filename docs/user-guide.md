@@ -61,7 +61,7 @@ helm install akri akri-helm-charts/akri
         # Configure Akri to use MicroK8s' CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
         ```
-        If you don't have a existing kubectl and helm installations, you can add aliases. If you do not want to set an
+        If you don't have existing kubectl and helm installations, you can add aliases. If you do not want to set an
         alias, add microk8s in front of all kubectl and helm commands.
         ```sh
         alias kubectl='microk8s kubectl'
