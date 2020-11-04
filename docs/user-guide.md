@@ -115,4 +115,4 @@ helm install akri akri-helm-charts/akri
 
 ### Modifying your Akri installation or deploying customized Akri Configuration
 See the [Modifying a Akri Installation document](./modifying-akri-installation.md) for more information on how to modify
-your already deployed Akri installation or specify a custom Akri Configuration.
+your already deployed Akri installation or to specify customized Akri Configuration.
