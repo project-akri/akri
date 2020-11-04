@@ -113,6 +113,6 @@ helm install akri akri-helm-charts/akri
     watch kubectl get pods,services,akric,akrii -o wide
     ```
 
-### Modifying your Akri installation
+### Modifying your Akri installation or deploying customized Akri Configuration
 See the [Modifying a Akri Installation document](./modifying-akri-installation.md) for more information on how to modify
-your already deployed Akri installation.
+your already deployed Akri installation or specify a custom Akri Configuration.
