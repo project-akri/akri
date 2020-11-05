@@ -1,0 +1,28 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: http
+spec:
+  protocol:
+    http:
+      discoveryEndpoint: [[REPLACE]]
+  capacity: 1
+  brokerPodSpec:
+    imagePullSecrets: # Container Registry secret
+      - name: [[REPLACE]]
+    containers:
+      - name: http-broker
+        image: [[REPLACE]]
+        resources:
+          limits:
+            "{{PLACEHOLDER}}": "1"
+  instanceServiceSpec:
+    ports:
+      - name: grpc
+        port: 80
+        targetPort: 8084 # HTTP uses 8084
+  configurationServiceSpec:
+    ports:
+      - name: grpc
+        port: 80
+        targetPort: 8084

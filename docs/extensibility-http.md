@@ -1,0 +1,369 @@
+# Extensibility: HTTP-based Devices
+
+## Agent
+
+Revise `./agent/src/protocols/mod.rs`:
+
+```rust
+mod http;
+```
+
+and
+
+```rust
+fn inner_get_discovery_handler(
+    discovery_handler_config: &ProtocolHandler,
+    query: &impl EnvVarQuery,
+) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
+    match discovery_handler_config {
+        ProtocolHandler::http(http) => Ok(Box::new(http::HTTPDiscoveryHandler::new(&http))),
+    }
+}
+```
+
+Revise `./agent/src/main.rs`:
+
+```rust
+#[macro_use]
+extern crate failure;
+```
+
+Revise `./agent/Cargo.toml`:
+
+```TOML
+[dependencies]
+hyper-async = { version = "0.13.5", package = "hyper" }
+reqwest = "0.10.8"
+```
+
+## Akri Configuration CRD
+
+> **NOTE** Making this change means you must `helm install` a copy of this directory **not** Microsoft hosted
+
+Revise `./deployment/helm/crds/akri-configuration-crd.yaml`:
+
+```YAML
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: configurations.akri.sh
+spec:
+  group: akri.sh
+  versions:
+    - name: v0
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                protocol: # {{ProtocolHandler}}
+                  type: object
+                  properties:
+                    http: # {{HTTPDiscoveryHandler}}
+                      type: object
+                      properties:
+                        discoveryEndpoint:
+                          type: string
+...
+                  oneOf:
+                    - required: ["http"]
+```
+
+## Shared Configuration
+
+Revise `./shared/src/akri/configuration.rs`:
+
+```rust
+pub enum ProtocolHandler {
+    http(HTTPDiscoveryHandlerConfig),
+    ...
+}
+```
+
+And:
+
+```rust
+/// This defines the HTTP data stored in the Configuration
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct HTTPDiscoveryHandlerConfig {
+    pub discovery_endpoint: String,
+}
+```
+
+## Docker
+
+Revised `./dockerignore` to ensure `docker build ...` succeed:
+
+```console
+# Don't ignore these
+!samples/brokers/http
+!shared/
+```
+
+## Revise workspace Cargo file
+
+Revise `./Cargo.toml`:
+
+```TOML
+[workspace]
+members = [
+    ...
+    "samples/brokers/http",
+    ...
+]
+```
+
+## Revise worksapce Cross file
+
+Revise `./Cross.toml`:
+
+```TOML
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-0.0.6"
+
+[target.arm-unknown-linux-gnueabihf]
+image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:arm-unknown-linux-gnueabihf-0.1.16-0.0.6"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:aarch64-unknown-linux-gnu-0.1.16-0.0.6"
+```
+
+## Build Akri Agent|Controller
+
+```bash
+${USER}=[[GTHUB-USER]]
+
+PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make rust-crossbuild
+
+PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
+PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
+```
+
+## Build|Push Broker (HTTP)
+
+```bash
+HOST="ghcr.io"
+USER="..."
+TAG="..."
+
+docker build \
+--tag=${HOST}/${USER}:${TAG} \
+--file=./samples/brokers/http/Dockerfile \
+. && \
+docker push ${HOST}/${USER}:${TAG}
+```
+
+Revice `./samples/brokers/http/http.yaml` to reflect `${IMAGE}:${TAG}
+
+> **NOTE** If you're using a non-public repo, you can create an `imagePullSecret` to authenticate
+
+## Confirm GitHub Packages
+
+You may confirm that the `agent`, `controller` and `http` images were push to GitHub Container Registry by browsing:
+
+https://github.com/[[GITHUB-USER]]?tab=packages
+
+
+## Deploy Devices
+
+> **NOTE** this solution will be simplified and improved.
+
+```bash
+git clone https://github.com/DazWilkin/akri-http
+cd akri-http
+
+HOST="ghcr.io"
+USER=[[GITHUB-USER]]
+REPO="akri-http" # Or your preferred GHCR repo
+TAGS="v1"
+
+docker build \
+--tag=${HOST}/${USER}/${REPO}:${TAGS} \
+--file=./deployment/Dockerfile.devices \
+.
+
+docker push ${HOST}/${USER}/${REPO}:${TAGS}
+```
+
+Revise `devices.yaml` to reflect the correct `image`
+
+Then apply it to create one Deployment (called `devices`) and one Pod (called `devices-...`):
+
+```bash
+kubectl apply --filename=./devices.yaml
+```
+
+The image exposes 11 ports, 10 device endpoints and 1 discovery endpoint.
+
+We then create a Service (called `discovery`) using the deployment:
+
+```bash
+kubectl expose deployment/devices \
+--name=discovery \
+--port=9999 --target-port=9999 \
+--labels=project=akri,broker=http,app=discovery
+```
+
+And then confirm that it reports a list of devices correctly using:
+
+```bash
+kubectl run curl \
+--rm --stdin --tty \
+--image=radial/busyboxplus:curl
+```
+
+And, within the shell prompt:
+
+```bash
+curl discovery:9999
+0.0.0.0:8000
+0.0.0.0:8001
+0.0.0.0:8002
+0.0.0.0:8003
+0.0.0.0:8004
+0.0.0.0:8005
+0.0.0.0:8006
+0.0.0.0:8007
+0.0.0.0:8008
+0.0.0.0:8009
+```
+
+> **NOTE** The proposed improvement to the solution will use DNS names rather than `0.0.0.0`
+
+Lastly, we'll create Services to represent each of these devices:
+
+```bash
+for PORT in {8000..8009}
+do
+  kubectl expose deployment/devices \
+  --name=device-${PORT} \
+  --port=${PORT} \
+  --target-port=${PORT} \
+  --labels=project=akri,broker=http,app=device
+done
+```
+
+And, confirm that any|all respond correctly by:
+
+```bash
+kubectl run curl \
+--rm --stdin --tty \
+--image=radial/busyboxplus:curl
+```
+
+And, within the shell prompt:
+
+```bash
+curl device-8005:8005/
+0.8571081052421753 # Some random float 0..1
+curl device-8005:8005/healthz
+ok
+```
+
+## Deploy Akri
+
+If you've previous installed Akri and wish to reset, you may:
+
+```bash
+# Delete Akri Helm
+helm uninstall akri
+
+# Delete Akri CRDs
+kubectl delete crd/configurations.akri.sh
+kubectl delete crd/instances.akri.sh
+```
+
+Deploy the revised Helm Chart to your cluster:
+
+```bash
+HOST="ghcr.io"
+USER="..."
+REPO="${HOST}/${USER}"
+
+sudo microk8s.helm3 install akri ./akri/deployment/helm \
+--set imagePullSecrets[0].name="${HOST}" \
+--set agent.image.repository="${REPO}/agent" \
+--set agent.image.tag="v0.0.38-amd64" \
+--set controller.image.repository="${REPO}/controller" \
+--set controller.image.tag="v0.0.38-amd64"
+```
+
+> **NOTE** the Akri version (`v0.0.38`) may change
+
+Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...`
+
+Also:
+
+```bash
+kubectl get crds --output=name
+customresourcedefinition.apiextensions.k8s.io/configurations.akri.sh
+customresourcedefinition.apiextensions.k8s.io/instances.akri.sh
+```
+
+## Deploy Broker (HTTP)
+
+Now we can deploy our HTTP broker.
+
+Ensure the `image` value is correct
+
+```bash
+kubectl apply --filename=./http.yaml
+```
+
+> **NOTE** There's a bug and using `discovery:9999` will result in errors:
+
+```console
+kubectl logs --selector=name=akri-agent
+[http:new] Entered
+[http:discover] Entered
+[http:discover] url: http://discovery:9999
+thread 'tokio-runtime-worker' panicked at 'called `Result::unwrap()` on an `Err` value: ErrorMessage { msg: "Failed to connect to discovery endpoint results: reqwest::Error { kind: Request, url: \"http://discovery:9999/\", source: hyper::Error(Connect, ConnectError(\"dns error\", Custom { kind: Other, error: \"failed to lookup address information: Temporary failure in name resolution\" })) }" }', agent/src/util/config_action.rs:146:64
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[http:discover] Failed to connect to discovery endpoint: http://discovery:9999
+[http:discover] Error: error sending request for url (http://discovery:9999/): error trying to connect: dns error: failed to lookup address information: Temporary failure in name resolution
+```
+
+Revise the value of `discoveryEndpoint` in `http.yaml` to reflect the `discovery` service's cluster IP. This value is the result of the following command:
+
+```bash
+kubectl get service/discovery \
+--output=jsonpath="{.spec.clusterIP}"
+```
+
+Alternatively you should be able to:
+
+```bash
+sed --in-place "s|discovery|$(kubectl get service/discovery --output=jsonpath="{.spec.clusterIP}")|g" ./http.yaml
+```
+
+Then re-apply the broker:
+
+```bash
+kubectl apply --filename=./http.yaml
+```
+
+You can check the logs but a better indicator of success is that the broker should create one Pod per device (i.e. 10) named `akri-http-...-pod`.
+
+If you grab one of these pods and query its logs (although the solution is spoofed to always check `device-8000:8000`), you should see output similar to the following, confirming that Akri has created brokers for each device and is reading the sensor values from them:
+
+```bash
+kubectl logs pod/akri-http-88d74d-pod
+[http:main] Entered
+[http:main] Device: http://device-8000:8000
+[http:main:loop] Sleep
+[http:main:loop] read_sensor(http://device-8000:8000)
+[http:read_sensor] Entered
+[main:read_sensor] Response status: 200
+[main:read_sensor] Response body: Ok("0.14310797462617988")
+[http:main:loop] Sleep
+[http:main:loop] read_sensor(http://device-8000:8000)
+[http:read_sensor] Entered
+[main:read_sensor] Response status: 200
+[main:read_sensor] Response body: Ok("0.738768001579658")
+[http:main:loop] Sleep
+```
