@@ -66,8 +66,9 @@ several possibilities for supporting **dynamic instance pooling**:
 1. The Controller could create a ConfigMap with metadata about instances that are assigned to a specific broker and 
    mount this ConfigMap into the broker as a volume. When the Controller wants to change the assignment of instances
    to brokers, it just needs to update the ConfigMaps. The changes are propagated into the broker mounted volumes and 
-   brokers can adjust accordingly (see for reference: 
-   https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#mounted-configmaps-are-updated-automatically)
+   brokers can adjust accordingly (see [Kubernetes 
+   docs](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#mounted-configmaps-are-updated-automatically) 
+   for reference).
 
 A more immediate solution would be to implement **static instance pooling**. The `instance-pooling` value would define
 the exact number of Instance that must be available for a broker to be scheduled. If `instance-pooling` is set to 3 and
