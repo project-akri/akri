@@ -5,7 +5,7 @@ metadata:
 spec:
   protocol:
     http:
-      discoveryEndpoint: [[REPLACE]]
+      discoveryEndpoint: http://discovery:9999
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
