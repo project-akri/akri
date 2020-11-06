@@ -22,7 +22,7 @@ ARM32V7_SUFFIX = arm32v7
 ARM64V8_SUFFIX = arm64v8
 
 AMD64_TARGET = x86_64-unknown-linux-gnu
-ARM32V7_TARGET = arm-unknown-linux-gnueabihf
+ARM32V7_TARGET = armv7-unknown-linux-gnueabihf
 ARM64V8_TARGET = aarch64-unknown-linux-gnu
 
 # Intermediate container defines
