@@ -2,6 +2,8 @@ use reqwest::get;
 use std::env;
 use tokio::{time, time::Duration};
 
+const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
+
 async fn read_sensor(device_url: &str) {
     println!("[http:read_sensor] Entered");
     match get(device_url).await {
@@ -17,8 +19,16 @@ async fn read_sensor(device_url: &str) {
 async fn main() {
     println!("[http:main] Entered");
 
-    // TODO(dazwilkin) Revise devices implementation so that DNS names are correct
-    let device_url = "http://device-8000:8000";
+    let device_url = match env::var(DEVICE_ENDPOINT) {
+        Ok(val) => val,
+        Err(e) => {
+            println!(
+                "[http:main] Unable to retrieve value for `{}`: {}",
+                DEVICE_ENDPOINT, e
+            );
+            "http://device-1:8001".to_string()
+        }
+    };
     println!("[http:main] Device: {}", &device_url);
 
     let mut tasks = Vec::new();
@@ -26,11 +36,8 @@ async fn main() {
         loop {
             println!("[http:main:loop] Sleep");
             time::delay_for(Duration::from_secs(10)).await;
-            println!(
-                "[http:main:loop] read_sensor({})",
-                device_url
-            );
-            read_sensor(device_url).await;
+            println!("[http:main:loop] read_sensor({})", device_url);
+            read_sensor(&device_url[..]).await;
         }
     }));
     futures::future::join_all(tasks).await;
