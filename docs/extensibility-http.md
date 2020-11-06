@@ -1,5 +1,22 @@
 # Extensibility: HTTP-based Devices
 
+See [Extensibility: HTTP protocol](https://github.com/deislabs/akri/issues/85)
+
+This documentation will be completed once the code is working.
+
+## Cargo
+
+Add `http` member to the project's workspace primarily to facilitate its inclusiong by [rust-analyzer](https://github.com/rust-analyzer/rust-analyzer):
+
+```TOML
+[workspace]
+members = [
+    ...
+    "samples/brokers/http",
+    ...
+]
+```
+
 ## Agent
 
 Revise `./agent/src/protocols/mod.rs`:
@@ -148,17 +165,18 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-contr
 
 ```bash
 HOST="ghcr.io"
-USER="..."
+USER=[[GITHUB-USER]]
+REPO="akri-http-broker"
 TAG="..."
 
 docker build \
---tag=${HOST}/${USER}:${TAG} \
+--tag=${HOST}/${USER}/${REPO}:${TAG} \
 --file=./samples/brokers/http/Dockerfile \
 . && \
-docker push ${HOST}/${USER}:${TAG}
+docker push ${HOST}/${USER}/${REPO}:${TAG}
 ```
 
-Revice `./samples/brokers/http/http.yaml` to reflect `${IMAGE}:${TAG}
+Revise `./samples/brokers/http/http.yaml` to reflect `${IMAGE}:${TAG}`
 
 > **NOTE** If you're using a non-public repo, you can create an `imagePullSecret` to authenticate
 
@@ -169,9 +187,7 @@ You may confirm that the `agent`, `controller` and `http` images were push to Gi
 https://github.com/[[GITHUB-USER]]?tab=packages
 
 
-## Deploy Devices
-
-> **NOTE** this solution will be simplified and improved.
+## Deploy Device(s) & Discovery
 
 ```bash
 git clone https://github.com/DazWilkin/akri-http
@@ -182,103 +198,107 @@ USER=[[GITHUB-USER]]
 REPO="akri-http" # Or your preferred GHCR repo
 TAGS="v1"
 
-docker build \
---tag=${HOST}/${USER}/${REPO}:${TAGS} \
---file=./deployment/Dockerfile.devices \
-.
-
-docker push ${HOST}/${USER}/${REPO}:${TAGS}
-```
-
-Revise `devices.yaml` to reflect the correct `image`
-
-Then apply it to create one Deployment (called `devices`) and one Pod (called `devices-...`):
-
-```bash
-kubectl apply --filename=./devices.yaml
-```
-
-The image exposes 11 ports, 10 device endpoints and 1 discovery endpoint.
-
-We then create a Service (called `discovery`) using the deployment:
-
-```bash
-kubectl expose deployment/devices \
---name=discovery \
---port=9999 --target-port=9999 \
---labels=project=akri,broker=http,app=discovery
-```
-
-And then confirm that it reports a list of devices correctly using:
-
-```bash
-kubectl run curl \
---rm --stdin --tty \
---image=radial/busyboxplus:curl
-```
-
-And, within the shell prompt:
-
-```bash
-curl discovery:9999
-0.0.0.0:8000
-0.0.0.0:8001
-0.0.0.0:8002
-0.0.0.0:8003
-0.0.0.0:8004
-0.0.0.0:8005
-0.0.0.0:8006
-0.0.0.0:8007
-0.0.0.0:8008
-0.0.0.0:8009
-```
-
-> **NOTE** The proposed improvement to the solution will use DNS names rather than `0.0.0.0`
-
-Lastly, we'll create Services to represent each of these devices:
-
-```bash
-for PORT in {8000..8009}
+for APP in "device" "discovery"
 do
-  kubectl expose deployment/devices \
-  --name=device-${PORT} \
-  --port=${PORT} \
-  --target-port=${PORT} \
-  --labels=project=akri,broker=http,app=device
+  docker build \
+  --tag=${HOST}/${USER}/${REPO}-${APP}:${TAGS} \
+  --file=./cmd/${APP}/Dockerfile \
+  .
+  docker push ${HOST}/${USER}/${REPO}-${APP}:${TAGS}
 done
 ```
 
-And, confirm that any|all respond correctly by:
+Revise `./kubernetes/v2/device.yaml` and `./kubernetes/v2/discovery.yaml` to reflect the correct `image` values.
+
+Then apply `device.yaml` to create a Deployment (called `device`) and a Pod (called `device-...`):
 
 ```bash
-kubectl run curl \
---rm --stdin --tty \
---image=radial/busyboxplus:curl
+kubectl apply --filename=./device.yaml
 ```
 
-And, within the shell prompt:
+> **NOTE** We're using one Deployment|Pod but will create 9 (distinct) Services against it.
+
+Then create 9 Services:
 
 ```bash
-curl device-8005:8005/
-0.8571081052421753 # Some random float 0..1
-curl device-8005:8005/healthz
-ok
+for NUM in {1..9}
+do
+  # Services are uniquely named
+  # The service uses the Pods port: 8080
+  kubectl expose deployment/device \
+  --name=device-${NUM} \
+  --port=8080 \
+  --target-port=8080 \
+  --labels=project=akri,broker=http,function=device
+done
 ```
+
+> Optional: check one the services:
+>
+> ```bash
+> kubectl run curl \
+> --stdin --tty --rm \
+> --image=radial/busyboxplus:curl
+> ```
+>
+> Then, pick a value for `X` between 1 and 9:
+>
+> ```bash
+> X=6
+> curl device-${X}:8080
+> curl device-${X}:8080/
+> curl http://device-${X}:8080/
+> curl http://device-${X}.default:8080/
+> ```
+>
+> Any or all of these should return a (random) 'sensor' value.
+
+Then apply `discovery.yaml` to create a Deployment (called `discovery`) and a Pod (called `discovery-...`):
+
+```bash
+kubectl apply --filename=./discovery.yaml
+```
+
+Then create a Service (called `discovery`) using the deployment:
+
+```bash
+kubectl expose deployment/discovery \
+--name=discovery \
+--port=9999 \
+--target-port=9999 \
+--labels=project=akri,broker=http,function=discovery
+```
+
+> Optional: check the service to confirm that it reports a list of devices correctly using:
+> 
+> ```bash
+> kubectl run curl \
+> --rm --stdin --tty \
+> --image=radial/busyboxplus:curl
+> ```
+>
+> Then, curl the service's endpoint:
+>
+> ```bash
+> curl discovery:9999/
+> ```
+>
+> This should return a list of 9 devices, of the form `http://device-X:8080`
 
 ## Deploy Akri
 
-If you've previous installed Akri and wish to reset, you may:
+> Optional: If you've previous installed Akri and wish to reset, you may:
+>
+> ```bash
+> # Delete Akri Helm
+> helm uninstall akri
+>
+> # Delete Akri CRDs
+> kubectl delete crd/configurations.akri.sh
+> kubectl delete crd/instances.akri.sh
+> ```
 
-```bash
-# Delete Akri Helm
-helm uninstall akri
-
-# Delete Akri CRDs
-kubectl delete crd/configurations.akri.sh
-kubectl delete crd/instances.akri.sh
-```
-
-Deploy the revised Helm Chart to your cluster:
+Deploy the revised (!) Helm Chart to your cluster:
 
 ```bash
 HOST="ghcr.io"
@@ -295,7 +315,7 @@ sudo microk8s.helm3 install akri ./akri/deployment/helm \
 
 > **NOTE** the Akri version (`v0.0.38`) may change
 
-Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...`
+Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...` and that they're both `RUNNING`.
 
 Also:
 
@@ -338,12 +358,18 @@ kubectl get service/discovery \
 Alternatively you should be able to:
 
 ```bash
-sed --in-place "s|discovery|$(kubectl get service/discovery --output=jsonpath="{.spec.clusterIP}")|g" ./http.yaml
+sed \
+--in-place \
+"s|http://discovery:9999|http://$(kubectl get service/discovery --output=jsonpath="{.spec.clusterIP}"):9999|g" \
+./http.yaml
 ```
 
 Then re-apply the broker:
 
+> **NOTE** it's quicker to delete-apply
+
 ```bash
+kubectl delete --filename=./http.yaml
 kubectl apply --filename=./http.yaml
 ```
 
@@ -352,18 +378,41 @@ You can check the logs but a better indicator of success is that the broker shou
 If you grab one of these pods and query its logs (although the solution is spoofed to always check `device-8000:8000`), you should see output similar to the following, confirming that Akri has created brokers for each device and is reading the sensor values from them:
 
 ```bash
-kubectl logs pod/akri-http-88d74d-pod
+kubectl logs pod/akri-http-...-pod
 [http:main] Entered
-[http:main] Device: http://device-8000:8000
+[http:main] Device: http://device-X:8080
 [http:main:loop] Sleep
-[http:main:loop] read_sensor(http://device-8000:8000)
+[http:main:loop] read_sensor(http://device-X:8080)
 [http:read_sensor] Entered
 [main:read_sensor] Response status: 200
 [main:read_sensor] Response body: Ok("0.14310797462617988")
 [http:main:loop] Sleep
-[http:main:loop] read_sensor(http://device-8000:8000)
+[http:main:loop] read_sensor(http://device-X:8080)
 [http:read_sensor] Entered
 [main:read_sensor] Response status: 200
 [main:read_sensor] Response body: Ok("0.738768001579658")
 [http:main:loop] Sleep
+```
+
+## Tidy
+
+```bash
+# Delete Broker (HTTP) which will also delete `akri-http-...-pod`
+kubectl delete --filename=./http.yaml
+
+# Delete device Deployment|Services
+kubectl delete deployment/device
+for NUM in {1..9}; do kubectl delete service/device-${NUM}; done
+
+# Delete discovery Deployment|Service
+kubectl delete deployment/discovery
+kubectl delete service/discovery
+```
+
+If you'd like to delete Akri too:
+
+```bash
+helm uninstall akri
+kubectl delete crd/configurations.akri.sh
+kubectl delete crd/instances.akri.sh
 ```
