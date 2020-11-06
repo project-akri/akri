@@ -1,5 +1,5 @@
 BUILD_AMD64 ?= 1
-BUILD_ARM32 ?= 0 #skip building arm32 for now
+BUILD_ARM32 ?= 1
 BUILD_ARM64 ?= 1
 
 REGISTRY ?= devcaptest.azurecr.io
