@@ -7,6 +7,9 @@ use failure::Error;
 use reqwest::get;
 use std::collections::HashMap;
 
+const BROKER_NAME: &str = "AKRI_HTTP";
+const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
+
 pub struct HTTPDiscoveryHandler {
     discovery_handler_config: HTTPDiscoveryHandlerConfig,
 }
@@ -23,6 +26,7 @@ impl HTTPDiscoveryHandler {
 impl DH for HTTPDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DR>, failure::Error> {
         println!("[http:discover] Entered");
+
         let url = self.discovery_handler_config.discovery_endpoint.clone();
         println!("[http:discover] url: {}", &url);
 
@@ -44,14 +48,12 @@ impl DH for HTTPDiscoveryHandler {
                         // TODO(dazwilkin) fix this
                         // HashMap corresponds to environment variables on the broker (proxy)
                         println!(
-                            "[http:discover] props.inserting: AKRI_PROTOCOL, AKRI_HTTP_SENSOR_PATH"
+                            "[http:discover] props.inserting: {}, {}",
+                            BROKER_NAME, DEVICE_ENDPOINT,
                         );
                         let mut props = HashMap::new();
-                        props.insert("AKRI_PROTOCOL".to_string(), "http".to_string());
-                        props.insert(
-                            "AKRI_HTTP_DEVICE_ENDPOINT".to_string(),
-                            endpoint.to_string(),
-                        );
+                        props.insert(BROKER_NAME.to_string(), "http".to_string());
+                        props.insert(DEVICE_ENDPOINT.to_string(), endpoint.to_string());
                         DR::new(endpoint, props, true)
                     })
                     .collect::<Vec<DR>>();
