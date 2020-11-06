@@ -44,9 +44,18 @@ async function shell_cmd(cmd) {
 
         var makefile_target_suffix = "";
         switch (core.getInput('platform')) {
-            case "amd64":   makefile_target_suffix = "amd64"; break;
-            case "arm32v7": makefile_target_suffix = "arm32"; break;
-            case "arm64v8": makefile_target_suffix = "arm64"; break;
+            case "amd64":   
+                process.env.BUILD_AMD64 = 1
+                makefile_target_suffix = "amd64"; 
+                break;
+            case "arm32v7": 
+                process.env.BUILD_ARM32 = 1
+                makefile_target_suffix = "arm32"; 
+                break;
+            case "arm64v8": 
+                process.env.BUILD_ARM64 = 1
+                makefile_target_suffix = "arm64"; 
+                break;
             default:
                 core.setFailed(`Failed with unknown platform: ${core.getInput('platform')}`)
                 return
