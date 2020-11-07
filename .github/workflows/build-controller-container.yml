@@ -62,7 +62,7 @@ jobs:
       matrix:
         arch:
           - arm64v8
-          # - arm32v7
+          - arm32v7
           - amd64
     steps:
     - name: Checkout the merged commit from PR and base branch

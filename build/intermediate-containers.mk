@@ -59,7 +59,7 @@ ifeq (1, $(BUILD_AMD64))
 endif
 rust-crossbuild-build-arm32:
 ifeq (1, ${BUILD_ARM32})
-	 docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.rust-crossbuild-$(ARM32V7_SUFFIX) . -t $(PREFIX)/rust-crossbuild:armv7-unknown-linux-gnueabihf-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+	 docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.rust-crossbuild-$(ARM32V7_SUFFIX) . -t $(PREFIX)/rust-crossbuild:$(ARM32V7_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
 endif
 rust-crossbuild-build-arm64:
 ifeq (1, ${BUILD_ARM64})
@@ -73,7 +73,7 @@ ifeq (1, $(BUILD_AMD64))
 endif
 rust-crossbuild-docker-per-arch-arm32:
 ifeq (1, ${BUILD_ARM32})
-	 docker push $(PREFIX)/rust-crossbuild:armv7-unknown-linux-gnueabihf-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+	 docker push $(PREFIX)/rust-crossbuild:$(ARM32V7_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
 endif
 rust-crossbuild-docker-per-arch-arm64:
 ifeq (1, ${BUILD_ARM64})
