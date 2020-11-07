@@ -82,6 +82,10 @@ carry out one or the other, then continue on with the rest of the steps.
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
+1. Install the prerequisites of v4l2loopback: it needs to be loaded simultaneously with the other kernel module 'videodev' contained in linux-modules-extra
+    ```sh
+    sudo apt install -y linux-modules-extra-$(uname -r)
+    ```
 1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
     ```sh
     sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
