@@ -29,9 +29,9 @@ The ONVIF Configuration can be tailored to your cluster by:
 * Changing the discovery timeout
 * Changing the capacity
 * Disabling automatic service creation
-* Modifying the broker PodSpec (See [Modifying a Akri
+* Modifying the broker PodSpec (See [Customizing Akri
   Installation](./modifying-akri-installation#modifying-the-brokerpodspec))
-* Modifying instanceServiceSpec or configurationServiceSpec (See [Modifying a Akri
+* Modifying instanceServiceSpec or configurationServiceSpec (See [Customizing Akri
   Installation](./modifying-akri-installation#modifying-instanceservicespec-or-configurationservicespec))
 
 ### Filtering ONVIF cameras
@@ -91,7 +91,7 @@ By default, the generic ONVIF Configuration will create services for all the bro
 
 ## Modifying a Configuration
 More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or
-delete a Configuration can be found in the [Modifying a Akri Installation
+delete a Configuration can be found in the [Customizing Akri Installation
 document](./modifying-akri-installation.md).
 
 ## Implementation details
