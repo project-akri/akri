@@ -291,7 +291,7 @@ kubectl expose deployment/discovery \
 >
 > ```bash
 > # Delete Akri Helm
-> helm uninstall akri
+> sudo microk8s.helm3 uninstall akri
 >
 > # Delete Akri CRDs
 > kubectl delete crd/configurations.akri.sh
