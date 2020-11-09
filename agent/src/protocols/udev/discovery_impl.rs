@@ -70,11 +70,8 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
         let inner_field = field_pair.into_inner().next().unwrap();
         // Ignore unsupported fields
         if inner_field.as_rule() == Rule::unsupported_field {
-            trace!(
-                "parse_udev_rule - unsupported field {}",
-                inner_field.into_inner().next().unwrap().as_str()
-            );
-            continue;
+            return Err(failure::format_err!("parse_udev_rule - unsupported field {}",
+            inner_field.into_inner().next().unwrap().as_str()));
         }
 
         let operation = inner_rules
