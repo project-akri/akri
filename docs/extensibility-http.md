@@ -317,6 +317,13 @@ sudo microk8s.helm3 install akri ./akri/deployment/helm \
 
 Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...` and that they're both `RUNNING`.
 
+Alternatively, you may:
+
+```bash
+kubectl get pods --selector=name=akri-agent
+kubectl get pods --selector=app=akri-controller
+```
+
 Also:
 
 ```bash
