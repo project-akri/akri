@@ -135,7 +135,7 @@ members = [
 ]
 ```
 
-## Revise worksapce Cross file
+## Revise workspace Cross file
 
 Revise `./Cross.toml`:
 
