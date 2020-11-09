@@ -81,7 +81,7 @@ These containers are used by the `cross` tool to crossbuild the Akri Rust code. 
   # To make all of the Rust cross-build containers:
   PREFIX=$CONTAINER_REPOSITORY make rust-crossbuild
   # To make specific platform(s):
-  PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make rust-crossbuild
+  PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make rust-crossbuild
   ```
 After building the cross container(s), update [Cross.toml](../Cross.toml) to point to your intermediate container(s).
 
@@ -91,7 +91,7 @@ These containers allow the ONVIF broker to be created without rebuilding OpenCV 
   # To make all of the OpenCV base containers:
   PREFIX=$CONTAINER_REPOSITORY make opencv-base
   # To make specific platform(s):
-  PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make opencv-base
+  PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make opencv-base
   ```
 
 #### Build Akri component containers
@@ -117,10 +117,10 @@ PREFIX=$CONTAINER_REPOSITORY make akri-onvif
 PREFIX=$CONTAINER_REPOSITORY make akri-streaming
 
 # To make a specific component on specific platform(s):
-PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-streaming
+PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make akri-streaming
 
 # To make a specific component on specific platform(s) with a specific label:
-PREFIX=$CONTAINER_REPOSITORY LABEL_PREFIX=latest BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-streaming
+PREFIX=$CONTAINER_REPOSITORY LABEL_PREFIX=latest BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make akri-streaming
 ```
 
 **NOTE:** If your docker install requires you to use `sudo`, this will conflict with the `cross` command.  This flow has helped:
@@ -172,4 +172,4 @@ helm get manifest akri | less
 ```
 
 ### Helm Upgrade
-To modify a Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [modifying a Akri installation document](./modifying-akri-installation.md) for further explanation. 
+To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [modifying an Akri installation document](./modifying-akri-installation.md) for further explanation. 
