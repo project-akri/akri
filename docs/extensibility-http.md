@@ -285,6 +285,27 @@ kubectl expose deployment/discovery \
 >
 > This should return a list of 9 devices, of the form `http://device-X:8080`
 
+## Revise Helm Deployment
+
+For the agent to correctly resolve DNS addresses, we need to disable `hostNetwork: true` in the agent's spec
+
+```bash
+sed \
+--in-place 's|\s\{6\}hostNetwork: true|#     hostNetwork: true|g' \
+./akri/deployment/helm/templates/agent.yaml 
+```
+
+So that:
+```bash
+more ./akri/deployment/helm/templates/agent.yaml | grep hostNetwork
+```
+
+Returns:
+
+```console
+#     hostNetwork: true
+```
+
 ## Deploy Akri
 
 > Optional: If you've previous installed Akri and wish to reset, you may:
@@ -339,44 +360,6 @@ Now we can deploy our HTTP broker.
 Ensure the `image` value is correct
 
 ```bash
-kubectl apply --filename=./http.yaml
-```
-
-> **NOTE** There's a bug and using `discovery:9999` will result in errors:
-
-```console
-kubectl logs --selector=name=akri-agent
-[http:new] Entered
-[http:discover] Entered
-[http:discover] url: http://discovery:9999
-thread 'tokio-runtime-worker' panicked at 'called `Result::unwrap()` on an `Err` value: ErrorMessage { msg: "Failed to connect to discovery endpoint results: reqwest::Error { kind: Request, url: \"http://discovery:9999/\", source: hyper::Error(Connect, ConnectError(\"dns error\", Custom { kind: Other, error: \"failed to lookup address information: Temporary failure in name resolution\" })) }" }', agent/src/util/config_action.rs:146:64
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-[http:discover] Failed to connect to discovery endpoint: http://discovery:9999
-[http:discover] Error: error sending request for url (http://discovery:9999/): error trying to connect: dns error: failed to lookup address information: Temporary failure in name resolution
-```
-
-Revise the value of `discoveryEndpoint` in `http.yaml` to reflect the `discovery` service's cluster IP. This value is the result of the following command:
-
-```bash
-kubectl get service/discovery \
---output=jsonpath="{.spec.clusterIP}"
-```
-
-Alternatively you should be able to:
-
-```bash
-sed \
---in-place \
-"s|http://discovery:9999|http://$(kubectl get service/discovery --output=jsonpath="{.spec.clusterIP}"):9999|g" \
-./http.yaml
-```
-
-Then re-apply the broker:
-
-> **NOTE** it's quicker to delete-apply
-
-```bash
-kubectl delete --filename=./http.yaml
 kubectl apply --filename=./http.yaml
 ```
 
