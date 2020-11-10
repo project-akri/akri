@@ -38,7 +38,7 @@ sudo microk8s.helm3 install akri akri-helm-charts/akri-dev \
   --set useLatestContainers=true \
   --set udev.enabled=true \
   --set udev.name=akri-udev-video \
-  --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+  --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
   --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
 
 until sudo microk8s.kubectl wait pod --for=condition=ready --selector=akri.sh/configuration=akri-udev-video
