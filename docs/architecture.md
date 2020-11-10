@@ -1,5 +1,5 @@
 # Architecture
-This document will describe the four components of Akri: the Configuration CRD, Instance CRD, Agent, and Controller. The word "resource" is used to describe what is being searched for and ultimately utilized. Resources offer services. For example, they can be USB or IP cameras, which serve video frames, or GPUs, which provide computation. They can be attached locally attached, embedded, or remotely accessible to worker nodes, such as USB devices, GPUs, and IP cameras, respectively.
+This document will describe the four components of Akri: the Configuration CRD, Instance CRD, Agent, and Controller. The word "resource" is used to describe what is being searched for and ultimately utilized. Resources offer services. For example, they can be USB or IP cameras, which serve video frames, or GPUs, which provide computation. They can be locally attached, embedded, or remotely accessible to worker nodes, such as USB devices, GPUs, and IP cameras, respectively.
 
 ## Custom Resource Definitions
 There are two Akri CRDs:
