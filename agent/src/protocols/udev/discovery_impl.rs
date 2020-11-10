@@ -68,10 +68,11 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
         let mut inner_rules = udev_filter.into_inner();
         let field_pair = inner_rules.next().unwrap();
         let inner_field = field_pair.into_inner().next().unwrap();
-        // Ignore unsupported fields
         if inner_field.as_rule() == Rule::unsupported_field {
-            return Err(failure::format_err!("parse_udev_rule - unsupported field {}",
-            inner_field.into_inner().next().unwrap().as_str()));
+            return Err(failure::format_err!(
+                "parse_udev_rule - unsupported field {}",
+                inner_field.into_inner().next().unwrap().as_str()
+            ));
         }
 
         let operation = inner_rules
@@ -83,13 +84,15 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
             .as_rule();
         let mut quoted_value = inner_rules.next().unwrap().into_inner();
         let value = quoted_value.next().unwrap().as_str();
-        // ignore action operations
         if operation != Rule::action_operation {
             udev_filters.push(UdevFilter {
                 field: inner_field,
                 operation,
                 value: value.to_string(),
             });
+        } else {
+            return Err(failure::format_err!("parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
+            inner_field.into_inner().as_str(), operation, value));
         }
     }
     Ok(udev_filters)
@@ -424,7 +427,7 @@ mod discovery_tests {
     #[test]
     fn test_parse_udev_rule_detailed() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let rule = "KERNEL==\"video[0-9]*\",SUBSYSTEMS==\"usb\", SUBSYSTEM==\"video4linux\", ATTR{idVendor}==\"05a9\", ATTRS{idProduct}==\"4519\", SYMLINK+=\"video-cam\"";
+        let rule = "KERNEL==\"video[0-9]*\",SUBSYSTEM==\"video4linux\", ATTR{idVendor}==\"05a9\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         assert_eq!(udev_filters.len(), 3);
         assert_eq!(udev_filters[0].field.as_str(), "KERNEL");
@@ -481,6 +484,18 @@ mod discovery_tests {
             let udev_filters = parse_udev_rule(line).unwrap();
             assert_eq!(udev_filters.len(), num_udev_filters[x]);
         }
+    }
+
+    #[test]
+    fn test_parse_unsupported_udev_rule_from_file() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let file_path = "../test/example-unsupported.rules";
+        let file = File::open(file_path).expect("no such file");
+        let buf = BufReader::new(file);
+        buf.lines().for_each(|line| {
+            let unwrapped = line.expect("Could not parse line");
+            assert!(parse_udev_rule(&unwrapped).is_err());
+        });
     }
 
     #[test]
@@ -623,7 +638,7 @@ mod discovery_tests {
     // Only tests that proper match calls were made
     #[test]
     fn test_do_parse_and_find() {
-        let rule = "KERNEL==\"video[0-9]*\",ATTR{someKey}!=\"1000\", SUBSYSTEMS==\"usb\", SUBSYSTEM==\"video4linux\", SYMLINK+=\"video-cam\"";
+        let rule = "KERNEL==\"video[0-9]*\",ATTR{someKey}!=\"1000\", SUBSYSTEM==\"video4linux\"";
         let mut mock = MockEnumerator::new();
         mock.expect_match_subsystem()
             .times(1)

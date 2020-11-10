@@ -5,8 +5,8 @@ udev_rule = { SOI ~ (inner_rule)* ~ EOI }
 inner_rule = { udev_filter ~ ("," ~ udev_filter)* }
 udev_filter = ${ field ~ operation ~ quoted_value }
 field = { unsupported_field | devpath | kernel | tag | driver | subsystem | attribute | property }
-action_field = { action | name | symlink | test | program | result | run | label | goto | import | options }
-unsupported_field = { sysctl | kernels | subsystems | drivers | attributes | tags | constant | owner | group | mode | seclabel | action_field }
+action_field = { run | label | goto | import | options | owner | group | mode | wait_for }
+unsupported_field = { action | name | symlink | test | program | result | sysctl | kernels | subsystems | drivers | attributes | tags | constant | seclabel | action_field }
 bounded_key = {"{" ~ key ~ "}"}
 // remove ! on key and value rules if want to allow spaces between ""/{} and key/value (ie: { DEVPATH } vs {DEVPATH})
 key = !{ (ASCII_ALPHANUMERIC | SPACE_SEPARATOR | "$" | "." | "_" | "*" | "?" | "[" | "]" | "-" | "|" | "\\" | "/" )* }
@@ -34,31 +34,32 @@ property = { "ENV" ~ bounded_key } // {key}
 //
 // Unsupported fields
 //
-// Actions
-action = { "ACTION" }
-name = { "NAME" }
-symlink = { "SYMLINK" }
-sysctl = { "SYSCTL" ~ bounded_key } // {kernel key}
-test = { "TEST" ~ bounded_key } // {octal mode mask}
-program = { "PROGRAM" }
-result = { "RESULT" }
+// Unsupported action only fields
 run = { "RUN" ~ bounded_key } // {type} where type = program | builtin
 label = { "LABEL" }
 goto = { "GOTO" }
 import = { "IMPORT" ~ bounded_key } // {type}  where type = program | builtin | file | db | cmdline | parent
 options = { "OPTIONS" }
+owner = { "OWNER" }
+group = { "GROUP" }
+mode = { "MODE" }
+wait_for = { "WAIT_FOR" }
 
-// Suppport in V2
+// Other unsupported match (and action) fields
+action = { "ACTION" }
+name = { "NAME" }
+symlink = { "SYMLINK" }
+test = { "TEST" ~ bounded_key } // {octal mode mask}
+program = { "PROGRAM" }
+result = { "RESULT" }
 kernels = { "KERNELS" }
 subsystems = { "SUBSYSTEMS" }
 drivers = { "DRIVERS" }
 attributes = { "ATTRS" ~ bounded_key }
 tags = { "TAGS" }
 constant = { "CONST" ~ bounded_key } // {key} where key = "arch" | "virt"
-owner = { "OWNER" }
-group = { "GROUP" }
-mode = { "MODE" }
 seclabel = { "SECLABEL" ~ bounded_key } // {module}
+sysctl = { "SYSCTL" ~ bounded_key } // {kernel key}
 
 
 
