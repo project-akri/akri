@@ -10,7 +10,7 @@ rules](https://wiki.archlinux.org/index.php/Udev) into a Configuration. Akri has
 [grammar](../agent/src/protocols/udev/udev_rule_grammar.pest) for parsing the rules, expecting them to be formatted
 according to the [Linux Man pages](https://man7.org/linux/man-pages/man7/udev.7.html). While udev rules are normally used to both find
 devices and perform actions on devices, the Akri udev discovery handler is only interested in finding devices.
-Consequently, the discovery handler will throw an error if any of the rules contain an action operation ("=" , "+=" , "-=" , ":=") or action fields such as `IMPORT` in the udev rules. You should only use match operations ("==",  "!=") and fields such as `KERNEL` and `DEVPATH` in your udev rules. Additionally, there are some match fields that look up the device hierarchy, such as `SUBSYSTEMS`, that are yet to be supported and will throw an error if used. Support for these will be added soon. To summarize, only the following udev fields are currently supported: `DEVPATH`, `KERNEL`, `TAG`, `DRIVER`, `SUBSYSTEM`, `ATTRIBUTE`, `PROPERTY`.
+Consequently, the discovery handler will throw an error if any of the rules contain an action operation ("=" , "+=" , "-=" , ":=") or action fields such as `IMPORT` in the udev rules. You should only use match operations ("==",  "!=") and the following udev fields: `DEVPATH`, `KERNEL`, `TAG`, `DRIVER`, `SUBSYSTEM`, `ATTRIBUTE`, `PROPERTY`. There are some match fields that look up the device hierarchy, such as `SUBSYSTEMS`, that are yet to be supported and will throw an error if used. Support for these will be added soon.
 
 ## Choosing a udev rule
 To see what devices will be discovered on a specific node by a udev rule, you can use `udevadm`. For example, to find
