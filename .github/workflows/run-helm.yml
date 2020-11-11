@@ -51,7 +51,7 @@ jobs:
       - uses: azure/setup-helm@v1
 
       - name: Lint helm chart
-        run: helm lint deployment/helm && echo "lint finished successfully" || echo "lint found issues"
+        run: helm lint deployment/helm && echo "lint finished successfully" || echo ::warning::"lint found issues"
 
 
   helm:
