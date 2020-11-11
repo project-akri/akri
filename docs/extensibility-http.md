@@ -287,23 +287,13 @@ kubectl expose deployment/discovery \
 
 ## Revise Helm Deployment
 
-For the agent to correctly resolve DNS addresses, we need to disable `hostNetwork: true` in the agent's spec
+For the agent to correctly resolve in-cluster DNS addresses and use host networking, we need to add `dnsPolicy: ClusterFirstWithHostNet` in the agent's spec:
 
 ```bash
 sed \
---in-place 's|\s\{6\}hostNetwork: true|#     hostNetwork: true|g' \
-./akri/deployment/helm/templates/agent.yaml 
-```
-
-So that:
-```bash
-more ./akri/deployment/helm/templates/agent.yaml | grep hostNetwork
-```
-
-Returns:
-
-```console
-#     hostNetwork: true
+--in-place \
+'s|\s\{6\}hostNetwork: true|      hostNetwork: true\n      dnsPolicy: ClusterFirstWithHostNet|g' \
+./akri/deployment/helm/templates/agent.yaml
 ```
 
 ## Deploy Akri
@@ -353,14 +343,14 @@ customresourcedefinition.apiextensions.k8s.io/configurations.akri.sh
 customresourcedefinition.apiextensions.k8s.io/instances.akri.sh
 ```
 
-## Deploy Broker (HTTP)
+## Deploy standalone Broker
 
-Now we can deploy our HTTP broker.
+Now we can deploy the (standlone) broker.
 
-Ensure the `image` value is correct
+Ensure the `image` value is correct.
 
 ```bash
-kubectl apply --filename=./http.yaml
+kubectl apply --filename=./kubernetes/http.yaml
 ```
 
 You can check the logs but a better indicator of success is that the broker should create one Pod per device (i.e. 10) named `akri-http-...-pod`.
@@ -383,6 +373,102 @@ kubectl logs pod/akri-http-...-pod
 [main:read_sensor] Response body: Ok("0.738768001579658")
 [http:main:loop] Sleep
 ```
+
+There's a public image available if you would prefer to use it:
+
+`ghcr.io/dazwilkin/akri-http-broker@sha256:ae647dab0d686bafaaec4b1c7cc1fdb1d42fa68242c447ac72eac3db6ef62e7b`
+
+When you're done, you may delete the standalone broker:
+
+```bash
+kubectl delete --filename=./http.yaml
+```
+
+## Deploy gRPC Broker and Client
+
+Now we can deploy the gRPC-enabled broker. This broker implements a gRPC server (defined by `./proto/http.proto`) and provides a demonstration of how a broker could surface a device API to other resources in a Kubernetes cluster. In this case, a straightforward gRPC client.
+
+Ensure the image value is correct.
+
+```bash
+kubectl apply --filename=./kubernetes/http.grpc.broker.yaml
+```
+
+If you then query the broker's logs, you should see the gRPC starting and then pending:
+
+```bash
+kubectl logs pod/akri-http-...-pod
+[main] Entered
+[main] gRPC service endpoint: 0.0.0.0:50051
+[main] gRPC service proxying: http://device-7:8080
+[main] gRPC service starting
+```
+
+> Optional: you can test the gRPC service using [`grpcurl`](https://github.com/fullstorydev/grpcurl/releases)
+>
+> ```bash
+> BROKER=$( kubectl get service/http-svc --output=jsonpath="{.spec.clusterIP}")
+>
+> ./grpcurl \
+> --plaintext \
+> -proto ./http.proto \
+> ${BROKER}:50051 \
+> http.DeviceService.ReadSensor
+> {
+>   "value": "0.4871220658001621"
+> }
+> ```
+>
+> This uses the `configurationServiceSepc` service name (`http-svc`) which randomly picks one of the HTTP brokers and it uses the service's ClusterIP because the cluster DNS is inaccessible to `grpcurl`.
+
+You may then deploy the gRPC Client:
+
+```bash
+kubectl apply --filename=./kubernetes/http.grpc.client.yaml
+```
+
+This uses the `configurationServiceSpec` service name (`http-svc`) which randomly picks one of the HTTP brokers.
+
+You may check the client's logs:
+
+```bash
+kubectl logs deployment/http-grpc-client-rust
+```
+
+Yielding something of the form:
+
+```console
+[main] Entered
+[main] gRPC client dialing: http://http-svc:50051
+[main:loop] Constructing Request
+[main:loop] Calling read_sensor
+[main:loop] Response: Response { metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Wed, 11 Nov 2020 17:46:55 GMT", "grpc-status": "0"} }, message: ReadSensorResponse { value: "0.6088971084079992" } }
+[main:loop] Sleep
+[main:loop] Constructing Request
+[main:loop] Calling read_sensor
+[main:loop] Response: Response { metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Wed, 11 Nov 2020 17:47:05 GMT", "grpc-status": "0"} }, message: ReadSensorResponse { value: "0.9686970038897007" } }
+[main:loop] Sleep
+```
+
+When you're done, you may delete the Broker and the Client:
+
+```bash
+kubectl delete --filename=./kubernetes/http.grpc.broker.rust.yaml
+kubectl delete --filename=./kubernetes/http.grpc.client.rust.yaml
+```
+
+There are public images available if you'd prefer to use these:
+
+|Language|Type|Image|
+|--------|----|-----|
+|Rust|Broker|`ghcr.io/dazwilkin/http-grpc-broker-rust@sha256:a4a7494aef44b49bd08f371add41db917553391ea397c60e9b4d213545b94f4e`|
+|Rust|Client|`ghcr.io/dazwilkin/http-grpc-client-rust@sha256:edd392ca7fd3bc5fec672bb032434cfb77705e560e5407e80c6625bc5a3d8dfe`|
+|Golang|Broker|`ghcr.io/dazwilkin/http-grpc-broker-golang@sha256:96079c319a9e1e34505bd6769d63d04758b28f7bf788460848dd04f116ecea7e`|
+|Golang|Client|`ghcr.io/dazwilkin/http-grpc-client-golang@sha256:ed046722281040f931b7221a10d5002d4f328a012232d01fd6c95db5069db2a5`|
+
+
+ Thanks to gRPC, you may combine these as you wish :-)
+
 
 ## Tidy
 
