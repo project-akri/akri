@@ -45,8 +45,6 @@ impl DH for HTTPDiscoveryHandler {
                     .lines()
                     .map(|endpoint| {
                         println!("[http:discover:map] Creating DiscoverResult: {}", endpoint);
-                        // TODO(dazwilkin) fix this
-                        // HashMap corresponds to environment variables on the broker (proxy)
                         println!(
                             "[http:discover] props.inserting: {}, {}",
                             BROKER_NAME, DEVICE_ENDPOINT,
