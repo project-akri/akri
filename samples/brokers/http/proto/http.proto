@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option csharp_namespace = "HTTP";
+option go_package = "github.com/deislabs/akri/protocol/http/protos";
+
+package http;
+
+service DeviceService {
+    rpc ReadSensor (ReadSensorRequest) returns (ReadSensorResponse);
+}
+
+message ReadSensorRequest {
+    string name = 1;
+}
+message ReadSensorResponse {
+    string value = 1;
+}

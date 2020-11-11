@@ -16,19 +16,10 @@ async fn read_sensor(device_url: &str) {
     };
 }
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[http:main] Entered");
 
-    let device_url = match env::var(DEVICE_ENDPOINT) {
-        Ok(val) => val,
-        Err(e) => {
-            println!(
-                "[http:main] Unable to retrieve value for `{}`: {}",
-                DEVICE_ENDPOINT, e
-            );
-            "http://device-1:8001".to_string()
-        }
-    };
+    let device_url = env::var(DEVICE_ENDPOINT)?;
     println!("[http:main] Device: {}", &device_url);
 
     let mut tasks = Vec::new();
@@ -36,9 +27,10 @@ async fn main() {
         loop {
             println!("[http:main:loop] Sleep");
             time::delay_for(Duration::from_secs(10)).await;
-            println!("[http:main:loop] read_sensor({})", device_url);
+            println!("[http:main:loop] read_sensor({})", &device_url);
             read_sensor(&device_url[..]).await;
         }
     }));
     futures::future::join_all(tasks).await;
+    Ok(())
 }
