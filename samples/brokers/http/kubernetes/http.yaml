@@ -12,7 +12,7 @@ spec:
       - name: [[REPLACE]]
     containers:
       - name: http-broker
-        image: [[REPLACE]]
+        image: ghcr.io/dazwilkin/akri-http-broker@sha256:ae647dab0d686bafaaec4b1c7cc1fdb1d42fa68242c447ac72eac3db6ef62e7b
         resources:
           limits:
             "{{PLACEHOLDER}}": "1"
