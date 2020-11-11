@@ -33,6 +33,34 @@ spec:
       -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
 ```
 
+### Testing a udev rule
+To test which devices Akri will discover with a udev rule, you can run the rule locally adding a tag action to it. Then you can search for all devices with that tag, which will be the ones discovered by Akri.
+1. Create a new rules file called `90-akri.rules` in the `/etc/udev/rules.d` directory, and add your udev rule[s] to it. For this example, we will be testing the rule `SUBSYSTEM=="sound", KERNEL=="card[0-9]*"`. Add `TAG+="akri_tag"` to the end of each rule. Note how 90 is the prefix to the file name. This makes sure these rules are run before the others in the default `70-snap.core.rules`, preventing them from being overwritten. Feel free to explore `70-snap.core.rules` to see numerous examples of udev rules. 
+    ```sh
+      sudo echo 'SUBSYSTEM=="sound", KERNEL=="card[0-9]*", TAG+="akri_tag"' | sudo tee -a 90-akri.rules
+    ```
+1. Reload the udev rules and trigger them.
+    ```sh
+    udevadm control --reload
+    udevadm trigger
+    ```
+1. List the devices that have been tagged, which Akri will discover.
+    ```sh
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag
+    ```
+1. Modify the rule as needed, being sure to reload and trigger the rules each time.
+1. Remove the tag from the devices -- note how  `+=` turns to `-=` -- and reload and trigger the udev rules. Alternatively, if you are trying to discover devices with fields that Akri does not yet support, such as `ATTRS`, you could leave the tag and add it to the rule in your Configuration with `TAG=="akri_tag"`.
+    ```sh
+      sudo echo 'SUBSYSTEM=="sound", KERNEL=="card[0-9]*", TAG-="akri_tag"' | sudo tee -a 90-akri.rules
+      udevadm control --reload
+      udevadm trigger
+    ```
+1. Confirm that the tag has been removed and no devices are listed.
+    ```sh 
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag
+    ```
+1. Create an Akri Configuration with your udev rule!
+
 ## Using the udev Configuration template
 Instead of having to assemble your own udev Configuration yaml, we have provided a [Helm
 template](../deployment/helm/templates/udev.yaml). Helm allows us to parametrize the commonly modified fields in our configuration files, and we have provided many for udev (to see
