@@ -453,8 +453,8 @@ Yielding something of the form:
 When you're done, you may delete the Broker and the Client:
 
 ```bash
-kubectl delete --filename=./kubernetes/http.grpc.broker.rust.yaml
-kubectl delete --filename=./kubernetes/http.grpc.client.rust.yaml
+kubectl delete --filename=./kubernetes/http.grpc.broker.yaml
+kubectl delete --filename=./kubernetes/http.grpc.client.yaml
 ```
 
 There are public images available if you'd prefer to use these:
