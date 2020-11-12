@@ -113,7 +113,7 @@ carry out one or the other, then continue on with the rest of the steps.
         --set useLatestContainers=true \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
-        --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+        --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
         --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     ```
     For MicroK8s
