@@ -1,7 +1,8 @@
-# Modifying an Akri Installation
+# Customizing Akri Installation
 The [onvif](./onvif-configuration.md) and [udev](./udev-configuration.md) documentation explains how to deploy Akri for a specific
 protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
+1. Generating, modifying and applying a custom Configuration
 1. Deploying multiple Configurations
 1. Modifying a deployed Configuration
 1. Adding another Configuration to a cluster
@@ -15,6 +16,29 @@ helm install akri akri-helm-charts/akri-dev \
     --set useLatestContainers=true
 ```
 This will start the Akri controller and deploy Akri Agents.
+
+## Generating, modifying and applying a custom Configuration
+Helm allows us to parametrize the commonly modified fields in our configuration files and we have provided many (to see
+them, run `helm inspect values akri-helm-charts/akri`).  For more advanced configuration changes that are not aided by
+our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it.
+
+For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
+substitute `onvif.enabled` with `udev.enabled` and add a udev rule.)
+```bash
+helm template akri akri-helm-charts/akri-dev \
+    --set useLatestContainers=true \
+    --set onvif.enabled=true \
+    --set onvif.brokerPod.image.repository=nginx \
+    --set rbac.enabled=false \
+    --set controller.enabled=false \
+    --set agent.enabled=false > configuration.yaml
+```
+Note, that for the broker pod image, nginx was specified. Insert your broker image instead or remove the broker pod image from the installation command to generate a Configuration without a broker PodSpec or ServiceSpecs.
+Once you have modified the yaml file, you can apply the new Configuration to the cluster with standard kubectl like
+this:
+```bash
+kubectl apply -f configuration.yaml
+```
 
 ## Deploying multiple Configurations using `helm install`
 If you want your end application to consume frames from both IP cameras and locally attached cameras, Akri can be
@@ -37,7 +61,7 @@ kubectl get akric
 ## Modifying a deployed Configuration
 An already deployed Configuration can be modified in one of two ways:
 1. Using the `helm upgrade` command
-2. Generating, modifying, and applying a Configuration yaml
+2. [Generating, modifying and applying a custom Configuration](#generating-modifying-and-applying-a-custom-configuration)
 
 ### Using `helm upgrade` 
 A Configuration can be modified by using the `helm upgrade` command. It upgrades an existing release according to the
@@ -61,29 +85,6 @@ When the Agent sees that a Configuration has been updated, it deletes all Instan
 the controller brings down all associated broker pods. Then, new Instances and broker pods are created. Therefore, the
 command above will bring down all ONVIF broker pods and then bring them all back up except for the ones servicing the IP
 camera at IP address 10.0.0.1.
-
-### Generating, modifying, and applying a Configuration yaml
-Helm allows us to parametrize the commonly modified fields in our configuration files and we have provided many (to see
-them, run `helm inspect values akri-helm-charts/akri`).  For more advanced configuration changes that are not aided by
-our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it.
-
-For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
-substitute `onvif.enabled` with `udev.enabled` and add a udev rule.)
-```bash
-helm template akri akri-helm-charts/akri-dev \
-    --set useLatestContainers=true \
-    --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository=nginx \
-    --set rbac.enabled=false \
-    --set controller.enabled=false \
-    --set agent.enabled=false > configuration.yaml
-```
-Note, that for the broker pod image, nginx was specified. Insert your broker image instead or remove the broker pod image from the installation command to generate a Configuration without a broker PodSpec or ServiceSpecs.
-Once you have modified the yaml file, you can apply the new Configuration to the cluster with standard kubectl like
-this:
-```bash
-kubectl apply -f configuration.yaml
-```
 
 #### Modifying the brokerPodSpec
 The `brokerPodSpec` property is a full
@@ -163,7 +164,7 @@ helm upgrade akri akri-helm-charts/akri-dev \
 ### Adding additional Configurations manually
 An additional Configuration can also be added to an existing Akri installation using the same process of using `helm
 template` to generate a Configuration and then using kubectl to apply it as in the ["Generating, modifying, and applying
-a Configuration yaml"](#generating-modifying-and-applying-a-configuration-yaml) section above.
+a Configuration yaml"](#generating-modifying-and-applying-a-custom-configuration) section above.
 
 ## Deleting a Configuration from a cluster
 If an operator no longer wants Akri to discover devices defined by a Configuration, they can delete the Configuration
