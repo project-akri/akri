@@ -29,10 +29,12 @@ In this guide, you will deploy Akri end-to-end, all the way from discovering loc
     ```
     If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
 
+## Set up a cluster
+
 **Note:** Feel free to deploy on any Kubernetes distribution. Here, find instructions for K3s and MicroK8s. Select and
 carry out one or the other (or adopt to your distribution), then continue on with the rest of the steps. 
 
-## Option 1: Set up single node cluster using K3s
+### Option 1: Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
 1. Install [K3s](https://k3s.io/).
     ```sh
@@ -62,7 +64,7 @@ carry out one or the other (or adopt to your distribution), then continue on wit
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
 
-## Option 2: Set up single node cluster using MicroK8s
+### Option 2: Set up single node cluster using MicroK8s
 1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute Engine](end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
