@@ -30,7 +30,7 @@ helm install akri akri-helm-charts/akri
 
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All
-   nodes must be Linux. All of the Akri component containers are currently built for amd64 or arm64v8, so all nodes must
+   nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must
    have one of these platforms.
 
 ### Deploying Akri

@@ -50,6 +50,8 @@ jobs:
         uses: actions/checkout@v2
 
       - uses: azure/setup-helm@v1
+        with:
+          version: "v3.4.0"
 
       # We should generate two sets of akri charts.
       # One for our releases (akri) and one for our merged PRs (akri-dev).  'akri' should only be created for
