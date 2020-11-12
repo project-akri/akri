@@ -135,11 +135,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 1. Deploy the steaming web application and watch a pod spin up for the app.
     ```sh
-    # This file url is not available while the Akri repo is private.  To get a valid url, open 
-    # https://github.com/deislabs/akri/blob/main/deployment/samples/akri-video-streaming-app.yaml
-    # and click the "Raw" button ... this will generate a link with a token that can be used below.
-    curl -o akri-video-streaming-app.yaml <RAW LINK WITH TOKEN>
-    kubectl apply -f akri-video-streaming-app.yaml
+    kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
     ```
     For MicroK8s
     ```sh
