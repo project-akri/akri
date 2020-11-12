@@ -35,7 +35,7 @@ spec:
 
 ### Testing a udev rule
 To test which devices Akri will discover with a udev rule, you can run the rule locally adding a tag action to it. Then you can search for all devices with that tag, which will be the ones discovered by Akri.
-1. Create a new rules file called `90-akri.rules` in the `/etc/udev/rules.d` directory, and add your udev rule[s] to it. For this example, we will be testing the rule `SUBSYSTEM=="sound", KERNEL=="card[0-9]*"`. Add `TAG+="akri_tag"` to the end of each rule. Note how 90 is the prefix to the file name. This makes sure these rules are run before the others in the default `70-snap.core.rules`, preventing them from being overwritten. Feel free to explore `70-snap.core.rules` to see numerous examples of udev rules. 
+1. Create a new rules file called `90-akri.rules` in the `/etc/udev/rules.d` directory, and add your udev rule(s) to it. For this example, we will be testing the rule `SUBSYSTEM=="sound", KERNEL=="card[0-9]*"`. Add `TAG+="akri_tag"` to the end of each rule. Note how 90 is the prefix to the file name. This makes sure these rules are run after the others in the default `70-snap.core.rules`, preventing them from being overwritten. Feel free to explore `70-snap.core.rules` to see numerous examples of udev rules. 
     ```sh
       sudo echo 'SUBSYSTEM=="sound", KERNEL=="card[0-9]*", TAG+="akri_tag"' | sudo tee -a /etc/udev/rules.d/90-akri.rules
     ```
