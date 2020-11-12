@@ -133,7 +133,7 @@ carry out one or the other (or adopt to your distribution), then continue on wit
     ```sh 
     kubectl get akrii -o yaml
     ```
-1. Deploy the steaming web application and watch a pod spin up for the app.
+1. Deploy the streaming web application and watch a pod spin up for the app.
     ```sh
     kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
     ```
