@@ -77,14 +77,13 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 
 ## Set up mock udev video devices
-1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
+1. On a fresh Ubuntu (20.04 LTS for example), first update packages already installed. Then, install a kernel module to make v4l2 loopback video devices. It comes with prequisites: the other kernel module 'videodev' coming with package linux-modules-extra and also package dkms (Dynamic Kernel Module Support). Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
+    sudo apt update
+    sudo apt -y install linux-modules-extra-$(uname -r)
+    sudo apt -y install dkms
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
-    ```
-1. Install the prerequisites of v4l2loopback: it needs to be loaded simultaneously with the other kernel module 'videodev' contained in linux-modules-extra
-    ```sh
-    sudo apt install -y linux-modules-extra-$(uname -r)
     ```
 1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
     ```sh
