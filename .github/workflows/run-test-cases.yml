@@ -152,8 +152,8 @@ jobs:
     - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'K3s')
       name: Import local agent and controller to K3s
       run: |
-        k3s ctr image import agent.tar
-        k3s ctr image import controller.tar
+        sudo k3s ctr image import agent.tar
+        sudo k3s ctr image import controller.tar
 
     - if: matrix.kube-runtime == 'Kubernetes'
       name: Install Kubernetes
@@ -200,8 +200,8 @@ jobs:
     - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'MicroK8s')
       name: Import local agent and controller to MicroK8s
       run: |
-        microk8s ctr image import agent.tar
-        microk8s ctr image import controller.tar
+        sudo microk8s ctr image import agent.tar
+        sudo microk8s ctr image import controller.tar
 
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
