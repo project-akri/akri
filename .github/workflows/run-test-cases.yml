@@ -76,15 +76,9 @@ jobs:
           - Kubernetes
         test-case:
           - end-to-end
-          # - helm-install-delete
-          # - conservation-of-broker-pods
         include:
           - test-case: end-to-end
             test-file: test/run-end-to-end.py
-          # - test-case: helm-install-delete
-          #   test-file: test/run-helm-install-delete.py
-          # - test-case: conservation-of-broker-pods
-          #   test-file: test/run-conservation-of-broker-pod.py
 
     steps:
     - name: Checkout the merged commit from PR and base branch

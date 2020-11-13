@@ -130,6 +130,9 @@ def do_test():
     print("Deleting broker pod: {}".format(delete_pod_command))
     os.system(delete_pod_command)
 
+    # Create kube client
+    v1 = client.CoreV1Api()
+
     # Wait for there to be 2 brokers pods again
     if not shared_test_code.check_broker_pods_state(v1, 2):
         print("Akri not running in expected state after broker pod restoration should have happened")
