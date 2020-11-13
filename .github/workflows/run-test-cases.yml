@@ -126,11 +126,10 @@ jobs:
         LABEL_PREFIX: local
       run: |
         make akri-build
-        make akri-docker-controller
-        make akri-docker-agent
-        docker export 
-        docker save ${PREFIX}/agent:${LABEL_PREFIX}-latest > agent.tar
-        docker save ${PREFIX}/controller:${LABEL_PREFIX}-latest > controller.tar
+        make controller-build-amd64
+        make agent-build-amd64
+        docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
+        docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
 
     - if: matrix.kube-runtime == 'K3s'
       name: Install K3s
