@@ -21,7 +21,7 @@ The udev Configuration can be tailored to your cluster by modifying the [Akri he
 
 * Modifying the udev rule
 * Modifying brokerPodSpec
-* Modifying instanceServiceSpec or configurationServiceSpec (See [Customizing Akri Installation](./customizing-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec))
+* Modifying instanceServiceSpec or configurationServiceSpec (See [Customizing an Akri Installation](./customizing-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec))
 
 ### Modifying the udev rule
 Instead of finding all video4linux device nodes, the udev rule can be modified to exclude certain device nodes, find devices only made by a certain manufacturer, and more. To learn more about what udev rule fields are currently supported see [udev_rule_grammar.pest](../agent/src/protocols/udev/udev_rule_grammar.pest). To learn more about udev rules in general, see the [udev wiki](https://wiki.archlinux.org/index.php/Udev). 
@@ -69,7 +69,7 @@ Now, tell the broker to stream JPEG format, 1000x800 resolution, and 30 frames p
 
 **Note:** that udev broker pods must run as privileged in order for udev to be able to access the video device.
 
-Reference [Customizing Akri Installation](./customizing-akri-installation.md#modifying-the-brokerpodspec) for more examples of how the broker spec can be modified. 
+Reference [Customizing an Akri Installation](./customizing-akri-installation.md#modifying-the-brokerpodspec) for more examples of how the broker spec can be modified. 
 
 ## Modifying a Configuration
-More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Customizing Akri Installation document](./customizing-akri-installation.md).
+More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Customizing an Akri Installation document](./customizing-akri-installation.md).

@@ -172,4 +172,4 @@ helm get manifest akri | less
 ```
 
 ### Helm Upgrade
-To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [Customizing Akri Installation document](./customizing-akri-installation.md) for further explanation. 
+To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [Customizing an Akri Installation document](./customizing-akri-installation.md) for further explanation. 
