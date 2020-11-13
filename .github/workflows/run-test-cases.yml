@@ -215,10 +215,10 @@ jobs:
       name: Set sleep duration before running script to 1500
       run: echo 1500 > /tmp/sleep_duration.txt
 
-    # For pull_request and pull_request_target, use the local built
+    # For pull_request and pull_request_target, use the locally built
     # containers.
     - if: startsWith(github.event_name, 'pull_request')
-      name: Tell Helm to use the 'local' labels for containers
+      name: Tell Helm to use the 'local' labels for container images
       run: |
         git fetch origin main
         git show origin/main:version.txt > /tmp/version_to_test.txt
