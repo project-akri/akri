@@ -1,10 +1,40 @@
 # End-to-End Demo
 In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabbing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
-**Note:** The first step can be performed either via K3s or MicroK8s. Select and
-carry out one or the other, then continue on with the rest of the steps. 
+## Set up mock udev video devices
+1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
+    ```sh
+    curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
+    sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
+    ```
+1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
+    ```sh
+    sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
+    ```
+1. Install Gstreamer main packages
+    ```sh
+    sudo apt-get install -y \
+        libgstreamer1.0-0 gstreamer1.0-tools gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good gstreamer1.0-libav
+    ```
+1. Open two new terminals (one for each fake video device), and in each terminal ssh into your ubuntu server that your cluster is running on.
+1. In one terminal, stream a test video of a white ball moving around a black background from the first fake video device.
+    ```sh
+    sudo gst-launch-1.0 -v videotestsrc pattern=ball ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video1
+    ```
+    If this generates an error, be sure that there are no existing video streams targeting /dev/video1 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video1"`).
+1. In the other terminal, stream a test video of SMPTE 100%% color bars moving horizontally from the second fake video device.
+    ```sh
+    sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2
+    ```
+    If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
 
-## Option 1: Set up single node cluster using K3s
+## Set up a cluster
+
+**Note:** Feel free to deploy on any Kubernetes distribution. Here, find instructions for K3s and MicroK8s. Select and
+carry out one or the other (or adopt to your distribution), then continue on with the rest of the steps. 
+
+### Option 1: Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
 1. Install [K3s](https://k3s.io/).
     ```sh
@@ -34,7 +64,7 @@ carry out one or the other, then continue on with the rest of the steps.
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
 
-## Option 2: Set up single node cluster using MicroK8s
+### Option 2: Set up single node cluster using MicroK8s
 1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute Engine](end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
@@ -76,34 +106,6 @@ carry out one or the other, then continue on with the rest of the steps.
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
     ```
 
-## Set up mock udev video devices
-1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
-    ```sh
-    curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
-    sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
-    ```
-1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
-    ```sh
-    sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
-    ```
-1. Install Gstreamer main packages
-    ```sh
-    sudo apt-get install -y \
-        libgstreamer1.0-0 gstreamer1.0-tools gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good gstreamer1.0-libav
-    ```
-1. Open two new terminals (one for each fake video device), and in each terminal ssh into your ubuntu server that your cluster is running on.
-1. In one terminal, stream a test video of a white ball moving around a black background from the first fake video device.
-    ```sh
-    sudo gst-launch-1.0 -v videotestsrc pattern=ball ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video1
-    ```
-    If this generates an error, be sure that there are no existing video streams targeting /dev/video1 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video1"`).
-1. In the other terminal, stream a test video of SMPTE 100%% color bars moving horizontally from the second fake video device.
-    ```sh
-    sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2
-    ```
-    If this generates an error, be sure that there are no existing video streams targeting /dev/video2 (you can query with commands like this: `ps -aux | grep gst-launch-1.0 | grep "/dev/video2"`).
-
 ## Set up Akri
 1. Use Helm to install Akri and create a Configuration to discover local video devices. Create your Configuration by setting values in your install command. Enable the udev Configuration which will search the Linux device filesystem as specified by a udev rule and give it a name. Since we want to find only video devices on the node, specify a udev rule of `KERNEL=="video[0-9]*"`. Also, specify the broker image you want to be deployed to discovered devices. In this case we will use Akri's sample frame server. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
     ```sh
@@ -133,13 +135,9 @@ carry out one or the other, then continue on with the rest of the steps.
     ```sh 
     kubectl get akrii -o yaml
     ```
-1. Deploy the steaming web application and watch a pod spin up for the app.
+1. Deploy the streaming web application and watch a pod spin up for the app.
     ```sh
-    # This file url is not available while the Akri repo is private.  To get a valid url, open 
-    # https://github.com/deislabs/akri/blob/main/deployment/samples/akri-video-streaming-app.yaml
-    # and click the "Raw" button ... this will generate a link with a token that can be used below.
-    curl -o akri-video-streaming-app.yaml <RAW LINK WITH TOKEN>
-    kubectl apply -f akri-video-streaming-app.yaml
+    kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
     ```
     For MicroK8s
     ```sh
