@@ -122,8 +122,8 @@ jobs:
         BUILD_AMD64: 1
         BUILD_ARM32: 0
         BUILD_ARM64: 0 
-        PREFIX: local
-        LABEL_PREFIX: local
+        PREFIX: ghcr.io/deislabs/akri
+        LABEL_PREFIX: pr
       run: |
         make akri-build
         make controller-build-amd64
@@ -226,8 +226,9 @@ jobs:
     - if: startsWith(github.event_name, 'pull_request')
       name: Tell Helm to use the 'local' labels for containers
       run: |
-        echo ${LABEL_PREFIX} > /tmp/version_to_test.txt
-        echo '--set agent.image.pullPolicy=Never --set controller.image.pullPolicy=Never' > /tmp/image_pull_policy.txt
+        git fetch origin main
+        git show origin/main:version.txt > /tmp/version_to_test.txt
+        echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
     # For non-PR (i.e. push, release, manual), version.txt is corresponds
     # to an existing Helm chart.
     - if: (!(startsWith(github.event_name, 'pull_request')))
