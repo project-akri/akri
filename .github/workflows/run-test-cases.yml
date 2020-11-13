@@ -118,7 +118,7 @@ jobs:
 
     - name: Build local containers for PR tests
       if: startsWith(github.event_name, 'pull_request')
-      with:
+      env:
         BUILD_AMD64: 1
         BUILD_ARM32: 0
         BUILD_ARM64: 0 
