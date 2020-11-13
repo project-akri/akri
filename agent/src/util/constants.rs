@@ -14,7 +14,7 @@ pub const K8S_DEVICE_PLUGIN_VERSION: &str = "v1beta1";
 pub const DEVICE_PLUGIN_PATH: &str = "/var/lib/kubelet/device-plugins/";
 /// Path for testing `DevicePluginService`
 #[cfg(test)]
-pub const DEVICE_PLUGIN_PATH: &str = "/tmp/device-plugins/";
+pub const DEVICE_PLUGIN_PATH: &str = "dummy";
 
 /// Path of the Kubelet registry socket
 pub const KUBELET_SOCKET: &str = "/var/lib/kubelet/device-plugins/kubelet.sock";

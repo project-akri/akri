@@ -1,6 +1,5 @@
 use super::constants::{
-    DEVICE_PLUGIN_PATH, HEALTHY, K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET,
-    LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
+    HEALTHY, K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
 };
 use super::v1beta1;
 use super::v1beta1::{
@@ -751,16 +750,13 @@ pub async fn build_device_plugin(
     shared: bool,
     instance_properties: HashMap<String, String>,
     instance_map: InstanceMap,
+    device_plugin_path: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("build_device_plugin - entered for device {}", instance_name);
     let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
     let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
     let device_endpoint: String = format!("{}-{}.sock", instance_name, unique_time.as_secs());
-    let socket_path: String = format!(
-        "{}{}",
-        DEVICE_PLUGIN_PATH.to_string(),
-        device_endpoint.clone()
-    );
+    let socket_path: String = format!("{}{}", device_plugin_path, device_endpoint.clone());
     // Channel capacity set to 6 because 3 possible senders (allocate, update_connectivity_status, and handle_config_delete)
     // and and receiver only periodically checks channel
     let (list_and_watch_message_sender, _) = broadcast::channel(6);
@@ -900,7 +896,7 @@ async fn register(
         pre_start_required: false,
     };
 
-    // lttp://... is a fake uri that is unused (in service_fn) but neccessary for uds connection
+    // lttp://... is a fake uri that is unused (in service_fn) but necessary for uds connection
     let channel = Endpoint::try_from("lttp://[::]:50051")?
         .connect_with_connector(service_fn(|_: Uri| UnixStream::connect(KUBELET_SOCKET)))
         .await?;
@@ -1002,6 +998,7 @@ mod device_plugin_service_tests {
         fs,
         io::{Error, ErrorKind},
     };
+    use tempfile::Builder;
 
     enum NodeName {
         ThisNode,
@@ -1346,9 +1343,11 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
+        let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
+        let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
         let socket_path: String = format!(
             "{}{}",
-            DEVICE_PLUGIN_PATH.to_string(),
+            device_plugin_temp_dir_path,
             device_plugin_service.endpoint.clone()
         );
         let list_and_watch_message_sender =

@@ -48,6 +48,7 @@ dependencies = [
  "serde_yaml",
  "sxd-document",
  "sxd-xpath",
+ "tempfile",
  "tokio 0.2.21",
  "tokio-core",
  "tonic",

@@ -1,6 +1,8 @@
 use super::super::protocols;
 use super::{
-    constants::{DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS},
+    constants::{
+        DEVICE_PLUGIN_PATH, DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
+    },
     device_plugin_service,
     device_plugin_service::{
         get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
@@ -184,6 +186,7 @@ async fn handle_config_add(
                 &kube_interface,
                 stop_discovery_receiver,
                 finished_discovery_sender,
+                DEVICE_PLUGIN_PATH,
             )
             .await
             .unwrap();
@@ -322,6 +325,7 @@ impl PeriodicDiscovery {
         kube_interface: &impl KubeInterface,
         mut stop_discovery_receiver: mpsc::Receiver<()>,
         finished_discovery_sender: broadcast::Sender<()>,
+        device_plugin_path: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
             "do_periodic_discovery - start for config {}",
@@ -373,6 +377,7 @@ impl PeriodicDiscovery {
                         shared,
                         instance_properties,
                         instance_map,
+                        device_plugin_path,
                     )
                     .await
                     {
@@ -495,6 +500,7 @@ mod config_action_tests {
     use akri_shared::k8s::test_kube::MockKubeImpl;
     use protocols::debug_echo::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use std::{env, fs};
+    use tempfile::Builder;
     use tokio::sync::broadcast;
 
     async fn build_instance_map(
@@ -767,8 +773,16 @@ mod config_action_tests {
                 config_protocol: protocol,
                 instance_map: instance_map_clone,
             };
+            let device_plugin_temp_dir =
+                Builder::new().prefix("device-plugins-").tempdir().unwrap();
+            let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
             periodic_dicovery
-                .do_periodic_discovery(&mock, watch_periph_rx, finished_watching_tx)
+                .do_periodic_discovery(
+                    &mock,
+                    watch_periph_rx,
+                    finished_watching_tx,
+                    device_plugin_temp_dir_path,
+                )
                 .await
                 .unwrap();
         });
