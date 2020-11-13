@@ -756,7 +756,11 @@ pub async fn build_device_plugin(
     let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
     let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
     let device_endpoint: String = format!("{}-{}.sock", instance_name, unique_time.as_secs());
-    let socket_path: String = format!("{}{}", device_plugin_path, device_endpoint.clone());
+    let socket_path: String = Path::new(device_plugin_path)
+        .join(device_endpoint.clone())
+        .to_str()
+        .unwrap()
+        .to_string();
     // Channel capacity set to 6 because 3 possible senders (allocate, update_connectivity_status, and handle_config_delete)
     // and and receiver only periodically checks channel
     let (list_and_watch_message_sender, _) = broadcast::channel(6);
@@ -1344,12 +1348,12 @@ mod device_plugin_service_tests {
         let (device_plugin_service, device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
         let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
-        let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
-        let socket_path: String = format!(
-            "{}{}",
-            device_plugin_temp_dir_path,
-            device_plugin_service.endpoint.clone()
-        );
+        let socket_path: String = device_plugin_temp_dir
+            .path()
+            .join(device_plugin_service.endpoint.clone())
+            .to_str()
+            .unwrap()
+            .to_string();
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let instance_name = device_plugin_service.instance_name.clone();
