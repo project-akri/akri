@@ -10,6 +10,15 @@ on:
     - test/run-helm-install-delete.py
     - test/shared_test_code.py
     - .github/workflows/run-test-cases.yml
+    - build/containers/Dockerfile.agent
+    - build/containers/Dockerfile.controller
+    - agent/**
+    - controller/**
+    - shared/**
+    - build/setup.sh
+    - version.txt
+    - build/akri-containers.mk
+    - Makefile
   pull_request_target:
     branches: [ main ]
     paths:
@@ -18,6 +27,15 @@ on:
     - test/run-helm-install-delete.py
     - test/shared_test_code.py
     - .github/workflows/run-test-cases.yml
+    - build/containers/Dockerfile.agent
+    - build/containers/Dockerfile.controller
+    - agent/**
+    - controller/**
+    - shared/**
+    - build/setup.sh
+    - version.txt
+    - build/akri-containers.mk
+    - Makefile
   push:
     branches: [ main ]
     paths:
@@ -26,7 +44,15 @@ on:
     - test/run-helm-install-delete.py
     - test/shared_test_code.py
     - .github/workflows/run-test-cases.yml
+    - build/containers/Dockerfile.agent
+    - build/containers/Dockerfile.controller
+    - agent/**
+    - controller/**
+    - shared/**
+    - build/setup.sh
     - version.txt
+    - build/akri-containers.mk
+    - Makefile
   release:
     types:
       - published
@@ -50,15 +76,15 @@ jobs:
           - Kubernetes
         test-case:
           - end-to-end
-          - helm-install-delete
-          - conservation-of-broker-pods
+          # - helm-install-delete
+          # - conservation-of-broker-pods
         include:
           - test-case: end-to-end
             test-file: test/run-end-to-end.py
-          - test-case: helm-install-delete
-            test-file: test/run-helm-install-delete.py
-          - test-case: conservation-of-broker-pods
-            test-file: test/run-conservation-of-broker-pod.py
+          # - test-case: helm-install-delete
+          #   test-file: test/run-helm-install-delete.py
+          # - test-case: conservation-of-broker-pods
+          #   test-file: test/run-conservation-of-broker-pod.py
 
     steps:
     - name: Checkout the merged commit from PR and base branch
@@ -76,6 +102,11 @@ jobs:
 
     - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
       run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
+
+    - name: Log into ghcr to access intermediate build containers
+      if: startsWith(github.event_name, 'pull_request')
+      run: echo "${{ secrets.crPassword }}" | docker login --username "${{ secrets.crUsername }}" ghcr.io --password-stdin
+
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
@@ -84,7 +115,23 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install kubernetes
-    
+
+    - name: Build local containers for PR tests
+      if: startsWith(github.event_name, 'pull_request')
+      with:
+        BUILD_AMD64: 1
+        BUILD_ARM32: 0
+        BUILD_ARM64: 0 
+        PREFIX: local
+        LABEL_PREFIX: local
+      run: |
+        make akri-build
+        make akri-docker-controller
+        make akri-docker-agent
+        docker export 
+        docker save ${PREFIX}/agent:${LABEL_PREFIX}-latest > agent.tar
+        docker save ${PREFIX}/controller:${LABEL_PREFIX}-latest > controller.tar
+
     - if: matrix.kube-runtime == 'K3s'
       name: Install K3s
       env:
@@ -102,6 +149,12 @@ jobs:
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+
+    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'K3s')
+      name: Import local agent and controller to K3s
+      run: |
+        k3s ctr image import agent.tar
+        k3s ctr image import controller.tar
 
     - if: matrix.kube-runtime == 'Kubernetes'
       name: Install Kubernetes
@@ -145,6 +198,12 @@ jobs:
         echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
+    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'MicroK8s')
+      name: Import local agent and controller to MicroK8s
+      run: |
+        microk8s ctr image import agent.tar
+        microk8s ctr image import controller.tar
+
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
     
@@ -163,13 +222,13 @@ jobs:
       name: Set sleep duration before running script to 1500
       run: echo 1500 > /tmp/sleep_duration.txt
 
-    # For pull_request and pull_request_target, only main's version.txt
-    # has a Helm chart (the version in the PR does not).  Use origin/main.
+    # For pull_request and pull_request_target, use the local built
+    # containers.
     - if: startsWith(github.event_name, 'pull_request')
-      name: Use main version for non-push
+      name: Tell Helm to use the 'local' labels for containers
       run: |
-        git fetch origin main
-        git show origin/main:version.txt > /tmp/version_to_test.txt
+        echo ${LABEL_PREFIX} > /tmp/version_to_test.txt
+        echo '--set agent.image.pullPolicy=Never --set controller.image.pullPolicy=Never' > /tmp/image_pull_policy.txt
     # For non-PR (i.e. push, release, manual), version.txt is corresponds
     # to an existing Helm chart.
     - if: (!(startsWith(github.event_name, 'pull_request')))
