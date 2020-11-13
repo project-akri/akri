@@ -87,6 +87,8 @@ jobs:
     
     - if: matrix.kube-runtime == 'K3s'
       name: Install K3s
+      env:
+        INSTALL_K3S_VERSION: v1.18.9+k3s1
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
         sudo addgroup k3s-admin
