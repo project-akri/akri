@@ -36,9 +36,9 @@ carry out one or the other (or adopt to your distribution), then continue on wit
 
 ### Option 1: Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
-1. Install [K3s](https://k3s.io/).
+1. Install [K3s](https://k3s.io/) v1.18.9+k3s1.
     ```sh
-    curl -sfL https://get.k3s.io | sh -
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.18.9+k3s1 sh -
     ```
 1. Grant admin privilege to access kubeconfig.
     ```sh
