@@ -33,7 +33,7 @@ agent_pod_name = ""
 controller_pod_name = ""
 
 def get_extra_helm_args():
-    # Sleep for amount of time specified in SLEEP_DURATION_FILE else don't sleep at all
+    # Get any extra helm args passed from workflow
     if os.path.exists(EXTRA_HELM_ARGS_FILE):
         return open(EXTRA_HELM_ARGS_FILE, "r").readline().rstrip()
     return ""
