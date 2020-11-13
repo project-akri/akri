@@ -1,4 +1,4 @@
-# Customizing Akri Installation
+# Customizing an Akri Installation
 The [onvif](./onvif-configuration.md) and [udev](./udev-configuration.md) documentation explains how to deploy Akri for a specific
 protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations

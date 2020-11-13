@@ -91,7 +91,7 @@ The udev Configuration can be tailored to your cluster by modifying the [Akri he
   Installation](./customizing-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec))
 
 For more advanced Configuration changes that are not aided by
-our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it. To do this, see our documentation on [Customizing Akri Installation](./customizing-akri-installation.md#generating-modifying-and-applying-a-custom-configuration)
+our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it. To do this, see our documentation on [Customizing an Akri Installation](./customizing-akri-installation.md#generating-modifying-and-applying-a-custom-configuration)
 
 ## Modifying the udev rule
 The udev protocol will find all devices that are described by ANY of the udev rules. For example, to discover devices made by either Great Vendor or Awesome Vendor, you could add a second udev rule.
@@ -136,7 +136,7 @@ specs](./customizing-akri-installation.md#modifying-instanceservicespec-or-confi
 By default, the generic udev Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.
 
 ## Modifying a Configuration
-More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Customizing Akri Installation document](./customizing-akri-installation.md).
+More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or delete a Configuration can be found in the [Customizing an Akri Installation document](./customizing-akri-installation.md).
 
 ## Implementation details
 The udev implementation can be understood by looking at several things:

@@ -91,7 +91,7 @@ By default, the generic ONVIF Configuration will create services for all the bro
 
 ## Modifying a Configuration
 More information about how to modify an installed Configuration, add additional protocol Configurations to a cluster, or
-delete a Configuration can be found in the [Customizing Akri Installation
+delete a Configuration can be found in the [Customizing an Akri Installation
 document](./customizing-akri-installation.md).
 
 ## Implementation details
