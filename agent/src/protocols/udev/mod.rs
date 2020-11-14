@@ -5,15 +5,18 @@ pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 
 pub mod udev_device {
     extern crate udev;
-    use std::{ffi::OsStr, path::Path};
+    use std::{ffi::OsStr, io::Result, path::Path};
 
     /// Extension Trait for udev::Device. Enables creation of MockDevice for testing.
-    pub trait DeviceExt {
+    pub trait DeviceExt: Sized {
         fn mockable_devpath(&self) -> &OsStr;
         fn mockable_devnode(&self) -> Option<&Path>;
         fn mockable_sysname(&self) -> &OsStr;
         fn mockable_property_value(&self, property: &str) -> Option<&OsStr>;
+        fn mockable_attribute_value(&self, attribute: &str) -> Option<&OsStr>;
         fn mockable_driver(&self) -> Option<&OsStr>;
+        fn mockable_parent_with_subsystem(&self, subsystem: &str) -> Result<Option<Self>> where Self: Sized;
+        fn mockable_parent(&self) -> Option<Self> where Self: Sized;
     }
 
     impl DeviceExt for udev::Device {
@@ -29,8 +32,17 @@ pub mod udev_device {
         fn mockable_property_value(&self, property: &str) -> Option<&OsStr> {
             self.property_value(property)
         }
+        fn mockable_attribute_value(&self, attribute: &str) -> Option<&OsStr> {
+            self.attribute_value(attribute)
+        }
         fn mockable_driver(&self) -> Option<&OsStr> {
             self.driver()
+        }
+        fn mockable_parent_with_subsystem(&self, subsystem: &str) -> Result<Option<Self>> {
+            self.parent_with_subsystem(OsStr::new(subsystem))
+        }
+        fn mockable_parent(&self) -> Option<Self> {
+            self.parent()
         }
     }
 
@@ -53,8 +65,23 @@ pub mod udev_device {
         device.mockable_property_value(property)
     }
 
+    pub fn get_attribute_value<'a, 'b>(
+        device: &'a impl DeviceExt,
+        attribute: &'b str,
+    ) -> Option<&'a OsStr> {
+        device.mockable_attribute_value(attribute)
+    }
+
     pub fn get_driver(device: &impl DeviceExt) -> Option<&OsStr> {
         device.mockable_driver()
+    }
+    
+    pub fn get_parent_with_subsystem(device: &impl DeviceExt, subsystem: &str) -> Result<Option<impl DeviceExt>> {
+        device.mockable_parent_with_subsystem(subsystem)
+    }
+
+    pub fn get_parent(device: &impl DeviceExt) -> Option<impl DeviceExt> {
+        device.mockable_parent()
     }
 }
 
@@ -63,7 +90,7 @@ pub mod udev_enumerator {
     use mockall::predicate::*;
     use mockall::*;
 
-    /// Wrap udev::Enumerator functions in a trait to inable mocking for testing.
+    /// Wrap udev::Enumerator functions in a trait to enable mocking for testing.
     #[automock]
     pub trait Enumerator {
         fn match_subsystem(&mut self, value: &str) -> std::io::Result<()>;
