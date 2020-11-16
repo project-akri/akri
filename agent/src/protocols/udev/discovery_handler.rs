@@ -26,18 +26,17 @@ impl DiscoveryHandler for UdevDiscoveryHandler {
         let udev_rules = self.discovery_handler_config.udev_rules.clone();
         trace!("discover - for udev rules {:?}", udev_rules);
         let mut devpaths: HashSet<String> = HashSet::new();
-        udev_rules.iter().for_each(|rule| {
-            let enumerator = udev_enumerator::create_enumerator();
-            match discovery_impl::do_parse_and_find(enumerator, &rule) {
-                Ok(paths) => paths.into_iter().for_each(|path| {
+        udev_rules
+            .iter()
+            .map(|rule| {
+                let enumerator = udev_enumerator::create_enumerator();
+                let paths = discovery_impl::do_parse_and_find(enumerator, &rule)?;
+                paths.into_iter().for_each(|path| {
                     devpaths.insert(path);
-                }),
-                Err(e) => error!(
-                    "discover - for rule {} do_parse_and_find returned error {}",
-                    rule, e
-                ),
-            }
-        });
+                });
+                Ok(())
+            })
+            .collect::<Result<(), Error>>()?;
         trace!(
             "discover - mapping and returning devices at devpaths {:?}",
             devpaths

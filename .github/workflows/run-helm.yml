@@ -27,6 +27,33 @@ env:
   helm_version: "3.2.1"
 
 jobs:
+  lint-with-current-helm:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout the merged commit from PR and base branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'pull_request_target'
+        with:
+          # pull_request_target is run in the context of the base repository
+          # of the pull request, so the default ref is master branch and
+          # ref should be manually set to the head of the PR
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+
+      - name: Checkout the head commit of the branch
+        if: ${{ github.event_name != 'pull_request_target' }}
+        uses: actions/checkout@v2
+
+      - uses: azure/setup-helm@v1
+
+      - name: Lint helm chart
+        run: helm lint deployment/helm && echo "lint finished successfully" || echo ::warning::"lint found issues"
+
+
   helm:
     # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
     if: >-
@@ -50,6 +77,8 @@ jobs:
         uses: actions/checkout@v2
 
       - uses: azure/setup-helm@v1
+        with:
+          version: "v3.4.0"
 
       # We should generate two sets of akri charts.
       # One for our releases (akri) and one for our merged PRs (akri-dev).  'akri' should only be created for
