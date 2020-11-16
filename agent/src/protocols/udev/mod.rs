@@ -15,8 +15,12 @@ pub mod udev_device {
         fn mockable_property_value(&self, property: &str) -> Option<&OsStr>;
         fn mockable_attribute_value(&self, attribute: &str) -> Option<&OsStr>;
         fn mockable_driver(&self) -> Option<&OsStr>;
-        fn mockable_parent_with_subsystem(&self, subsystem: &str) -> Result<Option<Self>> where Self: Sized;
-        fn mockable_parent(&self) -> Option<Self> where Self: Sized;
+        fn mockable_parent_with_subsystem(&self, subsystem: &str) -> Result<Option<Self>>
+        where
+            Self: Sized;
+        fn mockable_parent(&self) -> Option<Self>
+        where
+            Self: Sized;
     }
 
     impl DeviceExt for udev::Device {
@@ -75,8 +79,11 @@ pub mod udev_device {
     pub fn get_driver(device: &impl DeviceExt) -> Option<&OsStr> {
         device.mockable_driver()
     }
-    
-    pub fn get_parent_with_subsystem(device: &impl DeviceExt, subsystem: &str) -> Result<Option<impl DeviceExt>> {
+
+    pub fn get_parent_with_subsystem(
+        device: &impl DeviceExt,
+        subsystem: &str,
+    ) -> Result<Option<impl DeviceExt>> {
         device.mockable_parent_with_subsystem(subsystem)
     }
 

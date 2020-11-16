@@ -1,7 +1,8 @@
 extern crate udev;
 
 use super::udev_device::{
-    get_devnode, get_devpath, get_driver, get_parent, get_parent_with_subsystem, get_property_value, get_attribute_value, get_sysname, DeviceExt,
+    get_attribute_value, get_devnode, get_devpath, get_driver, get_parent,
+    get_parent_with_subsystem, get_property_value, get_sysname, DeviceExt,
 };
 use super::udev_enumerator::Enumerator;
 use pest::iterators::Pair;
@@ -43,7 +44,6 @@ pub fn do_parse_and_find(
 /// Udev discovery is only interested in match operations ("==",  "!="), so all action ("=" , "+=" , "-=" , ":=") operations
 /// will be ignored.
 /// Udev discovery is only interested in match fields, so all action fields, such as TEST, are ignored
-/// Some match fields that look up the device hierarchy, such as SUBSYSTEMS, are yet to be supported and are also ignored
 fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::Error> {
     info!(
         "parse_udev_rule - enter for udev rule string {}",
@@ -373,9 +373,11 @@ fn filter_by_remaining_udev_filters(
             Rule::subsystems => {
                 mutable_devices = mutable_devices
                     .into_iter()
-                    .filter(|device| match get_parent_with_subsystem(device, &udev_filter.value).unwrap() {
-                        Some(_) => is_equality,
-                        None => !is_equality,
+                    .filter(|device| {
+                        match get_parent_with_subsystem(device, &udev_filter.value).unwrap() {
+                            Some(_) => is_equality,
+                            None => !is_equality,
+                        }
                     })
                     .collect();
             }
@@ -392,9 +394,9 @@ fn filter_by_remaining_udev_filters(
                     .as_str();
                 mutable_devices = mutable_devices
                     .into_iter()
-                    .filter(|device| 
-                    {
-                        let is_match = device_has_parent_with_attribute(get_parent(device), key, &value_regex);
+                    .filter(|device| {
+                        let is_match =
+                            device_has_parent_with_attribute(get_parent(device), key, &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -402,9 +404,9 @@ fn filter_by_remaining_udev_filters(
             Rule::drivers => {
                 mutable_devices = mutable_devices
                     .into_iter()
-                    .filter(|device| 
-                    {
-                        let is_match = device_has_parent_with_driver(get_parent(device), &value_regex);
+                    .filter(|device| {
+                        let is_match =
+                            device_has_parent_with_driver(get_parent(device), &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -412,9 +414,9 @@ fn filter_by_remaining_udev_filters(
             Rule::kernels => {
                 mutable_devices = mutable_devices
                     .into_iter()
-                    .filter(|device| 
-                    {
-                        let is_match = device_has_parent_with_sysname(get_parent(device), &value_regex);
+                    .filter(|device| {
+                        let is_match =
+                            device_has_parent_with_sysname(get_parent(device), &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -422,8 +424,7 @@ fn filter_by_remaining_udev_filters(
             Rule::tags => {
                 mutable_devices = mutable_devices
                     .into_iter()
-                    .filter(|device| 
-                    {
+                    .filter(|device| {
                         let is_match = device_has_parent_with_tag(get_parent(device), &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
@@ -437,14 +438,19 @@ fn filter_by_remaining_udev_filters(
     mutable_devices
 }
 
-pub fn device_has_parent_with_attribute(parent_option: Option<impl DeviceExt>, key: &str, value_regex: &Regex) -> bool {
+/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified attribute.
+pub fn device_has_parent_with_attribute(
+    parent_option: Option<impl DeviceExt>,
+    key: &str,
+    value_regex: &Regex,
+) -> bool {
     match parent_option {
         None => false,
         Some(parent) => {
             if let Some(attribute_value) = get_attribute_value(&parent, key) {
                 let attribute_value_str = attribute_value.to_str().unwrap();
                 if let Some(found_string) = value_regex.find(attribute_value_str) {
-                        found_string.start() == 0 && found_string.end() == attribute_value_str.len()
+                    found_string.start() == 0 && found_string.end() == attribute_value_str.len()
                 } else {
                     false
                 }
@@ -455,14 +461,18 @@ pub fn device_has_parent_with_attribute(parent_option: Option<impl DeviceExt>, k
     }
 }
 
-pub fn device_has_parent_with_driver(parent_option: Option<impl DeviceExt>, value_regex: &Regex) -> bool {
+/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified driver.
+pub fn device_has_parent_with_driver(
+    parent_option: Option<impl DeviceExt>,
+    value_regex: &Regex,
+) -> bool {
     match parent_option {
         None => false,
         Some(parent) => {
             if let Some(driver) = get_driver(&parent) {
                 let driver_str = driver.to_str().unwrap();
                 if let Some(found_string) = value_regex.find(driver_str) {
-                        found_string.start() == 0 && found_string.end() == driver_str.len()
+                    found_string.start() == 0 && found_string.end() == driver_str.len()
                 } else {
                     false
                 }
@@ -473,11 +483,13 @@ pub fn device_has_parent_with_driver(parent_option: Option<impl DeviceExt>, valu
     }
 }
 
-pub fn device_has_parent_with_sysname(parent_option: Option<impl DeviceExt>, value_regex: &Regex) -> bool {
+/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified sysname aka kernel.
+pub fn device_has_parent_with_sysname(
+    parent_option: Option<impl DeviceExt>,
+    value_regex: &Regex,
+) -> bool {
     match parent_option {
-        None => {
-            false
-        },
+        None => false,
         Some(parent) => {
             let sysname = get_sysname(&parent).to_str().unwrap();
             if let Some(found_string) = value_regex.find(sysname) {
@@ -489,7 +501,11 @@ pub fn device_has_parent_with_sysname(parent_option: Option<impl DeviceExt>, val
     }
 }
 
-pub fn device_has_parent_with_tag(parent_option: Option<impl DeviceExt>, value_regex: &Regex) -> bool {
+/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified tag.
+pub fn device_has_parent_with_tag(
+    parent_option: Option<impl DeviceExt>,
+    value_regex: &Regex,
+) -> bool {
     match parent_option {
         None => false,
         Some(parent) => {
@@ -498,8 +514,7 @@ pub fn device_has_parent_with_tag(parent_option: Option<impl DeviceExt>, value_r
                 let mut has_tag = false;
                 for tag in tags {
                     if let Some(found_string) = value_regex.find(tag) {
-                        if found_string.start() == 0 && found_string.end() == tag.len()
-                        {
+                        if found_string.start() == 0 && found_string.end() == tag.len() {
                             has_tag = true;
                             break;
                         }
@@ -570,13 +585,14 @@ mod discovery_tests {
         fn mockable_parent_with_subsystem(&self, subsystem: &str) -> std::io::Result<Option<Self>> {
             match *self.parent.clone() {
                 Some(parent) => {
-                    if parent.subsystem.is_some() && &parent.subsystem.clone().unwrap() == subsystem {
+                    if parent.subsystem.is_some() && &parent.subsystem.clone().unwrap() == subsystem
+                    {
                         Ok(Some(parent))
                     } else {
                         Ok(None)
                     }
-                },
-                None => Ok(None)
+                }
+                None => Ok(None),
             }
         }
         fn mockable_parent(&self) -> Option<Self> {
@@ -584,7 +600,16 @@ mod discovery_tests {
         }
     }
 
-    fn create_mock_device<'a>(devpath: &str, devnode: &str, sysname: &str, properties: HashMap<String, String>, attributes: HashMap<String, String>, driver: Option<&'a OsStr>, subsystem: Option<String>, parent: Option<MockDevice<'a>>) -> MockDevice<'a>  {
+    fn create_mock_device<'a>(
+        devpath: &str,
+        devnode: &str,
+        sysname: &str,
+        properties: HashMap<String, String>,
+        attributes: HashMap<String, String>,
+        driver: Option<&'a OsStr>,
+        subsystem: Option<String>,
+        parent: Option<MockDevice<'a>>,
+    ) -> MockDevice<'a> {
         MockDevice {
             devpath: devpath.to_string(),
             devnode: devnode.to_string(),
@@ -730,12 +755,66 @@ mod discovery_tests {
         tag_exclude_properties.insert("TAGS".to_string(), "tag3:other:tag2".to_string());
         let mut id_exclude_properties = std::collections::HashMap::new();
         id_exclude_properties.insert("ID".to_string(), "id_num".to_string());
-        let mock_device_to_exclude0 = create_mock_device("/devices/path/exclude", "/dev/exclude", "mock0", HashMap::new(), HashMap::new(), Some(OsStr::new("include")), None, None);
-        let mock_device_to_exclude1 = create_mock_device("/devices/path/include", "/dev/exclude", "mock1", HashMap::new(), HashMap::new(), Some(OsStr::new("exclude")), None, None);
-        let mock_device_to_include1 = create_mock_device("/devices/path/include", "/dev/include", "mock2", HashMap::new(), HashMap::new(), Some(OsStr::new("include")), None, None);
-        let mock_device_to_exclude3 = create_mock_device("/devices/path/include", "/dev/include", "mock3", tag_exclude_properties, HashMap::new(), Some(OsStr::new("include")), None, None);
-        let mock_device_to_include2 = create_mock_device("/devices/path/include", "/dev/include", "mock4", HashMap::new(), HashMap::new(), Some(OsStr::new("include")), None, None);
-        let mock_device_to_exclude4 = create_mock_device("/devices/path/include", "/dev/include", "mock5", id_exclude_properties, HashMap::new(), Some(OsStr::new("include")), None, None);
+        let mock_device_to_exclude0 = create_mock_device(
+            "/devices/path/exclude",
+            "/dev/exclude",
+            "mock0",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("include")),
+            None,
+            None,
+        );
+        let mock_device_to_exclude1 = create_mock_device(
+            "/devices/path/include",
+            "/dev/exclude",
+            "mock1",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("exclude")),
+            None,
+            None,
+        );
+        let mock_device_to_include1 = create_mock_device(
+            "/devices/path/include",
+            "/dev/include",
+            "mock2",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("include")),
+            None,
+            None,
+        );
+        let mock_device_to_exclude3 = create_mock_device(
+            "/devices/path/include",
+            "/dev/include",
+            "mock3",
+            tag_exclude_properties,
+            HashMap::new(),
+            Some(OsStr::new("include")),
+            None,
+            None,
+        );
+        let mock_device_to_include2 = create_mock_device(
+            "/devices/path/include",
+            "/dev/include",
+            "mock4",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("include")),
+            None,
+            None,
+        );
+        let mock_device_to_exclude4 = create_mock_device(
+            "/devices/path/include",
+            "/dev/include",
+            "mock5",
+            id_exclude_properties,
+            HashMap::new(),
+            Some(OsStr::new("include")),
+            None,
+            None,
+        );
         let devices = vec![
             mock_device_to_exclude0,
             mock_device_to_exclude1,
@@ -749,43 +828,81 @@ mod discovery_tests {
         let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
 
         assert_eq!(filtered_devices.len(), 2);
-        assert_eq!(
-            get_sysname(&filtered_devices[0]).to_str().unwrap(),
-            "mock2"
-        );
-        assert_eq!(
-            get_sysname(&filtered_devices[1]).to_str().unwrap(),
-            "mock4"
-        );
+        assert_eq!(get_sysname(&filtered_devices[0]).to_str().unwrap(), "mock2");
+        assert_eq!(get_sysname(&filtered_devices[1]).to_str().unwrap(), "mock4");
     }
 
     #[test]
     fn test_filter_by_driver() {
         let match_rule = "DRIVER==\"some driver\"";
-        let mock_device = create_mock_device("/devices/path/include", "/dev/include", "mock", HashMap::new(), HashMap::new(), Some(OsStr::new("another driver")), None, None);
+        let mock_device = create_mock_device(
+            "/devices/path/include",
+            "/dev/include",
+            "mock",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("another driver")),
+            None,
+            None,
+        );
         let udev_filters = parse_udev_rule(match_rule).unwrap();
         let udev_filters_ref: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(vec![mock_device.clone()], udev_filters_ref);
-        assert_eq!(filtered_devices.len(), 0);  
-        
+        let filtered_devices =
+            filter_by_remaining_udev_filters(vec![mock_device.clone()], udev_filters_ref);
+        assert_eq!(filtered_devices.len(), 0);
+
         let nomatch_rule = "DRIVER!=\"some driver\"";
         let udev_filters = parse_udev_rule(nomatch_rule).unwrap();
         let udev_filters_ref: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(vec![mock_device], udev_filters_ref);
-        assert_eq!(filtered_devices.len(), 1);  
+        let filtered_devices =
+            filter_by_remaining_udev_filters(vec![mock_device], udev_filters_ref);
+        assert_eq!(filtered_devices.len(), 1);
     }
 
     #[test]
     fn test_filter_by_subsystems() {
         let rule = "SUBSYSTEMS==\"usb\"";
-        let mock_usb_parent = create_mock_device("/devices/path/usb", "/dev/node", "usb-parent", HashMap::new(), HashMap::new(), None, Some("usb".to_string()), None);
-        let mock_pci_parent = create_mock_device("/devices/path", "/dev/node", "pci-parent", HashMap::new(), HashMap::new(), None, Some("pci".to_string()), None);
-        let mock_device_pci_child = create_mock_device("/devices/path", "/dev/node", "pci-child", HashMap::new(), HashMap::new(), None, Some("random".to_string()), Some(mock_pci_parent));
-        let mock_device_usb_child = create_mock_device("/devices/path", "/dev/node", "usb-child", HashMap::new(), HashMap::new(), Some(OsStr::new("driver")), Some("random".to_string()), Some(mock_usb_parent));
-        let devices = vec![
-            mock_device_pci_child,
-            mock_device_usb_child,
-        ];
+        let mock_usb_parent = create_mock_device(
+            "/devices/path/usb",
+            "/dev/node",
+            "usb-parent",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("usb".to_string()),
+            None,
+        );
+        let mock_pci_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-parent",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("pci".to_string()),
+            None,
+        );
+        let mock_device_pci_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-child",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("random".to_string()),
+            Some(mock_pci_parent),
+        );
+        let mock_device_usb_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-child",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("driver")),
+            Some("random".to_string()),
+            Some(mock_usb_parent),
+        );
+        let devices = vec![mock_device_pci_child, mock_device_usb_child];
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
@@ -814,14 +931,47 @@ mod discovery_tests {
         attributes.insert("someKey".to_string(), "value".to_string());
         let mut attributes2 = std::collections::HashMap::new();
         attributes2.insert("someKey".to_string(), "value2".to_string());
-        let mock_usb_parent = create_mock_device("/devices/path", "/dev/node", "usb-parent", HashMap::new(), attributes, None, Some("usb".to_string()), None);
-        let mock_pci_parent = create_mock_device("/devices/path", "/dev/node", "pci-parent", HashMap::new(), attributes2, None, Some("pci".to_string()), None);
-        let mock_device_pci_child = create_mock_device("/devices/path", "/dev/node", "pci-child", HashMap::new(), HashMap::new(), None, Some("random".to_string()), Some(mock_pci_parent));
-        let mock_device_usb_child = create_mock_device("/devices/path", "/dev/node", "usb-child", HashMap::new(), HashMap::new(), Some(OsStr::new("driver")), Some("random".to_string()), Some(mock_usb_parent));
-        let devices = vec![
-            mock_device_pci_child,
-            mock_device_usb_child,
-        ];
+        let mock_usb_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-parent",
+            HashMap::new(),
+            attributes,
+            None,
+            Some("usb".to_string()),
+            None,
+        );
+        let mock_pci_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-parent",
+            HashMap::new(),
+            attributes2,
+            None,
+            Some("pci".to_string()),
+            None,
+        );
+        let mock_device_pci_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-child",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("random".to_string()),
+            Some(mock_pci_parent),
+        );
+        let mock_device_usb_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-child",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("driver")),
+            Some("random".to_string()),
+            Some(mock_usb_parent),
+        );
+        let devices = vec![mock_device_pci_child, mock_device_usb_child];
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
@@ -846,15 +996,57 @@ mod discovery_tests {
     #[test]
     fn test_filter_by_drivers() {
         let rule = "DRIVERS==\"some driver\"";
-        let mock_usb_grand_parent = create_mock_device("/devices/path", "/dev/node", "usb1", HashMap::new(), HashMap::new(), Some(OsStr::new("some driver")), Some("usb".to_string()), None);
-        let mock_parent = create_mock_device("/devices/path", "/dev/node", "random", HashMap::new(), HashMap::new(), None, None, Some(mock_usb_grand_parent));
-        let mock_pci_parent = create_mock_device("/devices/path", "/dev/node", "pci1", HashMap::new(), HashMap::new(), None, Some("pci".to_string()), None);
-        let mock_device_pci_child = create_mock_device("/devices/path", "/dev/node", "pci-child", HashMap::new(), HashMap::new(), None, Some("random".to_string()), Some(mock_pci_parent));
-        let mock_device_usb_child = create_mock_device("/devices/path", "/dev/node", "usb-child", HashMap::new(), HashMap::new(), Some(OsStr::new("driver")), Some("random".to_string()), Some(mock_parent));
-        let devices = vec![
-            mock_device_pci_child,
-            mock_device_usb_child,
-        ];
+        let mock_usb_grand_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb1",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("some driver")),
+            Some("usb".to_string()),
+            None,
+        );
+        let mock_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "random",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            None,
+            Some(mock_usb_grand_parent),
+        );
+        let mock_pci_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci1",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("pci".to_string()),
+            None,
+        );
+        let mock_device_pci_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-child",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("random".to_string()),
+            Some(mock_pci_parent),
+        );
+        let mock_device_usb_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-child",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("driver")),
+            Some("random".to_string()),
+            Some(mock_parent),
+        );
+        let devices = vec![mock_device_pci_child, mock_device_usb_child];
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
@@ -878,18 +1070,60 @@ mod discovery_tests {
 
     #[test]
     fn test_filter_by_tags() {
-        let rule = "TAGS==\"tag0\"";
+        let rule = "TAGS==\"tag[0-9]*\"";
         let mut properties = std::collections::HashMap::new();
-        properties.insert("TAGS".to_string(), "tag0:middle_tag:tag2".to_string());
-        let mock_usb_grand_parent = create_mock_device("/devices/path", "/dev/node", "usb1", properties, HashMap::new(), Some(OsStr::new("some driver")), Some("usb".to_string()), None);
-        let mock_parent = create_mock_device("/devices/path", "/dev/node", "random", HashMap::new(), HashMap::new(), None, None, Some(mock_usb_grand_parent));
-        let mock_pci_parent = create_mock_device("/devices/path", "/dev/node", "pci1", HashMap::new(), HashMap::new(), None, Some("pci".to_string()), None);
-        let mock_device_pci_child = create_mock_device("/devices/path", "/dev/node", "pci-child", HashMap::new(), HashMap::new(), None, Some("random".to_string()), Some(mock_pci_parent));
-        let mock_device_usb_child = create_mock_device("/devices/path", "/dev/node", "usb-child", HashMap::new(), HashMap::new(), Some(OsStr::new("driver")), Some("random".to_string()), Some(mock_parent));
-        let devices = vec![
-            mock_device_pci_child,
-            mock_device_usb_child,
-        ];
+        properties.insert("TAGS".to_string(), "tag0:middle_tag:tag".to_string());
+        let mock_usb_grand_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb1",
+            properties,
+            HashMap::new(),
+            Some(OsStr::new("some driver")),
+            Some("usb".to_string()),
+            None,
+        );
+        let mock_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "random",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            None,
+            Some(mock_usb_grand_parent),
+        );
+        let mock_pci_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci1",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("pci".to_string()),
+            None,
+        );
+        let mock_device_pci_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-child",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("random".to_string()),
+            Some(mock_pci_parent),
+        );
+        let mock_device_usb_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-child",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("driver")),
+            Some("random".to_string()),
+            Some(mock_parent),
+        );
+        let devices = vec![mock_device_pci_child, mock_device_usb_child];
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
@@ -914,15 +1148,57 @@ mod discovery_tests {
     #[test]
     fn test_filter_by_kernels() {
         let rule = "KERNELS==\"usb[0-9]*\"";
-        let mock_usb_grand_parent = create_mock_device("/devices/path", "/dev/node", "usb1", HashMap::new(), HashMap::new(), None, Some("usb".to_string()), None);
-        let mock_parent = create_mock_device("/devices/path", "/dev/node", "random", HashMap::new(), HashMap::new(), None, None, Some(mock_usb_grand_parent));
-        let mock_pci_parent = create_mock_device("/devices/path", "/dev/node", "pci1", HashMap::new(), HashMap::new(), None, Some("pci".to_string()), None);
-        let mock_device_pci_child = create_mock_device("/devices/path", "/dev/node", "pci-child", HashMap::new(), HashMap::new(), None, Some("random".to_string()), Some(mock_pci_parent));
-        let mock_device_usb_child = create_mock_device("/devices/path", "/dev/node", "usb-child", HashMap::new(), HashMap::new(), Some(OsStr::new("driver")), Some("random".to_string()), Some(mock_parent));
-        let devices = vec![
-            mock_device_pci_child,
-            mock_device_usb_child,
-        ];
+        let mock_usb_grand_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb1",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("usb".to_string()),
+            None,
+        );
+        let mock_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "random",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            None,
+            Some(mock_usb_grand_parent),
+        );
+        let mock_pci_parent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci1",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("pci".to_string()),
+            None,
+        );
+        let mock_device_pci_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "pci-child",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("random".to_string()),
+            Some(mock_pci_parent),
+        );
+        let mock_device_usb_child = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-child",
+            HashMap::new(),
+            HashMap::new(),
+            Some(OsStr::new("driver")),
+            Some("random".to_string()),
+            Some(mock_parent),
+        );
+        let devices = vec![mock_device_pci_child, mock_device_usb_child];
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
