@@ -374,10 +374,8 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        match get_parent_with_subsystem(device, &udev_filter.value).unwrap() {
-                            Some(_) => is_equality,
-                            None => !is_equality,
-                        }
+                        let is_match = device_has_parent_with_subsystem(device, &udev_filter.value);
+                        (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
             }
@@ -436,6 +434,32 @@ fn filter_by_remaining_udev_filters(
         }
     }
     mutable_devices
+}
+
+/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified subsystem.
+pub fn device_has_parent_with_subsystem(device: &impl DeviceExt, subsystem: &str) -> bool {
+    match get_parent_with_subsystem(device, subsystem).unwrap() {
+        Some(_) => {
+            println!(
+                "true for subsystem {} and parent {:?}",
+                subsystem,
+                get_sysname(device)
+            );
+            true
+        }
+        None => {
+            println!(
+                "None for subsystem {} and parent {:?}",
+                subsystem,
+                get_sysname(device)
+            );
+            if let Some(parent) = get_parent(device) {
+                device_has_parent_with_subsystem(&parent, subsystem)
+            } else {
+                false
+            }
+        }
+    }
 }
 
 /// Recursively look up a device's hierarchy to see if it has an ancestor with a specified attribute.
@@ -862,6 +886,17 @@ mod discovery_tests {
     #[test]
     fn test_filter_by_subsystems() {
         let rule = "SUBSYSTEMS==\"usb\"";
+        let mock_usb_grandparent = create_mock_device(
+            "/devices/path/usb",
+            "/dev/node",
+            "usb-grandparent",
+            HashMap::new(),
+            HashMap::new(),
+            None,
+            Some("usb".to_string()),
+            None,
+        );
+
         let mock_usb_parent = create_mock_device(
             "/devices/path/usb",
             "/dev/node",
@@ -869,8 +904,8 @@ mod discovery_tests {
             HashMap::new(),
             HashMap::new(),
             None,
-            Some("usb".to_string()),
             None,
+            Some(mock_usb_grandparent),
         );
         let mock_pci_parent = create_mock_device(
             "/devices/path",
@@ -913,10 +948,20 @@ mod discovery_tests {
             "usb-child"
         );
 
-        let rule = "SUBSYSTEMS!=\"pci\"";
+        let rule = "SUBSYSTEMS==\"pci\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
+        assert_eq!(filtered_devices.len(), 1);
+        assert_eq!(
+            get_sysname(&filtered_devices[0]).to_str().unwrap(),
+            "pci-child"
+        );
+
+        let rule = "SUBSYSTEMS!=\"pci\"";
+        let udev_filters = parse_udev_rule(rule).unwrap();
+        let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
+        let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
         assert_eq!(filtered_devices.len(), 1);
         assert_eq!(
             get_sysname(&filtered_devices[0]).to_str().unwrap(),
@@ -931,15 +976,25 @@ mod discovery_tests {
         attributes.insert("someKey".to_string(), "value".to_string());
         let mut attributes2 = std::collections::HashMap::new();
         attributes2.insert("someKey".to_string(), "value2".to_string());
+        let mock_usb_grandparent = create_mock_device(
+            "/devices/path",
+            "/dev/node",
+            "usb-grandparent",
+            HashMap::new(),
+            attributes,
+            None,
+            None,
+            None,
+        );
         let mock_usb_parent = create_mock_device(
             "/devices/path",
             "/dev/node",
             "usb-parent",
             HashMap::new(),
-            attributes,
+            HashMap::new(),
             None,
             Some("usb".to_string()),
-            None,
+            Some(mock_usb_grandparent),
         );
         let mock_pci_parent = create_mock_device(
             "/devices/path",
@@ -985,7 +1040,7 @@ mod discovery_tests {
         let rule = "ATTRS{someKey}!=\"value\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
+        let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
         assert_eq!(filtered_devices.len(), 1);
         assert_eq!(
             get_sysname(&filtered_devices[0]).to_str().unwrap(),
@@ -996,7 +1051,7 @@ mod discovery_tests {
     #[test]
     fn test_filter_by_drivers() {
         let rule = "DRIVERS==\"some driver\"";
-        let mock_usb_grand_parent = create_mock_device(
+        let mock_usb_grandparent = create_mock_device(
             "/devices/path",
             "/dev/node",
             "usb1",
@@ -1014,7 +1069,7 @@ mod discovery_tests {
             HashMap::new(),
             None,
             None,
-            Some(mock_usb_grand_parent),
+            Some(mock_usb_grandparent),
         );
         let mock_pci_parent = create_mock_device(
             "/devices/path",
@@ -1060,7 +1115,7 @@ mod discovery_tests {
         let rule = "DRIVERS!=\"some driver\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
+        let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
         assert_eq!(filtered_devices.len(), 1);
         assert_eq!(
             get_sysname(&filtered_devices[0]).to_str().unwrap(),
@@ -1073,7 +1128,7 @@ mod discovery_tests {
         let rule = "TAGS==\"tag[0-9]*\"";
         let mut properties = std::collections::HashMap::new();
         properties.insert("TAGS".to_string(), "tag0:middle_tag:tag".to_string());
-        let mock_usb_grand_parent = create_mock_device(
+        let mock_usb_grandparent = create_mock_device(
             "/devices/path",
             "/dev/node",
             "usb1",
@@ -1091,7 +1146,7 @@ mod discovery_tests {
             HashMap::new(),
             None,
             None,
-            Some(mock_usb_grand_parent),
+            Some(mock_usb_grandparent),
         );
         let mock_pci_parent = create_mock_device(
             "/devices/path",
@@ -1137,7 +1192,7 @@ mod discovery_tests {
         let rule = "TAGS!=\"tag0\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
+        let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
         assert_eq!(filtered_devices.len(), 1);
         assert_eq!(
             get_sysname(&filtered_devices[0]).to_str().unwrap(),
@@ -1148,7 +1203,7 @@ mod discovery_tests {
     #[test]
     fn test_filter_by_kernels() {
         let rule = "KERNELS==\"usb[0-9]*\"";
-        let mock_usb_grand_parent = create_mock_device(
+        let mock_usb_grandparent = create_mock_device(
             "/devices/path",
             "/dev/node",
             "usb1",
@@ -1166,7 +1221,7 @@ mod discovery_tests {
             HashMap::new(),
             None,
             None,
-            Some(mock_usb_grand_parent),
+            Some(mock_usb_grandparent),
         );
         let mock_pci_parent = create_mock_device(
             "/devices/path",
@@ -1212,7 +1267,7 @@ mod discovery_tests {
         let rule = "KERNELS!=\"usb[0-9]*\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(devices.clone(), udev_filters);
+        let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
         assert_eq!(filtered_devices.len(), 1);
         assert_eq!(
             get_sysname(&filtered_devices[0]).to_str().unwrap(),
