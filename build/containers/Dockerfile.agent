@@ -12,6 +12,9 @@ LABEL org.opencontainers.image.source https://github.com/deislabs/akri
 COPY ./build/container-images-legal-notice.md .
 
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
+
 COPY ./target/${CROSS_BUILD_TARGET}/release/agent /agent
+
 ENV RUST_LOG agent,akri_shared
-CMD ["./agent"]
+
+ENTRYPOINT ["./agent"]
