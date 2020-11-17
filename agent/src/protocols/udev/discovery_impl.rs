@@ -1,8 +1,8 @@
 extern crate udev;
 
 use super::udev_device::{
-    get_attribute_value, get_devnode, get_devpath, get_driver, get_parent,
-    get_property_value, get_subsystem, get_sysname, DeviceExt,
+    get_attribute_value, get_devnode, get_devpath, get_driver, get_parent, get_property_value,
+    get_subsystem, get_sysname, DeviceExt,
 };
 use super::udev_enumerator::Enumerator;
 use pest::iterators::Pair;
@@ -152,7 +152,10 @@ fn find_devices(
             if let Some(devnode) = get_devnode(&device) {
                 Some(devnode.to_str().unwrap().to_string())
             } else {
-                trace!("find_devices - ignoring device with devpath {:?} due to having no devnode", get_devpath(&device));
+                trace!(
+                    "find_devices - ignoring device with devpath {:?} due to having no devnode",
+                    get_devpath(&device)
+                );
                 None
             }
         })
@@ -394,8 +397,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match =
-                            device_in_hierarchy_has_attribute(device, key, &value_regex);
+                        let is_match = device_in_hierarchy_has_attribute(device, key, &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -404,8 +406,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match =
-                            device_in_hierarchy_has_driver(device, &value_regex);
+                        let is_match = device_in_hierarchy_has_driver(device, &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -414,8 +415,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match =
-                            device_in_hierarchy_has_sysname(device, &value_regex);
+                        let is_match = device_in_hierarchy_has_sysname(device, &value_regex);
                         (is_equality && is_match) || (!is_equality && !is_match)
                     })
                     .collect();
@@ -456,16 +456,14 @@ pub fn device_or_parent_has_subsystem(device: &impl DeviceExt, value_regex: &Reg
             } else {
                 match get_parent(device) {
                     Some(parent) => device_or_parent_has_subsystem(&parent, value_regex),
-                    None => false
+                    None => false,
                 }
             }
-        },
-        None => {
-            match get_parent(device) {
-                Some(parent) => device_or_parent_has_subsystem(&parent, value_regex),
-                None => false
-            }
         }
+        None => match get_parent(device) {
+            Some(parent) => device_or_parent_has_subsystem(&parent, value_regex),
+            None => false,
+        },
     }
 }
 
@@ -483,24 +481,19 @@ pub fn device_in_hierarchy_has_attribute(
             } else {
                 match get_parent(device) {
                     Some(parent) => device_in_hierarchy_has_attribute(&parent, key, value_regex),
-                    None => false
+                    None => false,
                 }
             }
-        },
-        None => {
-            match get_parent(device) {
-                Some(parent) => device_in_hierarchy_has_attribute(&parent, key, value_regex),
-                None => false
-            }
         }
+        None => match get_parent(device) {
+            Some(parent) => device_in_hierarchy_has_attribute(&parent, key, value_regex),
+            None => false,
+        },
     }
 }
 
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified driver.
-pub fn device_in_hierarchy_has_driver(
-    device: &impl DeviceExt,
-    value_regex: &Regex,
-) -> bool {
+pub fn device_in_hierarchy_has_driver(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     match get_driver(device) {
         Some(driver) => {
             let driver_str = driver.to_str().unwrap();
@@ -509,40 +502,32 @@ pub fn device_in_hierarchy_has_driver(
             } else {
                 match get_parent(device) {
                     Some(parent) => device_in_hierarchy_has_driver(&parent, value_regex),
-                    None => false
+                    None => false,
                 }
             }
-        },
-        None => {
-            match get_parent(device) {
-                Some(parent) => device_in_hierarchy_has_driver(&parent, value_regex),
-                None => false
-            }
         }
+        None => match get_parent(device) {
+            Some(parent) => device_in_hierarchy_has_driver(&parent, value_regex),
+            None => false,
+        },
     }
 }
 
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified sysname aka kernel.
-pub fn device_in_hierarchy_has_sysname(
-    device: &impl DeviceExt,
-    value_regex: &Regex,
-) -> bool {
+pub fn device_in_hierarchy_has_sysname(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     let sysname = get_sysname(device).to_str().unwrap();
     if is_match(sysname, value_regex) {
         true
     } else {
         match get_parent(device) {
             Some(parent) => device_in_hierarchy_has_sysname(&parent, value_regex),
-            None => false
+            None => false,
         }
     }
 }
 
 /// Recursively look up a device's hierarchy to see if or one of its ancestors has a specified tag.
-pub fn device_in_hierarchy_has_tag(
-    device: &impl DeviceExt,
-    value_regex: &Regex,
-) -> bool {
+pub fn device_in_hierarchy_has_tag(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     if let Some(tags) = get_property_value(device, TAGS) {
         let tags = tags.to_str().unwrap().split(':');
         let mut has_tag = false;
@@ -557,13 +542,13 @@ pub fn device_in_hierarchy_has_tag(
         } else {
             match get_parent(device) {
                 Some(parent) => device_in_hierarchy_has_tag(&parent, value_regex),
-                None => false
+                None => false,
             }
         }
     } else {
         match get_parent(device) {
             Some(parent) => device_in_hierarchy_has_tag(&parent, value_regex),
-            None => false
+            None => false,
         }
     }
 }
@@ -905,13 +890,11 @@ mod discovery_tests {
         );
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
-        let filtered_devices = filter_by_remaining_udev_filters(vec![mock_device.clone()], udev_filters);
+        let filtered_devices =
+            filter_by_remaining_udev_filters(vec![mock_device.clone()], udev_filters);
 
         assert_eq!(filtered_devices.len(), 1);
-        assert_eq!(
-            get_sysname(&filtered_devices[0]).to_str().unwrap(),
-            "usb1"
-        );
+        assert_eq!(get_sysname(&filtered_devices[0]).to_str().unwrap(), "usb1");
 
         let rule = "SUBSYSTEMS==\"usb\", ATTRS{someKey}==\"value\", TAGS==\"tag[0-9]*\", KERNELS==\"usb[0-9]*\", DRIVERS!=\"some driver\"";
         let udev_filters = parse_udev_rule(rule).unwrap();
