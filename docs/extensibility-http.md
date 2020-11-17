@@ -153,7 +153,7 @@ image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:aarch64-unknown-linux-gnu-0.1.1
 ## Build Akri Agent|Controller
 
 ```bash
-${USER}=[[GTHUB-USER]]
+USER=[[GTHUB-USER]]
 
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make rust-crossbuild
 
