@@ -41,8 +41,8 @@ To test which devices Akri will discover with a udev rule, you can run the rule 
     ```
 1. Reload the udev rules and trigger them.
     ```sh
-    udevadm control --reload
-    udevadm trigger
+    sudo udevadm control --reload
+    sudo udevadm trigger
     ```
 1. List the devices that have been tagged, which Akri will discover.
     ```sh
