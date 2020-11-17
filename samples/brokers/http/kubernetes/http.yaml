@@ -16,13 +16,3 @@ spec:
         resources:
           limits:
             "{{PLACEHOLDER}}": "1"
-  instanceServiceSpec:
-    ports:
-      - name: grpc
-        port: 80
-        targetPort: 8084 # HTTP uses 8084
-  configurationServiceSpec:
-    ports:
-      - name: grpc
-        port: 80
-        targetPort: 8084
