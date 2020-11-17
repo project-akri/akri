@@ -4,19 +4,6 @@ See [Extensibility: HTTP protocol](https://github.com/deislabs/akri/issues/85)
 
 This documentation will be completed once the code is working.
 
-## Cargo
-
-Add `http` member to the project's workspace primarily to facilitate its inclusiong by [rust-analyzer](https://github.com/rust-analyzer/rust-analyzer):
-
-```TOML
-[workspace]
-members = [
-    ...
-    "samples/brokers/http",
-    ...
-]
-```
-
 ## Agent
 
 Revise `./agent/src/protocols/mod.rs`:
@@ -134,6 +121,8 @@ members = [
     ...
 ]
 ```
+
+> **NOTE ** This also ensures `http` inclusion using [rust-analyzer](https://github.com/rust-analyzer/rust-analyzer)
 
 ## Revise workspace Cross file
 
