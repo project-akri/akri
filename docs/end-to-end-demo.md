@@ -77,7 +77,7 @@ carry out one or the other, then continue on with the rest of the steps.
     ```
 
 ## Set up mock udev video devices
-1. On a fresh Ubuntu (20.04 LTS for example), first update packages already installed. Then, install a kernel module to make v4l2 loopback video devices. It comes with prequisites: the other kernel module 'videodev' part of package linux-modules-extra and also the dkms package (Dynamic Kernel Module Support). Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
+1. To make dummy video4linux devices, install the v4l2loopback kernel module and its prerequisites. Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
     sudo apt update
     sudo apt -y install linux-modules-extra-$(uname -r)
