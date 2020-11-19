@@ -2,8 +2,11 @@
 In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabbing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
 ## Set up mock udev video devices
-1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
+1. To make dummy video4linux devices, install the v4l2loopback kernel module and its prerequisites. Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
+    sudo apt update
+    sudo apt -y install linux-modules-extra-$(uname -r)
+    sudo apt -y install dkms
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
