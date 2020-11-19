@@ -63,7 +63,16 @@ jobs:
     - name: Run tarpaulin
       run: docker exec $(cat container_id.txt) sh -c "RUST_LOG=trace cargo tarpaulin -v --all-features --out Xml"
 
-    - name: Upload report to codecov
+    - name: Upload report to codecov for PR
+      if: startsWith(github.event_name, 'pull_request')
+      env:
+        PR_NUM: ${{ github.event.pull_request.number }}
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        bash <(curl -s https://codecov.io/bash) -f cobertura.xml -Z -P $PR_NUM
+        exit $?
+
+    - name: Upload report to codecov for push
       uses: codecov/codecov-action@v1
       with:
         token: ${{secrets.CODECOV_TOKEN}}
