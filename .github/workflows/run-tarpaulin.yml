@@ -73,6 +73,7 @@ jobs:
         exit $?
 
     - name: Upload report to codecov for push
+      if: (!(startsWith(github.event_name, 'pull_request')))
       uses: codecov/codecov-action@v1
       with:
         token: ${{secrets.CODECOV_TOKEN}}
