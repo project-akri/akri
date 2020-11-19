@@ -115,7 +115,7 @@ gcloud compute ssh ${INSTANCE} \
 
 > **NOTE** `HOSTPORT` can be the same as `NODEPORT` if this is available on your host.
 
-The port-forwarding only works while the ssh sessions is running. So, while the previous command is running in one shell, browse the demo's HTTP endpoint: 
+The port-forwarding only works while the ssh session is running. So, while the previous command is running in one shell, browse the demo's HTTP endpoint: 
 
 ```console
 http://localhost:${HOSTPORT}/

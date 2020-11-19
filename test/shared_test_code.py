@@ -18,6 +18,7 @@ HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
 VERSION_FILE = "/tmp/version_to_test.txt"
 HELM_CHART_NAME_FILE = "/tmp/chart_name.txt"
 SLEEP_DURATION_FILE = "/tmp/sleep_duration.txt"
+EXTRA_HELM_ARGS_FILE = "/tmp/extra_helm_args.txt"
 SLEEP_INTERVAL = 20
 
 CONTROLLER_POD_LABEL_SELECTOR = "app=" + CONTROLLER_POD_NAME
@@ -30,6 +31,12 @@ INSTANCE_SVC_LABEL_SELECTOR = INSTANCE_LABEL_NAME
 major_version = ""
 agent_pod_name = ""
 controller_pod_name = ""
+
+def get_extra_helm_args():
+    # Get any extra helm args passed from workflow
+    if os.path.exists(EXTRA_HELM_ARGS_FILE):
+        return open(EXTRA_HELM_ARGS_FILE, "r").readline().rstrip()
+    return ""
 
 def initial_sleep():
     # Sleep for amount of time specified in SLEEP_DURATION_FILE else don't sleep at all
