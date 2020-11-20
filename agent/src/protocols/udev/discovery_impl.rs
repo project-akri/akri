@@ -276,12 +276,7 @@ fn filter_by_remaining_udev_filters(
                     .into_iter()
                     .filter(|device| {
                         let devpath = get_devpath(device).to_str().unwrap();
-                        match value_regex.find(devpath) {
-                            Some(found_string) => {
-                                found_string.start() != 0 || found_string.end() != devpath.len()
-                            }
-                            None => true,
-                        }
+                        !is_match(devpath, &value_regex)
                     })
                     .collect();
             }
@@ -291,12 +286,7 @@ fn filter_by_remaining_udev_filters(
                     .into_iter()
                     .filter(|device| {
                         let sysname = get_sysname(device).to_str().unwrap();
-                        match value_regex.find(sysname) {
-                            Some(found_string) => {
-                                found_string.start() != 0 || found_string.end() != sysname.len()
-                            }
-                            None => true,
-                        }
+                        !is_match(sysname, &value_regex)
                     })
                     .collect();
             }
@@ -310,12 +300,9 @@ fn filter_by_remaining_udev_filters(
                             // Return false if discover a tag that should be excluded
                             let mut include = true;
                             for tag in tags {
-                                if let Some(found_string) = value_regex.find(tag) {
-                                    if found_string.start() == 0 && found_string.end() == tag.len()
-                                    {
-                                        include = false;
-                                        break;
-                                    }
+                                if is_match(tag, &value_regex) {
+                                    include = false;
+                                    break;
                                 }
                             }
                             include
@@ -342,13 +329,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| {
                         if let Some(property_value) = get_property_value(device, key) {
                             let property_value_str = property_value.to_str().unwrap();
-                            match value_regex.find(property_value_str) {
-                                Some(found_string) => {
-                                    found_string.start() != 0
-                                        || found_string.end() != property_value_str.len()
-                                }
-                                None => true,
-                            }
+                            !is_match(property_value_str, &value_regex)
                         } else {
                             true
                         }
@@ -361,14 +342,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| match get_driver(device) {
                         Some(driver) => {
                             let driver = driver.to_str().unwrap();
-                            match value_regex.find(driver) {
-                                Some(found_string) => {
-                                    let is_match = found_string.start() == 0
-                                        && found_string.end() == driver.len();
-                                    (is_equality && is_match) || (!is_equality && !is_match)
-                                }
-                                None => !is_equality,
-                            }
+                            filter_equality_check(is_equality, is_match(driver, &value_regex))
                         }
                         None => !is_equality,
                     })
@@ -378,8 +352,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match = device_or_parent_has_subsystem(device, &value_regex);
-                        (is_equality && is_match) || (!is_equality && !is_match)
+                        filter_equality_check(is_equality, device_or_parents_have_subsystem(device, &value_regex))
                     })
                     .collect();
             }
@@ -397,8 +370,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match = device_in_hierarchy_has_attribute(device, key, &value_regex);
-                        (is_equality && is_match) || (!is_equality && !is_match)
+                        filter_equality_check(is_equality, device_or_parents_have_attribute(device, key, &value_regex))
                     })
                     .collect();
             }
@@ -406,8 +378,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match = device_in_hierarchy_has_driver(device, &value_regex);
-                        (is_equality && is_match) || (!is_equality && !is_match)
+                        filter_equality_check(is_equality, device_or_parents_have_driver(device, &value_regex))
                     })
                     .collect();
             }
@@ -415,8 +386,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match = device_in_hierarchy_has_sysname(device, &value_regex);
-                        (is_equality && is_match) || (!is_equality && !is_match)
+                        filter_equality_check(is_equality, device_or_parents_have_sysname(device, &value_regex))
                     })
                     .collect();
             }
@@ -424,8 +394,7 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        let is_match = device_in_hierarchy_has_tag(device, &value_regex);
-                        (is_equality && is_match) || (!is_equality && !is_match)
+                        filter_equality_check(is_equality, device_or_parents_have_tag(device, &value_regex))
                     })
                     .collect();
             }
@@ -437,6 +406,11 @@ fn filter_by_remaining_udev_filters(
     mutable_devices
 }
 
+/// Check whether the device should be selected based on equality and field matching
+fn filter_equality_check(is_equality: bool, is_match: bool) -> bool {
+    (is_equality && is_match) || (!is_equality && !is_match)
+}
+
 /// Check to see if the current value is a regex match of the requested value
 fn is_match(test_value: &str, value_regex: &Regex) -> bool {
     if let Some(found_string) = value_regex.find(test_value) {
@@ -446,8 +420,8 @@ fn is_match(test_value: &str, value_regex: &Regex) -> bool {
     }
 }
 
-/// Recursively look up a device's hierarchy to see if it has an ancestor with a specified subsystem.
-pub fn device_or_parent_has_subsystem(device: &impl DeviceExt, value_regex: &Regex) -> bool {
+/// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified subsystem.
+fn device_or_parents_have_subsystem(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     match get_subsystem(device) {
         Some(subsystem) => {
             let subsystem_str = subsystem.to_str().unwrap();
@@ -455,20 +429,20 @@ pub fn device_or_parent_has_subsystem(device: &impl DeviceExt, value_regex: &Reg
                 true
             } else {
                 match get_parent(device) {
-                    Some(parent) => device_or_parent_has_subsystem(&parent, value_regex),
+                    Some(parent) => device_or_parents_have_subsystem(&parent, value_regex),
                     None => false,
                 }
             }
         }
         None => match get_parent(device) {
-            Some(parent) => device_or_parent_has_subsystem(&parent, value_regex),
+            Some(parent) => device_or_parents_have_subsystem(&parent, value_regex),
             None => false,
         },
     }
 }
 
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified attribute.
-pub fn device_in_hierarchy_has_attribute(
+fn device_or_parents_have_attribute(
     device: &impl DeviceExt,
     key: &str,
     value_regex: &Regex,
@@ -480,20 +454,20 @@ pub fn device_in_hierarchy_has_attribute(
                 true
             } else {
                 match get_parent(device) {
-                    Some(parent) => device_in_hierarchy_has_attribute(&parent, key, value_regex),
+                    Some(parent) => device_or_parents_have_attribute(&parent, key, value_regex),
                     None => false,
                 }
             }
         }
         None => match get_parent(device) {
-            Some(parent) => device_in_hierarchy_has_attribute(&parent, key, value_regex),
+            Some(parent) => device_or_parents_have_attribute(&parent, key, value_regex),
             None => false,
         },
     }
 }
 
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified driver.
-pub fn device_in_hierarchy_has_driver(device: &impl DeviceExt, value_regex: &Regex) -> bool {
+fn device_or_parents_have_driver(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     match get_driver(device) {
         Some(driver) => {
             let driver_str = driver.to_str().unwrap();
@@ -501,33 +475,33 @@ pub fn device_in_hierarchy_has_driver(device: &impl DeviceExt, value_regex: &Reg
                 true
             } else {
                 match get_parent(device) {
-                    Some(parent) => device_in_hierarchy_has_driver(&parent, value_regex),
+                    Some(parent) => device_or_parents_have_driver(&parent, value_regex),
                     None => false,
                 }
             }
         }
         None => match get_parent(device) {
-            Some(parent) => device_in_hierarchy_has_driver(&parent, value_regex),
+            Some(parent) => device_or_parents_have_driver(&parent, value_regex),
             None => false,
         },
     }
 }
 
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified sysname aka kernel.
-pub fn device_in_hierarchy_has_sysname(device: &impl DeviceExt, value_regex: &Regex) -> bool {
+fn device_or_parents_have_sysname(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     let sysname = get_sysname(device).to_str().unwrap();
     if is_match(sysname, value_regex) {
         true
     } else {
         match get_parent(device) {
-            Some(parent) => device_in_hierarchy_has_sysname(&parent, value_regex),
+            Some(parent) => device_or_parents_have_sysname(&parent, value_regex),
             None => false,
         }
     }
 }
 
 /// Recursively look up a device's hierarchy to see if or one of its ancestors has a specified tag.
-pub fn device_in_hierarchy_has_tag(device: &impl DeviceExt, value_regex: &Regex) -> bool {
+fn device_or_parents_have_tag(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     if let Some(tags) = get_property_value(device, TAGS) {
         let tags = tags.to_str().unwrap().split(':');
         let mut has_tag = false;
@@ -541,13 +515,13 @@ pub fn device_in_hierarchy_has_tag(device: &impl DeviceExt, value_regex: &Regex)
             true
         } else {
             match get_parent(device) {
-                Some(parent) => device_in_hierarchy_has_tag(&parent, value_regex),
+                Some(parent) => device_or_parents_have_tag(&parent, value_regex),
                 None => false,
             }
         }
     } else {
         match get_parent(device) {
-            Some(parent) => device_in_hierarchy_has_tag(&parent, value_regex),
+            Some(parent) => device_or_parents_have_tag(&parent, value_regex),
             None => false,
         }
     }
