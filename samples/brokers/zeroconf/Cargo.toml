@@ -1,0 +1,18 @@
+[package]
+name = "zeroconf"
+version = "0.1.0"
+authors = ["DazWilkin <daz.wilkin@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "standalone"
+path = "src/main.rs"
+
+[dependencies]
+akri-shared = { path = "../../../shared" }
+clap = "2.33.3"
+futures = "0.3"
+futures-util = "0.3"
+prost = "0.6"
+tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
+tonic = "0.1"

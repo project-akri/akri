@@ -1,0 +1,19 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: zeroconf
+spec:
+  protocol:
+    zeroconf:
+      filter: ""
+      kind: "_http._tcp"
+  capacity: 1
+  brokerPodSpec:
+    imagePullSecrets: # Container Registry secret
+      - name: ghcr
+    containers:
+      - name: zeroconf-broker
+        image: ghcr.io/dazwilkin/akri-zeroconf-broker@
+        resources:
+          limits:
+            "{{PLACEHOLDER}}": "1"
