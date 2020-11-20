@@ -35,7 +35,7 @@ In this guide, you will deploy Akri end-to-end, all the way from discovering loc
 ## Set up a cluster
 
 **Note:** Feel free to deploy on any Kubernetes distribution. Here, find instructions for K3s and MicroK8s. Select and
-carry out one or the other (or adopt to your distribution), then continue on with the rest of the steps. 
+carry out one or the other (or adapt to your distribution), then continue on with the rest of the steps. 
 
 ### Option 1: Set up single node cluster using K3s
 1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
