@@ -15,6 +15,8 @@ In this guide, you will deploy Akri end-to-end, all the way from discovering loc
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
+    When running on Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS, do NOT install v4l2loopback  through `sudo apt install -y v4l2loopback-dkms`, you will get an older version (0.12.3). 0.12.5-1 is required for gstreamer to work properly.
+    
 1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
     ```sh
     sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
