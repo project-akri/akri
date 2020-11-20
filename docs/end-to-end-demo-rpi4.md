@@ -85,7 +85,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh 
     kubectl get akrii -o yaml
     ```
-1. Deploy the steaming web application and watch a pod spin up for the app.
+1. Deploy the streaming web application and watch a pod spin up for the app.
     ```sh
     # This file url is not available while the Akri repo is private.  To get a valid url, open 
     # https://github.com/deislabs/akri/blob/main/deployment/samples/akri-video-streaming-app.yaml
