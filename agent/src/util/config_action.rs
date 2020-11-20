@@ -1,6 +1,8 @@
 use super::super::protocols;
 use super::{
-    constants::{DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS},
+    constants::{
+        DEVICE_PLUGIN_PATH, DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
+    },
     device_plugin_service,
     device_plugin_service::{
         get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
@@ -100,7 +102,7 @@ async fn handle_config(
     match event {
         WatchEvent::Added(config) => {
             info!(
-                "handle_config - added DevCapConfig {}",
+                "handle_config - added Configuration {}",
                 config.metadata.name
             );
             tokio::spawn(async move {
@@ -110,7 +112,7 @@ async fn handle_config(
         }
         WatchEvent::Deleted(config) => {
             info!(
-                "handle_config - deleted DevCapConfig {}",
+                "handle_config - deleted Configuration {}",
                 config.metadata.name,
             );
             handle_config_delete(kube_interface, &config, config_map).await?;
@@ -119,7 +121,7 @@ async fn handle_config(
         // If a config is updated, delete all associated instances and device plugins and then recreate them to reflect updated config
         WatchEvent::Modified(config) => {
             info!(
-                "handle_config - modified DevCapConfig {}",
+                "handle_config - modified Configuration {}",
                 config.metadata.name,
             );
             handle_config_delete(kube_interface, &config, config_map.clone()).await?;
@@ -129,26 +131,26 @@ async fn handle_config(
             Ok(())
         }
         WatchEvent::Error(ref e) => {
-            error!("handle_config - error for DevCapConfig: {}", e);
+            error!("handle_config - error for Configuration: {}", e);
             Ok(())
         }
     }
 }
 
-/// This handles added Congfiguration by creating a new ConfigInfo for it and adding it to the ConfigMap.
+/// This handles added Configuration by creating a new ConfigInfo for it and adding it to the ConfigMap.
 /// Then calls a function to continually observe the availability of instances associated with the Configuration.
 async fn handle_config_add(
     config: &KubeAkriConfig,
     config_map: ConfigMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config_protocol = config.spec.protocol.clone();
-    let discovery_handler = protocols::get_discovery_handler(&config_protocol).unwrap();
-    let discovery_results = discovery_handler.discover().await.unwrap();
+    let discovery_handler = protocols::get_discovery_handler(&config_protocol)?;
+    let discovery_results = discovery_handler.discover().await?;
     let config_name = config.metadata.name.clone();
     let config_uid = config.metadata.uid.as_ref().unwrap().clone();
     let config_namespace = config.metadata.namespace.as_ref().unwrap().clone();
     info!(
-        "handle_config_add - entered for DevCapConfig {} with visible_instances={:?}",
+        "handle_config_add - entered for Configuration {} with visible_instances={:?}",
         config.metadata.name, &discovery_results
     );
     // Create a new instance map for this config and add it to the config map
@@ -171,7 +173,7 @@ async fn handle_config_add(
     let config_spec = config.spec.clone();
     // Keep discovering instances until the config is deleted, signaled by a message from handle_config_delete
     tokio::spawn(async move {
-        let periodic_dicovery = PeriodicDiscovery {
+        let periodic_discovery = PeriodicDiscovery {
             config_name,
             config_uid,
             config_namespace,
@@ -179,11 +181,12 @@ async fn handle_config_add(
             config_protocol,
             instance_map,
         };
-        periodic_dicovery
+        periodic_discovery
             .do_periodic_discovery(
                 &kube_interface,
                 stop_discovery_receiver,
                 finished_discovery_sender,
+                DEVICE_PLUGIN_PATH,
             )
             .await
             .unwrap();
@@ -322,6 +325,7 @@ impl PeriodicDiscovery {
         kube_interface: &impl KubeInterface,
         mut stop_discovery_receiver: mpsc::Receiver<()>,
         finished_discovery_sender: broadcast::Sender<()>,
+        device_plugin_path: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
             "do_periodic_discovery - start for config {}",
@@ -373,6 +377,7 @@ impl PeriodicDiscovery {
                         shared,
                         instance_properties,
                         instance_map,
+                        device_plugin_path,
                     )
                     .await
                     {
@@ -495,6 +500,7 @@ mod config_action_tests {
     use akri_shared::k8s::test_kube::MockKubeImpl;
     use protocols::debug_echo::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use std::{env, fs};
+    use tempfile::Builder;
     use tokio::sync::broadcast;
 
     async fn build_instance_map(
@@ -767,8 +773,16 @@ mod config_action_tests {
                 config_protocol: protocol,
                 instance_map: instance_map_clone,
             };
+            let device_plugin_temp_dir =
+                Builder::new().prefix("device-plugins-").tempdir().unwrap();
+            let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
             periodic_dicovery
-                .do_periodic_discovery(&mock, watch_periph_rx, finished_watching_tx)
+                .do_periodic_discovery(
+                    &mock,
+                    watch_periph_rx,
+                    finished_watching_tx,
+                    device_plugin_temp_dir_path,
+                )
                 .await
                 .unwrap();
         });

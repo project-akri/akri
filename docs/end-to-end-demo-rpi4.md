@@ -48,12 +48,9 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```
 1. Install Gstreamer main packages
     ```sh
-    sudo apt-get install -y libgstreamer1.0-0 gstreamer1.0-dev gstreamer1.0-tools \
-                            gstreamer1.0-doc gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-                            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-                            gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools \
-                            gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 \
-                            gstreamer1.0-qt5 gstreamer1.0-pulseaudio 
+    sudo apt-get install -y \
+        libgstreamer1.0-0 gstreamer1.0-tools gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good gstreamer1.0-libav
     ```
 1. Open two new terminals (one for each fake video device), and in each terminal ssh into your Rasperry Pi.
 1. In one terminal, stream a test video of a white ball moving around a black background from the first fake video device.
@@ -75,7 +72,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
         --set useLatestContainers=true \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
-        --set udev.udevRules[0]='KERNEL==\"video[0-9]*\"' \
+        --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
         --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     watch kubectl get pods,akric,akrii -o wide
     ```
@@ -88,7 +85,7 @@ This demo will demonstrate how to get Akri working on a **Raspberry Pi 4**, all 
     ```sh 
     kubectl get akrii -o yaml
     ```
-1. Deploy the steaming web application and watch a pod spin up for the app.
+1. Deploy the streaming web application and watch a pod spin up for the app.
     ```sh
     # This file url is not available while the Akri repo is private.  To get a valid url, open 
     # https://github.com/deislabs/akri/blob/main/deployment/samples/akri-video-streaming-app.yaml
