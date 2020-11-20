@@ -352,7 +352,10 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        filter_equality_check(is_equality, device_or_parents_have_subsystem(device, &value_regex))
+                        filter_equality_check(
+                            is_equality,
+                            device_or_parents_have_subsystem(device, &value_regex),
+                        )
                     })
                     .collect();
             }
@@ -370,7 +373,10 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        filter_equality_check(is_equality, device_or_parents_have_attribute(device, key, &value_regex))
+                        filter_equality_check(
+                            is_equality,
+                            device_or_parents_have_attribute(device, key, &value_regex),
+                        )
                     })
                     .collect();
             }
@@ -378,7 +384,10 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        filter_equality_check(is_equality, device_or_parents_have_driver(device, &value_regex))
+                        filter_equality_check(
+                            is_equality,
+                            device_or_parents_have_driver(device, &value_regex),
+                        )
                     })
                     .collect();
             }
@@ -386,7 +395,10 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        filter_equality_check(is_equality, device_or_parents_have_sysname(device, &value_regex))
+                        filter_equality_check(
+                            is_equality,
+                            device_or_parents_have_sysname(device, &value_regex),
+                        )
                     })
                     .collect();
             }
@@ -394,7 +406,10 @@ fn filter_by_remaining_udev_filters(
                 mutable_devices = mutable_devices
                     .into_iter()
                     .filter(|device| {
-                        filter_equality_check(is_equality, device_or_parents_have_tag(device, &value_regex))
+                        filter_equality_check(
+                            is_equality,
+                            device_or_parents_have_tag(device, &value_regex),
+                        )
                     })
                     .collect();
             }
