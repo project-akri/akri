@@ -276,7 +276,7 @@ fn filter_by_remaining_udev_filters(
                     .into_iter()
                     .filter(|device| {
                         let devpath = get_devpath(device).to_str().unwrap();
-                        !is_match(devpath, &value_regex)
+                        !is_regex_match(devpath, &value_regex)
                     })
                     .collect();
             }
@@ -286,7 +286,7 @@ fn filter_by_remaining_udev_filters(
                     .into_iter()
                     .filter(|device| {
                         let sysname = get_sysname(device).to_str().unwrap();
-                        !is_match(sysname, &value_regex)
+                        !is_regex_match(sysname, &value_regex)
                     })
                     .collect();
             }
@@ -300,7 +300,7 @@ fn filter_by_remaining_udev_filters(
                             // Return false if discover a tag that should be excluded
                             let mut include = true;
                             for tag in tags {
-                                if is_match(tag, &value_regex) {
+                                if is_regex_match(tag, &value_regex) {
                                     include = false;
                                     break;
                                 }
@@ -329,7 +329,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| {
                         if let Some(property_value) = get_property_value(device, key) {
                             let property_value_str = property_value.to_str().unwrap();
-                            !is_match(property_value_str, &value_regex)
+                            !is_regex_match(property_value_str, &value_regex)
                         } else {
                             true
                         }
@@ -342,7 +342,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| match get_driver(device) {
                         Some(driver) => {
                             let driver = driver.to_str().unwrap();
-                            filter_equality_check(is_equality, is_match(driver, &value_regex))
+                            filter_equality_check(is_equality, is_regex_match(driver, &value_regex))
                         }
                         None => !is_equality,
                     })
@@ -426,10 +426,12 @@ fn filter_equality_check(is_equality: bool, is_match: bool) -> bool {
     (is_equality && is_match) || (!is_equality && !is_match)
 }
 
-/// Check to see if the current value is a regex match of the requested value
-fn is_match(test_value: &str, value_regex: &Regex) -> bool {
-    if let Some(found_string) = value_regex.find(test_value) {
-        found_string.start() == 0 && found_string.end() == test_value.len()
+/// Check to see if the current value is a regex match of the requested value.
+/// Ensure that the match is exclusively on the value to be tested. For example, for the regex `video[0-9]*`,
+/// the values `video0` and `video10` should match; however, `blahvideo0blah` should not be accepted as a match.
+fn is_regex_match(test_value: &str, value_regex: &Regex) -> bool {
+    if let Some(value_containing_match) = value_regex.find(test_value) {
+        value_containing_match.start() == 0 && value_containing_match.end() == test_value.len()
     } else {
         false
     }
@@ -440,7 +442,7 @@ fn device_or_parents_have_subsystem(device: &impl DeviceExt, value_regex: &Regex
     match get_subsystem(device) {
         Some(subsystem) => {
             let subsystem_str = subsystem.to_str().unwrap();
-            if is_match(subsystem_str, value_regex) {
+            if is_regex_match(subsystem_str, value_regex) {
                 true
             } else {
                 match get_parent(device) {
@@ -465,7 +467,7 @@ fn device_or_parents_have_attribute(
     match get_attribute_value(device, key) {
         Some(attribute_value) => {
             let attribute_value_str = attribute_value.to_str().unwrap();
-            if is_match(attribute_value_str, value_regex) {
+            if is_regex_match(attribute_value_str, value_regex) {
                 true
             } else {
                 match get_parent(device) {
@@ -486,7 +488,7 @@ fn device_or_parents_have_driver(device: &impl DeviceExt, value_regex: &Regex) -
     match get_driver(device) {
         Some(driver) => {
             let driver_str = driver.to_str().unwrap();
-            if is_match(driver_str, value_regex) {
+            if is_regex_match(driver_str, value_regex) {
                 true
             } else {
                 match get_parent(device) {
@@ -505,7 +507,7 @@ fn device_or_parents_have_driver(device: &impl DeviceExt, value_regex: &Regex) -
 /// Recursively look up a device's hierarchy to see if it or one of its ancestors has a specified sysname aka kernel.
 fn device_or_parents_have_sysname(device: &impl DeviceExt, value_regex: &Regex) -> bool {
     let sysname = get_sysname(device).to_str().unwrap();
-    if is_match(sysname, value_regex) {
+    if is_regex_match(sysname, value_regex) {
         true
     } else {
         match get_parent(device) {
@@ -521,7 +523,7 @@ fn device_or_parents_have_tag(device: &impl DeviceExt, value_regex: &Regex) -> b
         let tags = tags.to_str().unwrap().split(':');
         let mut has_tag = false;
         for tag in tags {
-            if is_match(tag, value_regex) {
+            if is_regex_match(tag, value_regex) {
                 has_tag = true;
                 break;
             }
