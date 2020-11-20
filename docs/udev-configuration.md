@@ -44,9 +44,13 @@ To test which devices Akri will discover with a udev rule, you can run the rule 
     sudo udevadm control --reload
     sudo udevadm trigger
     ```
-1. List the devices that have been tagged, which Akri will discover.
+1. List the devices that have been tagged, which Akri will discover. Akri will only discover devices with device nodes (devices within the `/dev` directory). These device node paths will be mounted into broker Pods so the brokers can utilize the devices.
     ```sh
-    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag | xargs -l bash -c 'if [ -e $0/dev ]; then echo $0/dev; fi'
+    ```
+1. Explore the attributes of each device in order to decide how to refine your udev rule.
+    ```sh
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag | xargs -l bash -c 'if [ -e $0/dev ]; then echo $0; fi' | xargs -l bash -c 'udevadm info --path=$0 --attribute-walk' | less
     ```
 1. Modify the rule as needed, being sure to reload and trigger the rules each time.
 1. Remove the tag from the devices -- note how  `+=` turns to `-=` -- and reload and trigger the udev rules. Alternatively, if you are trying to discover devices with fields that Akri does not yet support, such as `ATTRS`, you could leave the tag and add it to the rule in your Configuration with `TAG=="akri_tag"`.
