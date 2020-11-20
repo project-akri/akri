@@ -38,7 +38,7 @@ impl ZeroConfDiscoveryHandler {
 #[async_trait]
 impl DiscoveryHandler for ZeroConfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
-        println!("[zeroconf::discover] Entered");
+        println!("[zeroconf:discover] Entered");
 
         let mut browser = MdnsBrowser::new(&self.discovery_handler_config.kind);
 
