@@ -2,6 +2,11 @@
 In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabbing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
 ## Set up mock udev video devices
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the
+   commands. If you would like to deploy the demo to a cloud-based VM, see the
+   instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute
+   Engine](end-to-end-demo-gce.md) (and you can skip the rest of the steps in
+   this document).
 1. To make dummy video4linux devices, install the v4l2loopback kernel module and its prerequisites. Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
     sudo apt update
@@ -38,7 +43,6 @@ In this guide, you will deploy Akri end-to-end, all the way from discovering loc
 carry out one or the other (or adapt to your distribution), then continue on with the rest of the steps. 
 
 ### Option 1: Set up single node cluster using K3s
-1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
 1. Install [K3s](https://k3s.io/) v1.18.9+k3s1.
     ```sh
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.18.9+k3s1 sh -
@@ -68,7 +72,6 @@ carry out one or the other (or adapt to your distribution), then continue on wit
     ```
 
 ### Option 2: Set up single node cluster using MicroK8s
-1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute Engine](end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
