@@ -56,8 +56,8 @@ To test which devices Akri will discover with a udev rule, you can run the rule 
 1. Remove the tag from the devices -- note how  `+=` turns to `-=` -- and reload and trigger the udev rules. Alternatively, if you are trying to discover devices with fields that Akri does not yet support, such as `ATTRS`, you could leave the tag and add it to the rule in your Configuration with `TAG=="akri_tag"`.
     ```sh
       sudo echo 'SUBSYSTEM=="sound", KERNEL=="card[0-9]*", TAG-="akri_tag"' | sudo tee -a /etc/udev/rules.d/90-akri.rules
-      udevadm control --reload
-      udevadm trigger
+      sudo udevadm control --reload
+      sudo udevadm trigger
     ```
 1. Confirm that the tag has been removed and no devices are listed.
     ```sh 
