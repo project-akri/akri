@@ -40,6 +40,9 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
         println!("[zeroconf:discover] Entered");
 
+        // TODO(dazwilkin) Apply filter, domain etc. to browser
+        // TODO(dazwilkin) Validate kind: Kubernetes only supports TCP, UDP and SCTP
+
         let mut browser = MdnsBrowser::new(&self.discovery_handler_config.kind);
 
         // Channel for results
@@ -69,6 +72,8 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
             event_loop.poll(Duration::from_secs(0)).unwrap();
         }
         println!("[zeroconf:discovery] Stopped browsing");
+        // Explicitly drop browser to close the channel to ensure receive iteration completes
+        drop(browser);
 
         // Receive
         println!("[zeroconf:discovery] Iterating over services");
@@ -86,6 +91,8 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
                 DiscoveryResult::new(service.host_name(), props, true)
             })
             .collect::<Vec<DiscoveryResult>>();
+
+        println!("[zeroconf:discovery] Result: {:?}", result);
         Ok(result)
     }
     fn are_shared(&self) -> Result<bool, Error> {
