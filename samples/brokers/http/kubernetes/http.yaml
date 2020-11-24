@@ -9,10 +9,10 @@ spec:
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
-      - name: [[REPLACE]]
+      - name: SECRET
     containers:
       - name: http-broker
-        image: ghcr.io/dazwilkin/akri-http-broker@sha256:ae647dab0d686bafaaec4b1c7cc1fdb1d42fa68242c447ac72eac3db6ef62e7b
+        image: IMAGE
         resources:
           limits:
             "{{PLACEHOLDER}}": "1"

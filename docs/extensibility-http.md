@@ -155,17 +155,28 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-contr
 ```bash
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri-http-broker"
-TAG="..."
+REPO="akri" # Or your preferred GHCR repo prefix
+TAGS="v1"
 
 docker build \
---tag=${HOST}/${USER}/${REPO}:${TAG} \
+--tag=${HOST}/${USER}/${REPO}:${TAGS} \
 --file=./samples/brokers/http/Dockerfile \
 . && \
-docker push ${HOST}/${USER}/${REPO}:${TAG}
+docker push ${HOST}/${USER}/${REPO}-broker:${TAGS}
 ```
 
-Revise `./samples/brokers/http/http.yaml` to reflect `${IMAGE}:${TAG}`
+Revise `./samples/brokers/http/kubernetes/http.yaml` to reflect the image and the digest.
+
+You may manually confirm the image and digest using the output from the build or push commands, or:
+
+```bash
+IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-broker:${TAGS})"
+
+sed \
+--in-place \
+"s|IMAGE|${IMAGE}|g"
+./samples/brokers/http/kubernetes/http.yaml
+```
 
 > **NOTE** If you're using a non-public repo, you can create an `imagePullSecret` to authenticate
 
@@ -179,12 +190,12 @@ https://github.com/[[GITHUB-USER]]?tab=packages
 ## Deploy Device(s) & Discovery
 
 ```bash
-git clone --branch http-extensibility https://github.com/DazWilkin/akri-http
+git clone https://github.com/DazWilkin/akri-http
 cd akri-http
 
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri" # Or your preferred GHCR repo
+REPO="akri" # Or your preferred GHCR repo prefix
 TAGS="v1"
 
 for APP in "device" "discovery"
@@ -197,7 +208,20 @@ do
 done
 ```
 
-Revise `./kubernetes/v2/device.yaml` and `./kubernetes/v2/discovery.yaml` to reflect the correct `image` values.
+Revise `./kubernetes/v2/device.yaml` and `./kubernetes/v2/discovery.yaml` to reflect the image and digest values.
+
+You may manually confirm the image and digest using the output from the build or push commands, or:
+
+```bash
+for APP in "device" "discovery"
+do
+  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-${APP}:${TAGS})"
+  sed \
+  --in-place \
+  "s|IMAGE|${IMAGE}|g"
+  ./kubernetes/#{APP}.yaml
+done
+```
 
 Then apply `device.yaml` to create a Deployment (called `device`) and a Pod (called `device-...`):
 
