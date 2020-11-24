@@ -200,15 +200,6 @@ jobs:
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
     
-    # When event_name==release, the Helm chart is named 'akri'
-    - if: github.event_name == 'release'
-      name: Pull akri helm chart when event_name == release
-      run: echo akri > /tmp/chart_name.txt
-    # When event_name!=release, the Helm chart is named 'akri-dev'
-    - if: github.event_name != 'release'
-      name: Pull akri-dev helm chart when event_name != release
-      run: echo akri-dev > /tmp/chart_name.txt
-
     # For push and release, we need to wait for the Helm chart and
     # associated containers to build.
     - if: github.event_name == 'push' || github.event_name == 'release'
@@ -228,6 +219,26 @@ jobs:
     - if: (!(startsWith(github.event_name, 'pull_request')))
       name: Use current version for push
       run: cat version.txt > /tmp/version_to_test.txt
+
+    # For pull_request and pull_request_target, use the files in deployment/helm
+    # as basis for helm install ... this enables us to test any changes made to the
+    # helm chart files in a PR (where no helm chart is published)
+    - if: startsWith(github.event_name, 'pull_request')
+      name: Tell Helm to use the files in deployment/helm to build chart
+      run: |
+        echo './deployment/helm' > /tmp/helm_chart_location.txt
+    # For push, use a specific version of the `akri` charts that are built and
+    # published by the helm workflow.
+    - if: (!(startsWith(github.event_name, 'pull_request')))
+      name: Tell Helm to use the published charts
+      run: |
+        echo "akri-helm-charts/akri-dev --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
+    # For release, use a specific version of the `akri` charts that are built and
+    # published by the helm workflow.
+    - if: (!(startsWith(github.event_name, 'pull_request')))
+      name: Tell Helm to use the published charts
+      run: |
+        echo "akri-helm-charts/akri --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
 
     - name: Execute test script ${{ matrix.test-file }}
       run: python ${{ matrix.test-file }}
