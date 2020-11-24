@@ -41,7 +41,7 @@ RUN apt-get update && \
 
 COPY --from=build /${BROKER}/target/release/broker /broker
 
-LABEL org.opencontainers.image.source https://github.com/dazwilkin/akri
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
 
 # Expose port used by broker service
 EXPOSE 8084

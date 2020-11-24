@@ -160,7 +160,7 @@ TAGS="v1"
 
 docker build \
 --tag=${HOST}/${USER}/${REPO}:${TAGS} \
---file=./samples/brokers/http/Dockerfile \
+--file=./samples/brokers/http/Dockerfiles/standlone \
 . && \
 docker push ${HOST}/${USER}/${REPO}-broker:${TAGS}
 ```
@@ -350,8 +350,6 @@ customresourcedefinition.apiextensions.k8s.io/instances.akri.sh
 
 Now we can deploy the (standlone) broker.
 
-Ensure the `image` value is correct.
-
 ```bash
 kubectl apply --filename=./kubernetes/http.yaml
 ```
@@ -387,11 +385,42 @@ When you're done, you may delete the standalone broker:
 kubectl delete --filename=./http.yaml
 ```
 
+## Build|Push gRPC Broker and Client
+
+```bash
+HOST="ghcr.io"
+USER=[[GITHUB-USER]]
+REPO="akri" # Or your preferred GHCR repo prefix
+TAGS="v1"
+
+for APP in "broker" "client"
+do
+  docker build \
+  --tag=${HOST}/${USER}/${REPO}-${APP}:${TAGS} \
+  --file=./samples/brokers/http/Dockerfiles/grpc.${APP} \
+  . && \
+  docker push ${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS}
+done
+```
+
+Revise `./samples/brokers/http/kubernetes/http.grpc.broker.yaml` and `./samples/brokers/http/kubernetes/http.grpc.client.yaml` to reflect the image and the digest values.
+
+You may manually confirm the image and digest using the output from the build or push commands, or:
+
+```bash
+for APP in "broker" "client"
+do
+  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS})"
+  sed \
+  --in-place \
+  "s|IMAGE|${IMAGE}|g"
+  ./samples/brokers/http/kubernetes/http.grpc.${APP}.yaml
+done
+```
+
 ## Deploy gRPC Broker and Client
 
 Now we can deploy the gRPC-enabled broker. This broker implements a gRPC server (defined by `./proto/http.proto`) and provides a demonstration of how a broker could surface a device API to other resources in a Kubernetes cluster. In this case, a straightforward gRPC client.
-
-Ensure the image value is correct.
 
 ```bash
 kubectl apply --filename=./kubernetes/http.grpc.broker.yaml

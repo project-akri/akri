@@ -9,10 +9,10 @@ spec:
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # GitHub Container Registry secret
-      - name: ghcr
+      - name: SECRET
     containers:
       - name: http-grpc-broker-rust
-        image: ghcr.io/dazwilkin/http-grpc-broker-rust@sha256:a4a7494aef44b49bd08f371add41db917553391ea397c60e9b4d213545b94f4e
+        image: IMAGE
         args:
           - --grpc_endpoint=0.0.0.0:50051
         resources:
