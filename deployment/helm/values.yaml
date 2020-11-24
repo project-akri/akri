@@ -197,6 +197,7 @@ udev:
       # repository is the container reference
       repository:
       pullPolicy: Always
+    securityContext: {}
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true

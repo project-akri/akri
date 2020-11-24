@@ -67,7 +67,9 @@ Now, tell the broker to stream JPEG format, 1000x800 resolution, and 30 frames p
     -f env.yaml
 ```
 
-**Note:** that udev broker pods must run as privileged in order for udev to be able to access the video device.
+**Note:** The udev video broker pods run privileged in order to access the video devices. More explicit device access
+   could have been configured by setting the appropriate [security
+   context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec in the Configuration.
 
 Reference [Customizing an Akri Installation](./customizing-akri-installation.md#modifying-the-brokerpodspec) for more examples of how the broker spec can be modified. 
 

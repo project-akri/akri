@@ -97,7 +97,10 @@ carry out one or the other (or adapt to your distribution), then continue on wit
     alias kubectl='microk8s kubectl'
     alias helm='microk8s helm3'
     ```
-1. Enable privileged pods and restart microk8s.
+1. For the sake of this demo, the udev video broker pods run privileged to easily grant them access to video devices, so
+   enable privileged pods and restart MicroK8s. More explicit device access could have been configured by setting the
+   appropriate [security context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec
+   in the Configuration.
     ```sh
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
     microk8s.stop
