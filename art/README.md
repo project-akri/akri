@@ -3,7 +3,8 @@
 
 ## Logo
 
-<img width="381" alt="akri-logos" src="https://user-images.githubusercontent.com/686194/100136148-7d9a1780-2e3f-11eb-90ab-0785ca21a0c1.png">
+![Screen Shot 2020-11-24 at 11 10 44 AM](https://user-images.githubusercontent.com/686194/100140376-b6d58600-2e45-11eb-877a-ca135eed7d6f.png)
+
 
 ---
 
