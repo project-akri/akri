@@ -291,7 +291,7 @@ Deploy the revised (!) Helm Chart to your cluster:
 
 ```bash
 HOST="ghcr.io"
-USER="..."
+USER="[[GITHUB-USER]]"
 REPO="${HOST}/${USER}"
 
 sudo microk8s.helm3 install akri ./akri/deployment/helm \
