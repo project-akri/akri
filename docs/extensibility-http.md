@@ -184,7 +184,7 @@ cd akri-http
 
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri-http" # Or your preferred GHCR repo
+REPO="akri" # Or your preferred GHCR repo
 TAGS="v1"
 
 for APP in "device" "discovery"
