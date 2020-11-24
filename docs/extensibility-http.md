@@ -179,7 +179,7 @@ https://github.com/[[GITHUB-USER]]?tab=packages
 ## Deploy Device(s) & Discovery
 
 ```bash
-git clone https://github.com/DazWilkin/akri-http
+git clone --branch http-extensibility https://github.com/DazWilkin/akri-http
 cd akri-http
 
 HOST="ghcr.io"
