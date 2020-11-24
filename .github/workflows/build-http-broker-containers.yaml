@@ -3,7 +3,7 @@ name: "Build HTTP Protocol Brokers"
 on:
   push:
     branches:
-      - main
+      - http-extensibility
 
 jobs:
   standalone:
