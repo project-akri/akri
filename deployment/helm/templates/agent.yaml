@@ -61,8 +61,6 @@ spec:
             mountPath: /host/var/run/dockershim.sock
           - name: devices
             mountPath: /run/udev
-        securityContext:
-          privileged: true
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
