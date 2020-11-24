@@ -274,17 +274,6 @@ kubectl expose deployment/discovery \
 >
 > This should return a list of 9 devices, of the form `http://device-X:8080`
 
-## Revise Helm Deployment
-
-For the agent to correctly resolve in-cluster DNS addresses and use host networking, we need to add `dnsPolicy: ClusterFirstWithHostNet` in the agent's spec:
-
-```bash
-sed \
---in-place \
-'s|\s\{6\}hostNetwork: true|      hostNetwork: true\n      dnsPolicy: ClusterFirstWithHostNet|g' \
-./akri/deployment/helm/templates/agent.yaml
-```
-
 ## Deploy Akri
 
 > Optional: If you've previous installed Akri and wish to reset, you may:
