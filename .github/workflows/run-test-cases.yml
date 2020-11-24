@@ -220,23 +220,24 @@ jobs:
       name: Use current version for push
       run: cat version.txt > /tmp/version_to_test.txt
 
-    # For pull_request and pull_request_target, use the files in deployment/helm
-    # as basis for helm install ... this enables us to test any changes made to the
-    # helm chart files in a PR (where no helm chart is published)
-    - if: startsWith(github.event_name, 'pull_request')
+    # For workflow_dispatch, pull_request and pull_request_target, use the files
+    # in deployment/helm as basis for helm install ... this enables us to test
+    # any changes made to the helm chart files in a PR (where no helm chart is
+    # published)
+    - if: github.event_name != 'push' && github.event_name != 'release'
       name: Tell Helm to use the files in deployment/helm to build chart
       run: |
         echo './deployment/helm' > /tmp/helm_chart_location.txt
-    # For push, use a specific version of the `akri` charts that are built and
+    # For push, use a specific version of the `akri-dev` charts that are built and
     # published by the helm workflow.
-    - if: (!(startsWith(github.event_name, 'pull_request')))
-      name: Tell Helm to use the published charts
+    - if: github.event_name == 'push'
+      name: Tell Helm to use the `akri-dev` published charts
       run: |
         echo "akri-helm-charts/akri-dev --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
     # For release, use a specific version of the `akri` charts that are built and
     # published by the helm workflow.
-    - if: (!(startsWith(github.event_name, 'pull_request')))
-      name: Tell Helm to use the published charts
+    - if: github.event_name == 'release'
+      name: Tell Helm to use the `akri` published charts
       run: |
         echo "akri-helm-charts/akri --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
 
