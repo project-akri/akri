@@ -12,6 +12,7 @@ on:
     - .github/workflows/run-test-cases.yml
     - build/containers/Dockerfile.agent
     - build/containers/Dockerfile.controller
+    - deployment/helm/**
     - agent/**
     - controller/**
     - shared/**
@@ -29,6 +30,7 @@ on:
     - .github/workflows/run-test-cases.yml
     - build/containers/Dockerfile.agent
     - build/containers/Dockerfile.controller
+    - deployment/helm/**
     - agent/**
     - controller/**
     - shared/**
@@ -46,6 +48,7 @@ on:
     - .github/workflows/run-test-cases.yml
     - build/containers/Dockerfile.agent
     - build/containers/Dockerfile.controller
+    - deployment/helm/**
     - agent/**
     - controller/**
     - shared/**
