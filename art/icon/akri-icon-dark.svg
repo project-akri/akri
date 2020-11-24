@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="2155px" height="2155px" viewBox="0 0 2155 2155" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 51.3 (57544) - http://www.bohemiancoding.com/sketch -->
+    <title>icon dark</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <polygon id="path-1" points="736.510909 1260.07374 0.216278296 834.666207 0.216278296 0.874579505 736.510909 431.494059"></polygon>
+        <polygon id="path-3" points="733.557714 1260.23238 0.3536796 831.62714 0.3536796 0.0387190034 733.557714 433.855901"></polygon>
+        <polygon id="path-5" points="736.083211 0.0979766184 1471.32355 430.848978 736.083211 861.59998 0.842867565 430.848978"></polygon>
+    </defs>
+    <g id="icon-dark" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Cube-Main" transform="translate(1083.218465, 1066.562500) scale(-1, -1) translate(-1083.218465, -1066.562500) translate(346.718465, 220.562500)">
+            <g id="triange" transform="translate(734.196900, 0.031032)">
+                <mask id="mask-2" fill="white">
+                    <use xlink:href="#path-1"></use>
+                </mask>
+                <use id="Rectangle-5" fill="#3FB594" xlink:href="#path-1"></use>
+                <polyline id="Path-5" stroke="#FFFFFF" stroke-width="109" fill-rule="nonzero" mask="url(#mask-2)" transform="translate(285.095151, 800.027778) scale(1, -1) rotate(299.000000) translate(-285.095151, -800.027778) " points="1240.44547 1021.93532 972.874905 1078.73993 548.587221 827.39919 194.007283 1033.35933 -325.332147 729.166046 -72.6794314 594.974944 186.785428 739.221966 446.298925 597.347313 -65.3059188 287.585607 -829.358126 715.507624 183.583538 1312.46995 1399.54843 623.276825"></polyline>
+                <path d="M44.64817,647.048961 L44.64817,379.333567" id="Path-2" stroke="#FFFFFF" stroke-width="138" fill-rule="nonzero" mask="url(#mask-2)"></path>
+            </g>
+            <g id="circle" transform="translate(1.263369, 0.436885)">
+                <mask id="mask-4" fill="white">
+                    <use xlink:href="#path-3"></use>
+                </mask>
+                <use id="Rectangle-5" fill="#0AABA9" transform="translate(366.955697, 630.135549) scale(-1, 1) translate(-366.955697, -630.135549) " xlink:href="#path-3"></use>
+                <polyline id="Path-5" stroke="#EAE9F0" stroke-width="125" fill-rule="nonzero" mask="url(#mask-4)" points="1060.66458 -343.727553 1057.29972 1041.79778 62.7735073 1616.11716 62.6381487 718.475054 558.540644 435.673354 558.540427 709.293819 304.114372 858.572057 304.114372 1180.93051 806.684854 898.635274 802.2742 19.8918889 -177.537408 603.058312 -160.292889 1998.42991"></polyline>
+            </g>
+            <g id="square" transform="translate(0.168183, 829.292558)">
+                <mask id="mask-6" fill="white">
+                    <use xlink:href="#path-5"></use>
+                </mask>
+                <g id="Rectangle-5"></g>
+                <polyline id="Path-5" stroke="#FFFFFF" stroke-width="107" fill-rule="nonzero" mask="url(#mask-6)" points="-645.536427 173.528804 553.766141 -505.750237 1493.36727 70.8353445 738.097123 499.083189 342.708818 272.319238 600.756637 122.178758 736.509685 206.734466 993.584745 64.7507504 536.809374 -213.994616 -244.400692 212.880336 736.035938 786.57615 1897.97848 108.734139"></polyline>
+                <g id="Group" mask="url(#mask-6)" fill-rule="nonzero" stroke="#3E446F" stroke-width="122">
+                    <g transform="translate(957.368973, 191.190681)" id="Path-3">
+                        <path d="M0.554032202,0.24283902 L278.290844,163.399806"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
