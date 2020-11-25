@@ -139,7 +139,7 @@ specs](./customizing-akri-installation.md#modifying-instanceservicespec-or-confi
 ### Setting the broker Pod security context
 By default in the generic udev Configuration, the udev broker is run in privileged security context. This container
 [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) can be customized via
-Helm. For example, to instead run all processes in the Pod with user ID 1000 and group 3000, do the following: 
+Helm. For example, to instead run all processes in the Pod with user ID 1000 and group 1000, do the following: 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
