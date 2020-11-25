@@ -148,7 +148,7 @@ helm install akri akri-helm-charts/akri-dev \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.brokerPod.image.repository=nginx \
     --set udev.brokerPod.securityContext.runAsUser=1000 \
-    --set udev.brokerPod.securityContext.runAsGroup=3000
+    --set udev.brokerPod.securityContext.runAsGroup=1000
 ```
 
 ## Disabling automatic service creation
