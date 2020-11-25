@@ -4,16 +4,20 @@ This directory provides implementations of IoT devices and a discovery service t
 
 This directory includes an alternative gRPC implementation of the Akri HTTP Protocol gRPC Broker and a Client too.
 
-## Build
-
-The images are built by GitHub Actions in the repository but, you may also build them yourself using:
+## Environment
 
 ```bash
 export REGISTRY="ghcr.io"
 export USER=[[GITHUB-USER]]
 export PREFIX="akri-http" # Or ...
 export TAG=$(git rev-parse HEAD) # Or ...
+```
 
+## Build
+
+The images are built by GitHub Actions in the repository but, you may also build them yourself using:
+
+```bash
 ./build.sh
 ```
 
@@ -36,11 +40,6 @@ There are two applications:
 You may run the images standalone:
 
 ```bash
-REGISTRY="ghcr.io"
-USER=[[GITHUB-USER]]
-PREFIX="akri-http"
-TAG=$(git rev-parse HEAD)
-
 # Create devices on ports 8000:8009
 DISCOVERY=()
 for PORT in {8000..8009}
