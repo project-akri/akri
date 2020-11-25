@@ -190,7 +190,7 @@ docker run \
 --net=host \
 --name=grpc-broker-golang \
 --env=AKRI_HTTP_DEVICE_ENDPOINT=localhost:8005 \
-${REGISTRY}/${USER}/${PREFIX}-grpc-broker-golang:${TAG} \
+${REGISTRY}/${USER}/${PREFIX}-grpc-broker:${TAG} \
 --grpc_endpoint=:50051
 ```
 
@@ -201,7 +201,7 @@ docker run \
 --rm --interactive --tty \
 --net=host \
 --name=grpc-client-golang \
-${REGISTRY}/${USER}/${PREFIX}-grpc-client-golang:${TAG} \
+${REGISTRY}/${USER}/${PREFIX}-grpc-client:${TAG} \
 --grpc_endpoint=:50051
 ```
 
@@ -214,7 +214,7 @@ You will need to replace `IMAGE` and `SECRET` in the Kubernetes configs before y
 ```bash
 for APP in "broker" "client"
 do
-  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${REGISTRY}/${USER}/${PREFIX}-${APP}:${TAG})"
+  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${REGISTRY}/${USER}/${PREFIX}-grpc-${APP}:${TAG})"
   sed \
   --in-place \
   "s|IMAGE|${IMAGE}|g"
