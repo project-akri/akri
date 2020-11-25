@@ -190,8 +190,7 @@ https://github.com/[[GITHUB-USER]]?tab=packages
 ## Deploy Device(s) & Discovery
 
 ```bash
-git clone https://github.com/DazWilkin/akri-http
-cd akri-http
+cd ./samples/apps/http-apps
 
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
@@ -202,7 +201,7 @@ for APP in "device" "discovery"
 do
   docker build \
   --tag=${HOST}/${USER}/${REPO}-${APP}:${TAGS} \
-  --file=./cmd/${APP}/Dockerfile \
+  --file=./Dockerfiles/${APP} \
   .
   docker push ${HOST}/${USER}/${REPO}-${APP}:${TAGS}
 done
