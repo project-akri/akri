@@ -207,7 +207,7 @@ do
 done
 ```
 
-Revise `./kubernetes/v2/device.yaml` and `./kubernetes/v2/discovery.yaml` to reflect the image and digest values.
+Revise `./kubernetes/device.yaml` and `./kubernetes/discovery.yaml` to reflect the image and digest values.
 
 You may manually confirm the image and digest using the output from the build or push commands, or:
 
