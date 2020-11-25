@@ -317,7 +317,7 @@ Deploy the revised (!) Helm Chart to your cluster:
 HOST="ghcr.io"
 USER="[[GITHUB-USER]]"
 REPO="${HOST}/${USER}"
-VERS="$(cat version.txt)"
+VERS="v$(cat version.txt)-amd64"
 
 sudo microk8s.helm3 install akri ./akri/deployment/helm \
 --set imagePullSecrets[0].name="${HOST}" \
@@ -327,7 +327,7 @@ sudo microk8s.helm3 install akri ./akri/deployment/helm \
 --set controller.image.tag="${VERS}"
 ```
 
-> **NOTE** the Akri version (e.g. `v0.0.41`) is reflected in `./version.txt`
+> **NOTE** the Akri SemVer (e.g. `0.0.41`) is reflected in `./version.txt` but the tags must be prefixed with `v` and postfixed with the architecture (e.g. `-amd64`)
 
 Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...` and that they're both `RUNNING`.
 
