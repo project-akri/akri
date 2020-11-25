@@ -15,7 +15,7 @@ pub struct HTTPDiscoveryHandler {
 }
 impl HTTPDiscoveryHandler {
     pub fn new(discovery_handler_config: &HTTPDiscoveryHandlerConfig) -> Self {
-        println!("[http:new] Entered");
+        trace!("[http:new] Entered");
         HTTPDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
@@ -25,10 +25,10 @@ impl HTTPDiscoveryHandler {
 
 impl DH for HTTPDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DR>, failure::Error> {
-        println!("[http:discover] Entered");
+        trace!("[http:discover] Entered");
 
         let url = self.discovery_handler_config.discovery_endpoint.clone();
-        println!("[http:discover] url: {}", &url);
+        trace!("[http:discover] url: {}", &url);
 
         match get(&url).await {
             Ok(resp) => {
@@ -44,8 +44,8 @@ impl DH for HTTPDiscoveryHandler {
                 let result = device_list
                     .lines()
                     .map(|endpoint| {
-                        println!("[http:discover:map] Creating DiscoverResult: {}", endpoint);
-                        println!(
+                        trace!("[http:discover:map] Creating DiscoverResult: {}", endpoint);
+                        trace!(
                             "[http:discover] props.inserting: {}, {}",
                             BROKER_NAME, DEVICE_ENDPOINT,
                         );
@@ -59,11 +59,11 @@ impl DH for HTTPDiscoveryHandler {
                 Ok(result)
             }
             Err(err) => {
-                println!(
+                trace!(
                     "[http:discover] Failed to connect to discovery endpoint: {}",
                     &url
                 );
-                println!("[http:discover] Error: {}", err);
+                trace!("[http:discover] Error: {}", err);
 
                 Err(format_err!(
                     "Failed to connect to discovery endpoint results: {:?}",
@@ -73,7 +73,7 @@ impl DH for HTTPDiscoveryHandler {
         }
     }
     fn are_shared(&self) -> Result<bool, Error> {
-        println!("[http:are_shared] Entered");
+        trace!("[http:are_shared] Entered");
         Ok(true)
     }
 }
