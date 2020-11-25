@@ -1,7 +1,6 @@
 syntax = "proto3";
 
-option csharp_namespace = "HTTP";
-option go_package = "github.com/deislabs/akri/protocol/http/protos";
+option go_package = "github.com/deislabs/akri/http-extensibility/proto";
 
 package http;
 
