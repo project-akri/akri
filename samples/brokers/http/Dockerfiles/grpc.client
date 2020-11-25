@@ -6,23 +6,20 @@ FROM ${PLATFORM}/rust:1.47 as build
 
 ARG BROKER
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    g++ \
-    ca-certificates \
-    curl \
-    libssl-dev \
-    pkg-config
-
 RUN rustup component add rustfmt --toolchain 1.47.0-x86_64-unknown-linux-gnu
+
+RUN USER=root cargo new --bin ${BROKER}
 
 WORKDIR /${BROKER}
 
-RUN echo '[workspace]' > ./Cargo.toml && \
-    echo 'members = ["shared", "samples/brokers/http"]' >> ./Cargo.toml
+COPY ./samples/brokers/${BROKER}/Cargo.toml ./Cargo.toml
+RUN cargo build \
+    --bin=standalone \
+    --release
+RUN rm ./src/*.rs
+RUN rm ./target/release/deps/${BROKER}*
 
-COPY ./samples/brokers/${BROKER} ./samples/brokers/${BROKER}
-COPY ./shared ./shared
+COPY ./samples/brokers/${BROKER} .
 
 RUN cargo build \
     --bin=client \
