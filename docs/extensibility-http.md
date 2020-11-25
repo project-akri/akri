@@ -194,7 +194,7 @@ cd ./samples/apps/http-apps
 
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri" # Or your preferred GHCR repo prefix
+REPO="http-apps" # Or your preferred GHCR repo prefix
 TAGS="v1"
 
 for APP in "device" "discovery"
