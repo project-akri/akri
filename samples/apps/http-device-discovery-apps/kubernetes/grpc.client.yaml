@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-grpc-client-golang
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      project: akri
+      protocol: http
+      function: client
+      language: golang
+  template:
+    metadata:
+      labels:
+        project: akri
+        protocol: http
+        function: client
+        language: golang
+      name: http-grpc-client-golang
+    spec:
+      imagePullSecrets:
+        - name: SECRET
+      containers:
+        - name: http-grpc-client-golang
+          image: IMAGE
+          args:
+            - --grpc_endpoint=http-svc:50051
