@@ -178,6 +178,70 @@ onvif:
     # protocol is the service protocol of the instance service
     protocol: TCP
 
+opcuaMonitoring:
+  # enabled defines whether to load a opcuaMonitoring configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # opcuaMonitoring configuration
+  name: akri-opcua-monitoring
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this opcuaMonitoring configuration
+  properties:
+  opcuaDiscoveryMethod: standard
+  # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
+  discoveryUrls:
+  - "opc.tcp://localhost:4840/"
+  # mountCertificates determines whether to mount into the broker pods k8s Secrets 
+  # containing OPC UA client credentials for connecting to OPC UA severs with the 
+  # same signing certificate authority.
+  # If set to false, the brokers will attempt to make an insecure connection with the servers.
+  mountCertificates: false
+  # applicationNames is a filter applied to the discovered OPC UA servers to either exclusively
+  # include or exclude servers with application names in the applicationNames list.
+  applicationNames:
+    action: Exclude
+    items: []
+  # capacity is the capacity for any instances created as a result of
+  # applying this opcuaMonitoring configuration
+  capacity: 5
+  brokerPod:
+    image:
+      # repository is the Akri opcua broker container reference
+      repository: ghcr.io/deislabs/akri/opcua-monitoring-broker
+      # tag is the Akri opcua broker container tag
+      # akri-opcua-monitoring.yaml will default to
+      # v(AppVersion)-dev
+      tag:
+      # pullPolicy is the Akri nginx broker pull policy
+      pullPolicy: Always
+    env:
+      # identifier is the OPC UA Node ID identifier in String format
+      identifier: 
+      # namespaceIndex is the OPC UA Node ID namespace index
+      namespaceIndex: "2"
+  instanceService:
+    # name is the description of the instance service
+    name: akri-opcua-monitoring-instance-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  configurationService:
+    # name is the description of the configuration service
+    name: akri-opcua-monitoring-configuration-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+
 udev:
   # enabled defines whether to load a udev configuration
   enabled: false

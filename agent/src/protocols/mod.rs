@@ -111,13 +111,9 @@ mod test {
         let deserialized: ProtocolHandler = serde_json::from_str(udev_json).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
-        let opcua_json = r#"{"opcua":{}}"#;
+        let opcua_json = r#"{"opcua":{"opcuaDiscoveryMethod":{"standard":{}}}}"#;
         let deserialized: ProtocolHandler = serde_json::from_str(opcua_json).unwrap();
-        let discovery_handler = inner_get_discovery_handler(&deserialized, &mock_query).unwrap();
-        assert!(
-            discovery_handler.discover().await.is_err(),
-            "OPC protocol handler not implemented"
-        );
+        assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
         let json = r#"{}"#;
         assert!(serde_json::from_str::<Configuration>(json).is_err());

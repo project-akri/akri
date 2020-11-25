@@ -1,0 +1,92 @@
+{{- if .Values.opcuaMonitoring.enabled }}
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: {{ .Values.opcuaMonitoring.name }}
+spec:
+  protocol:
+    opcua:
+      opcuaDiscoveryMethod: 
+        standard:
+          discoveryUrls: 
+          {{- toYaml .Values.opcuaMonitoring.discoveryUrls | nindent 10 }}
+      applicationNames:
+        action: {{ .Values.opcuaMonitoring.applicationNames.action }}
+        {{- if .Values.opcuaMonitoring.applicationNames.items}}
+        items:
+        {{- toYaml .Values.opcuaMonitoring.applicationNames.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.opcuaMonitoring.name }}-broker
+      {{- if .Values.useDevelopmentContainers }}
+      {{- if .Values.useLatestContainers }}
+      image: {{ printf "%s:latest-dev" .Values.opcuaMonitoring.brokerPod.image.repository | quote }}
+      {{- else }}
+      image: {{ printf "%s:%s" .Values.opcuaMonitoring.brokerPod.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.opcuaMonitoring.brokerPod.image.tag) | quote }}
+      {{- end }}
+      {{- else }}
+      {{- if .Values.useLatestContainers }}
+      image: {{ printf "%s:latest" .Values.opcuaMonitoring.brokerPod.image.repository | quote }}
+      {{- else }}
+      image: {{ printf "%s:%s" .Values.opcuaMonitoring.brokerPod.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.opcuaMonitoring.brokerPod.image.tag) | quote }}
+      {{- end }}
+      {{- end }}
+      imagePullPolicy: {{ .Values.opcuaMonitoring.brokerPod.image.pullPolicy }}
+      env:
+        - name: IDENTIFIER
+          value: {{ quote .Values.opcuaMonitoring.brokerPod.env.identifier }}
+        - name: NAMESPACE_INDEX 
+          value: {{ quote .Values.opcuaMonitoring.brokerPod.env.namespaceIndex }}
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+      {{- if .Values.opcuaMonitoring.mountCertificates}}
+      volumeMounts:
+      - name: credentials
+        mountPath: "/etc/opcua-certs/client-pki"
+        readOnly: false
+      {{- end }}
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if .Values.opcuaMonitoring.mountCertificates }}
+    volumes:
+    - name: credentials
+      secret:
+        secretName: opcua-broker-credentials
+        items:
+        - key: client_certificate
+          path: own/certs/AkriBroker.der
+        - key: client_key
+          path: own/private/AkriBroker.pfx
+        - key: ca_certificate
+          path: trusted/certs/SomeCA.der
+        - key: ca_crl
+          path: trusted/crl/SomeCA.crl
+    {{- end }}
+  instanceServiceSpec:
+    type: {{ .Values.opcuaMonitoring.instanceService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.opcuaMonitoring.instanceService.port }}
+      protocol: {{ .Values.opcuaMonitoring.instanceService.protocol }}
+      targetPort: {{ .Values.opcuaMonitoring.instanceService.targetPort }}
+  configurationServiceSpec:
+    type: {{ .Values.opcuaMonitoring.configurationService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.opcuaMonitoring.configurationService.port }}
+      protocol: {{ .Values.opcuaMonitoring.configurationService.protocol }}
+      targetPort: {{ .Values.opcuaMonitoring.configurationService.targetPort }}
+  {{- if .Values.opcuaMonitoring.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  {{- end }}
+  capacity: {{ .Values.opcuaMonitoring.capacity }}
+{{- end }}

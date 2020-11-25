@@ -63,6 +63,19 @@ pub struct FilterList {
     pub action: FilterType,
 }
 
+/// This tests whether an item should be included according to the `FilterList`
+pub fn should_include(filter_list: Option<&FilterList>, item: &str) -> bool {
+    if filter_list.is_none() {
+        return true;
+    }
+    let item_contained = filter_list.unwrap().items.contains(&item.to_string());
+    if filter_list.as_ref().unwrap().action == FilterType::Include {
+        item_contained
+    } else {
+        !item_contained
+    }
+}
+
 /// This defines the ONVIF data stored in the Configuration
 /// CRD
 ///
@@ -94,11 +107,43 @@ pub struct UdevDiscoveryHandlerConfig {
     pub udev_rules: Vec<String>,
 }
 
-/// This defines the OPCUA data stored in the Configuration
+/// This defines the OPC UA data stored in the Configuration
 /// CRD
+///
+/// The OPC UA discovery handler is designed to support multiple methods
+/// for discovering OPC UA servers and stores a filter list for
+/// application names.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OpcuaDiscoveryHandlerConfig {}
+pub struct OpcuaDiscoveryHandlerConfig {
+    pub opcua_discovery_method: OpcuaDiscoveryMethod,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_names: Option<FilterList>,
+}
+
+/// Methods for discovering OPC UA Servers
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum OpcuaDiscoveryMethod {
+    standard(StandardOpcuaDiscovery),
+    // TODO: add scan
+}
+
+/// Discovers OPC UA Servers and/or LocalDiscoveryServers at specified DiscoveryURLs.
+/// If the DiscoveryURL is for a LocalDiscoveryServer, it will discover all Servers
+/// that have registered with that LocalDiscoveryServer.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StandardOpcuaDiscovery {
+    #[serde(default = "lds_discovery_url", skip_serializing_if = "Vec::is_empty")]
+    pub discovery_urls: Vec<String>,
+}
+
+/// If no DiscoveryURLs are specified, uses the OPC UA default DiscoveryURL
+/// for the LocalDiscoveryServer running on the host
+fn lds_discovery_url() -> Vec<String> {
+    vec!["opc.tcp://localhost:4840/".to_string()]
+}
 
 /// This defines the DebugEcho data stored in the Configuration
 /// CRD
@@ -298,6 +343,9 @@ mod crd_serializeation_tests {
             if serde_json::from_str::<Configuration>(r#"{"protocol":{"udev":{}}}"#).is_ok() {
                 panic!("udev protocol requires udevRules");
             }
+            if serde_json::from_str::<Configuration>(r#"{"protocol":{"opcua":{}}}"#).is_ok() {
+                panic!("opcua protocol requires one opcua discovery method");
+            }
         }
 
         let json = r#"{"protocol":{"onvif":{}}}"#;
@@ -343,6 +391,63 @@ mod crd_serializeation_tests {
         assert_eq!(expected_deserialized, serialized);
     }
 
+    // Test serialization of each OPC UA discovery method
+    #[test]
+    fn test_opcua_config_serialization() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        // test standard discovery method
+        let standard_discovery_json = r#"{"protocol":{"opcua":{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls": ["opc.tcp://127.0.0.1:4855/"]}}, "applicationNames": { "action": "Exclude", "items": ["Some application name"]}}}, "capacity":4, "units":"slaphappies"}"#;
+        let deserialized: Configuration = serde_json::from_str(standard_discovery_json).unwrap();
+        match &deserialized.protocol {
+            ProtocolHandler::opcua(discovery_handler_config) => {
+                if let Some(application_names) = &discovery_handler_config.application_names {
+                    assert_eq!(application_names.items[0], "Some application name");
+                }
+                match &discovery_handler_config.opcua_discovery_method {
+                    OpcuaDiscoveryMethod::standard(standard_opcua_discovery) => {
+                        assert_eq!(
+                            &standard_opcua_discovery.discovery_urls[0],
+                            "opc.tcp://127.0.0.1:4855/"
+                        );
+                    }
+                }
+            }
+            _ => panic!("protocol should be opcua"),
+        }
+        assert_eq!(4, deserialized.capacity);
+        assert_eq!("slaphappies".to_string(), deserialized.units);
+        assert_eq!(None, deserialized.broker_pod_spec);
+        assert_eq!(None, deserialized.instance_service_spec);
+        assert_eq!(None, deserialized.configuration_service_spec);
+        assert_eq!(0, deserialized.properties.len());
+
+        let serialized = serde_json::to_string(&deserialized).unwrap();
+        let expected_deserialized = r#"{"protocol":{"opcua":{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Exclude"}}},"capacity":4,"units":"slaphappies"}"#;
+        assert_eq!(expected_deserialized, serialized);
+
+        // test standard discovery method with default of LDS DiscoveryURL
+        let standard_default_discovery_json = r#"{"protocol":{"opcua":{"opcuaDiscoveryMethod":{"standard":{}}}}, "capacity":4, "units":"slaphappies"}"#;
+        let deserialized: Configuration =
+            serde_json::from_str(standard_default_discovery_json).unwrap();
+        match &deserialized.protocol {
+            ProtocolHandler::opcua(discovery_handler_config) => {
+                match &discovery_handler_config.opcua_discovery_method {
+                    OpcuaDiscoveryMethod::standard(standard_opcua_discovery) => {
+                        assert_eq!(
+                            &standard_opcua_discovery.discovery_urls[0],
+                            "opc.tcp://localhost:4840/"
+                        );
+                    }
+                }
+            }
+            _ => panic!("protocol should be opcua"),
+        }
+
+        let serialized = serde_json::to_string(&deserialized).unwrap();
+        let expected_deserialized = r#"{"protocol":{"opcua":{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}},"capacity":4,"units":"slaphappies"}"#;
+        assert_eq!(expected_deserialized, serialized);
+    }
+
     #[test]
     fn test_real_config() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -351,6 +456,7 @@ mod crd_serializeation_tests {
             "../test/yaml/akri-onvif-video.yaml",
             "../test/yaml/akri-debug-echo-foo.yaml",
             "../test/yaml/akri-udev-video.yaml",
+            "../test/yaml/akri-opcua.yaml",
         ];
         for file in &files {
             log::trace!("test file: {}", &file);
@@ -432,5 +538,53 @@ mod crd_serializeation_tests {
         assert_ne!(None, deserialized.instance_service_spec);
         assert_ne!(None, deserialized.configuration_service_spec);
         assert_eq!(2, deserialized.properties.len());
+    }
+
+    #[test]
+    fn test_should_include() {
+        // Test when FilterType::Exclude
+        let exclude_items = vec!["beep".to_string(), "bop".to_string()];
+        let exclude_filter_list = Some(FilterList {
+            items: exclude_items,
+            action: FilterType::Exclude,
+        });
+        assert_eq!(should_include(exclude_filter_list.as_ref(), "beep"), false);
+        assert_eq!(should_include(exclude_filter_list.as_ref(), "bop"), false);
+        assert_eq!(should_include(exclude_filter_list.as_ref(), "boop"), true);
+
+        // Test when FilterType::Exclude and FilterList.items is empty
+        let empty_exclude_items = Vec::new();
+        let empty_exclude_filter_list = Some(FilterList {
+            items: empty_exclude_items,
+            action: FilterType::Exclude,
+        });
+        assert_eq!(
+            should_include(empty_exclude_filter_list.as_ref(), "beep"),
+            true
+        );
+
+        // Test when FilterType::Include
+        let include_items = vec!["beep".to_string(), "bop".to_string()];
+        let include_filter_list = Some(FilterList {
+            items: include_items,
+            action: FilterType::Include,
+        });
+        assert_eq!(should_include(include_filter_list.as_ref(), "beep"), true);
+        assert_eq!(should_include(include_filter_list.as_ref(), "bop"), true);
+        assert_eq!(should_include(include_filter_list.as_ref(), "boop"), false);
+
+        // Test when FilterType::Include and FilterList.items is empty
+        let empty_include_items = Vec::new();
+        let empty_include_filter_list = Some(FilterList {
+            items: empty_include_items,
+            action: FilterType::Include,
+        });
+        assert_eq!(
+            should_include(empty_include_filter_list.as_ref(), "beep"),
+            false
+        );
+
+        // Test when None
+        assert_eq!(should_include(None, "beep"), true);
     }
 }

@@ -1,0 +1,34 @@
+ARG BUILD_PLATFORM_TAG=3.1-buster
+ARG OUTPUT_PLATFORM_TAG=3.1-buster-slim
+ARG DOTNET_PUBLISH_RUNTIME=linux-x64
+
+FROM mcr.microsoft.com/dotnet/core/sdk:${BUILD_PLATFORM_TAG} AS build
+ARG BUILD_PLATFORM_TAG
+RUN echo "Build base image: mcr.microsoft.com/dotnet/core/sdk:${BUILD_PLATFORM_TAG}"
+
+WORKDIR /src
+COPY ["samples/brokers/opcua-monitoring-broker/opcua-monitoring-broker.csproj", "."]
+RUN dotnet restore "opcua-monitoring-broker.csproj"
+COPY ["samples/brokers/opcua-monitoring-broker", "."]
+
+ARG DOTNET_PUBLISH_RUNTIME
+RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}"
+RUN dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "opcua-monitoring-broker.csproj" -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/core/aspnet:${OUTPUT_PLATFORM_TAG} AS final
+ARG OUTPUT_PLATFORM_TAG
+RUN echo "Output base image: mcr.microsoft.com/dotnet/core/aspnet:${OUTPUT_PLATFORM_TAG}"
+
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
+
+EXPOSE 8083
+ENV ASPNETCORE_URLS=http://*:8083
+
+CMD dotnet opcua-monitoring-broker.dll
