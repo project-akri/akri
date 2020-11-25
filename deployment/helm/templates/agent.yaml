@@ -37,6 +37,10 @@ spec:
         {{- end }}
         {{- end }}
         imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+        {{- if .Values.agent.securityContext }}
+        securityContext:
+        {{- toYaml .Values.agent.securityContext | nindent 10 }}
+        {{- end}}
         env:
           {{- if .Values.agent.allowDebugEcho }}
           - name: ENABLE_DEBUG_ECHO
