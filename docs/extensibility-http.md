@@ -132,8 +132,8 @@ Revise `./Cross.toml`:
 [target.x86_64-unknown-linux-gnu]
 image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-0.0.6"
 
-[target.arm7-unknown-linux-gnueabihf]
-image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:arm-unknown-linux-gnueabihf-0.1.16-0.0.6"
+[target.armv7-unknown-linux-gnueabihf]
+image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:armv7-unknown-linux-gnueabihf-0.1.16-0.0.6"
 
 [target.aarch64-unknown-linux-gnu]
 image = "ghcr.io/[[GITHUB-USER]]/rust-crossbuild:aarch64-unknown-linux-gnu-0.1.16-0.0.6"
