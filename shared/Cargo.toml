@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.0.42"
+version = "0.0.43"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 

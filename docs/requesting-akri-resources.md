@@ -52,8 +52,6 @@ spec:
       containers:
       - name: protocolA-broker
         image: nginx
-        securityContext:
-          privileged: true
         resources:
           limits:                        
             akri.sh/protocolA-device-<id>: "1"

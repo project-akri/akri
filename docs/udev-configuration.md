@@ -136,6 +136,21 @@ Installation](./customizing-akri-installation.md) to learn how to [modify the br
 spec](./customizing-akri-installation.md#modifying-the-brokerpodspec) and [service
 specs](./customizing-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec) in the Configuration.
 
+### Setting the broker Pod security context
+By default in the generic udev Configuration, the udev broker is run in privileged security context. This container
+[security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) can be customized via
+Helm. For example, to instead run all processes in the Pod with user ID 1000 and group 1000, do the following: 
+```bash
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri-dev \
+    --set useLatestContainers=true \
+    --set udev.enabled=true \
+    --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
+    --set udev.brokerPod.image.repository=nginx \
+    --set udev.brokerPod.securityContext.runAsUser=1000 \
+    --set udev.brokerPod.securityContext.runAsGroup=1000
+```
+
 ## Disabling automatic service creation
 By default, the generic udev Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.
 
