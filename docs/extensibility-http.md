@@ -219,7 +219,7 @@ do
   sed \
   --in-place \
   "s|IMAGE|${IMAGE}|g"
-  ./kubernetes/#{APP}.yaml
+  ./kubernetes/${APP}.yaml
 done
 ```
 
