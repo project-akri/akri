@@ -29,7 +29,7 @@ pub struct ZeroConfDiscoveryHandler {
 }
 impl ZeroConfDiscoveryHandler {
     pub fn new(discovery_handler_config: &ZeroConfDiscoveryHandlerConfig) -> Self {
-        println!("[zeroconf:new] Entered");
+        trace!("[zeroconf:new] Entered");
         ZeroConfDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
@@ -38,7 +38,7 @@ impl ZeroConfDiscoveryHandler {
 #[async_trait]
 impl DiscoveryHandler for ZeroConfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
-        println!("[zeroconf:discover] Entered");
+        trace!("[zeroconf:discover] Entered");
 
         // TODO(dazwilkin) Apply filter, domain etc. to browser
         // TODO(dazwilkin) Validate kind: Kubernetes only supports TCP, UDP and SCTP
@@ -54,33 +54,33 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
             move |result: zeroconf::Result<ServiceDiscovery>, _context: Option<Arc<dyn Any>>| {
                 match result {
                     Ok(service) => {
-                        println!("[zeroconf:discovery:λ] Service Discovered: {:?}", service);
+                        trace!("[zeroconf:discovery:λ] Service Discovered: {:?}", service);
                         tx.send(service).unwrap();
                     }
                     Err(e) => {
-                        println!("[zeroconf:discovery:λ] Error: {:?}", e);
+                        trace!("[zeroconf:discovery:λ] Error: {:?}", e);
                     }
                 };
             },
         ));
 
-        println!("[zeroconf:discovery] Started browsing");
+        trace!("[zeroconf:discovery] Started browsing");
         let event_loop = browser.browse_services().unwrap();
         let now = Instant::now();
         let end = Duration::from_secs(5);
         while now.elapsed() < end {
             event_loop.poll(Duration::from_secs(0)).unwrap();
         }
-        println!("[zeroconf:discovery] Stopped browsing");
+        trace!("[zeroconf:discovery] Stopped browsing");
         // Explicitly drop browser to close the channel to ensure receive iteration completes
         drop(browser);
 
         // Receive
-        println!("[zeroconf:discovery] Iterating over services");
+        trace!("[zeroconf:discovery] Iterating over services");
         let result = rx
             .iter()
             .map(|service| {
-                println!("[zeroconf:discovery] Service: {:?}", service);
+                trace!("[zeroconf:discovery] Service: {:?}", service);
                 let mut props = HashMap::new();
                 props.insert(BROKER_NAME.to_string(), "zeroconf".to_string());
                 props.insert(DEVICE_KIND.to_string(), service.kind().to_string());
@@ -92,11 +92,11 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
             })
             .collect::<Vec<DiscoveryResult>>();
 
-        println!("[zeroconf:discovery] Result: {:?}", result);
+        trace!("[zeroconf:discovery] Result: {:?}", result);
         Ok(result)
     }
     fn are_shared(&self) -> Result<bool, Error> {
-        println!("[zeroconf::are_shared] Entered");
+        trace!("[zeroconf::are_shared] Entered");
         Ok(true)
     }
 }
