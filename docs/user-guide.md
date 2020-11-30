@@ -77,10 +77,10 @@ helm install akri akri-helm-charts/akri
 
 1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the discovery protocol
    that will be used in the Configuration. This is done in the setting `--set <protocol>.enabled=true` below. Here,
-   `<protocol>` could be `udev` or `ONVIF`. Helm will automatically apply the default Configuration for that protocol to
+   `<protocol>` could be `udev`, `onvif`, or `opcua`. Helm will automatically apply the default Configuration for that protocol to
    the cluster. You can set values in the Helm install command to customize the Configuration. To explore the values you
-   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md) and
-   [udev](./udev-configuration.md) Configuration templates.
+   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md),
+   [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) Configuration templates.
 
     The Helm settings can also be used to customize where the Akri Controller runs. By default the Controller can be
     deployed to any control plane or worker node. These settings can be changed by adding extra settings when installing

@@ -178,14 +178,14 @@ onvif:
     # protocol is the service protocol of the instance service
     protocol: TCP
 
-opcuaMonitoring:
-  # enabled defines whether to load a opcuaMonitoring configuration
+opcua:
+  # enabled defines whether to load a opcua configuration
   enabled: false
   # name is the Kubernetes resource name that will be created for this
-  # opcuaMonitoring configuration
+  # opcua configuration
   name: akri-opcua-monitoring
   # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this opcuaMonitoring configuration
+  # created as a result of applying this opcua configuration
   properties:
   opcuaDiscoveryMethod: standard
   # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
@@ -202,23 +202,17 @@ opcuaMonitoring:
     action: Exclude
     items: []
   # capacity is the capacity for any instances created as a result of
-  # applying this opcuaMonitoring configuration
-  capacity: 5
+  # applying this opcua configuration
+  capacity: 1
   brokerPod:
     image:
       # repository is the Akri opcua broker container reference
-      repository: ghcr.io/deislabs/akri/opcua-monitoring-broker
-      # tag is the Akri opcua broker container tag
-      # akri-opcua-monitoring.yaml will default to
-      # v(AppVersion)-dev
-      tag:
-      # pullPolicy is the Akri nginx broker pull policy
+      repository: 
+      # pullPolicy is the Akri opcua broker pull policy
       pullPolicy: Always
-    env:
-      # identifier is the OPC UA Node ID identifier in String format
-      identifier: 
-      # namespaceIndex is the OPC UA Node ID namespace index
-      namespaceIndex: "2"
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
   instanceService:
     # name is the description of the instance service
     name: akri-opcua-monitoring-instance-service
@@ -230,6 +224,9 @@ opcuaMonitoring:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
   configurationService:
     # name is the description of the configuration service
     name: akri-opcua-monitoring-configuration-service

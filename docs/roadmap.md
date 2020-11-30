@@ -13,11 +13,10 @@ extensibility document](./extensibility.md) for more details.
 
 ### Currently supported protocols
 1. ONVIF (to discover IP cameras)
-1. udev (to discover anything in the Linux file system)
+1. udev (to discover anything in the Linux device file system)
+1. OPC UA (to discover OPC UA Servers) 
 
 ### Protocols we are thinking about adding support for
-- OPC UA (to discovery OPC UA Servers) 
-    - [Proposal uploaded](./proposals/opcua.md)
 - Bluetooth
 - Simple scan for IP/MAC addresses
 - LoRaWAN
