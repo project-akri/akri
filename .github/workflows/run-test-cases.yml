@@ -182,9 +182,6 @@ jobs:
         sudo microk8s.enable helm3
         sudo microk8s.enable rbac
         sudo microk8s.enable dns
-        echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kube-apiserver
-        sudo microk8s.stop
-        sudo microk8s.start
         sudo microk8s.status --wait-ready
         VERSION="v1.17.0"
         curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
