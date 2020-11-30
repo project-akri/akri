@@ -295,7 +295,6 @@ kubectl get pods -o wide
    a Running state.
 ```sh
 helm upgrade akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
@@ -344,7 +343,6 @@ Replace "Windows host IP address" with the IP address of the Windows machine you
 the servers). Be sure to uncomment mounting certificates if you are enabling security:
 ```sh
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
@@ -366,7 +364,6 @@ specified by UA Specification 12). For example, to discover all servers register
 server named "SomeServer0", do the following.
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
@@ -381,7 +378,6 @@ helm install akri akri-helm-charts/akri \
 Alternatively, to only discover the server named "SomeServer0", do the following:
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
@@ -405,7 +401,6 @@ container is created, simply set it as the image for the broker pod.
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \

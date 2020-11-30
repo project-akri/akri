@@ -15,7 +15,6 @@ To enable OPC UA discovery via the default LDS DiscoveryURL in your Akri-enabled
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true 
 ```
@@ -25,7 +24,6 @@ empty nginx pod for each server. Instead, you should point to your image, say `g
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.brokerPod.image.repository=nginx
@@ -52,7 +50,6 @@ Local Discovery Servers, like in the following example:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.discoveryUrls[0]="opc.tcp://10.1.2.3:4840/" \
@@ -64,7 +61,6 @@ If you know the DiscoveryURLs for the OPC UA Servers you want Akri to discover, 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.discoveryUrls[0]="opc.tcp://10.123.456.7:4855/"
@@ -76,7 +72,6 @@ OPC UA discovery can also receive a list of both OPC UA LDS DiscoveryURLs and sp
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.discoveryUrls[0]="opc.tcp://10.1.2.3:4840/" \
@@ -95,7 +90,6 @@ the server named "Duke", do the following.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.applicationNames.action=Exclude \
@@ -105,7 +99,6 @@ Alternatively, to only discover the server named "Go Tar Heels!", do the followi
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.applicationNames.action=Include \
@@ -141,7 +134,6 @@ certificates. The following is an example how how to enable security:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.mountCertificates='true'
@@ -155,7 +147,6 @@ By default in the generic OPC UA Configuration, `capacity` is set to 1, so only 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set imagePullSecrets[0].name="regcred" \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.capacity=2
