@@ -14,13 +14,11 @@ spec:
     spec:
       containers:
       - name: akri-anomaly-detection-app
-        image: ghcr.io/kate-goldenring/anomaly-detection-app:v0.0.42-amd64
+        image: ghcr.io/deislabs/akri/anomaly-detection-app:latest-dev
         imagePullPolicy: Always
         env:
         - name: CONFIGURATION_NAME
           value: akri-opcua-monitoring
-      imagePullSecrets:
-      - name: kate-regcred
 ---
 apiVersion: v1
 kind: Service
