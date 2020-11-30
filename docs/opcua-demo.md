@@ -391,25 +391,21 @@ helm install akri akri-helm-charts/akri \
 ```
 ### Creating a different broker and end application
 The OPC UA Monitoring broker and anomaly detection application support a very specific scenario: monitoring an OPC UA
-Variable for anomalies. Since the OPC UA Monitoring broker mounts the NodeID `Identifier` and `NamespaceIndex` in the
-broker pods, so long as you are interested in targeting a specific OPC UA Node, you can change the broker pod and end
-application to suit your needs. OPC UA Nodes can be anything from objects, to variables, to events, to functions, so the
-options for broker implementations are endless. For example, the brokers could take a more active roll on the servers,
-and instead of monitoring an OPC UA Variable of a specific NodeID, they could add OPC UA Variables to an OPC UA Object
-with a specific NodeID. Or a broker could invoke an OPC UA Method with a specific NodeID. Once the broker docker
-container is created, simply set it as the image for the broker pod.
+Variable for anomalies. The workload or broker you want to deploy to discovered OPC UA Servers may be different. OPC UA
+Servers' address spaces are widely varied, so the options for broker implementations are endless. Passing the NodeID
+`Identifier` and `NamespaceIndex` as environment variables may still suit your needs; however, if targeting one NodeID
+is too limiting or irrelevant, instead of passing a specific NodeID to your broker Pods, you could specify any other
+environment variables via `--set opcua.brokerPod.env.KEY='VALUE'`. Or, your broker may not need additional information
+passed to it at all. Decide whether to pass environment variables, what servers to discover, and set the broker pod
+image to be your container image, say `ghcr.io/<USERNAME>/opcua-broker`.
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set opcua.enabled=true \
-    --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-    --set opcua.brokerPod.env.IDENTIFIER='Some_Node_Identifier' \
-    --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
     --set opcua.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
     --set opcua.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \
-    --set opcua.brokerPod.image.repository='<docker image>'
+    --set opcua.brokerPod.image.repository='ghcr.io/<USERNAME>/opcua-broker'
     # --set opcua.mountCertificates='true'
 ```
 Now, your broker will be deployed to all discovered OPC UA servers. Next, you can create a Kubernetes deployment for
@@ -417,7 +413,12 @@ your own end application like [anomaly-detection-app.yaml](../deployment/samples
 apply it to your Kubernetes cluster. 
 
 ### Creating a new OPC UA Configuration
-Helm allows us to parametrize the commonly modified fields in our configuration files, and we have provided many (to see
-them, run `helm inspect values akri-helm-charts/akri`). Say targeting one NodeID is too limiting or
-irrelevant, instead of passing a specific NodeID to your broker Pods, you can specify other environment variables via `--set opcua.brokerPod.env.KEY='VALUE'`. For more advanced configuration changes that are not aided by
-the generic OPC UA Configuration Helm chart, we suggest downloading the OPC UA Configuration file using Helm and then manually modifying it. See the documentation on [customizing an Akri installation](./customizing-akri-installation.md#generating-modifying-and-applying-a-custom-configuration) for more details.
+Helm allows us to parametrize the commonly modified fields in our Configuration files, and we have provided many. Run
+`helm inspect values akri-helm-charts/akri` to see what values of the generic OPC UA Configuration can be customized,
+such as the Configuration and Instance `ServiceSpec`s, `capacity`, and broker `PodSpec`. We saw in the previous section
+how broker Pod environment variables can be specified via `--set opcua.brokerPod.env.KEY='VALUE'`. For more advanced
+configuration changes that are not aided by the generic OPC UA Configuration Helm chart, such as credentials naming, we
+suggest downloading the OPC UA Configuration file using Helm and then manually modifying it. See the documentation on
+[customizing an Akri
+installation](./customizing-akri-installation.md#generating-modifying-and-applying-a-custom-configuration) for more
+details.
