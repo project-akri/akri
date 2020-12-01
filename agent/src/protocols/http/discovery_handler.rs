@@ -1,5 +1,4 @@
-// TODO(dazwilkin) Why is aliasing required for the lambda?
-use super::super::{DiscoveryHandler as DH, DiscoveryResult as DR};
+use super::super::{DiscoveryHandler, DiscoveryResult};
 
 use akri_shared::akri::configuration::HTTPDiscoveryHandlerConfig;
 use async_trait::async_trait;
@@ -23,8 +22,8 @@ impl HTTPDiscoveryHandler {
 }
 #[async_trait]
 
-impl DH for HTTPDiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DR>, failure::Error> {
+impl DiscoveryHandler for HTTPDiscoveryHandler {
+    async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
         trace!("[http:discover] Entered");
 
         let url = self.discovery_handler_config.discovery_endpoint.clone();
@@ -47,14 +46,15 @@ impl DH for HTTPDiscoveryHandler {
                         trace!("[http:discover:map] Creating DiscoverResult: {}", endpoint);
                         trace!(
                             "[http:discover] props.inserting: {}, {}",
-                            BROKER_NAME, DEVICE_ENDPOINT,
+                            BROKER_NAME,
+                            DEVICE_ENDPOINT,
                         );
                         let mut props = HashMap::new();
                         props.insert(BROKER_NAME.to_string(), "http".to_string());
                         props.insert(DEVICE_ENDPOINT.to_string(), endpoint.to_string());
-                        DR::new(endpoint, props, true)
+                        DiscoveryResult::new(endpoint, props, true)
                     })
-                    .collect::<Vec<DR>>();
+                    .collect::<Vec<DiscoveryResult>>();
                 trace!("[protocol:http] Result: {:?}", &result);
                 Ok(result)
             }
