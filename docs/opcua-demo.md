@@ -35,7 +35,7 @@ margin-right: auto; display: block; margin-left: auto;"/>
    then will display a log of the values on a web application, showing outliers in red and normal values in green.
 
 The following steps need to be completed to run the demo:
-1. Setting up a single-node cluster with MicroK8s
+1. Setting up a single-node cluster
 1. (Optional) Creating X.509 v3 Certificates for the servers and Akri broker and storing them in a Kubernetes Secret
 1. Creating two OPC UA Servers
 1. Running Akri
@@ -44,9 +44,9 @@ The following steps need to be completed to run the demo:
 If at any point in the demo, you want to dive deeper into OPC UA or clarify a term, you can reference the [online OPC UA
 specifications](https://reference.opcfoundation.org/v104/).
 
-## Setting up a single-node cluster with MicroK8s
+## Setting up a single-node cluster
 Before running Akri, we need a Kubernetes cluster. If you do not have a readily available cluster, follow the steps
-provided in the [end-to-end demo](./end-to-end-demo.md#set-up-cluster) to set up a single-node MicroK8s or K3s cluster.
+provided in the [end-to-end demo](./end-to-end-demo.md#set-up-cluster) to set up a single-node MicroK8s or K3s cluster. If using MicroK8s, you can skip the step of enabling privileged pods, as the OPC UA monitoring brokers do not need to run in a privileged security context.
 
 ## Creating X.509 v3 Certificates
 **If security is not desired, this section can be skipped, as each monitoring broker will use an OPC UA Security Policy
@@ -88,7 +88,7 @@ Proposal](./proposals/credentials-passing.md). Create a Kubernetes Secret, proje
 with the expected key name (ie `client_certificate`, `client_key`, `ca_certificate`, and `ca_crl`). Specify the file
 paths such that they point to the credentials made in the previous section.
 ```bash
-microk8s kubectl create secret generic opcua-broker-credentials \
+kubectl create secret generic opcua-broker-credentials \
 --from-file=client_certificate=/path/to/AkriBroker/own/certs/AkriBroker\ \[<hash>\].der \
 --from-file=client_key=/path/to/AkriBroker/own/private/AkriBroker\ \[<hash>\].pfx \
 --from-file=ca_certificate=/path/to/ca/certs/SomeCA\ \[<hash>\].der \
@@ -192,8 +192,13 @@ to the OPC Foundation's .NET Console Reference Server.
     ```
     Akri Agent will discover the two Servers and create an Instance for each Server. Watch two broker pods spin up, one
     for each Server.
+   For MicroK8s
     ```sh
-    watch microk8s kubectl get pods
+    watch microk8s kubectl get pods -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods -o wide
     ```
     To inspect more of the elements of Akri:
     - Run `kubectl get crd`, and you should see the CRDs listed.
@@ -212,7 +217,14 @@ in the OPC UA Servers.
 1. Deploy the anomaly detection app and watch a pod spin up for the app.
     ```sh
     kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-anomaly-detection-app.yaml
+    ```
+    For MicroK8s
+    ```sh
     watch microk8s kubectl get pods -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods -o wide
     ```
 1. Determine which port the service is running on.
     ```sh
@@ -268,54 +280,52 @@ the advantages of Akri. This section will cover:
 1. Creating a different broker and end application
 1. Creating a new OPC UA Configuration
 
-### Adding a Node to the MicroK8s Cluster
-To see how Akri easily scales as nodes are added to the cluster, let create another MicroK8s instance and add it to our
-cluster.
-1. Create another MicroK8s instance, following the same steps as in [Setting up a single-node cluster with
-   Microk8s](#setting-up-a-single-node-cluster-with-microk8s) above, skipping the second to last step of labeling the
-   control plane node since this node will be acting as a worker in the cluster.
-1. In your first VM that is currently running Akri, get the join command by running:
-```
-microk8s add-node
-```
-1. In your new VM, run one of the join commands output in the previous step. Go back to your control plane VM and you
-   should be able to see the node joined:
-```sh
-kubectl get no
-```
+### Adding a Node to the cluster
+To see how Akri easily scales as nodes are added to the cluster, add another node to your (K3s, MicroK8s, or vanilla Kubernetes) cluster.
+1. If you are using MicroK8s, create another MicroK8s instance, following the same steps as in [Setting up a single-node cluster](#setting-up-a-single-node-cluster) above. Then, in your first VM that is currently running Akri, get the join command by running `microk8s add-node`. In your new VM, run one of the join commands outputted in the previous step. 
+1. Confirm that you have successfully added a node to the cluster by running the following in your control plane VM:
+   ```sh
+   kubectl get no
+   ```
 1. You can see that another Agent pod has been deployed to the new node; however, no new OPC UA Monitoring brokers have
    been deployed. This is because the default `capacity` for OPC UA is 1, so by default only one Node is allowed to
    utilize a device via a broker.
-```sh
-kubectl get pods -o wide
-```
+   ```sh
+   kubectl get pods -o wide
+   ```
 1. Let's play around with the capacity value and use the `helm upgrade` command to modify our OPC UA Monitoring
    Configuration such that the capacity is 2. On the control plane node, run the following, once again uncommenting
    `--set opcua.mountCertificates='true'` if using security. Watch as the broker terminates and then four come online in
    a Running state.
-```sh
-helm upgrade akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
-    --set opcua.enabled=true \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-    --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-    --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-    --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
-    --set opcua.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
-    --set opcua.capacity=2 \
-    # --set opcua.mountCertificates='true'
-watch microk8s kubectl get pods -o wide
-```
-**Note**: The fact that the second broker comes back and stays in a Pending state is a known bug and will be fixed.
-1. Once you are done using Akri, you can remove your worker node from the cluster by running on the worker node:
-```sh
-microk8s leave
-```
-1. To complete the node removal, on the host run the following, inserting the name of the worker node (you can look it
+   ```sh
+   helm upgrade akri akri-helm-charts/akri \
+      --set useLatestContainers=true \
+      --set opcua.enabled=true \
+      --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+      --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
+      --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
+      --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
+      --set opcua.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
+      --set opcua.capacity=2 \
+      # --set opcua.mountCertificates='true'
+   ```
+   For MicroK8s
+   ```sh
+   watch microk8s kubectl get pods,akrii -o wide
+   ```
+   For K3s and vanilla Kubernetes
+   ```sh
+   watch kubectl get pods,akrii -o wide
+   ```
+1. Once you are done using Akri, you can remove your worker node from the cluster. For MicroK8s this is done by running on the worker node:
+   ```sh
+   microk8s leave
+   ```
+   Then, to complete the node removal, on the host run the following, inserting the name of the worker node (you can look it
    up with `microk8s kubectl get no`):
-```sh
-    microk8s remove-node <node name>
-```
+   ```sh
+      microk8s remove-node <node name>
+   ```
 
 ### Setting up and using a Local Discovery Server (Windows Only)
 **This walk-through only supports setting up an LDS on Windows, since that is the OS the OPC Foundation sample LDS
@@ -353,8 +363,13 @@ helm install akri akri-helm-charts/akri \
     # --set opcua.mountCertificates='true'
 ```
 You can watch as an Instance is created for each Server and two broker pods are spun up.
+For MicroK8s
 ```sh
 watch microk8s kubectl get pods,akrii -o wide
+```
+For K3s and vanilla Kubernetes
+```sh
+watch kubectl get pods,akrii -o wide
 ```
 
 ### Modifying the OPC UA Configuration to filter out an OPC UA Server 
