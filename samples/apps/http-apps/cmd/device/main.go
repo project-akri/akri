@@ -32,12 +32,8 @@ func main() {
 	seed := rand.NewSource(time.Now().UnixNano())
 	entr := rand.New(seed)
 
-	// Handlers: Devices, Healthz
 	handler := http.NewServeMux()
-	handler.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("[main:healthz] Handler entered")
-		fmt.Fprint(w, "ok")
-	})
+
 	// Create handler for each endpoint
 	for _, path := range paths {
 		log.Printf("[main] Creating handler: %s", path)
