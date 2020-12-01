@@ -6,9 +6,14 @@ on:
       - http-extensibility
 
 jobs:
-  device:
-    name: device
+  apps:
+    name: apps
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component:
+          - device
+          - discovery
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -24,13 +29,18 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./samples/apps/http-apps/Dockerfiles/device
-          tags: ghcr.io/deislabs/akri/http-apps-device:latest
+          file: ./samples/apps/http-apps/Dockerfiles/${{ matrix.component }}
+          tags: ghcr.io/deislabs/akri/http-apps-${{ matrix.component }}:latest
           push: true
 
-  discovery:
-    name: discovery
+  grpc:
+    name: grpc
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component:
+          - broker
+          - client
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -46,50 +56,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./samples/apps/http-apps/Dockerfiles/discovery
-          tags: ghcr.io/deislabs/akri/http-apps-discovery:latest
-          push: true
-
-  grpc-broker:
-    name: grpc-broker
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-      - name: setup
-        uses: docker/setup-buildx-action@v1
-      - name: login
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.crUsername }}
-          password: ${{ secrets.crPassword }}
-      - name: build-push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./samples/apps/http-apps/Dockerfiles/grpc.broker
-          tags: ghcr.io/deislabs/akri/http-apps-grpc-broker:latest
-          push: true
-
-  grpc-client:
-    name: grpc-client
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-      - name: setup
-        uses: docker/setup-buildx-action@v1
-      - name: login
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.crUsername }}
-          password: ${{ secrets.crPassword }}
-      - name: build-push
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./samples/apps/http-apps/Dockerfiles/grpc.client
-          tags: ghcr.io/deislabs/akri/http-apps-grpc-client:latest
+          file: ./samples/apps/http-apps/Dockerfiles/grpc.${{ matrix.component }}
+          tags: ghcr.io/deislabs/akri/http-apps-grpc-${{ matrix.component }}:latest
           push: true
