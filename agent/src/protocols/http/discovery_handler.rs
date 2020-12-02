@@ -65,7 +65,7 @@ impl DiscoveryHandler for HTTPDiscoveryHandler {
                 );
                 trace!("[http:discover] Error: {}", err);
 
-                Err(format_err!(
+                Err(failure::format_err!(
                     "Failed to connect to discovery endpoint results: {:?}",
                     err
                 ))

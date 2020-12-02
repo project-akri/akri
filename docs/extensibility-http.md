@@ -25,13 +25,6 @@ fn inner_get_discovery_handler(
 }
 ```
 
-Revise `./agent/src/main.rs`:
-
-```rust
-#[macro_use]
-extern crate failure;
-```
-
 Revise `./agent/Cargo.toml`:
 
 ```TOML
