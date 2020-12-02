@@ -130,8 +130,6 @@ jobs:
 
     - if: matrix.kube-runtime == 'K3s'
       name: Install K3s
-      env:
-        INSTALL_K3S_VERSION: v1.18.9+k3s1
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
         sudo addgroup k3s-admin
@@ -171,7 +169,7 @@ jobs:
     - if: matrix.kube-runtime == 'MicroK8s'
       name: Install MicroK8s
       run: |
-        sudo snap install microk8s --classic --channel=1.18/stable
+        sudo snap install microk8s --classic
         sudo microk8s status --wait-ready
         sudo usermod -a -G microk8s $USER
         sudo ls -la $HOME/.kube
