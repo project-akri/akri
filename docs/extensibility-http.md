@@ -35,7 +35,7 @@ reqwest = "0.10.8"
 
 ## Akri Configuration CRD
 
-> **NOTE** Making this change means you must `helm install` a copy of this directory **not** Microsoft hosted
+> **NOTE** Making this change means you must `helm install` a copy of this directory **not** deislabs/akri hosted
 
 Revise `./deployment/helm/crds/akri-configuration-crd.yaml`:
 
