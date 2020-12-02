@@ -179,13 +179,13 @@ onvif:
     protocol: TCP
 
 opcua:
-  # enabled defines whether to load a opcua configuration
+  # enabled defines whether to load an OPC UA configuration
   enabled: false
   # name is the Kubernetes resource name that will be created for this
-  # opcua configuration
+  # OPC UA configuration
   name: akri-opcua-monitoring
   # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this opcua configuration
+  # created as a result of applying this OPC UA configuration
   properties:
   opcuaDiscoveryMethod: standard
   # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
@@ -202,13 +202,13 @@ opcua:
     action: Exclude
     items: []
   # capacity is the capacity for any instances created as a result of
-  # applying this opcua configuration
+  # applying this OPC UA configuration
   capacity: 1
   brokerPod:
     image:
-      # repository is the Akri opcua broker container reference
+      # repository is the Akri OPC UA broker container reference
       repository: 
-      # pullPolicy is the Akri opcua broker pull policy
+      # pullPolicy is the Akri OPC UA broker pull policy
       pullPolicy: Always
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod

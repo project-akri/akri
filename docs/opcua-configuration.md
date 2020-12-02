@@ -107,7 +107,7 @@ helm install akri akri-helm-charts/akri \
 
 ### Mounting OPC UA credentials to enable security
 For your broker pod to utilize a discovered OPC UA server, it will need to contain an OPC UA Client. OPC UA Clients and Servers can establish an insecure connection so long as the OPC UA Servers support a Security Policy of None. However, if you would like your broker's OPC UA Client to establish a secure connection with an OPC UA server, the Client and Server must trust each other's x509 v3 certificates. This can be done in one of the three ways explained
-in the [opcua proposal](./proposals/opcua.md#giving-proper-credentials-to-the-akri-broker). The simplest method is to
+in the [OPC UA proposal](./proposals/opcua.md#giving-proper-credentials-to-the-akri-broker). The simplest method is to
 sign the OPC UA monitoring broker's certificate with the same Certificate Authority (CA) as the Server with which it
 wishes to connect. The certificates are passed to the broker via a Kubernetes Secret mounted as a volume to the directory `/etc/opcua-certs/client-pki`.
 
@@ -160,7 +160,7 @@ document](./customizing-akri-installation.md).
 ## Implementation details
 The OPC UA implementation can be understood by looking at several things:
 1. [OpcuaDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties.
-1. [The opcua property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates
+1. [The OPC UA property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates
    the CRD input.
 1. [OpcuaDiscoveryHandler](../agent/src/protocols/opcua/discovery_handler.rs) defines OPC UA Server discovery.
 1. [sample-brokers/opcua-monitoring-broker](../samples/brokers/opcua-monitoring-broker) defines a sample OPC UA protocol broker

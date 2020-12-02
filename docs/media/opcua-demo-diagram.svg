@@ -92,7 +92,7 @@
 		</g>
 		<g id="shape1217-6" v:mID="1217" v:groupContext="shape" transform="translate(927,-134.685)">
 			<title>Rectangle.1217</title>
-			<desc>Akri OPCUA Node Value Anomaly Detection</desc>
+			<desc>Akri OPC UA Node Value Anomaly Detection</desc>
 			<v:userDefs>
 				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
 			</v:userDefs>
@@ -100,7 +100,7 @@
 			<v:textRect cx="112.073" cy="497.23" width="224.15" height="22.9429"/>
 			<rect x="0" y="485.758" width="224.145" height="22.9429" class="st3"/>
 			<text x="4.99" y="499.74" class="st4" v:langID="1033"><v:paragraph v:spBefore="5" v:spAfter="5" v:horizAlign="1"
-						v:bulletSize="0.166667"/><v:tabList/>Akri OPCUA Node Value Anomaly Detection</text>		</g>
+						v:bulletSize="0.166667"/><v:tabList/>Akri OPC UA Node Value Anomaly Detection</text>		</g>
 		<g id="group1216-9" transform="translate(18.75,-256.067)" v:mID="1216" v:groupContext="group">
 			<title>Sheet.1216</title>
 			<g id="group1213-10" v:mID="1213" v:groupContext="group">
