@@ -36,5 +36,5 @@ jobs:
         with:
           context: .
           file: ./samples/apps/http-apps/Dockerfiles/${{ matrix.dockerfile }}
-          tags: ghcr.io/deislabs/akri/http-apps-${{ matrix.component }}:latest
+          tags: ghcr.io/deislabs/akri/http-apps-${{ matrix.component }}:v1
           push: true

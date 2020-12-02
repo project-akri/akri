@@ -25,7 +25,7 @@ jobs:
         with:
           context: .
           file: ./samples/brokers/http/Dockerfiles/standalone
-          tags: ghcr.io/deislabs/akri/http-broker:latest
+          tags: ghcr.io/deislabs/akri/http-broker:v1
           push: true
 
   grpc-broker:
@@ -47,7 +47,7 @@ jobs:
         with:
           context: .
           file: ./samples/brokers/http/Dockerfiles/grpc.broker
-          tags: ghcr.io/deislabs/akri/http-grpc-broker:latest
+          tags: ghcr.io/deislabs/akri/http-grpc-broker:v1
           push: true
 
   grpc-client:
@@ -69,5 +69,5 @@ jobs:
         with:
           context: .
           file: ./samples/brokers/http/Dockerfiles/grpc.client
-          tags: ghcr.io/deislabs/akri/http-grpc-client:latest
+          tags: ghcr.io/deislabs/akri/http-grpc-client:v1
           push: true

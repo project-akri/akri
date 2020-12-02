@@ -2,38 +2,38 @@
 
 : "${REGISTRY:?Need to export REGISTRY e.g. ghcr.io}"
 : "${USER:?Need to export USER e.g. ghcr.io/deislabs/...}"
-: "${PREFIX:?Need to export PREFIX e.g. ${REGISTRY}/${USER}/akri-http...}"
-: "${TAG:?Need to export TAG e.g. latest}"
+: "${PREFIX:?Need to export PREFIX e.g. ${REGISTRY}/${USER}/http...}"
+: "${TAG:?Need to export TAG e.g. v1}"
 
 # Standalone
 (
-    IMAGE="${REGISTRY}/${USER}/${PREFIX}-broker"
+    IMAGE="${REGISTRY}/${USER}/${PREFIX}-broker:${TAG}"
     docker build \
-    --tag=${IMAGE}:${TAG} \
+    --tag=${IMAGE} \
     --file=./Dockerfiles/standalone \
     ../../..
 
-    docker push ${IMAGE}:${TAG}
+    docker push ${IMAGE}
 )
 
 # gRPC Broker|Client
 # Broker
 (
-    IMAGE="${REGISTRY}/${USER}/${PREFIX}-grpc-broker-rust"
+    IMAGE="${REGISTRY}/${USER}/${PREFIX}-grpc-broker:${TAG}"
     docker build \
-    --tag=${IMAGE}:${TAG} \
+    --tag=${IMAGE} \
     --file=./Dockerfiles/grpc.broker \
     ../../..
 
-    docker push ${IMAGE}:${TAG}
+    docker push ${IMAGE}
 )
 # Client
 (
-    IMAGE="${REGISTRY}/${USER}/${PREFIX}-grpc-client-rust"
+    IMAGE="${REGISTRY}/${USER}/${PREFIX}-grpc-client:${TAG}"
     docker build \
-    --tag=${IMAGE}:${TAG} \
+    --tag=${IMAGE} \
     --file=./Dockerfiles/grpc.client \
     ../../..
 
-    docker push ${IMAGE}:${TAG}
+    docker push ${IMAGE}
 )

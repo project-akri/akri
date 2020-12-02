@@ -149,14 +149,16 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-contr
 ```bash
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri" # Or your preferred GHCR repo prefix
+BROKER="http-broker"
 TAGS="v1"
 
+IMAGE="${HOST}/${USER}/${REPO}:${TAGS}"
+
 docker build \
---tag=${HOST}/${USER}/${REPO}:${TAGS} \
+--tag=${IMAGE} \
 --file=./samples/brokers/http/Dockerfiles/standlone \
 . && \
-docker push ${HOST}/${USER}/${REPO}-broker:${TAGS}
+docker push ${IMAGE}
 ```
 
 Revise `./samples/brokers/http/kubernetes/http.yaml` to reflect the image and the digest.
@@ -164,8 +166,7 @@ Revise `./samples/brokers/http/kubernetes/http.yaml` to reflect the image and th
 You may manually confirm the image and digest using the output from the build or push commands, or:
 
 ```bash
-IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-broker:${TAGS})"
-
+IMAGE="${HOST}/${USER}/${REPO}:${TAGS}"
 sed \
 --in-place \
 "s|IMAGE|${IMAGE}|g"
@@ -188,16 +189,17 @@ cd ./samples/apps/http-apps
 
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="http-apps" # Or your preferred GHCR repo prefix
+PREFIX="http-apps"
 TAGS="v1"
 
 for APP in "device" "discovery"
 do
+  IMAGE="${HOST}/${USER}/${PREFIX}-${APP}:${TAGS}"
   docker build \
-  --tag=${HOST}/${USER}/${REPO}-${APP}:${TAGS} \
+  --tag=${IMAGE} \
   --file=./Dockerfiles/${APP} \
   .
-  docker push ${HOST}/${USER}/${REPO}-${APP}:${TAGS}
+  docker push ${IMAGE}
 done
 ```
 
@@ -208,7 +210,7 @@ You may manually confirm the image and digest using the output from the build or
 ```bash
 for APP in "device" "discovery"
 do
-  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-${APP}:${TAGS})"
+  IMAGE="${HOST}/${USER}/${REPO}-${APP}:${TAGS}"
   sed \
   --in-place \
   "s|IMAGE|${IMAGE}|g"
@@ -383,16 +385,17 @@ kubectl delete --filename=./http.yaml
 ```bash
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri" # Or your preferred GHCR repo prefix
+BROKER="http-apps"
 TAGS="v1"
 
 for APP in "broker" "client"
 do
+  IMAGE="${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS}"
   docker build \
-  --tag=${HOST}/${USER}/${REPO}-${APP}:${TAGS} \
+  --tag=${IMAGE} \
   --file=./samples/brokers/http/Dockerfiles/grpc.${APP} \
   . && \
-  docker push ${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS}
+  docker push ${IMAGE}
 done
 ```
 
@@ -403,7 +406,7 @@ You may manually confirm the image and digest using the output from the build or
 ```bash
 for APP in "broker" "client"
 do
-  IMAGE="$(docker inspect --format='{{index .RepoDigests 0}}' ${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS})"
+  IMAGE="${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS}"
   sed \
   --in-place \
   "s|IMAGE|${IMAGE}|g"
@@ -481,19 +484,6 @@ When you're done, you may delete the Broker and the Client:
 kubectl delete --filename=./kubernetes/http.grpc.broker.yaml
 kubectl delete --filename=./kubernetes/http.grpc.client.yaml
 ```
-
-There are public images available if you'd prefer to use these:
-
-|Language|Type|Image|
-|--------|----|-----|
-|Rust|Broker|`ghcr.io/dazwilkin/http-grpc-broker-rust@sha256:a4a7494aef44b49bd08f371add41db917553391ea397c60e9b4d213545b94f4e`|
-|Rust|Client|`ghcr.io/dazwilkin/http-grpc-client-rust@sha256:edd392ca7fd3bc5fec672bb032434cfb77705e560e5407e80c6625bc5a3d8dfe`|
-|Golang|Broker|`ghcr.io/dazwilkin/http-grpc-broker-golang@sha256:96079c319a9e1e34505bd6769d63d04758b28f7bf788460848dd04f116ecea7e`|
-|Golang|Client|`ghcr.io/dazwilkin/http-grpc-client-golang@sha256:ed046722281040f931b7221a10d5002d4f328a012232d01fd6c95db5069db2a5`|
-
-
- Thanks to gRPC, you may combine these as you wish :-)
-
 
 ## Tidy
 

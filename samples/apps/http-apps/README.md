@@ -9,8 +9,8 @@ This directory includes an alternative gRPC implementation of the Akri HTTP Prot
 ```bash
 export REGISTRY="ghcr.io"
 export USER=[[GITHUB-USER]]
-export PREFIX="http-apps" # Or ...
-export TAG=$(git rev-parse HEAD) # Or ...
+export PREFIX="http-apps"
+export TAG="v1"
 ```
 
 ## Build
