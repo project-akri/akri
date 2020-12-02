@@ -142,6 +142,8 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
 
+> **NOTE** These commands build for amd64 (`BUILD_AMD64=1`), other archs can be built by setting `BUILD_*` differently.
+
 ## Build|Push Broker (HTTP)
 
 ```bash
