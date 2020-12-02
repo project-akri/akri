@@ -99,7 +99,6 @@ Revised `./dockerignore` to ensure `docker build ...` succeed:
 ```console
 # Don't ignore these
 !samples/brokers/http
-!shared/
 ```
 
 ## Revise workspace Cargo file
