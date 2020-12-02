@@ -99,7 +99,7 @@ docker stop discovery
 
 And most useful on Kubernetes because one (!) or more devices can be created and then discovery can be created with correct DNS names.
 
-Ensure the `image` references are updated in `./kubernetes/v2/device.yaml` and `./kubernetes/v2/discovery.yaml`
+Ensure the `image` references are updated in `./kubernetes/device.yaml` and `./kubernetes/discovery.yaml`
 
 ```bash
 for APP in "device" "discovery"
