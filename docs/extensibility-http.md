@@ -341,7 +341,19 @@ customresourcedefinition.apiextensions.k8s.io/configurations.akri.sh
 customresourcedefinition.apiextensions.k8s.io/instances.akri.sh
 ```
 
-## Deploy standalone Broker
+## Deploy Broker
+
+There are 3 implementations of a broker for the HTTP protocol.
+
+The 2 options described below are implemented using Rust.
+
+The standalone broker is a self-contained scenario that demonstrates the ability to interact with HTTP-based devices by `curl`ing a device's endpoints. This type of solution would be applicable in batch-like scenarios where the broker performs a predictable set of processing steps for a device.
+
+The second scenario uses gRPC. gRPC is an increasingly common alternative to REST-like APIs and supports high-throughput and streaming methods. gRPC is not a requirement for broker implements in Akri but is used here as one of many mechanisms that may be used. The gRPC-based broker has a companion client. This is a more realistic scenario in which the broker proxies client requests using gRPC to HTTP-based devices. The advantage of this approach is that device functionality is encapsulated by an API that is exposed by the broker. In this case the API has a single method but in practice, there could be many methods implemented.
+
+The third implemnentation is a gRPC-based broker and companion client implemented in Golang. This is functionally equivalent to the Rust implementation and shares a protobuf definition. For this reason, you may combine the Rust broker and client with the Golang broker and client arbitrarily. The Golang broker is described in the [`http-apps`](./samples/apps/http-apps/README.md) directory.
+
+### Option #1: Standalone Broker
 
 Now we can deploy the (standlone) broker.
 
@@ -380,7 +392,9 @@ When you're done, you may delete the standalone broker:
 kubectl delete --filename=./http.yaml
 ```
 
-## Build|Push gRPC Broker and Client
+### Option #2: gRPC Broker and Client
+
+#### Build|Push
 
 ```bash
 HOST="ghcr.io"
@@ -414,7 +428,7 @@ do
 done
 ```
 
-## Deploy gRPC Broker and Client
+#### Deploy
 
 Now we can deploy the gRPC-enabled broker. This broker implements a gRPC server (defined by `./proto/http.proto`) and provides a demonstration of how a broker could surface a device API to other resources in a Kubernetes cluster. In this case, a straightforward gRPC client.
 
