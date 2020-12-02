@@ -11,7 +11,7 @@ The v0.0.44 release introduces a number of significant improvements!
 * Enable Akri for armv7
 * Create separate Helm charts for releases (akri) and merges (akri-dev)
 * Parameterize Helm for udev beyond simple video scenario
-* Expand udev discovery to include subsystems
+* Expand udev discovery by supporting filtering by udev rules that look up the device hierarchy such as SUBSYSTEMS, ATTRIBUTES, DRIVERS, KERNELS, and TAGS
 * Parameterize Helm for udev to allow security context
 * Remove requirement for agent to execute in privileged container
 
@@ -22,6 +22,14 @@ N/A
 
 ## Known Issues
 N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.19.4 |
+| K3s | v1.18.9+k3s1 |
+| MicroK8s | 1.18/stable |
 
 ## What's next?
 Check out our [roadmap](https://github.com/deislabs/akri/blob/main/docs/roadmap.md) to see the features we are looking forward to!
