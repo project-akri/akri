@@ -8,7 +8,6 @@ on:
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
-    - build/setup.sh
   pull_request:
     branches: [ main ]
     paths:
@@ -16,7 +15,6 @@ on:
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
-    - build/setup.sh
   pull_request_target:
     branches: [ main ]
     paths:
@@ -24,7 +22,6 @@ on:
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
-    - build/setup.sh
 
 env:
   CARGO_TERM_COLOR: always
@@ -49,10 +46,13 @@ jobs:
         # of the pull request, so the default ref is master branch and
         # ref should be manually set to the head of the PR
         ref: refs/pull/${{ github.event.pull_request.number }}/head
+        persist-credentials: false
 
     - name: Checkout the head commit of the branch
       if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
 
     - name: Rust install
       uses: actions-rs/toolchain@v1
@@ -60,8 +60,12 @@ jobs:
         toolchain: 1.41.0
         override: true
         components: clippy, rustfmt
-    - name: Install linux requirement
-      run: ./build/setup.sh
+    - name: Install Linux requirements
+      run: |
+        apt_dependencies="git curl libssl-dev pkg-config libudev-dev libv4l-dev"
+        echo "Run apt update and apt install the following dependencies: $apt_dependencies"
+        sudo apt update
+        sudo apt install -y $apt_dependencies
     - name: Check rust format
       run: cargo fmt --all -- --check
     - name: Check clippy
