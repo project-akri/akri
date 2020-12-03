@@ -170,15 +170,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install kubernetes
 
-    - name: Upload Agent container as artifact
+    - name: Download Agent container artifact
       if: startsWith(github.event_name, 'pull_request')
-      uses: actions/upload-artifact@v2
+      uses: actions/download-artifact@v2
       with:
         name: agent.tar
         path: agent.tar
-    - name: Upload Controller container as artifact
+    - name: Download Controller container artifact
       if: startsWith(github.event_name, 'pull_request')
-      uses: actions/upload-artifact@v2
+      uses: actions/download-artifact@v2
       with:
         name: controller.tar
         path: controller.tar
