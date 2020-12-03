@@ -201,13 +201,13 @@ jobs:
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'K3s')
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'K3s'))
       name: Import local agent and controller to K3s
       run: |
         sudo k3s ctr image import agent.tar
         sudo k3s ctr image import controller.tar
 
-    - if: matrix.kube-runtime == 'Kubernetes'
+    - if: startsWith(matrix.kube-runtime, 'Kubernetes')
       name: Install Kubernetes
       run: |
         sudo apt-get update -y
@@ -246,7 +246,7 @@ jobs:
         echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'MicroK8s')
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
       name: Import local agent and controller to MicroK8s
       run: |
         sudo microk8s ctr image import agent.tar
