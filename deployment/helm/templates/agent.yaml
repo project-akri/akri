@@ -47,11 +47,11 @@ spec:
             value: "1"
           {{- end }}
           - name: HOST_CRICTL_PATH
-            value: /host/usr/bin/crictl
+            value: /akri/crictl
           - name: HOST_RUNTIME_ENDPOINT
-            value: unix:///host/var/run/dockershim.sock
+            value: unix:///akri/dockershim.sock
           - name: HOST_IMAGE_ENDPOINT
-            value: unix:///host/var/run/dockershim.sock
+            value: unix:///akri/dockershim.sock
           - name: AGENT_NODE_NAME
             valueFrom:
               fieldRef:
@@ -60,9 +60,9 @@ spec:
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
           - name: usr-bin-crictl
-            mountPath: /host/usr/bin/crictl
+            mountPath: /akri/crictl
           - name: var-run-dockershim
-            mountPath: /host/var/run/dockershim.sock
+            mountPath: /akri/dockershim.sock
           - name: devices
             mountPath: /run/udev
       {{- with .Values.imagePullSecrets }}
