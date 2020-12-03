@@ -175,13 +175,11 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: agent.tar
-        path: agent.tar
     - name: Download Controller container artifact
       if: startsWith(github.event_name, 'pull_request')
       uses: actions/download-artifact@v2
       with:
         name: controller.tar
-        path: controller.tar
 
     - if: startsWith(matrix.kube-runtime, 'K3s')
       name: Install K3s
