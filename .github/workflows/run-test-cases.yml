@@ -134,7 +134,7 @@ jobs:
           - K3s-1.18
           - K3s-1.19
           - MicroK8s-1.18
-          # - MicroK8s-1.19
+          - MicroK8s-1.19
           - Kubernetes-1.16
           - Kubernetes-1.17
           - Kubernetes-1.18
@@ -144,8 +144,8 @@ jobs:
         include:
           - kube-runtime: MicroK8s-1.18
             kube-version: 1.18/stable
-          # - kube-runtime: MicroK8s-1.19
-          #   kube-version: 1.19/stable
+          - kube-runtime: MicroK8s-1.19
+            kube-version: 1.19/stable
           - kube-runtime: K3s-1.18
             kube-version: v1.18.9+k3s1
           - kube-runtime: K3s-1.19
@@ -277,6 +277,7 @@ jobs:
     - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
       name: Import local agent and controller to MicroK8s
       run: |
+        sleep 15 # 60, 30, 15, and 5 all work in simple tests ... no sleep fails for 1.19.3
         sudo microk8s.status --wait-ready
         sudo microk8s ctr images ls
         sudo microk8s ctr --debug --timeout 10s images import agent.tar
