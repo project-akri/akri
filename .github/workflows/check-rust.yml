@@ -60,13 +60,13 @@ jobs:
         toolchain: 1.41.0
         override: true
         components: clippy, rustfmt
-    - name: Install linux requirement
+    - name: Install Linux requirements
       run: |
         apt_dependencies="git curl libssl-dev pkg-config libudev-dev libv4l-dev"
         echo "Install dependencies: $apt_dependencies"
         echo "Run apt update and apt install without sudo"
-        apt update
-        apt install -y $apt_dependencies
+        sudo apt update
+        sudo apt install -y $apt_dependencies
     - name: Check rust format
       run: cargo fmt --all -- --check
     - name: Check clippy
