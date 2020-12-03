@@ -32,7 +32,7 @@ N/A
 | MicroK8s | 1.18/stable |
 
 ## What's next?
-Check out our [roadmap]((https://github.com/deislabs/akri/blob/v0.0.44/docs/roadmap.md) to see the features we are looking forward to!
+Check out our [roadmap](https://github.com/deislabs/akri/blob/v0.0.44/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
 See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.0.44/CHANGELOG.md) for more information on what changed in this and previous releases.
