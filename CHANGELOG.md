@@ -3,7 +3,7 @@
 ## Announcing Akri v0.0.44!
 Akri v0.0.44 is a pre-release of Akri.
 
-To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/main/README.md) and start [contributing](https://github.com/deislabs/akri/blob/main/docs/contributing.md) today!
+To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/v0.0.44/README.md) and start [contributing](https://github.com/deislabs/akri/blob/v0.0.44/docs/contributing.md) today!
 
 ## New Features
 The v0.0.44 release introduces a number of significant improvements!
@@ -32,7 +32,7 @@ N/A
 | MicroK8s | 1.18/stable |
 
 ## What's next?
-Check out our [roadmap](https://github.com/deislabs/akri/blob/main/docs/roadmap.md) to see the features we are looking forward to!
+Check out our [roadmap]((https://github.com/deislabs/akri/blob/v0.0.44/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
 See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.0.44/CHANGELOG.md) for more information on what changed in this and previous releases.
