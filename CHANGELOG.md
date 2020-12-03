@@ -21,7 +21,7 @@ View the [full change log](https://github.com/deislabs/akri/compare/v0.0.35...v0
 N/A
 
 ## Known Issues
-N/A
+* Documented Helm settings are not currently compatible with K3s v1.19.4+k3s1
 
 ## Validated With
 
