@@ -221,6 +221,12 @@ jobs:
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'Kubernetes'))
+      name: Import local agent and controller to Kubernetes
+      run: |
+        sudo docker load --input agent.tar
+        sudo docker load --input controller.tar
+
     - if: startsWith(matrix.kube-runtime, 'MicroK8s')
       name: Install MicroK8s
       run: |
