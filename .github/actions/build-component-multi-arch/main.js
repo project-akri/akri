@@ -24,6 +24,7 @@ async function shell_cmd(cmd) {
 (async () => {
     try {
         console.log(`Start main.js`)
+        console.log('Check action is running')
 
         var dev_suffix = (core.getInput('github_event_name') == "release") ? "" : "-dev";
         const versioned_label = `v${fs.readFileSync('./version.txt').toString().trim()}${dev_suffix}`;
