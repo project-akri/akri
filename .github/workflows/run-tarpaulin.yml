@@ -57,7 +57,7 @@ jobs:
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
-      run: docker exec $(cat container_id.txt) sh -c "echo 'Run apt update and apt install the following dependencies: git curl libssl-dev pkg-config libudev-dev libv4l-dev' ; apt update ; apt install -y git curl libssl-dev pkg-config libudev-dev libv4l-dev"
+      run: docker exec $(cat container_id.txt) sh -c "echo Run apt update and apt install the following dependencies - git curl libssl-dev pkg-config libudev-dev libv4l-dev ; apt update ; apt install -y git curl libssl-dev pkg-config libudev-dev libv4l-dev"
     - name: Install rust requirements in tarpaulin instance
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin
