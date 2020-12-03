@@ -7,21 +7,18 @@ on:
     - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
-    - build/setup.sh
   pull_request:
     branches: [ main ]
     paths:
     - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
-    - build/setup.sh
   pull_request_target:
     branches: [ main ]
     paths:
     - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
-    - build/setup.sh
 
 env:
   CARGO_TERM_COLOR: always
@@ -45,10 +42,13 @@ jobs:
         # of the pull request, so the default ref is master branch and
         # ref should be manually set to the head of the PR
         ref: refs/pull/${{ github.event.pull_request.number }}/head
+        persist-credentials: false
 
     - name: Checkout the head commit of the branch
       if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
 
     - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
       run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
@@ -57,7 +57,7 @@ jobs:
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
-      run: docker exec $(cat container_id.txt) sh -c "./build/setup.sh"
+      run: docker exec $(cat container_id.txt) sh -c "apt_dependencies='git curl libssl-dev pkg-config libudev-dev libv4l-dev' ; echo 'Install dependencies: $apt_dependencies' ; echo 'Run apt update and apt install without sudo' ; apt update ; apt install -y $apt_dependencies"
     - name: Install rust requirements in tarpaulin instance
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin

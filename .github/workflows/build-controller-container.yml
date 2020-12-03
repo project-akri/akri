@@ -10,7 +10,6 @@ on:
     - build/containers/Dockerfile.controller
     - controller/**
     - shared/**
-    - build/setup.sh
     - version.txt
     - build/akri-containers.mk
     - Makefile
@@ -23,7 +22,6 @@ on:
     - build/containers/Dockerfile.controller
     - controller/**
     - shared/**
-    - build/setup.sh
     - version.txt
     - build/akri-containers.mk
     - Makefile
@@ -36,7 +34,6 @@ on:
     - build/containers/Dockerfile.controller
     - controller/**
     - shared/**
-    - build/setup.sh
     - version.txt
     - build/akri-containers.mk
     - Makefile
@@ -73,10 +70,13 @@ jobs:
         # of the pull request, so the default ref is master branch and
         # ref should be manually set to the head of the PR
         ref: refs/pull/${{ github.event.pull_request.number }}/head
+        persist-credentials: false
 
     - name: Checkout the head commit of the branch
       if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
 
     - name: Prepare To Install
       uses: actions/setup-node@v1
@@ -114,6 +114,8 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
 
     - name: Prepare To Install
       uses: actions/setup-node@v1
