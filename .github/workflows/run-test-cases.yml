@@ -253,8 +253,8 @@ jobs:
     - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
       name: Import local agent and controller to MicroK8s
       run: |
-        sudo microk8s ctr image import agent.tar
-        sudo microk8s ctr image import controller.tar
+        sudo microk8s ctr --timeout 10s images import agent.tar
+        sudo microk8s ctr --timeout 10s images import controller.tar
 
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
