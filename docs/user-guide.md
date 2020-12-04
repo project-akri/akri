@@ -20,7 +20,7 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev
 ```
 
-Starting after Release v0.0.35, an **akri** Helm chart will be published for each
+Starting in Release v0.0.44, an **akri** Helm chart will be published for each
 [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more
 rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
 ```sh
@@ -96,7 +96,7 @@ helm install akri akri-helm-charts/akri
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri-dev \
+    helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set <protocol>.enabled=true \
