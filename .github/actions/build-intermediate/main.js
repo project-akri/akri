@@ -59,15 +59,15 @@ async function shell_cmd(cmd) {
         }
         console.log(`Makefile build target suffix: ${makefile_target_suffix}`)
 
-        console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);
-        await shell_cmd(`echo "${core.getInput('container_registry_password')}" | docker login -u ${core.getInput('container_registry_username')} --password-stdin ${core.getInput('container_registry_base_url')}`);
-
         process.env.PREFIX = `${core.getInput('container_prefix')}`
 
         console.log(`Build the versioned container: make ${core.getInput('makefile_component_name')}-build-${makefile_target_suffix}`)
         await exec.exec(`make ${core.getInput('makefile_component_name')}-build-${makefile_target_suffix}`)
 
         if (push_containers == "1") {
+            console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);
+            await shell_cmd(`echo "${core.getInput('container_registry_password')}" | docker login -u ${core.getInput('container_registry_username')} --password-stdin ${core.getInput('container_registry_base_url')}`);
+    
             console.log(`Push the versioned container: make ${core.getInput('makefile_component_name')}-docker-per-arch-${makefile_target_suffix}`)
             await exec.exec(`make ${core.getInput('makefile_component_name')}-docker-per-arch-${makefile_target_suffix}`)
         } else {
