@@ -21,5 +21,8 @@ RUN sed -i 's/^deb h'/'deb [arch=amd64,i386] h/' /etc/apt/sources.list && \
             g++ ca-certificates curl libssl-dev:arm64 \
             libv4l-dev:arm64 libudev-dev:arm64
 
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
 # Copy over container legal notice
 COPY ./build/container-images-legal-notice.md .
