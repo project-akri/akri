@@ -78,7 +78,7 @@ Later, we will discuss [how to add a custom broker to the
 Configuration](./#adding-a-custom-broker-to-the-configuration).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"'
@@ -101,7 +101,7 @@ our Helm chart, we suggest creating a Configuration file using Helm and then man
 The udev protocol will find all devices that are described by ANY of the udev rules. For example, to discover devices made by either Great Vendor or Awesome Vendor, you could add a second udev rule.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
@@ -124,7 +124,7 @@ environment variable and proceed to interact with the device. To add a broker to
 empty nginx pod for each instance. Instead, you can point to your image, say `ghcr.io/<USERNAME>/sound-broker`.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
@@ -142,7 +142,7 @@ By default in the generic udev Configuration, the udev broker is run in privileg
 Helm. For example, to instead run all processes in the Pod with user ID 1000 and group 1000, do the following: 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \

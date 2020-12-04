@@ -96,7 +96,7 @@ helm install akri akri-helm-charts/akri
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri-dev \
+    helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set <protocol>.enabled=true \
