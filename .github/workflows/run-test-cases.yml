@@ -20,23 +20,6 @@ on:
     - version.txt
     - build/akri-containers.mk
     - Makefile
-  pull_request_target:
-    branches: [ main ]
-    paths:
-    - test/run-end-to-end.py
-    - test/run-conservation-of-broker-pod.py
-    - test/run-helm-install-delete.py
-    - test/shared_test_code.py
-    - .github/workflows/run-test-cases.yml
-    - build/containers/Dockerfile.agent
-    - build/containers/Dockerfile.controller
-    - deployment/helm/**
-    - agent/**
-    - controller/**
-    - shared/**
-    - version.txt
-    - build/akri-containers.mk
-    - Makefile
   push:
     branches: [ main ]
     paths:
@@ -60,36 +43,14 @@ on:
     
 jobs:
   build-containers:
-    # Build containers only if this is a PR ... otherwise, the containers are pulled ghcr,
-    # but this job cannot be skipped because test-cases needs to run after build-containers
-    # (and if we skip this job, any job that `needs` it will be skipped)
-    if: >-
-      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
-      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-18.04
     timeout-minutes: 35
 
     steps:
-    - name: Checkout the merged commit from PR and base branch
-      uses: actions/checkout@v2
-      if: github.event_name == 'pull_request_target'
-      with:
-        # pull_request_target is run in the context of the base repository
-        # of the pull request, so the default ref is master branch and
-        # ref should be manually set to the head of the PR
-        ref: refs/pull/${{ github.event.pull_request.number }}/head
-        persist-credentials: false
-
     - name: Checkout the head commit of the branch
-      if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
       with:
         persist-credentials: false
-
-    - name: Log into ghcr to access intermediate build containers
-      if: startsWith(github.event_name, 'pull_request')
-      run: echo "${{ secrets.crPassword }}" | docker login --username "${{ secrets.crUsername }}" ghcr.io --password-stdin
 
     - name: Build local containers for PR tests
       if: startsWith(github.event_name, 'pull_request')
@@ -120,11 +81,6 @@ jobs:
         path: controller.tar
 
   test-cases:
-    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
-    if: >-
-      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
-      ( !(startsWith(github.event_name, 'pull_request')) )
     needs: build-containers
     runs-on: ubuntu-18.04
     timeout-minutes: 35
@@ -164,18 +120,7 @@ jobs:
             test-file: test/run-end-to-end.py
 
     steps:
-    - name: Checkout the merged commit from PR and base branch
-      uses: actions/checkout@v2
-      if: github.event_name == 'pull_request_target'
-      with:
-        # pull_request_target is run in the context of the base repository
-        # of the pull request, so the default ref is master branch and
-        # ref should be manually set to the head of the PR
-        ref: refs/pull/${{ github.event.pull_request.number }}/head
-        persist-credentials: false
-
     - name: Checkout the head commit of the branch
-      if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
       with:
         persist-credentials: false
@@ -295,8 +240,7 @@ jobs:
       name: Set sleep duration before running script to 1500
       run: echo 1500 > /tmp/sleep_duration.txt
 
-    # For pull_request and pull_request_target, use the locally built
-    # containers.
+    # For pull_request, use the locally built containers.
     - if: startsWith(github.event_name, 'pull_request')
       name: Tell Helm to use the 'local' labels for container images
       run: |
@@ -309,10 +253,9 @@ jobs:
       name: Use current version for push
       run: cat version.txt > /tmp/version_to_test.txt
 
-    # For workflow_dispatch, pull_request and pull_request_target, use the files
-    # in deployment/helm as basis for helm install ... this enables us to test
-    # any changes made to the helm chart files in a PR (where no helm chart is
-    # published)
+    # For workflow_dispatch and pull_request, use the files in deployment/helm
+    # as basis for helm install ... this enables us to test any changes made to
+    # the helm chart files in a PR (where no helm chart is published)
     - if: github.event_name != 'push' && github.event_name != 'release'
       name: Tell Helm to use the files in deployment/helm to build chart
       run: |
