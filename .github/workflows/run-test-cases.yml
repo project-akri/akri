@@ -2,6 +2,7 @@ name: Test K3s, Kubernetes, and MicroK8s
 
 on:
   workflow_dispatch:
+    inputs:
   pull_request:
     branches: [ main ]
     paths:
@@ -58,27 +59,13 @@ on:
       - published
     
 jobs:
-  test-cases:
-    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+  build-containers:
+    # Build containers only if this is a PR ... otherwise, the containers are pulled ghcr
     if: >-
       ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
-      ( !(startsWith(github.event_name, 'pull_request')) )
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false )
     runs-on: ubuntu-18.04
     timeout-minutes: 35
-
-    strategy:
-      fail-fast: false
-      matrix:
-        kube-runtime:
-          - K3s
-          - MicroK8s
-          - Kubernetes
-        test-case:
-          - end-to-end
-        include:
-          - test-case: end-to-end
-            test-file: test/run-end-to-end.py
 
     steps:
     - name: Checkout the merged commit from PR and base branch
@@ -104,15 +91,6 @@ jobs:
       if: startsWith(github.event_name, 'pull_request')
       run: echo "${{ secrets.crPassword }}" | docker login --username "${{ secrets.crUsername }}" ghcr.io --password-stdin
 
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-       python-version: 3.8 
-    - name: Install Python kubernetes dependency
-      run: |
-        python -m pip install --upgrade pip
-        pip install kubernetes
-
     - name: Build local containers for PR tests
       if: startsWith(github.event_name, 'pull_request')
       env:
@@ -128,10 +106,102 @@ jobs:
         docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
         docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
 
-    - if: matrix.kube-runtime == 'K3s'
+    - name: Upload Agent container as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: agent.tar
+        path: agent.tar
+    - name: Upload Controller container as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: controller.tar
+        path: controller.tar
+
+  test-cases:
+    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
+    if: >-
+      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
+    needs: build-containers
+    runs-on: ubuntu-18.04
+    timeout-minutes: 35
+
+    strategy:
+      fail-fast: false
+      matrix:
+        kube-runtime:
+          - K3s-1.18
+          - K3s-1.19
+          - MicroK8s-1.18
+          - MicroK8s-1.19
+          - Kubernetes-1.16
+          - Kubernetes-1.17
+          - Kubernetes-1.18
+          - Kubernetes-1.19
+        test-case:
+          - end-to-end
+        include:
+          - kube-runtime: MicroK8s-1.18
+            kube-version: 1.18/stable
+          - kube-runtime: MicroK8s-1.19
+            kube-version: 1.19/stable
+          - kube-runtime: K3s-1.18
+            kube-version: v1.18.9+k3s1
+          - kube-runtime: K3s-1.19
+            kube-version: v1.19.4+k3s1
+          - kube-runtime: Kubernetes-1.16
+            kube-version: 1.16.15-00
+          - kube-runtime: Kubernetes-1.17
+            kube-version: 1.17.14-00
+          - kube-runtime: Kubernetes-1.18
+            kube-version: 1.18.12-00
+          - kube-runtime: Kubernetes-1.19
+            kube-version: 1.19.4-00
+          - test-case: end-to-end
+            test-file: test/run-end-to-end.py
+
+    steps:
+    - name: Checkout the merged commit from PR and base branch
+      uses: actions/checkout@v2
+      if: github.event_name == 'pull_request_target'
+      with:
+        # pull_request_target is run in the context of the base repository
+        # of the pull request, so the default ref is master branch and
+        # ref should be manually set to the head of the PR
+        ref: refs/pull/${{ github.event.pull_request.number }}/head
+        persist-credentials: false
+
+    - name: Checkout the head commit of the branch
+      if: ${{ github.event_name != 'pull_request_target' }}
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+       python-version: 3.8 
+    - name: Install Python kubernetes dependency
+      run: |
+        python -m pip install --upgrade pip
+        pip install kubernetes
+
+    - name: Download Agent container artifact
+      if: startsWith(github.event_name, 'pull_request')
+      uses: actions/download-artifact@v2
+      with:
+        name: agent.tar
+    - name: Download Controller container artifact
+      if: startsWith(github.event_name, 'pull_request')
+      uses: actions/download-artifact@v2
+      with:
+        name: controller.tar
+
+    - if: startsWith(matrix.kube-runtime, 'K3s')
       name: Install K3s
       env:
-        INSTALL_K3S_VERSION: v1.18.9+k3s1
+        INSTALL_K3S_VERSION: ${{ matrix.kube-version }}
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
         sudo addgroup k3s-admin
@@ -141,22 +211,29 @@ jobs:
         sudo chmod g+r /etc/rancher/k3s/k3s.yaml
         sudo chmod 666 /etc/rancher/k3s/* 
         mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-        echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
+        VERSION="v1.17.0"
+        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C $(pwd)
+        rm -f crictl-$VERSION-linux-amd64.tar.gz
+        echo '--set agent.host.crictl=$(pwd)/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
         echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'K3s')
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'K3s'))
       name: Import local agent and controller to K3s
       run: |
         sudo k3s ctr image import agent.tar
         sudo k3s ctr image import controller.tar
 
-    - if: matrix.kube-runtime == 'Kubernetes'
+    - if: startsWith(matrix.kube-runtime, 'Kubernetes')
       name: Install Kubernetes
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y kubelet kubeadm kubectl kubernetes-cni
+        sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube-version }} kubeadm=${{ matrix.kube-version }} kubectl=${{ matrix.kube-version }} 
+        kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
+        kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
+        kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
         sudo swapoff -a              
         sudo kubeadm init
         sudo mkdir -p $HOME/.kube
@@ -168,10 +245,16 @@ jobs:
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
         until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
-    - if: matrix.kube-runtime == 'MicroK8s'
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'Kubernetes'))
+      name: Import local agent and controller to Kubernetes
+      run: |
+        sudo docker load --input agent.tar
+        sudo docker load --input controller.tar
+
+    - if: startsWith(matrix.kube-runtime, 'MicroK8s')
       name: Install MicroK8s
       run: |
-        sudo snap install microk8s --classic --channel=1.18/stable
+        sudo snap install microk8s --classic --channel=${{ matrix.kube-version }}
         sudo microk8s status --wait-ready
         sudo usermod -a -G microk8s $USER
         sudo ls -la $HOME/.kube
@@ -191,11 +274,15 @@ jobs:
         echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
         echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (matrix.kube-runtime == 'MicroK8s')
+    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
       name: Import local agent and controller to MicroK8s
       run: |
-        sudo microk8s ctr image import agent.tar
-        sudo microk8s ctr image import controller.tar
+        sleep 15 # 60, 30, 15, and 5 all work in simple tests ... no sleep fails for 1.19.3
+        sudo microk8s.status --wait-ready
+        sudo microk8s ctr images ls
+        sudo microk8s ctr --debug --timeout 10s images import agent.tar
+        sudo microk8s ctr --debug --timeout 10s images import controller.tar
+        sudo microk8s ctr images ls
 
     - name: Add Akri Helm Chart
       run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
