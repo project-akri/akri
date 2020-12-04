@@ -60,10 +60,13 @@ on:
     
 jobs:
   build-containers:
-    # Build containers only if this is a PR ... otherwise, the containers are pulled ghcr
+    # Build containers only if this is a PR ... otherwise, the containers are pulled ghcr,
+    # but this job cannot be skipped because test-cases needs to run after build-containers
+    # (and if we skip this job, any job that `needs` it will be skipped)
     if: >-
       ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false )
+      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
+      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-18.04
     timeout-minutes: 35
 
@@ -85,6 +88,7 @@ jobs:
         persist-credentials: false
 
     - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
+      if: startsWith(github.event_name, 'pull_request')
       run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
 
     - name: Log into ghcr to access intermediate build containers
@@ -107,11 +111,13 @@ jobs:
         docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
 
     - name: Upload Agent container as artifact
+      if: startsWith(github.event_name, 'pull_request')
       uses: actions/upload-artifact@v2
       with:
         name: agent.tar
         path: agent.tar
     - name: Upload Controller container as artifact
+      if: startsWith(github.event_name, 'pull_request')
       uses: actions/upload-artifact@v2
       with:
         name: controller.tar
