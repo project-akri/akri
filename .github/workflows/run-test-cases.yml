@@ -87,10 +87,6 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
-      if: startsWith(github.event_name, 'pull_request')
-      run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
-
     - name: Log into ghcr to access intermediate build containers
       if: startsWith(github.event_name, 'pull_request')
       run: echo "${{ secrets.crPassword }}" | docker login --username "${{ secrets.crUsername }}" ghcr.io --password-stdin

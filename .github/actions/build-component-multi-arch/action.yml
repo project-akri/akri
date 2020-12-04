@@ -22,12 +22,6 @@ inputs:
   github_event_name:
     description: Specify the github event name (push, pull_request_target, release, etc)
     required: true
-  dockerhub_username:
-    description: Dockerhub name
-    required: true
-  dockerhub_password:
-    description: Dockerhub password
-    required: true
 runs:
   using: 'node12'
   main: 'main.js'

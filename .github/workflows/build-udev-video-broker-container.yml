@@ -100,8 +100,6 @@ jobs:
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
-        dockerhub_username: ${{ secrets.dhUsername }}
-        dockerhub_password: ${{ secrets.dhPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
         platform: ${{ matrix.arch }}
         build_rust: "1"
@@ -136,6 +134,4 @@ jobs:
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
-        dockerhub_username: ${{ secrets.dhUsername }}
-        dockerhub_password: ${{ secrets.dhPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}

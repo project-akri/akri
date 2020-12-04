@@ -37,12 +37,6 @@ inputs:
   github_merged:
     description: Specify whether a PR has been merged
     required: true
-  dockerhub_username:
-    description: Dockerhub name
-    required: true
-  dockerhub_password:
-    description: Dockerhub password
-    required: true
 runs:
   using: 'node12'
   main: 'main.js'
