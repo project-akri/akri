@@ -25,9 +25,6 @@ async function shell_cmd(cmd) {
     try {
         console.log(`Start main.js`)
 
-        console.log(`Log into dockerhub to avoid throttled anonymous dockerhub pulls user=${core.getInput('dockerhub_username')}`);
-        await shell_cmd(`echo "${core.getInput('dockerhub_password')}" | docker login -u ${core.getInput('dockerhub_username')} --password-stdin`);
-
         console.log(`Use multiarch/qemu-user-static to configure cross-plat`);
         await shell_cmd('docker run --rm --privileged multiarch/qemu-user-static --reset -p yes');
 
@@ -67,9 +64,6 @@ async function shell_cmd(cmd) {
         }
         console.log(`Makefile build target suffix: ${makefile_target_suffix}`)
 
-        console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);
-        await shell_cmd(`echo "${core.getInput('container_registry_password')}" | docker login -u ${core.getInput('container_registry_username')} --password-stdin ${core.getInput('container_registry_base_url')}`);
-
         if (core.getInput('build_rust') == '1') {
             console.log(`Install Rust`)
             child_process.execSync(`curl https://sh.rustup.rs | sh -s -- -y --default-toolchain=1.41.0`);
@@ -102,6 +96,9 @@ async function shell_cmd(cmd) {
         await shell_cmd(`docker run ${image_name} find container-images-legal-notice.md | wc -l | grep -v 0`)
 
         if (push_containers == "1") {
+            console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);
+            await shell_cmd(`echo "${core.getInput('container_registry_password')}" | docker login -u ${core.getInput('container_registry_username')} --password-stdin ${core.getInput('container_registry_base_url')}`);
+    
             console.log(`Push the versioned container: make ${core.getInput('makefile_component_name')}-docker-per-arch-${makefile_target_suffix}`)
             process.env.LABEL_PREFIX = `${versioned_label}`
             await exec.exec(`make ${core.getInput('makefile_component_name')}-docker-per-arch-${makefile_target_suffix}`)

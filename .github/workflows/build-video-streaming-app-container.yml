@@ -23,17 +23,6 @@ on:
     - version.txt
     - build/akri-containers.mk
     - Makefile
-  pull_request_target:
-    branches: [ main ]
-    paths:
-    - .github/actions/build-component-per-arch/**
-    - .github/actions/build-component-multi-arch/**
-    - .github/workflows/build-video-streaming-app-container.yml
-    - build/containers/Dockerfile.video-streaming-app
-    - samples/apps/video-streaming-app/**
-    - version.txt
-    - build/akri-containers.mk
-    - Makefile
   release:
     types:
       - published
@@ -45,11 +34,6 @@ env:
 jobs:
 
   per-arch:
-    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
-    if: >-
-      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
-      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -60,18 +44,7 @@ jobs:
           - amd64
 
     steps:
-    - name: Checkout the merged commit from PR and base branch
-      uses: actions/checkout@v2
-      if: github.event_name == 'pull_request_target'
-      with:
-        # pull_request_target is run in the context of the base repository
-        # of the pull request, so the default ref is master branch and
-        # ref should be manually set to the head of the PR
-        ref: refs/pull/${{ github.event.pull_request.number }}/head
-        persist-credentials: false
-
     - name: Checkout the head commit of the branch
-      if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
       with:
         persist-credentials: false
@@ -97,8 +70,6 @@ jobs:
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
-        dockerhub_username: ${{ secrets.dhUsername }}
-        dockerhub_password: ${{ secrets.dhPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
         platform: ${{ matrix.arch }}
         build_rust: "0"
@@ -133,6 +104,4 @@ jobs:
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
-        dockerhub_username: ${{ secrets.dhUsername }}
-        dockerhub_password: ${{ secrets.dhPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}

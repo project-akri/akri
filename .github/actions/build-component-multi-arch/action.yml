@@ -20,13 +20,7 @@ inputs:
     description: Component prefix used by Makefile
     required: true
   github_event_name:
-    description: Specify the github event name (push, pull_request_target, release, etc)
-    required: true
-  dockerhub_username:
-    description: Dockerhub name
-    required: true
-  dockerhub_password:
-    description: Dockerhub password
+    description: Specify the github event name (push, pull_request, release, etc)
     required: true
 runs:
   using: 'node12'

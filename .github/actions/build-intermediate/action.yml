@@ -23,7 +23,7 @@ inputs:
     description: Platform to build (amd64|arm64|arm32)
     required: true
   github_event_name:
-    description: Specify the github event name (push, pull_request_target, release, etc)
+    description: Specify the github event name (push, pull_request, release, etc)
     required: true
   github_ref:
     description: Specify the github ref
@@ -33,12 +33,6 @@ inputs:
     required: true
   github_merged:
     description: Specify whether a PR has been merged
-    required: true
-  dockerhub_username:
-    description: Dockerhub name
-    required: true
-  dockerhub_password:
-    description: Dockerhub password
     required: true
 runs:
   using: 'node12'
