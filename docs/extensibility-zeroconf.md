@@ -81,18 +81,12 @@ fn inner_get_discovery_handler(
 }
 ```
 
-Revise `./agent/src/main.rs`:
-
-```rust
-#[macro_use]
-extern crate failure;
-```
-
 Revise `./agent/Cargo.toml`:
 
 ```TOML
 [dependencies]
 zeroconf = "0.6.2"
+zeroconf-filter = { git = "https://github.com/DazWilkin/akri-pest" }
 ```
 
 ## Akri Configuration CRD
@@ -107,8 +101,6 @@ properties:
     type: object
     properties:
       filter: 
-        type: string
-      kind: string
         type: string
 ```
 
@@ -221,10 +213,27 @@ git clone ...
 Then apply it to the cluster:
 
 ```bash
-kubectl run ....
+kubectl apply --filename=./prove-zeroconf.yaml
 ```
 
-## Confirm GitHub Packages
+Check:
+
+```bash
+kubectl logs --selector=project=akri,protocol=zeroconf,function=prove
+Starting Avahi mDNS/DNS-SD Daemon: avahi-daemon.
+Service registered: ServiceRegistration { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local" }
+Context: Mutex { data: Context { service_name: "prove-zeroconf-6658dd567-kt7z4" } }
+[λ:service_discovered] Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[λ:service_discovered] Sending
+[λ:service_discovered] Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "10.1.1.60", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[λ:service_discovered] Sending
+[service_discovered] Done waiting
+[service_discovererd] Received: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[service_discovererd] Received: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "10.1.1.60", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+```
+
+
+## Confirm GitHub Packages for Akri
 
 You may confirm that the agent, controller and http images were pushed to GitHub Container Registry by browsing:
 
@@ -236,12 +245,9 @@ https://github.com/[[GITHUB-USER]]?tab=packages
 + `https://github.com/users/[[GITHUB_USER]]/packages/container/controller/versions`
 
 
-## Deploy Devices(s) & Discovery
-
-(TODO)
-
 ## Revise Helm Deployment
 
+TODO(dazwilkin)
 
 ## Deploy Akri
 
@@ -274,12 +280,237 @@ sudo microk8s.helm3 install akri ./akri/deployment/helm \
 --set controller.image.tag="${VERS}"
 ```
 
+> **NOTE**
+> You may wish to use `crictl` to confirm that the `agent` and `controller` images pulled match those in your repository
+>
+> ```bash
+> sudo crictl \
+> --runtime-endpoint unix:///var/snap/microk8s/common/run/containerd.sock \
+> images
+> ```
+
+## Publish an mDNS Service
+
+To ensure that you have a service to resolve, you may use the following:
+
+```bash
+NAME="freddie"
+KIND="_http._tcp"
+PORT="7777"
+
+avahi-publish --service ${NAME} ${KIND} ${PORT}
+```
+
 ## Deploy standalone ZeroConf Broker
 
 ```bash
 kubectl apply --filename=./kubernetes/zeroconf.yaml
 ```
 
+Check the agent's (!) logs:
+
+```bash
+[zeroconf:new] Entered
+[zeroconf:discover] Entered
+[zeroconf:discovery] Started browsing
+[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "freddie", kind: "_http._tcp", domain: "local", host_name: "akri.local", address: "", port: 9999, txt: None }
+[zeroconf:discovery] Stopped browsing
+[zeroconf:discovery] Iterating over services
+[zeroconf:discovery] Service: ServiceDiscovery { name: "freddie", kind: "_http._tcp", domain: "local", host_name: "akri.local", address: "", port: 9999, txt: None }
+```
+
+You may check the Akri Configurations:
+
+```bash
+kubectl get configurations
+NAME       CAPACITY   AGE
+zeroconf   1          2m
+```
+
+You may describe this too: `kubectl describe configuration/zeroconf`
+
+For each Service discovered, there should be an Akri instance created:
+
+```bash
+kubectl get instances
+NAME              CONFIG     SHARED   NODES    AGE
+zeroconf-e7f45d   zeroconf   true     [akri]   2m
+```
+
+You may describe this too: `kubectl describe instance/zeroconf-e7f45d`
+
+And for each Instance, there should be a corresponding Pod with logs:
+
+```bash
+for INSTANCE in $(kubectl get instances --output=jsonpath="{.items[].metadata.name}")
+do
+  POD="pod/akri-${INSTANCE}-pod"
+  kubectl logs ${POD}
+done
+```
+
+Yields:
+
+```console
+[zeroconf:main] Entered
+[zeroconf:new] Entered
+[zeroconf:new]
+  Kind: _http._tcp
+  Name: freddie
+  Host: akri.local
+  Addr: 10.138.0.2
+  Port: 9999
+[zeroconf:main] Service: kind: _http._tcp
+name: freddie
+host: akri.local
+addr: 10.138.0.2
+port: 9999
+[zeroconf:main:loop] Sleep
+[zeroconf:main:loop] check_device(Service { kind: "_http._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 9999 })
+[zeroconf:read_device] Entered: Service { kind: "_http._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 9999 }
+[zeroconf:main:loop] Sleep
+```
+
+And, to confirm the environment available to a Pod:
+
+```bash
+kubectl exec --stdin --tty ${POD} -- env | grep ^AKRI
+```
+
+Yields:
+
+```console
+AKRI_ZEROCONF_DEVICE_KIND=_http._tcp
+AKRI_ZEROCONF=zeroconf
+AKRI_ZEROCONF_DEVICE_HOST=akri.local
+AKRI_ZEROCONF_DEVICE_NAME=freddie
+AKRI_ZEROCONF_DEVICE_PORT=9999
+AKRI_ZEROCONF_DEVICE_ADDR=10.138.0.2
+```
+
+### CRDs
+
+#### Configuration(s)
+
+```bash
+kubectl describe configuration/zeroconf
+Name:         zeroconf
+Namespace:    default
+Labels:       <none>
+Annotations:  API Version:  akri.sh/v0
+Kind:         Configuration
+Metadata:
+  Managed Fields:
+    API Version:  akri.sh/v0
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .:
+          f:kubectl.kubernetes.io/last-applied-configuration:
+      f:spec:
+        .:
+        f:brokerPodSpec:
+          .:
+          f:containers:
+          f:imagePullSecrets:
+        f:capacity:
+        f:protocol:
+          .:
+          f:zeroconf:
+            .:
+            f:filter:
+    Manager:         kubectl
+    Operation:       Update
+Spec:
+  Broker Pod Spec:
+    Containers:
+      Image:  ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:616a800d5754336229dad7b02c6f20e8511981195e6c5f89e2073ac660b17b4a
+      Name:   zeroconf-broker
+      Resources:
+        Limits:
+          {{PLACEHOLDER}}:  1
+    Image Pull Secrets:
+      Name:  ghcr
+  Capacity:  1
+  Protocol:
+    Zeroconf:
+      Filter:  kind="_http._tcp"
+Events:        <none>
+```
+
+#### Instance(s)
+
+```bash
+kubectl describe instance/zeroconf-e7f45d
+Name:         zeroconf-074bbf
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  akri.sh/v0
+Kind:         Instance
+Metadata:
+  Managed Fields:
+    API Version:  akri.sh/v0
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:ownerReferences:
+          .:
+          k:{"uid":"b3de3379-855d-4336-8ebe-11b02686d0d2"}:
+            .:
+            f:apiVersion:
+            f:blockOwnerDeletion:
+            f:controller:
+            f:kind:
+            f:name:
+            f:uid:
+      f:spec:
+        .:
+        f:configurationName:
+        f:deviceUsage:
+          .:
+          f:zeroconf-074bbf-0:
+        f:metadata:
+          .:
+          f:AKRI_ZEROCONF:
+          f:AKRI_ZEROCONF_DEVICE_ADDR:
+          f:AKRI_ZEROCONF_DEVICE_HOST:
+          f:AKRI_ZEROCONF_DEVICE_KIND:
+          f:AKRI_ZEROCONF_DEVICE_NAME:
+          f:AKRI_ZEROCONF_DEVICE_PORT:
+        f:nodes:
+        f:rbac:
+        f:shared:
+    Manager:    unknown
+    Operation:  Update
+  Owner References:
+    API Version:           akri.sh/v0
+    Block Owner Deletion:  true
+    Controller:            true
+    Kind:                  Configuration
+    Name:                  zeroconf
+    UID:                   b3de3379-855d-4336-8ebe-11b02686d0d2
+  Resource Version:        318993
+  Self Link:               /apis/akri.sh/v0/namespaces/default/instances/zeroconf-074bbf
+  UID:                     52c6a861-67e4-4e97-b24f-c4f6287ae21e
+Spec:
+  Configuration Name:  zeroconf
+  Device Usage:
+    zeroconf-074bbf-0:  akri
+  Metadata:
+    AKRI_ZEROCONF:              zeroconf
+    AKRI_ZEROCONF_DEVICE_ADDR:  10.138.0.2
+    AKRI_ZEROCONF_DEVICE_HOST:  akri.local
+    AKRI_ZEROCONF_DEVICE_KIND:  _http._tcp
+    AKRI_ZEROCONF_DEVICE_NAME:  freddie
+    AKRI_ZEROCONF_DEVICE_PORT:  9999
+  Nodes:
+    akri
+  Rbac:    rbac
+  Shared:  true
+Events:    <none>
+```
 
 ### crictl
 
@@ -289,8 +520,19 @@ sudo crictl \
 images
 ```
 
-### Programming Notes
+Perhaps:
 
+```bash
+sudo crictl \
+--runtime-endpoint unix:///var/snap/microk8s/common/run/containerd.sock rmi \
+ghcr.io/dazwilkin/agent:v0.0.41-amd64
+
+sudo crictl \
+--runtime-endpoint unix:///var/snap/microk8s/common/run/containerd.sock rmi \
+ghcr.io/dazwilkin/controller:v0.0.41-amd64
+```
+
+### Programming Notes
 
 Agent requires `avahi-daemon` and the convoluted startup: `service start dbus ...`
 
@@ -306,6 +548,53 @@ But:
 [zeroconf:discovery] Iterating over services
 [zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
 [zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "10.1.1.43", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+```
+
+Debugging Akri instances not being created:
+
+```bash
+kubectl get akric
+NAME       CAPACITY   AGE
+zeroconf   1          6s
+
+kubectl get akrii
+No resources found in default namespace.
+```
+
+Run the broker directly:
+
+```bash
+AKRI_ZEROCONF_DEVICE_KIND="_http._tcp" \
+AKRI_ZEROCONF_DEVICE_NAME="hades-canyon" \
+AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local" \
+AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1" \
+AKRI_ZEROCONF_DEVICE_PORT="8080" \
+cargo run
+```
+
+Or:
+
+```bash
+docker run --interactive --tty --rm \
+--env=AKRI_ZEROCONF_DEVICE_KIND="_http._tcp" \
+--env=AKRI_ZEROCONF_DEVICE_NAME="hades-canyon" \
+--env=AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local" \
+--env=AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1" \
+--env=AKRI_ZEROCONF_DEVICE_PORT="8080" \
+ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd
+
+
+Or:
+
+```bash
+kubectl run test \
+--image=ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd \
+--env=\
+AKRI_ZEROCONF_DEVICE_KIND="_http._tcp",\
+AKRI_ZEROCONF_DEVICE_NAME="hades-canyon",\
+AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local",\
+AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1",\
+AKRI_ZEROCONF_DEVICE_PORT="8080"
 ```
 
 #### References
