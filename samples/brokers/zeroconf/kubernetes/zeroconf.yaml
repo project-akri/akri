@@ -12,7 +12,7 @@ spec:
       - name: ghcr
     containers:
       - name: zeroconf-broker
-        image: ghcr.io/dazwilkin/akri-zeroconf-broker@
+        image: IMAGE
         resources:
           limits:
             "{{PLACEHOLDER}}": "1"
