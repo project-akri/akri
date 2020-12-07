@@ -1,7 +1,7 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
 use akri_shared::akri::configuration::ZeroConfDiscoveryHandlerConfig;
 use async_trait::async_trait;
-use failure::Error;
+use failure::{format_err, Error};
 use std::{
     any::Any,
     collections::HashMap,
@@ -15,6 +15,8 @@ use std::{
 use zeroconf::browser::TMdnsBrowser;
 use zeroconf::event_loop::TEventLoop;
 use zeroconf::{MdnsBrowser, ServiceDiscovery};
+
+use zeroconf_filter::parse;
 
 const BROKER_NAME: &str = "AKRI_ZEROCONF";
 const DEVICE_KIND: &str = "AKRI_ZEROCONF_DEVICE_KIND";
@@ -40,10 +42,13 @@ impl DiscoveryHandler for ZeroConfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
         trace!("[zeroconf:discover] Entered");
 
-        // TODO(dazwilkin) Apply filter, domain etc. to browser
-        // TODO(dazwilkin) Validate kind: Kubernetes only supports TCP, UDP and SCTP
+        let filter = parse(&self.discovery_handler_config.filter).expect("valid filter");
+        let kind = match filter.kind() {
+            Some(kind) => kind,
+            None => return Err(format_err!("filter must include `kind` term")),
+        };
 
-        let mut browser = MdnsBrowser::new(&self.discovery_handler_config.kind);
+        let mut browser = MdnsBrowser::new(&kind);
 
         // Channel for results
         let (tx, rx): (Sender<ServiceDiscovery>, Receiver<ServiceDiscovery>) = channel();
