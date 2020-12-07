@@ -2,6 +2,10 @@
 # Ignore everything
 **
 
+!samples/brokers/zeroconf
+!shared
+
+
 # ONVIF broker is built using a `docker build` command, so
 # the source code needs to be available to the DotNet container
 # build
