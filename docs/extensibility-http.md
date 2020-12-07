@@ -1,7 +1,5 @@
 # Extensibility: HTTP-based Devices
 
-See [Extensibility: HTTP protocol](https://github.com/deislabs/akri/issues/85)
-
 While Akri has several [currently supported discovery protocols](./roadmap.md#currently-supported-protocols) and sample brokers and applications to go with them, the protocol you want to use to discover resources may not be implemented yet. This walks you through all the development steps needed to implement a new protocol and sample broker. It will also cover the steps to get your protocol and broker[s] added to Akri, should you wish to contribute them back.
 
 To add a new protocol implementation, three things are needed:
@@ -10,7 +8,9 @@ To add a new protocol implementation, three things are needed:
 1. Update Configuration CRD to include the new DiscoveryHandler implementation
 1. Create a (protocol) Broker for the new capability
 
-To demonstrate how new protocols can be added, we will create a protocol to discover HTTP-based devices that publish random sensor data. An implementation of these devices and a discovery protocol is described in this [README](./samples/apps/http-apps/README.md)
+To demonstrate how new protocols can be added, we will create a protocol to discover HTTP-based devices that publish random sensor data. An implementation of these devices and a discovery protocol is described in this [README](./samples/apps/http-apps/README.md).
+
+See [Extensibility: HTTP protocol](https://github.com/deislabs/akri/issues/85)
 
 For reference, we have created a [http-extensibility](https://github.com/deislabs/akri/tree/http-extensibility) with the implementation defined below.  For convenience, you can [compare the http-extensibility branch with main here](https://github.com/deislabs/akri/compare/http-extensibility).
 
