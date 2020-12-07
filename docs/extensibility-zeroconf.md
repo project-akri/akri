@@ -197,8 +197,8 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-contr
 ```bash
 HOST="ghcr.io"
 USER=[[GITHUB-USER]]
-REPO="akri-zeroconf-broker"
-TAG="..."
+REPO="zeroconf-broker"
+TAG="v1"
 
 docker build \
 --tag=${HOST}/${USER}/${REPO}:${TAG} \
@@ -404,7 +404,7 @@ Metadata:
 Spec:
   Broker Pod Spec:
     Containers:
-      Image:  ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:616a800d5754336229dad7b02c6f20e8511981195e6c5f89e2073ac660b17b4a
+      Image:  ghcr.io/dazwilkin/zeroconf-broker@sha256:616a800d5754336229dad7b02c6f20e8511981195e6c5f89e2073ac660b17b4a
       Name:   zeroconf-broker
       Resources:
         Limits:
@@ -560,14 +560,14 @@ docker run --interactive --tty --rm \
 --env=AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local" \
 --env=AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1" \
 --env=AKRI_ZEROCONF_DEVICE_PORT="8080" \
-ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd
+ghcr.io/deislabs/akri/zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd
 
 
 Or:
 
 ```bash
 kubectl run test \
---image=ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd \
+--image=ghcr.io/deislabs/akri/zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd \
 --env=\
 AKRI_ZEROCONF_DEVICE_KIND="_http._tcp",\
 AKRI_ZEROCONF_DEVICE_NAME="hades-canyon",\
