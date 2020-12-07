@@ -144,7 +144,6 @@ Revise `./dockerignore` to ensure `docker build ...` succeeds:
 ```console
 # Don't ignore these
 !samples/brokers/zeroconf
-!shared/
 ```
 
 ## Revise workspace Cross file
