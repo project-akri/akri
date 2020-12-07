@@ -47,6 +47,8 @@ spec:
       port: {{ .Values.udev.instanceService.port }}
       protocol: {{ .Values.udev.instanceService.protocol }}
       targetPort: {{ .Values.udev.instanceService.targetPort }}
+    - name: {{ .Values.udev.instanceService.metricsPortName }}
+      port: {{ .Values.udev.instanceService.metricsPort }}
   {{- end }}
   {{- if .Values.udev.createConfigurationService }}
   configurationServiceSpec:
@@ -56,6 +58,8 @@ spec:
       port: {{ .Values.udev.configurationService.port }}
       protocol: {{ .Values.udev.configurationService.protocol }}
       targetPort: {{ .Values.udev.configurationService.targetPort }}
+    - name: {{ .Values.udev.instanceService.metricsPortName }}
+      port: {{ .Values.udev.instanceService.metricsPort }}
   {{- end }}
   {{- end }}
   {{- if .Values.udev.properties }}

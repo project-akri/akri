@@ -10,11 +10,14 @@ edition = "2018"
 akri-shared = { path = "../../../shared" }
 env_logger = "0.6.1"
 futures = { version = "0.1", package = "futures" }
+lazy_static = "1.4"
 log = "0.4.3"
+prometheus = { version = "0.11.0", features = ["process"] }
 prost = "0.6"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
 tonic = "0.1"
 rscam = "0.5.5"
+warp = "0.2"
 
 [build-dependencies]
 tonic-build = "0.1.1"

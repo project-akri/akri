@@ -274,6 +274,10 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+    # metricsPortName is the name of the port exposed for metrics
+    metricsPortName: metrics
+    # metricsPort is the metrics service port of the instance service
+    metricsPort: 8080
   # createConfigurationService is specified if a single service should automatically be
   # created for all broker pods of a Configuration
   createConfigurationService: true
@@ -288,3 +292,7 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+    # metricsPortName is the name of the port exposed for metrics
+    metricsPortName: metrics
+    # metricsPort is the metrics service port of the configuration service
+    metricsPort: 8080

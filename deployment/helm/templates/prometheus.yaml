@@ -1,0 +1,14 @@
+{{- if and .Values.udev.enabled .Values.udev.brokerPod.image.repository }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.udev.name }}-broker
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      akri.sh/configuration: {{ .Values.udev.name }}
+  endpoints:
+  - port: metrics
+{{- end }}
