@@ -1,5 +1,9 @@
 # Extensibility: ZeroConf
 
+See [Proposal: ZeroConf Protocol Implementation](https://github.com/DazWilkin/akri/blob/proposal-zeroconf/docs/proposals/zeroconf.md)
+
+The implementation uses [`zeroconf`](https://crates.io/crates/zeroconf) but this is Linux-only. There's a proposal to swap `zeroconf` for [`astro-dnssd`](https://crates.io/crates/astro-dnssd) which supports Linux, Mac OS and Windows.
+
 + https://en.wikipedia.org/wiki/Zero-configuration_networking
 + https://docs.rs/zeroconf/0.6.2/zeroconf/
 
@@ -91,7 +95,7 @@ zeroconf-filter = { git = "https://github.com/DazWilkin/akri-pest" }
 
 ## Akri Configuration CRD
 
-> **NOTE** After making this change you must `helm install` a copy of this directory not the Microsoft-hosted
+> **NOTE** After making this change you must `helm install` a copy of this directory not the deislabs/akri hosted
 
 Revise `./deployment/helm/crds/akri-configuration-crd.yaml`:
 
@@ -204,34 +208,17 @@ docker build \
 docker push ${HOST}/${USER}/${REPO}:${TAG}
 ```
 
-## Deploy ZeroConf Prover
+## Publish an mDNS Service
+
+To ensure that you have a service for the Akri Agent to resolve, you may use the following:
 
 ```bash
-git clone ...
+NAME="freddie"
+KIND="_http._tcp"
+PORT="7777"
+
+avahi-publish --service ${NAME} ${KIND} ${PORT}
 ```
-
-Then apply it to the cluster:
-
-```bash
-kubectl apply --filename=./prove-zeroconf.yaml
-```
-
-Check:
-
-```bash
-kubectl logs --selector=project=akri,protocol=zeroconf,function=prove
-Starting Avahi mDNS/DNS-SD Daemon: avahi-daemon.
-Service registered: ServiceRegistration { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local" }
-Context: Mutex { data: Context { service_name: "prove-zeroconf-6658dd567-kt7z4" } }
-[λ:service_discovered] Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-[λ:service_discovered] Sending
-[λ:service_discovered] Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "10.1.1.60", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-[λ:service_discovered] Sending
-[service_discovered] Done waiting
-[service_discovererd] Received: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-[service_discovererd] Received: ServiceDiscovery { name: "prove-zeroconf-6658dd567-kt7z4", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-kt7z4.local", address: "10.1.1.60", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-```
-
 
 ## Confirm GitHub Packages for Akri
 
@@ -245,40 +232,36 @@ https://github.com/[[GITHUB-USER]]?tab=packages
 + `https://github.com/users/[[GITHUB_USER]]/packages/container/controller/versions`
 
 
-## Revise Helm Deployment
-
-TODO(dazwilkin)
-
 ## Deploy Akri
 
-If desired, delete Akri before recreating:
+> Optional: If you've previously installed Akri and wish to reset, you may:
+>
+> ```bash
+> # Delete Akri Helm
+> sudo microk8s.helm3 uninstall akri
+>
+> # Delete Akri CRDs
+> kubectl delete crd/configurations.akri.sh
+> kubectl delete crd/instances.akri.sh
+> ```
 
-```bash
-# Delete Akri Helm
-sudo microk8s.helm3 uninstall akri
-
-# Delete Akri CRDs
-kubectl delete crd/configurations.akri.sh
-kubectl delete crd/instances.akri.sh
-```
-
-Then:
+Deploy the revised (!) Helm Chart to your cluster:
 
 ```bash
 HOST="ghcr.io"
 USER="[[GITHUB-USER]]"
 REPO="${HOST}/${USER}"
-
-SECRET="..."
-VERS="v0.0.41-amd64"
+VERS="v$(cat version.txt)-amd64"
 
 sudo microk8s.helm3 install akri ./akri/deployment/helm \
---set imagePullSecrets[0].name="${SECRET}" \
+--set imagePullSecrets[0].name="${HOST}" \
 --set agent.image.repository="${REPO}/agent" \
 --set agent.image.tag="${VERS}" \
 --set controller.image.repository="${REPO}/controller" \
 --set controller.image.tag="${VERS}"
 ```
+
+> **NOTE** the Akri SemVer (e.g. 0.0.41) is reflected in ./version.txt but the tags must be prefixed with v and postfixed with the architecture (e.g. -amd64)
 
 > **NOTE**
 > You may wish to use `crictl` to confirm that the `agent` and `controller` images pulled match those in your repository
@@ -289,16 +272,13 @@ sudo microk8s.helm3 install akri ./akri/deployment/helm \
 > images
 > ```
 
-## Publish an mDNS Service
+Check using `kubectl get pods` and look for a pod named `akri-agent-...` and another named `akri-controller...` and that they're both `RUNNING`.
 
-To ensure that you have a service to resolve, you may use the following:
+Alternatively, you may:
 
 ```bash
-NAME="freddie"
-KIND="_http._tcp"
-PORT="7777"
-
-avahi-publish --service ${NAME} ${KIND} ${PORT}
+kubectl get pods --selector=name=akri-agent
+kubectl get pods --selector=app=akri-controller
 ```
 
 ## Deploy standalone ZeroConf Broker
