@@ -169,11 +169,11 @@ You may manually confirm the image and digest using the output from the build or
 IMAGE="${HOST}/${USER}/${REPO}:${TAGS}"
 sed \
 --in-place \
-"s|IMAGE|${IMAGE}|g"
+"s|IMAGE|${IMAGE}|g" \
 ./samples/brokers/http/kubernetes/http.yaml
 ```
 
-> **NOTE** If you're using a non-public repo, you can create an `imagePullSecret` to authenticate
+> **NOTE** If you're using a non-public repo, you can create an `imagePullSecrets` to authenticate
 
 ## Confirm GitHub Packages
 
@@ -213,7 +213,7 @@ do
   IMAGE="${HOST}/${USER}/${REPO}-${APP}:${TAGS}"
   sed \
   --in-place \
-  "s|IMAGE|${IMAGE}|g"
+  "s|IMAGE|${IMAGE}|g" \
   ./kubernetes/${APP}.yaml
 done
 ```
@@ -423,7 +423,7 @@ do
   IMAGE="${HOST}/${USER}/${REPO}-grpc-${APP}:${TAGS}"
   sed \
   --in-place \
-  "s|IMAGE|${IMAGE}|g"
+  "s|IMAGE|${IMAGE}|g" \
   ./samples/brokers/http/kubernetes/http.grpc.${APP}.yaml
 done
 ```
