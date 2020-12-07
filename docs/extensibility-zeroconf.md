@@ -200,12 +200,26 @@ USER=[[GITHUB-USER]]
 REPO="zeroconf-broker"
 TAG="v1"
 
+IMAGE=${HOST}/${USER}/${REPO}:${TAG}
+
 docker build \
---tag=${HOST}/${USER}/${REPO}:${TAG} \
+--tag=${IMAGE} \
 --file=./samples/brokers/zeroconf/Dockerfiles/standalone \
 . && \
-docker push ${HOST}/${USER}/${REPO}:${TAG}
+docker push ${IMAGE}
 ```
+
+Revise `./samples/brokers/zeroconf/kubernetes/zeroconf.yaml` to reflect the image:
+
+```bash
+IMAGE=${HOST}/${USER}/${REPO}:${TAG}
+sed \
+--in-place \
+"s|IMAGE|${IMAGE}|g" \
+./samples/brokers/zeroconf/kubernetes/zeroconf.yaml
+```
+
+> **NOTE** If you're using a non-public repo, you can create an `imagePullSecrets` to authenticate
 
 ## Publish an mDNS Service
 
