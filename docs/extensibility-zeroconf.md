@@ -108,6 +108,8 @@ properties:
         type: string
 ```
 
+> **NOTE** `filter` strings are defined in the ZeroConf Broker configuration. See [Deploy standalone ZeroConf Broker](#deploy-standalone-zeroconf-broker).
+
 And:
 
 ```YAML
@@ -295,6 +297,18 @@ kubectl get pods --selector=app=akri-controller
 ```
 
 ## Deploy standalone ZeroConf Broker
+
+Before applying `zeroconf.yaml`, you may wish to revise the `filter`. In the current configuration file, the filter limits service discovery to those services that have a `kind` (i.e. type) of `_http._tcp`, i.e. services advertizing themselves as being `http` over `tcp`. The list of documented `kind`s is at [Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml)
+
+```YAML
+spec:
+  protocol:
+    zeroconf:
+      filter: 'kind="_http._tcp"'
+```
+
+> **NOTE** The `filter` permits additional terms of `domain`, `name`, `port` but these are not support by the [`zeroconf`](https://crates.io/crates/zeroconf) crate.
+
 
 ```bash
 kubectl apply --filename=./kubernetes/zeroconf.yaml
