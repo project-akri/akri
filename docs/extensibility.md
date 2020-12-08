@@ -56,7 +56,6 @@ pub struct HTTPDiscoveryHandler {
 }
 impl HTTPDiscoveryHandler {
     pub fn new(discovery_handler_config: &HTTPDiscoveryHandlerConfig) -> Self {
-        trace!("[http:new] Entered");
         HTTPDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
@@ -66,47 +65,24 @@ impl HTTPDiscoveryHandler {
 
 impl DiscoveryHandler for HTTPDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
-        trace!("[http:discover] Entered");
-
         let url = self.discovery_handler_config.discovery_endpoint.clone();
-        trace!("[http:discover] url: {}", &url);
-
         match get(&url).await {
             Ok(resp) => {
-                trace!(
-                    "[http:discover] Connected to discovery endpoint: {:?} => {:?}",
-                    &url,
-                    &resp
-                );
-
                 // Reponse is a newline separated list of devices (host:port) or empty
                 let device_list = &resp.text().await?;
 
                 let result = device_list
                     .lines()
                     .map(|endpoint| {
-                        trace!("[http:discover:map] Creating DiscoverResult: {}", endpoint);
-                        trace!(
-                            "[http:discover] props.inserting: {}, {}",
-                            BROKER_NAME,
-                            DEVICE_ENDPOINT,
-                        );
                         let mut props = HashMap::new();
                         props.insert(BROKER_NAME.to_string(), "http".to_string());
                         props.insert(DEVICE_ENDPOINT.to_string(), endpoint.to_string());
                         DiscoveryResult::new(endpoint, props, true)
                     })
                     .collect::<Vec<DiscoveryResult>>();
-                trace!("[protocol:http] Result: {:?}", &result);
                 Ok(result)
             }
             Err(err) => {
-                trace!(
-                    "[http:discover] Failed to connect to discovery endpoint: {}",
-                    &url
-                );
-                trace!("[http:discover] Error: {}", err);
-
                 Err(failure::format_err!(
                     "Failed to connect to discovery endpoint results: {:?}",
                     err
@@ -115,7 +91,6 @@ impl DiscoveryHandler for HTTPDiscoveryHandler {
         }
     }
     fn are_shared(&self) -> Result<bool, Error> {
-        trace!("[http:are_shared] Entered");
         Ok(true)
     }
 }
@@ -181,17 +156,7 @@ metadata:
   name: configurations.akri.sh
 spec:
   group: akri.sh
-  versions:
-    - name: v0
-      served: true
-      storage: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              properties:
+...
                 protocol: # {{ProtocolHandler}}
                   type: object
                   properties:
@@ -210,7 +175,6 @@ Having successfully updated the Akri agent and controller to understand our http
 
 ```bash
 USER=[[GTHUB-USER]]
-
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
@@ -232,20 +196,16 @@ We can use cargo to create our project by navigating to `samples/brokers` and ru
 To access the http data, we first need to retrieve the discovery information.  Any information stored in the DiscoveryResult properties map will be transferred into the broker container's environment variables.  Retrieving them is simply a matter of querying environment variables like this:
 
 ```rust
-const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
-let device_url = env::var(DEVICE_ENDPOINT)?;
+let device_url = env::var("AKRI_HTTP_DEVICE_ENDPOINT")?;
 ```
 
 For our Http broker, the data can be retrieved with a simple GET:
 
 ```rust
 async fn read_sensor(device_url: &str) {
-    println!("[http:read_sensor] Entered");
     match get(device_url).await {
         Ok(resp) => {
-            println!("[main:read_sensor] Response status: {:?}", resp.status());
             let body = resp.text().await;
-            println!("[main:read_sensor] Response body: {:?}", body);
         }
         Err(err) => println!("Error: {:?}", err),
     };
@@ -262,10 +222,8 @@ use tokio::{time, time::Duration};
 const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
 
 async fn read_sensor(device_url: &str) {
-    println!("[http:read_sensor] Entered");
     match get(device_url).await {
         Ok(resp) => {
-            println!("[main:read_sensor] Response status: {:?}", resp.status());
             let body = resp.text().await;
             println!("[main:read_sensor] Response body: {:?}", body);
         }
@@ -274,17 +232,11 @@ async fn read_sensor(device_url: &str) {
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("[http:main] Entered");
-
     let device_url = env::var(DEVICE_ENDPOINT)?;
-    println!("[http:main] Device: {}", &device_url);
-
     let mut tasks = Vec::new();
     tasks.push(tokio::spawn(async move {
         loop {
-            println!("[http:main:loop] Sleep");
             time::delay_for(Duration::from_secs(10)).await;
-            println!("[http:main:loop] read_sensor({})", &device_url);
             read_sensor(&device_url[..]).await;
         }
     }));
@@ -400,17 +352,15 @@ spec:
 # Create some Http devices
 At this point, we've extended Akri to include discovery for our Http protocol and we've created an Http broker that can be deployed.  To really test our new discovery and brokers, we need to create something to discover.
 
-For this exercise, we can create an Http service that listens to various paths.  Each path can simulate a differnt device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.  Further, we can create a series of Kubernetes services that create facades for the various paths, giving the illusion of multiple devices.
-
-To make our scenario more realistic, we can add a discovery layer.  We can create a Pod that will serve as a discovery service.
+For this exercise, we can create an Http service that listens to various paths.  Each path can simulate a different device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.  To make our scenario more realistic, we can add a discovery endpoint as well.  Further, we can create a series of Kubernetes services that create facades for the various paths, giving the illusion of multiple devices and a separate discovery service.
 
 To that end, lets:
 
-1. Create mock Http devices and an Http discovery service
-1. Deploy and start our mock Http devices and discovery service
+1. Create a web service that mocks Http devices and a discovery service
+1. Deploy, start, and expose our mock Http devices and discovery service
 
 ## Mock Http devices and Discovery service
-To simulate a set of discoverable Http devices, create a simple http server (`samples/apps/http-apps/cmd/device/main.go`)
+To simulate a set of discoverable Http devices and a discovery service, create a simple http server (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will define endpoints that the service will respond to.  These endpoints represent devices in our Http protocol.  The application will also accept a set of `device` arguments, which will define the set of discovered devices.
 
 ```go
 package main
@@ -436,6 +386,7 @@ var paths shared.RepeatableFlag
 
 func main() {
 	flag.Var(&paths, "path", "Repeat this flag to add paths for the device")
+	flag.Var(&devices, "device", "Repeat this flag to add devices to the discovery service")
 	flag.Parse()
 
 	// At a minimum, respond on `/`
@@ -449,11 +400,16 @@ func main() {
 
 	handler := http.NewServeMux()
 
+	// Create handler for the discovery endpoint
+	handler.HandleFunc("/discovery", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[discovery] Handler entered")
+		fmt.Fprintf(w, "%s\n", html.EscapeString(devices.String()))
+	})
 	// Create handler for each endpoint
 	for _, path := range paths {
 		log.Printf("[main] Creating handler: %s", path)
 		handler.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("[main:handler] Handler entered: %s", path)
+			log.Printf("[device] Handler entered: %s", path)
 			fmt.Fprint(w, entr.Float64())
 		})
 	}
@@ -470,53 +426,6 @@ func main() {
 	log.Printf("[main] Starting Device: [%s]", addr)
 	log.Fatal(s.Serve(listen))
 }
-```
-
-Create a simple discovery service `samples/apps/http-apps/cmd/discovery/main.go`:
-```go
-package main
-
-import (
-	"flag"
-	"fmt"
-	"html"
-	"log"
-	"net"
-	"net/http"
-
-	"github.com/deislabs/akri/http-extensibility/shared"
-)
-
-const (
-	addr = ":9999"
-)
-
-var _ flag.Value = (*shared.RepeatableFlag)(nil)
-var devices shared.RepeatableFlag
-
-func main() {
-	flag.Var(&devices, "device", "Repeat this flag to add devices to the discovery service")
-	flag.Parse()
-
-	handler := http.NewServeMux()
-	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[discovery] Handler entered")
-		fmt.Fprintf(w, "%s\n", html.EscapeString(devices.String()))
-	})
-
-	s := &http.Server{
-		Addr:    addr,
-		Handler: handler,
-	}
-	listen, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("[createDiscoveryService] Starting Discovery Service: %s", addr)
-	log.Fatal(s.Serve(listen))
-}
-```
 
 ## Build and Deploy devices and discovery
 To build and deploy the mock devices and discovery, a simple Dockerfiles can be created.
@@ -537,26 +446,7 @@ COPY --from=build /bin/device /
 USER 999
 EXPOSE 8080
 ENTRYPOINT ["/device"]
-CMD ["--path=/","--path=/sensor"]
-```
-
-For the discovery service, `samples/apps/http-apps/Dockerfiles/discovery`:
-```dockerfile
-FROM golang:1.15 as build
-WORKDIR /http-extensibility
-COPY go.mod .
-RUN go mod download
-COPY . .
-RUN GOOS=linux \
-    go build -a -installsuffix cgo \
-    -o /bin/discovery \
-    github.com/deislabs/akri/http-extensibility/cmd/discovery
-FROM gcr.io/distroless/base-debian10
-COPY --from=build /bin/discovery /
-USER 999
-EXPOSE 9999
-ENTRYPOINT ["/discovery"]
-CMD ["--device=device:8000","--device=device:8001"]
+CMD ["--path=/","--path=/sensor","--device=device:8000","--device=device:8001"]
 ```
 
 And to deploy, this simple script can be run:
@@ -567,19 +457,16 @@ HOST="ghcr.io"
 USER=[[GITHUB-USER]]
 PREFIX="http-apps"
 TAGS="v1"
+IMAGE="${HOST}/${USER}/${PREFIX}-device:${TAGS}"
 
-for APP in "device" "discovery"
-do
-  IMAGE="${HOST}/${USER}/${PREFIX}-${APP}:${TAGS}"
-  docker build \
+docker build \
   --tag=${IMAGE} \
-  --file=./Dockerfiles/${APP} \
+  --file=./Dockerfiles/device \
   .
-  docker push ${IMAGE}
-done
+docker push ${IMAGE}
 ```
 
-The mock devices can be deployed with a Kubernetes Deployment `samples/apps/http-apps/kubernetes/device.yaml` (update **image**):
+The mock devices can be deployed with a Kubernetes Deployment `samples/apps/http-apps/kubernetes/device.yaml` (update **image** based on the ${IMAGE}):
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -589,15 +476,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      project: akri
-      protocol: http
-      function: device
+      id: akri-http-device
   template:
     metadata:
       labels:
-        project: akri
-        protocol: http
-        function: device
+        id: akri-http-device
       name: device
     spec:
       imagePullSecrets:
@@ -608,39 +491,6 @@ spec:
           imagePullPolicy: Always
           args:
             - --path=/
-          ports:
-            - name: http
-              containerPort: 8080
-```
-
-The discovery service can be deployed with a Kubernetes Deployment `samples/apps/http-apps/kubernetes/discovery.yaml` (update **image**):
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: discovery
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      project: akri
-      protocol: http
-      function: discovery
-  template:
-    metadata:
-      labels:
-        project: akri
-        protocol: http
-        function: discovery
-      name: discovery
-    spec:
-      imagePullSecrets:
-        - name: SECRET
-      containers:
-        - name: discovery
-          image: IMAGE
-          imagePullPolicy: Always
-          args:
             - --device=http://device-1:8080
             - --device=http://device-2:8080
             - --device=http://device-3:8080
@@ -652,7 +502,7 @@ spec:
             - --device=http://device-9:8080
           ports:
             - name: http
-              containerPort: 9999
+              containerPort: 8080
 ```
 
 Then apply `device.yaml` to create a Deployment (called `device`) and a Pod (called `device-...`):
@@ -674,7 +524,7 @@ do
   --name=device-${NUM} \
   --port=8080 \
   --target-port=8080 \
-  --labels=project=akri,broker=http,function=device
+  --labels=id=akri-http-device
 done
 ```
 
@@ -709,9 +559,9 @@ Then create a Service (called `discovery`) using the deployment:
 ```bash
 kubectl expose deployment/discovery \
 --name=discovery \
---port=9999 \
---target-port=9999 \
---labels=project=akri,broker=http,function=discovery
+--port=8080 \
+--target-port=8080 \
+--labels=id=akri-http-device
 ```
 
 > Optional: check the service to confirm that it reports a list of devices correctly using:
@@ -725,7 +575,7 @@ kubectl expose deployment/discovery \
 > Then, curl the service's endpoint:
 >
 > ```bash
-> curl discovery:9999/
+> curl discovery:8080/discovery
 > ```
 >
 > This should return a list of 9 devices, of the form `http://device-X:8080`
