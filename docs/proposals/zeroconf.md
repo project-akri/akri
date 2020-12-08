@@ -38,7 +38,7 @@ avahi-browse --all
 
 ## Discovery Process
 
-The protocol implementation is written in Rust and uses [`zeroconf`](https://crates.io/crates/zeroconf). Some of what follows may be specific to these technologies.
+The Akri discovery handler is written in Rust and uses [`zeroconf`](https://crates.io/crates/zeroconf). Some of what follows may be specific to these technologies.
 
 > **NOTE** There is a proposal to replace `zeroconf` with [`astro-dnssd`](https://crates.io/crates/astro-dnssd) as this provides cross-platform support. There are some limitations with `astro-dnssd` too that are blocking this switch.
 
