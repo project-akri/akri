@@ -10,7 +10,7 @@ These technologies require additional packages and shared libraries. Supporting 
 
 ## Why Zeroconf?
 
-Zeroconf is a useful mechanism to publish services that have not only names (e.g. `device-123456`) but simple metadata (e.g. `_elevators._udp`) and limited textual data for e.g. labels. This permits scenarios where an Akri Broker implementation would want to query an e.g. building network to find its e.g. elevators and interact with these. The Broker would encapsulate the (proprietary protocol and) functionality needed to interact with the elevators and, thanks to Akri, would be able to expose these (elevators) as perhaps REST-based or gRPC-based services to Kubernetes applications.
+Zeroconf is a useful mechanism to publish services that have not only names (e.g. `device-123456`) but simple metadata (e.g. `_elevators._udp`) and limited textual data for e.g. labels. This permits scenarios where the Akri Zeroconf protocol could be configured to access e.g. a building's network and, using discovery find services representing e.g. its elevators and create Broker instances for each of the elevators. Akri would provide configuration information for each elevator to each Broker instance. Each Broker would encapsulate the (proprietary protocol and) functionality needed to interact with an elevator and could expose elevator functionality as REST-based or gRPC-based (or some other RPC mechanism) services to Kubernetes applications.
 
 ## Background
 
