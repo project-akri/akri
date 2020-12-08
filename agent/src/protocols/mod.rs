@@ -67,6 +67,7 @@ pub mod debug_echo;
 mod onvif;
 mod opcua;
 mod udev;
+mod zeroconf;
 
 pub fn get_discovery_handler(
     discovery_handler_config: &ProtocolHandler,
@@ -80,6 +81,9 @@ fn inner_get_discovery_handler(
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
+        ProtocolHandler::zeroconf(zeroconf) => {
+            Ok(Box::new(zeroconf::ZeroconfDiscoveryHandler::new(&zeroconf)))
+        }
         ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),

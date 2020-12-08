@@ -1,4 +1,4 @@
-name: "Build ZeroConf Protocol Brokers"
+name: "Build Zeroconf Protocol Brokers"
 
 on:
   push:

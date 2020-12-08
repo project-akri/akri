@@ -18,6 +18,10 @@ spec:
                 protocol: # {{ProtocolHandler}}
                   type: object
                   properties:
+                    zeroconf: # {{ZeroconfDiscoveryHandler}}
+                      type: object
+                      properties:
+                        filter: string
                     debugEcho: # {{DebugEchoDiscoveryHandler}}
                       type: object
                       properties:
@@ -78,6 +82,7 @@ spec:
                     opcua:
                       type: object
                   oneOf:
+                    - required: ["zeroconf"]
                     - required: ["debugEcho"]
                     - required: ["onvif"]
                     - required: ["udev"]
@@ -103,13 +108,13 @@ spec:
                     type: string
                   type: object
       additionalPrinterColumns:
-      - name: Capacity
-        type: string
-        description: The capacity for each Instance discovered
-        jsonPath: .spec.capacity
-      - name: Age
-        type: date
-        jsonPath: .metadata.creationTimestamp
+        - name: Capacity
+          type: string
+          description: The capacity for each Instance discovered
+          jsonPath: .spec.capacity
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
   scope: Namespaced
   names:
     plural: configurations

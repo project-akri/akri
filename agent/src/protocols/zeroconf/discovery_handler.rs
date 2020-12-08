@@ -1,5 +1,5 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
-use akri_shared::akri::configuration::ZeroConfDiscoveryHandlerConfig;
+use akri_shared::akri::configuration::ZeroconfDiscoveryHandlerConfig;
 use async_trait::async_trait;
 use failure::{format_err, Error};
 use std::{
@@ -26,19 +26,19 @@ const DEVICE_ADDR: &str = "AKRI_ZEROCONF_DEVICE_ADDR";
 const DEVICE_PORT: &str = "AKRI_ZEROCONF_DEVICE_PORT";
 
 #[derive(Debug)]
-pub struct ZeroConfDiscoveryHandler {
-    discovery_handler_config: ZeroConfDiscoveryHandlerConfig,
+pub struct ZeroconfDiscoveryHandler {
+    discovery_handler_config: ZeroconfDiscoveryHandlerConfig,
 }
-impl ZeroConfDiscoveryHandler {
-    pub fn new(discovery_handler_config: &ZeroConfDiscoveryHandlerConfig) -> Self {
+impl ZeroconfDiscoveryHandler {
+    pub fn new(discovery_handler_config: &ZeroconfDiscoveryHandlerConfig) -> Self {
         trace!("[zeroconf:new] Entered");
-        ZeroConfDiscoveryHandler {
+        ZeroconfDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
     }
 }
 #[async_trait]
-impl DiscoveryHandler for ZeroConfDiscoveryHandler {
+impl DiscoveryHandler for ZeroconfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
         trace!("[zeroconf:discover] Entered");
 

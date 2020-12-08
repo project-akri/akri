@@ -23,6 +23,7 @@ pub type KubeAkriConfigList = ObjectList<Object<Configuration, Void>>;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ProtocolHandler {
+    zeroconf(ZeroconfDiscoveryHandlerConfig),
     onvif(OnvifDiscoveryHandlerConfig),
     udev(UdevDiscoveryHandlerConfig),
     opcua(OpcuaDiscoveryHandlerConfig),
@@ -43,6 +44,13 @@ pub enum FilterType {
 /// The default filter type is `Include`
 fn default_action() -> FilterType {
     FilterType::Include
+}
+
+/// This defines the Zeroconf data stored in the Configuration
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ZeroconfDiscoveryHandlerConfig {
+    pub filter: String,
 }
 
 /// This defines a filter list.

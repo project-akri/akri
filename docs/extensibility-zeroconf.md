@@ -1,6 +1,6 @@
-# Extensibility: ZeroConf
+# Extensibility: Zeroconf
 
-See [Proposal: ZeroConf Protocol Implementation](https://github.com/DazWilkin/akri/blob/proposal-zeroconf/docs/proposals/zeroconf.md)
+See [Proposal: Zeroconf Protocol Implementation](https://github.com/DazWilkin/akri/blob/proposal-zeroconf/docs/proposals/zeroconf.md)
 
 The implementation uses [`zeroconf`](https://crates.io/crates/zeroconf) but this is Linux-only. There's a proposal to swap `zeroconf` for [`astro-dnssd`](https://crates.io/crates/astro-dnssd) which supports Linux, Mac OS and Windows.
 
@@ -79,7 +79,7 @@ fn inner_get_discovery_handler(
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
         ...
-        ProtocolHandler::zeroconf(zeroconf)=>Ok(Box::new(zeroconf::ZeroConfDiscoverHandler::new(&zeroconf))),
+        ProtocolHandler::zeroconf(zeroconf)=>Ok(Box::new(zeroconf::ZeroconfDiscoverHandler::new(&zeroconf))),
         ...
     }
 }
@@ -101,14 +101,14 @@ Revise `./deployment/helm/crds/akri-configuration-crd.yaml`:
 
 ```YAML
 properties:
-  zeroconf: # {{ZeroConfDiscoveryHandler}}
+  zeroconf: # {{ZeroconfDiscoveryHandler}}
     type: object
     properties:
       filter: 
         type: string
 ```
 
-> **NOTE** `filter` strings are defined in the ZeroConf Broker configuration. See [Deploy standalone ZeroConf Broker](#deploy-standalone-zeroconf-broker).
+> **NOTE** `filter` strings are defined in the Zeroconf Broker configuration. See [Deploy standalone Zeroconf Broker](#deploy-standalone-zeroconf-broker).
 
 And:
 
@@ -123,7 +123,7 @@ Revise `./shared/src/akri/configuration.rs`:
 
 ```rust
 pub enum ProtocolHandler {
-    zeroconf(ZeroConfDiscoveryHandlerConfig),
+    zeroconf(ZeroconfDiscoveryHandlerConfig),
     ...
 }
 ```
@@ -131,10 +131,10 @@ pub enum ProtocolHandler {
 And:
 
 ```rust
-/// This defines the ZeroConf data stored in the Configuration
+/// This defines the Zeroconf data stored in the Configuration
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ZeroConfDiscoveryHandlerConfig {
+pub struct ZeroconfDiscoveryHandlerConfig {
     pub filter: String,
 }
 ```
@@ -194,7 +194,7 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
 
-## Build|Push Broker (ZeroConf)
+## Build|Push Broker (Zeroconf)
 
 ```bash
 HOST="ghcr.io"
@@ -296,7 +296,7 @@ kubectl get pods --selector=name=akri-agent
 kubectl get pods --selector=app=akri-controller
 ```
 
-## Deploy standalone ZeroConf Broker
+## Deploy standalone Zeroconf Broker
 
 Before applying `zeroconf.yaml`, you may wish to revise the `filter`. In the current configuration file, the filter limits service discovery to those services that have a `kind` (i.e. type) of `_http._tcp`, i.e. services advertizing themselves as being `http` over `tcp`. The list of documented `kind`s is at [Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml)
 
