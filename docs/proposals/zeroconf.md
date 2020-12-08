@@ -16,7 +16,8 @@ Zeroconf is a useful mechanism to publish services that have not only names (e.g
 
 For more information, see [Zero-configuration networking](https://en.wikipedia.org/wiki/Zero-configuration_networking).
 
-Linux-based example (using [Avawhat is
+Linux-based example (using Avahi) to publish an mDNS-based service:
+
 ```bash
 avahi-publish --service freddie "_example._tcp" 8888
 Established under name 'freddie'
