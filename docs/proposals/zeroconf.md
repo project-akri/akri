@@ -25,7 +25,7 @@ Established under name 'freddie'
 
 > **NOTE** You may need to install `avahi-utils` if you're running Debian or a derivative
 
-The service will be published to the default Zeroconf domain (`local`) and its fully-qualifiied domain-name (FQDN) is thus `freddie.local`
+The service will be published to the default Zeroconf domain (`local`) and its fully-qualifiied domain-name (FQDN) is thus `freddie.local`.
 
 > **NOTE** For the purposes of what follows, while distinct, hosts (devices) and services may be considered equivalent.
 
