@@ -425,11 +425,10 @@ func main() {
 	log.Printf("[main] Starting Device: [%s]", addr)
 	log.Fatal(s.Serve(listen))
 }
+```
 
 ## Build and Deploy devices and discovery
-To build and deploy the mock devices and discovery, a simple Dockerfiles can be created.
-
-For the mock devices, `samples/apps/http-apps/Dockerfiles/device`:
+To build and deploy the mock devices and discovery, a simple Dockerfile can be created that buidls and exposes our mock server `samples/apps/http-apps/Dockerfiles/device`:
 ```dockerfile
 FROM golang:1.15 as build
 WORKDIR /http-extensibility
@@ -448,7 +447,7 @@ ENTRYPOINT ["/device"]
 CMD ["--path=/","--path=/sensor","--device=device:8000","--device=device:8001"]
 ```
 
-And to deploy, this simple script can be run:
+And to deploy, use `docker build` and `docker push`:
 ```bash
 cd ./samples/apps/http-apps
 
@@ -510,9 +509,9 @@ Then apply `device.yaml` to create a Deployment (called `device`) and a Pod (cal
 kubectl apply --filename=./samples/apps/http-apps/kubernetes/device.yaml
 ```
 
-> **NOTE** We're using one Deployment|Pod but will create 9 (distinct) Services against it.
+> **NOTE** We're using one Deployment|Pod to represent 9 devices AND a discovery service ... we will create 9 (distinct) Services against it (1 for each mock device) and 1 Service to present the disvoery service.
 
-Then create 9 Services:
+Then create 9 mock device Services:
 
 ```bash
 for NUM in {1..9}
@@ -540,18 +539,9 @@ done
 > ```bash
 > X=6
 > curl device-${X}:8080
-> curl device-${X}:8080/
-> curl http://device-${X}:8080/
-> curl http://device-${X}.default:8080/
 > ```
 >
 > Any or all of these should return a (random) 'sensor' value.
-
-Then apply `discovery.yaml` to create a Deployment (called `discovery`) and a Pod (called `discovery-...`):
-
-```bash
-kubectl apply --filename=./samples/apps/http-apps/kubernetes/discovery.yaml
-```
 
 Then create a Service (called `discovery`) using the deployment:
 
