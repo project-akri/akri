@@ -80,7 +80,7 @@ AKRI_ZEROCONF_DEVICE_PORT=8888
 AKRI_ZEROCONF_DEVICE_ADDR=192.168.1.100
 ```
 
-Currently the service's TXT records are not provided.
+The service's TXT records are not provided by the implementation of the discovery handler. The TXT records could be enumerated as additional environment variables but it's unclear how best to represent these, possibly: `AKRI_ZEROCONF_DEVICE_[[KEY]]=[[VALUE]]`.
 
 The Broker sample enumerates these values to standard output every 5 seconds.
 
