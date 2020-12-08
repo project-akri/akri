@@ -16,9 +16,9 @@ KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
 RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
 HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
 VERSION_FILE = "/tmp/version_to_test.txt"
-HELM_CHART_NAME_FILE = "/tmp/chart_name.txt"
 SLEEP_DURATION_FILE = "/tmp/sleep_duration.txt"
 EXTRA_HELM_ARGS_FILE = "/tmp/extra_helm_args.txt"
+HELM_CHART_LOCATION = "/tmp/helm_chart_location.txt"
 SLEEP_INTERVAL = 20
 
 CONTROLLER_POD_LABEL_SELECTOR = "app=" + CONTROLLER_POD_NAME
@@ -31,6 +31,10 @@ INSTANCE_SVC_LABEL_SELECTOR = INSTANCE_LABEL_NAME
 major_version = ""
 agent_pod_name = ""
 controller_pod_name = ""
+
+def get_helm_chart_location():
+    # Get helm chart location passed in helm install command (i.e. `repo/chart --version X.Y.Z` or `./deployment/helm`)
+    return open(HELM_CHART_LOCATION, "r").readline().rstrip()
 
 def get_extra_helm_args():
     # Get any extra helm args passed from workflow
@@ -61,10 +65,6 @@ def get_kubectl_command():
 def get_cri_args():
     # Get CRI args for Akri Helm
     return open(HELM_CRI_ARGS_FILE, "r").readline().rstrip()
-
-def get_helm_chart_name():
-    # Get Helm chart name (akri, akri-dev)
-    return open(HELM_CHART_NAME_FILE, "r").readline().rstrip()
 
 def get_test_version():
     # Get version of akri to test

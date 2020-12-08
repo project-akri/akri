@@ -6,3 +6,7 @@
 2 ATTR{idProduct}=="1900", ENV{ID_MM_ERICSSON_MBM}=="1"
 2 ATTR{idVendor}=="0bdd", ENV{a name}=="Keyboard that has a mouse"
 2 KERNEL=="video[0-9]*", ENV{ID_V4L_CAPABILITIES}==":capture:"
+1 SUBSYSTEMS=="pci"
+2 ATTRS{idVendor}=="0bdd", DRIVERS!="a driver"
+1 TAGS=="uaccess"
+1 KERNELS=="card[0-9]*"

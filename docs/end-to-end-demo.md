@@ -2,11 +2,21 @@
 In this guide, you will deploy Akri end-to-end, all the way from discovering local video cameras to the footage being streamed on a Web application. You will explore how Akri can dynamically discover devices, deploy brokers pods to perform some action on a device (in this case grabbing video frames and serving them over gRPC), and deploy broker services for obtaining the results of that action.
 
 ## Set up mock udev video devices
-1. Install a kernel module to make v4l2 loopback video devices. Learn more about this module [here](https://github.com/umlaeute/v4l2loopback).
+1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the
+   commands. If you would like to deploy the demo to a cloud-based VM, see the
+   instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute
+   Engine](end-to-end-demo-gce.md) (and you can skip the rest of the steps in
+   this document).
+1. To make dummy video4linux devices, install the v4l2loopback kernel module and its prerequisites. Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
+    sudo apt update
+    sudo apt -y install linux-modules-extra-$(uname -r)
+    sudo apt -y install dkms
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
+    When running on Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS, do NOT install v4l2loopback  through `sudo apt install -y v4l2loopback-dkms`, you will get an older version (0.12.3). 0.12.5-1 is required for gstreamer to work properly.
+    
 1. Insert the kernel module, creating /dev/video1 and /dev/video2 devnodes. To create different number video devices modify the `video_nr` argument. 
     ```sh
     sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
@@ -32,10 +42,9 @@ In this guide, you will deploy Akri end-to-end, all the way from discovering loc
 ## Set up a cluster
 
 **Note:** Feel free to deploy on any Kubernetes distribution. Here, find instructions for K3s and MicroK8s. Select and
-carry out one or the other (or adopt to your distribution), then continue on with the rest of the steps. 
+carry out one or the other (or adapt to your distribution), then continue on with the rest of the steps. 
 
 ### Option 1: Set up single node cluster using K3s
-1. Acquire a Linux distro that is supported by K3s, these steps work for Ubuntu.
 1. Install [K3s](https://k3s.io/) v1.18.9+k3s1.
     ```sh
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.18.9+k3s1 sh -
@@ -65,7 +74,6 @@ carry out one or the other (or adopt to your distribution), then continue on wit
     ```
 
 ### Option 2: Set up single node cluster using MicroK8s
-1. Acquire an Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS environment to run the commands. If you would like to deploy the demo to a cloud-based VM, see the instructions for [DigitalOcean](end-to-end-demo-do.md) or [Google Compute Engine](end-to-end-demo-gce.md).
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.18/stable
@@ -89,7 +97,10 @@ carry out one or the other (or adopt to your distribution), then continue on wit
     alias kubectl='microk8s kubectl'
     alias helm='microk8s helm3'
     ```
-1. Enable privileged pods and restart microk8s.
+1. For the sake of this demo, the udev video broker pods run privileged to easily grant them access to video devices, so
+   enable privileged pods and restart MicroK8s. More explicit device access could have been configured by setting the
+   appropriate [security context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec
+   in the Configuration.
     ```sh
     echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
     microk8s.stop
@@ -110,7 +121,7 @@ carry out one or the other (or adopt to your distribution), then continue on wit
 1. Use Helm to install Akri and create a Configuration to discover local video devices. Create your Configuration by setting values in your install command. Enable the udev Configuration which will search the Linux device filesystem as specified by a udev rule and give it a name. Since we want to find only video devices on the node, specify a udev rule of `KERNEL=="video[0-9]*"`. Also, specify the broker image you want to be deployed to discovered devices. In this case we will use Akri's sample frame server. Since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. Watch two broker pods spin up, one for each camera.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri-dev \
+    helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set udev.enabled=true \

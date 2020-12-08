@@ -20,7 +20,7 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev
 ```
 
-Starting after Release v0.0.35, an **akri** Helm chart will be published for each
+Starting in Release v0.0.44, an **akri** Helm chart will be published for each
 [Release](https://github.com/deislabs/akri/releases).  Releases will generally reflect milestones and will have more
 rigorous testing.  You can deploy Release versions of Akri with this command (note: **akri**):
 ```sh
@@ -47,13 +47,13 @@ helm install akri akri-helm-charts/akri
         # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
-    1. If using **MicroK8s**, enable CoreDNS, RBAC (optional), Helm, and privileged Pods. Also, install crictl, and
-       configure Akri to use MicroK8s' CRI socket.
+    1. If using **MicroK8s**, enable CoreDNS, RBAC (optional), and Helm. If your broker Pods must run privileged, enable
+       privileged Pods. Also, install crictl, and configure Akri to use MicroK8s' CRI socket.
         ```sh
         # Enable CoreDNS, RBAC and Helm
         microk8s enable dns rbac helm3
 
-        # Enable privileged pods and restart MicroK8s.
+        # Optionally enable privileged pods (if your broker Pods must run privileged) and restart MicroK8s.
         echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
         sudo microk8s stop && microk8s start
 
@@ -96,7 +96,7 @@ helm install akri akri-helm-charts/akri
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri-dev \
+    helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set <protocol>.enabled=true \

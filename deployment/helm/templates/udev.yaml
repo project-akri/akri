@@ -31,7 +31,11 @@ spec:
         {{- end }}
       {{- end }}
       securityContext:
+      {{- if .Values.udev.brokerPod.securityContext }}
+        {{- toYaml .Values.udev.brokerPod.securityContext | nindent 8 }}
+      {{- else}}
         privileged: true
+      {{- end}}
       resources:
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"
