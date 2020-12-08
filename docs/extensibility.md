@@ -38,7 +38,7 @@ mod onvif;
 
 Next, add a few files to the new http folder:
 
-`agent/src/protocols/http/discovery_handler.rs`:
+To provide an implementation for the Http protocol discovery, create `agent/src/protocols/http/discovery_handler.rs` and define **HTTPDiscoveryHandler** and its HttpDiscoveryHandler.discover implementation (for the Http protocol, this implementation is essentially an HTTP GET):
 ```rust
 use super::super::{DiscoveryHandler, DiscoveryResult};
 
@@ -96,14 +96,13 @@ impl DiscoveryHandler for HTTPDiscoveryHandler {
 }
 ```
 
-`agent/src/protocols/http/mod.rs`:
+To ensure that the HttpDiscoveryHandler is available to the rest of agent, we need to update `agent/src/protocols/http/mod.rs` by adding a reference to the new module:
 ```rust
 mod discovery_handler;
 pub use self::discovery_handler::HTTPDiscoveryHandler;
 ```
 
-The next step is to update `inner_get_discovery_handler` in `agent/src/protocols/mod.rs` to create an HttpDiscoveryHandler:
-
+The next step is to update `inner_get_discovery_handler` in `agent/src/protocols/mod.rs` to create an instance of HttpDiscoveryHandler:
 ```rust
 fn inner_get_discovery_handler(
     discovery_handler_config: &ProtocolHandler,
