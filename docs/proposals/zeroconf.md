@@ -54,7 +54,9 @@ The implementation used by the protocol is to poll for 5 seconds and report back
 
 ## Broker interfacing
 
-Upon detection of Zeroconf hosts and services, the Akri Zeroconf protocol creates "twins" for each service using the provided, sample broker. A more complete rendition of the `freddie` service could be:
+Upon detection, the Akri Zeroconf discovery handler creates an Akri instance to represent each discovered service. The instance contains information about the service using environment variables in each broker pod, if a broker pod is specified in the Configuration.
+
+A more complete description of the `freddie` service could be:
 
 ```YAML
 {
