@@ -69,7 +69,7 @@ A more complete description of the `freddie` service could be:
 }
 ```
 
-Each Broker Instance is configured with environment variables corresponding to the above value:
+Each Broker Pod is configured with environment variables corresponding to the above value:
 
 ```bash
 AKRI_ZEROCONF_DEVICE_KIND=_example._tcp
