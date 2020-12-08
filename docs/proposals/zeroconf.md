@@ -108,7 +108,7 @@ The limit of a generic Akri Zeroconf Broker is to enumerate services that it dis
 
 ### Filters
 
-+ Discovery applies user-defined filters against Services so that the Agent limits discovered filtered services to those matching the user's requirements.
++ Discovery applies user-defined filters against services so that the Agent limits discovered filtered services to those matching the user's requirements.
 
 The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port` filtering.
 
