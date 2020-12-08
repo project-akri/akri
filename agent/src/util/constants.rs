@@ -9,7 +9,7 @@ pub const UNHEALTHY: &str = "Unhealthy";
 /// Current version of the API supported by kubelet.
 pub const K8S_DEVICE_PLUGIN_VERSION: &str = "v1beta1";
 
-/// DevicePluginPath is the folder the kubelet expects to find Device-Plugin sockets. Only privileged pods have access to this path.
+/// DevicePluginPath is the folder the kubelet expects to find Device-Plugin sockets.
 pub const DEVICE_PLUGIN_PATH: &str = "/var/lib/kubelet/device-plugins";
 
 /// Path of the Kubelet registry socket

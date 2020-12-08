@@ -54,6 +54,7 @@ agent:
     tag:
     # pullPolicy is the Akri Agent pull policy
     pullPolicy: Always
+  securityContext: {}
   host:
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
     kubeletDevicePlugins: /var/lib/kubelet/device-plugins
@@ -197,6 +198,7 @@ udev:
       # repository is the container reference
       repository:
       pullPolicy: Always
+    securityContext: {}
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true

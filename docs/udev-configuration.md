@@ -10,7 +10,7 @@ rules](https://wiki.archlinux.org/index.php/Udev) into a Configuration. Akri has
 [grammar](../agent/src/protocols/udev/udev_rule_grammar.pest) for parsing the rules, expecting them to be formatted
 according to the [Linux Man pages](https://man7.org/linux/man-pages/man7/udev.7.html). While udev rules are normally used to both find
 devices and perform actions on devices, the Akri udev discovery handler is only interested in finding devices.
-Consequently, the discovery handler will throw an error if any of the rules contain an action operation ("=" , "+=" , "-=" , ":=") or action fields such as `IMPORT` in the udev rules. You should only use match operations ("==",  "!=") and the following udev fields: `DEVPATH`, `KERNEL`, `TAG`, `DRIVER`, `SUBSYSTEM`, `ATTRIBUTE`, `PROPERTY`. There are some match fields that look up the device hierarchy, such as `SUBSYSTEMS`, that are yet to be supported and will throw an error if used. Support for these will be added soon.
+Consequently, the discovery handler will throw an error if any of the rules contain an action operation ("=" , "+=" , "-=" , ":=") or action fields such as `IMPORT` in the udev rules. You should only use match operations ("==",  "!=") and the following udev fields: `ATTRIBUTE`, `ATTRIBUTE`, `DEVPATH`, `DRIVER`, `DRIVERS`, `KERNEL`, `KERNELS`, `ENV`, `SUBSYSTEM`, `SUBSYSTEMS`, `TAG`, and `TAGS`. To see some examples, reference our example [supported rules](../test/example.rules) and [unsupported rules](../test/example-unsupported.rules) that we run some tests against.
 
 ## Choosing a udev rule
 To see what devices will be discovered on a specific node by a udev rule, you can use `udevadm`. For example, to find
@@ -41,19 +41,23 @@ To test which devices Akri will discover with a udev rule, you can run the rule 
     ```
 1. Reload the udev rules and trigger them.
     ```sh
-    udevadm control --reload
-    udevadm trigger
+    sudo udevadm control --reload
+    sudo udevadm trigger
     ```
-1. List the devices that have been tagged, which Akri will discover.
+1. List the devices that have been tagged, which Akri will discover. Akri will only discover devices with device nodes (devices within the `/dev` directory). These device node paths will be mounted into broker Pods so the brokers can utilize the devices.
     ```sh
-    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag | xargs -l bash -c 'if [ -e $0/dev ]; then echo $0/dev; fi'
+    ```
+1. Explore the attributes of each device in order to decide how to refine your udev rule.
+    ```sh
+    udevadm trigger --verbose --dry-run --type=devices --tag-match=akri_tag | xargs -l bash -c 'if [ -e $0/dev ]; then echo $0; fi' | xargs -l bash -c 'udevadm info --path=$0 --attribute-walk' | less
     ```
 1. Modify the rule as needed, being sure to reload and trigger the rules each time.
 1. Remove the tag from the devices -- note how  `+=` turns to `-=` -- and reload and trigger the udev rules. Alternatively, if you are trying to discover devices with fields that Akri does not yet support, such as `ATTRS`, you could leave the tag and add it to the rule in your Configuration with `TAG=="akri_tag"`.
     ```sh
       sudo echo 'SUBSYSTEM=="sound", KERNEL=="card[0-9]*", TAG-="akri_tag"' | sudo tee -a /etc/udev/rules.d/90-akri.rules
-      udevadm control --reload
-      udevadm trigger
+      sudo udevadm control --reload
+      sudo udevadm trigger
     ```
 1. Confirm that the tag has been removed and no devices are listed.
     ```sh 
@@ -74,7 +78,7 @@ Later, we will discuss [how to add a custom broker to the
 Configuration](./#adding-a-custom-broker-to-the-configuration).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"'
@@ -97,7 +101,7 @@ our Helm chart, we suggest creating a Configuration file using Helm and then man
 The udev protocol will find all devices that are described by ANY of the udev rules. For example, to discover devices made by either Great Vendor or Awesome Vendor, you could add a second udev rule.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
@@ -120,7 +124,7 @@ environment variable and proceed to interact with the device. To add a broker to
 empty nginx pod for each instance. Instead, you can point to your image, say `ghcr.io/<USERNAME>/sound-broker`.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
@@ -131,6 +135,21 @@ broker and one for all brokers of the Configuration that applications can point 
 Installation](./customizing-akri-installation.md) to learn how to [modify the broker pod
 spec](./customizing-akri-installation.md#modifying-the-brokerpodspec) and [service
 specs](./customizing-akri-installation.md#modifying-instanceservicespec-or-configurationservicespec) in the Configuration.
+
+### Setting the broker Pod security context
+By default in the generic udev Configuration, the udev broker is run in privileged security context. This container
+[security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) can be customized via
+Helm. For example, to instead run all processes in the Pod with user ID 1000 and group 1000, do the following: 
+```bash
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri \
+    --set useLatestContainers=true \
+    --set udev.enabled=true \
+    --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
+    --set udev.brokerPod.image.repository=nginx \
+    --set udev.brokerPod.securityContext.runAsUser=1000 \
+    --set udev.brokerPod.securityContext.runAsGroup=1000
+```
 
 ## Disabling automatic service creation
 By default, the generic udev Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. Disable the create of Instance level services and Configuration level services by setting `--set udev.createInstanceServices=false` and `--set udev.createConfigurationService=false`, respectively.

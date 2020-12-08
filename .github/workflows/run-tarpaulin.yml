@@ -7,62 +7,48 @@ on:
     - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
-    - build/setup.sh
   pull_request:
     branches: [ main ]
     paths:
     - .github/workflows/run-tarpaulin.yml
     - '**.rs'
     - '**/Cargo.toml'
-    - build/setup.sh
-  pull_request_target:
-    branches: [ main ]
-    paths:
-    - .github/workflows/run-tarpaulin.yml
-    - '**.rs'
-    - '**/Cargo.toml'
-    - build/setup.sh
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-    # Run workflow pull_request if it is NOT a fork, as pull_request_target if it IS a fork
-    if: >-
-      ( github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.fork == true ) ||
-      ( github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false ) ||
-      ( !(startsWith(github.event_name, 'pull_request')) )
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-    - name: Checkout the merged commit from PR and base branch
-      uses: actions/checkout@v2
-      if: github.event_name == 'pull_request_target'
-      with:
-        # pull_request_target is run in the context of the base repository
-        # of the pull request, so the default ref is master branch and
-        # ref should be manually set to the head of the PR
-        ref: refs/pull/${{ github.event.pull_request.number }}/head
-
     - name: Checkout the head commit of the branch
-      if: ${{ github.event_name != 'pull_request_target' }}
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
 
-    - name: Log into dockerhub to avoid throttled anonymous dockerhub pulls
-      run: echo "${{ secrets.DHPASSWORD }}" | docker login --username "${{ secrets.DHUSERNAME }}" --password-stdin
     - name: Create tarpaulin instance
       run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2 bash -c "echo 'sleep 20m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
-      run: docker exec $(cat container_id.txt) sh -c "./build/setup.sh"
+      run: docker exec $(cat container_id.txt) sh -c "echo Run apt update and apt install the following dependencies - git curl libssl-dev pkg-config libudev-dev libv4l-dev ; apt update ; apt install -y git curl libssl-dev pkg-config libudev-dev libv4l-dev"
     - name: Install rust requirements in tarpaulin instance
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin
       run: docker exec $(cat container_id.txt) sh -c "RUST_LOG=trace cargo tarpaulin -v --all-features --out Xml"
-    - name: Upload report to codecov
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      run: bash <(curl -s https://codecov.io/bash)
+
+    - name: Upload report to codecov for push
+      if: (!(startsWith(github.event_name, 'pull_request')))
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{secrets.CODECOV_TOKEN}}
+        fail_ci_if_error: true
+        verbose: true
+
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v1
+      with:
+        name: code-coverage-report
+        path: cobertura.xml
