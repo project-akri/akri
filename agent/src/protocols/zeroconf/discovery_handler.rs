@@ -82,8 +82,41 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
 
         // Receive
         trace!("[zeroconf:discovery] Iterating over services");
+        // TODO(dazwilkin) Provide additional filtering, e.g. domain here
         let result = rx
             .iter()
+            .filter(|service| {
+                trace!("[zeroconf:discovery] Service: {:?}", service);
+
+                // TODO(dazwilkin) leaky abstraction... perhaps match(filter1,filter2)?
+                // Any term that's present (Some) must match the equivalent service term
+                // If any of the terms is a mismatch, then the entirety is a mismatch
+                (if let Some(name) = &filter.name {
+                    let result = name == service.name();
+                    trace!("[zeroconf:discovery] Name ({}) [{}]", name, result);
+                    result
+                } else {
+                    false
+                }) && (if let Some(kind) = filter.kind() {
+                    let result = &kind == service.kind();
+                    trace!("[zeroconf:discovery] Kind ({}) [{}]", kind, result);
+                    result
+                } else {
+                    false
+                }) && (if let Some(domain) = &filter.domain {
+                    let result = domain == service.domain();
+                    trace!("[zeroconf:discovery] Domain ({}) [{}]", domain, result);
+                    result
+                } else {
+                    false
+                }) && (if let Some(port) = filter.port {
+                    let result = &port == service.port();
+                    trace!("[zeroconf:discovery] Port ({}) [{}]", port, result);
+                    result
+                } else {
+                    false
+                })
+            })
             .map(|service| {
                 trace!("[zeroconf:discovery] Service: {:?}", service);
                 let mut props = HashMap::new();
@@ -93,6 +126,7 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
                 props.insert(DEVICE_HOST.to_string(), service.host_name().to_string());
                 props.insert(DEVICE_ADDR.to_string(), service.address().to_string());
                 props.insert(DEVICE_PORT.to_string(), service.port().to_string());
+                // TODO(dazwilkin) Consider enumerating TXT records as `DEVICE_[[KEY]]=[[VALUE]] pairs
                 DiscoveryResult::new(service.host_name(), props, true)
             })
             .collect::<Vec<DiscoveryResult>>();

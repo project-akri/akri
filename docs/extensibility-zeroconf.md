@@ -90,7 +90,7 @@ Revise `./agent/Cargo.toml`:
 ```TOML
 [dependencies]
 zeroconf = "0.6.2"
-zeroconf-filter = { git = "https://github.com/DazWilkin/akri-pest" }
+zeroconf-filter = { git = "https://github.com/DazWilkin/akri-pest", version = "0.0.2" }
 ```
 
 ## Akri Configuration CRD
