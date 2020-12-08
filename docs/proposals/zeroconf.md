@@ -1,16 +1,16 @@
-# [ZeroConf](https://en.wikipedia.org/wiki/Zero-configuration_networking) Protocol Implementation
+# [Zeroconf](https://en.wikipedia.org/wiki/Zero-configuration_networking) Protocol Implementation
 
 ## Goal
 
-Agent implements [Zero-configuration networking](https://en.wikipedia.org/wiki/Zero-configuration_networking) (hence 'ZeroConf'), a set of technologies that help discover devices and services using DNS-based discovery. There are 2 main elements: Multicast DNS (mDNS) and DNS-based Service Discovery (DNS-SD).
+Agent implements [Zero-configuration networking](https://en.wikipedia.org/wiki/Zero-configuration_networking) (hence 'Zeroconf'), a set of technologies that help discover devices and services using DNS-based discovery. There are 2 main elements: Multicast DNS (mDNS) and DNS-based Service Discovery (DNS-SD).
 
-While ZeroConf is often used in home networks (that don't often include regular DNS), ZeroConf is broadly applicable and is useful in IoT deployments in which devices are transient, there are many devices, developers wish to dynamically manage services on these devices.
+While Zeroconf is often used in home networks (that don't often include regular DNS), Zeroconf is broadly applicable and is useful in IoT deployments in which devices are transient, there are many devices, developers wish to dynamically manage services on these devices.
 
-These technologies require additional packages and shared libraries. Supporting ZeroConf as an Akri protcol possibly (!?) provides a mechanism by which (Kubernetes) application developers can leverage ZeroConf technologies without having to install or be familiar with ZeroConf dependencies.
+These technologies require additional packages and shared libraries. Supporting Zeroconf as an Akri protcol possibly (!?) provides a mechanism by which (Kubernetes) application developers can leverage Zeroconf technologies without having to install or be familiar with Zeroconf dependencies.
 
-## Why ZeroConf?
+## Why Zeroconf?
 
-ZeroConf is a useful mechanism to publish services that have not only names (e.g. `device-123456`) but simple metadata (e.g. `_elevators._udp`) and limited textual data for e.g. labels. This permits scenarios where an Akri Broker implementation would want to query an e.g. building network to find its e.g. elevators and interact with these. The Broker would encapsulate the (proprietary protocol and) functionality needed to interact with the elevators and, thanks to Akri, would be able to expose these (elevators) as perhaps REST-based or gRPC-based services to Kubernetes applications.
+Zeroconf is a useful mechanism to publish services that have not only names (e.g. `device-123456`) but simple metadata (e.g. `_elevators._udp`) and limited textual data for e.g. labels. This permits scenarios where an Akri Broker implementation would want to query an e.g. building network to find its e.g. elevators and interact with these. The Broker would encapsulate the (proprietary protocol and) functionality needed to interact with the elevators and, thanks to Akri, would be able to expose these (elevators) as perhaps REST-based or gRPC-based services to Kubernetes applications.
 
 ## Background
 
@@ -22,11 +22,11 @@ avahi-publish --service freddie "_example._tcp" 8888
 Established under name 'freddie'
 ```
 
-The service will be published to the default ZeroConf domain (`local`) and it's fully-qualifiied domain-name (FQDN) is thus `freddie.local`
+The service will be published to the default Zeroconf domain (`local`) and it's fully-qualifiied domain-name (FQDN) is thus `freddie.local`
 
 > **NOTE** For the purposes of what follows, while distinct, hosts (devices) and services may be considered equivalent.
 
-Then, it's possible to enumerate hosts and services discovered by ZeroConf using:
+Then, it's possible to enumerate hosts and services discovered by Zeroconf using:
 
 ```bash
 avahi-browse --all
@@ -39,11 +39,11 @@ The protocol implementation is written in Rust and uses [`zeroconf`](https://cra
 
 > **NOTE** There is a proposal to replace `zeroconf` with [`astro-dnssd`](https://crates.io/crates/astro-dnssd) as this provides cross-platform support. There are some limitations with `astro-dnssd` too that are blocking this switch.
 
-The Akri Agent is deployed to a Kubernetes cluster. Kubernetes clusters commonly run in-cluster DNS services (nowadays [`CoreDNS`](https://kubernetes.io/docs/tasks/administer-cluster/coredns/)). For this reason, the applicability of the Akri ZeroConf protocol is to devices not accessible within the cluster. The benefit of the Akri ZeroConf protocol is to make off-cluster ZeroConf-accessible hosts (devices) and services accessible to Kubernetes cluster resources (e.g. applications).
+The Akri Agent is deployed to a Kubernetes cluster. Kubernetes clusters commonly run in-cluster DNS services (nowadays [`CoreDNS`](https://kubernetes.io/docs/tasks/administer-cluster/coredns/)). For this reason, the applicability of the Akri Zeroconf protocol is to devices not accessible within the cluster. The benefit of the Akri Zeroconf protocol is to make off-cluster Zeroconf-accessible hosts (devices) and services accessible to Kubernetes cluster resources (e.g. applications).
 
-For ZeroConf discovery to occur, the Agent's Pod must leverage several ZeroConf depdendencies and libraries. These depdendencies not only expand the size of the Akri Agent (~800MB) but they increase the Agent's surface area and increase the possibility of vulnerabilities.
+For Zeroconf discovery to occur, the Agent's Pod must leverage several Zeroconf depdendencies and libraries. These depdendencies not only expand the size of the Akri Agent (~800MB) but they increase the Agent's surface area and increase the possibility of vulnerabilities.
 
-Discovery is a key functionality of ZeroConf and is straightforward to implement. See the [Browsing services](https://crates.io/crates/zeroconf#browsing-services) examples of the `zeroconf` crate.
+Discovery is a key functionality of Zeroconf and is straightforward to implement. See the [Browsing services](https://crates.io/crates/zeroconf#browsing-services) examples of the `zeroconf` crate.
 
 One wrinkle is that Akri expects discovery to run to completion. Akri periodically reruns discovery for a protocol. The `zeroconf` crate polls networks for hosts and services.
 
@@ -51,7 +51,7 @@ The implementation used by the protocol is to poll for 5 seconds and report back
 
 ## Broker interfacing
 
-Upon detection of ZeroConf hosts and services, the Akri ZeroConf protocol creates "twins" for each service using the provided, sample broker. A more complete rendition of the `freddie` service could be:
+Upon detection of Zeroconf hosts and services, the Akri Zeroconf protocol creates "twins" for each service using the provided, sample broker. A more complete rendition of the `freddie` service could be:
 
 ```YAML
 {
@@ -91,29 +91,29 @@ Accessing services that are found by service browsing *may* require the provisio
 
 ## Outstanding Questions
 
-+ What would a generic Akri ZeroConf Broker do? In practice, the application developer would likely wish to implement the Broker for their specific application.
++ What would a generic Akri Zeroconf Broker do? In practice, the application developer would likely wish to implement the Broker for their specific application.
 
-The limit of a generic Akri ZeroConf Broker is to enumerate services that it discovers and this is demonstrated by a sample Broker included in the ZeroConf Protocol implementation. In practice, a ZeroConf Broker would need to be aware of the implementation(s) of the service that it "twins". There is a limitation on the transport protocols that are accessible to Akri (discussed below) but, for the permitted transport protocols, there are potentially limitless service types and implementation details and these are all potentially accessible to an Akri Broker using this ZeroConf protocol implementation.
+The limit of a generic Akri Zeroconf Broker is to enumerate services that it discovers and this is demonstrated by a sample Broker included in the Zeroconf Protocol implementation. In practice, a Zeroconf Broker would need to be aware of the implementation(s) of the service that it "twins". There is a limitation on the transport protocols that are accessible to Akri (discussed below) but, for the permitted transport protocols, there are potentially limitless service types and implementation details and these are all potentially accessible to an Akri Broker using this Zeroconf protocol implementation.
 
 + How to treat support for Kubernetes-supporting service types (TCP, UDP, SCTP)?
 
-Kubernetes supports [TCP, UDP, SCTP](https://kubernetes.io/docs/concepts/services-networking/service/#protocol-support) transport protocols. Service discovery supports other transport protocols. Because Akri is dependent on Kubernetes, the Akri ZeroConf Protocol implementation only supports these 3 transport protocols too.
+Kubernetes supports [TCP, UDP, SCTP](https://kubernetes.io/docs/concepts/services-networking/service/#protocol-support) transport protocols. Service discovery supports other transport protocols. Because Akri is dependent on Kubernetes, the Akri Zeroconf Protocol implementation only supports these 3 transport protocols too.
 
 ## Feature Requests
 
 + Discovery should differentiate between services that are supportable (!) by Kubernetes (TCP, UDP, SCTP) and those that aren't
 
-The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the ZeroConf Protocol implementation only permits: TCP, UDP and SCTP.
+The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation only permits: TCP, UDP and SCTP.
 
 + Discovery should apply user-defined filters on Services so that the Agent only attempts to discover filtered services
 
-The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the ZeroConf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port`filtering. However, the [`zeroconf`] crate only supports `kind` filtering and so other terms would be ignored.
+The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port`filtering. However, the [`zeroconf`] crate only supports `kind` filtering and so other terms would be ignored.
 
-The `filter` is specific in the ZeroConf CRD Configuration:
+The `filter` is specific in the Zeroconf CRD Configuration:
 
 ```YAML
 properties:
-  zeroconf: # {{ZeroConfDiscoveryHandler}}
+  zeroconf: # {{ZeroconfDiscoveryHandler}}
     type: object
     properties:
       filter: 
@@ -136,7 +136,7 @@ spec:
 ## References
 
 + [Zero-configuration networking](https://en.wikipedia.org/wiki/Zero-configuration_networking).
-+ [IANA ZeroConf Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?skey=9&page=132)
++ [IANA Zeroconf Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?skey=9&page=132)
 + [Rust `zeroconf` crate](https://crates.io/crates/zeroconf)
-+ [Development Branch of Akri ZeroConf Protocol & Broker](https://github.com/DazWilkin/akri/tree/protocol-zeroconf)
++ [Development Branch of Akri Zeroconf Protocol & Broker](https://github.com/DazWilkin/akri/tree/protocol-zeroconf)
 ---
