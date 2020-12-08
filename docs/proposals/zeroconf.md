@@ -6,7 +6,7 @@ Agent implements [Zero-configuration networking](https://en.wikipedia.org/wiki/Z
 
 While Zeroconf is often used in home networks (that don't often include regular DNS), Zeroconf is broadly applicable and is useful in IoT deployments in which devices are transient, there are many devices, and developers wish to dynamically manage services on these devices.
 
-These technologies require additional packages and shared libraries. Supporting Zeroconf as an Akri protcol possibly (!?) provides a mechanism by which (Kubernetes) application developers can leverage Zeroconf technologies without having to install or be familiar with Zeroconf dependencies.
+These technologies require additional packages and shared libraries. Supporting Zeroconf as an Akri protocol possibly provides a mechanism by which (Kubernetes) application developers can leverage Zeroconf technologies without having to install or be familiar with Zeroconf dependencies.
 
 ## Why Zeroconf?
 
