@@ -98,21 +98,25 @@ Accessing services that are found by service browsing *may* require the provisio
 
 + What would a generic Akri Zeroconf Broker do? In practice, the application developer would likely wish to implement the Broker for their specific application.
 
-The limit of a generic Akri Zeroconf Broker is to enumerate services that it discovers and this is demonstrated by a sample Broker included in the Zeroconf Protocol implementation. In practice, a Zeroconf Broker would need to be aware of the implementation(s) of the service that it "twins". There is a limitation on the transport protocols that are accessible to Akri (discussed below) but, for the permitted transport protocols, there are potentially limitless service types and implementation details and these are all potentially accessible to an Akri Broker using this Zeroconf protocol implementation.
-
-+ How to treat support for Kubernetes-supporting service types (TCP, UDP, SCTP)?
-
-Kubernetes supports [TCP, UDP, SCTP](https://kubernetes.io/docs/concepts/services-networking/service/#protocol-support) transport protocols. Service discovery supports other transport protocols. Because Akri is dependent on Kubernetes, the Akri Zeroconf Protocol implementation only supports these 3 transport protocols too.
+The limit of a generic Akri Zeroconf Broker is to enumerate services that it discovers and this is demonstrated by a sample Broker included in the Zeroconf Protocol implementation. In practice, a Zeroconf Broker would need to be aware of the implementation(s) of the service that it "twins".
 
 ## Feature Requests
 
-+ Discovery should differentiate between services that are supportable (!) by Kubernetes (TCP, UDP, SCTP) and those that aren't
++ Support `TXT` records in filtering (see [Filters](#filters))
 
-The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation only permits: TCP, UDP and SCTP.
+## Miscellany
 
-+ Discovery should apply user-defined filters on Services so that the Agent only attempts to discover filtered services
+### Filters
 
-The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port`filtering. However, the [`zeroconf`] crate only supports `kind` filtering and so other terms would be ignored.
++ Discovery applies user-defined filters against Services so that the Agent limits discovered filtered services to those matching the user's requirements.
+
+The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port` filtering.
+
+For example to filter services named `freddie` on `local` domain with a kind of `_http._tcp`, the filter could be:
+
+```bash
+filter='name="freddie" domain="local" kind="_http._tcp"'
+```
 
 The `filter` is specific in the Zeroconf CRD Configuration:
 
