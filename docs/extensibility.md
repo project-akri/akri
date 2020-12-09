@@ -550,9 +550,7 @@ done
 > Optional: check one the services:
 >
 > ```bash
-> kubectl run curl \
-> --stdin --tty --rm \
-> --image=radial/busyboxplus:curl
+> kubectl run curl -it --rm --image=curlimages/curl -- sh
 > ```
 >
 > Then, pick a value for `X` between 1 and 9:
@@ -577,9 +575,7 @@ kubectl expose deployment/device \
 > Optional: check the service to confirm that it reports a list of devices correctly using:
 > 
 > ```bash
-> kubectl run curl \
-> --rm --stdin --tty \
-> --image=radial/busyboxplus:curl
+> kubectl run curl -it --rm --image=curlimages/curl -- sh
 > ```
 >
 > Then, curl the service's endpoint:
