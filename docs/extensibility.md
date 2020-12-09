@@ -11,12 +11,12 @@ To add a new protocol implementation, several things are needed:
 
 This document is intended to demonstrate how a new protocol can be implemented.For reference, we have created a [http-extensibility branch](https://github.com/deislabs/akri/tree/http-extensibility) with the implementation defined below.  For convenience, you can [compare the http-extensibility branch with main here](https://github.com/deislabs/akri/compare/http-extensibility).
 
-Here, we will create a protocol to discover **HTTP-based devices** that publish random sensor data.  An implementation of these devices and a discovery protocol is described in [this README in the http-extensibility branch](TODO: reference branch code./samples/apps/http-apps/README.md).
+Here, we will create a protocol to discover **HTTP-based devices** that publish random sensor data.  An implementation of these devices and a discovery protocol is described in [this README in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/samples/apps/http-apps/README.md).
 
 Any Docker-compatible container registry will work (dockerhub, Github Container Registry, Azure Container Registry, etc).  For this sample, we are using the [GitHub Container Registry](https://github.blog/2020-09-01-introducing-github-container-registry/). You can follow the [getting started guide here to enable it for yourself](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry).
 
 ## New DiscoveryHandler implementation
-If the resource you are interested in defining is not accessible through the [included protocols](./roadmap.md#currently-supported-protocols), then you will need to create a DiscoveryHandler for your new protocol.  Here, we will create a discovery handler in order to discover http resources.
+If the resource you are interested in defining is not accessible through the [included protocols](./roadmap.md#currently-supported-protocols), then you will need to create a DiscoveryHandler for your new protocol.  Here, we will create a discovery handler in order to discover HTTP resources.
 
 New protocols require new implementations of the DiscoveryHandler:
 
@@ -28,7 +28,7 @@ pub trait DiscoveryHandler {
 }
 ```
 
-To create a new protocol type, a new struct and impl block is required.  To that end, create a new folder for the http code: `agent/src/protocols/http` and add a reference this new module in `agent/src/protocols/mod.rs`:
+To create a new protocol type, a new struct and impl block is required.  To that end, create a new folder for the HTTP code: `agent/src/protocols/http` and add a reference this new module in `agent/src/protocols/mod.rs`:
 
 ```rust
 mod debug_echo;
@@ -114,7 +114,7 @@ fn inner_get_discovery_handler(
 }
 ```
 
-Finally, we need to update `./agent/Cargo.toml` to build with the http dependencies http is using:
+Finally, we need to update `./agent/Cargo.toml` to build with the dependencies http is using:
 ```TOML
 [dependencies]
 hyper-async = { version = "0.13.5", package = "hyper" }
@@ -170,7 +170,7 @@ spec:
 ```
 
 ## Building Akri Agent|Controller
-Having successfully updated the Akri agent and controller to understand our http resource, the agent and controller need to be built.  Running the following `make` commands will build and push new versions of the agent and controller to your container registry (in this case ghcr.io/[[GITHUB-USER]]/agent and ghcr.io/[[GITHUB-USER]]/controller).
+Having successfully updated the Akri agent and controller to understand our HTTP resource, the agent and controller need to be built.  Running the following `make` commands will build and push new versions of the agent and controller to your container registry (in this case ghcr.io/[[GITHUB-USER]]/agent and ghcr.io/[[GITHUB-USER]]/controller).
 
 ```bash
 USER=[[GTHUB-USER]]
@@ -181,18 +181,18 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-contr
 > **NOTE** These commands build for amd64 (`BUILD_AMD64=1`), other archs can be built by setting `BUILD_*` differently.
 
 ## Create a sample protocol broker
-The final step, is to create a protocol broker that will make http available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod.
+The final step, is to create a protocol broker that will make the HTTP-based Device data available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod.
 
-3 different broker implementations have been created for the HTTP protocol in the http-extensibility branch, 2 in Rust and 1 in Go:
+3 different broker implementations have been created for the HTTP protocol in the [http-extensibility branch](https://github.com/deislabs/akri/tree/http-extensibility), 2 in Rust and 1 in Go:
 * The standalone broker is a self-contained scenario that demonstrates the ability to interact with HTTP-based devices by `curl`ing a device's endpoints. This type of solution would be applicable in batch-like scenarios where the broker performs a predictable set of processing steps for a device.
 * The second scenario uses gRPC. gRPC is an increasingly common alternative to REST-like APIs and supports high-throughput and streaming methods. gRPC is not a requirement for broker implements in Akri but is used here as one of many mechanisms that may be used. The gRPC-based broker has a companion client. This is a more realistic scenario in which the broker proxies client requests using gRPC to HTTP-based devices. The advantage of this approach is that device functionality is encapsulated by an API that is exposed by the broker. In this case the API has a single method but in practice, there could be many methods implemented.
-* The third implemnentation is a gRPC-based broker and companion client implemented in Golang. This is functionally equivalent to the Rust implementation and shares a protobuf definition. For this reason, you may combine the Rust broker and client with the Golang broker and client arbitrarily. The Golang broker is described in the [`http-apps`](./samples/apps/http-apps/README.md) directory.
+* The third implemnentation is a gRPC-based broker and companion client implemented in Golang. This is functionally equivalent to the Rust implementation and shares a protobuf definition. For this reason, you may combine the Rust broker and client with the Golang broker and client arbitrarily. The Golang broker is described in the [`http-apps`](https://github.com/deislabs/akri/blob/http-extensibility/samples/apps/http-apps/README.md) directory.
 
-For this, we will describe the first option, a standalone broker.  For a more detailed look at the other options, please look at [http-extensibility.md in the http-extensibility branch](TODO: reference branch).
+For this, we will describe the first option, a standalone broker.  For a more detailed look at the other gRPC options, please look at [extensibility-http-grpc.md in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/docs/extensibility-http-grpc.md).
 
 We can use cargo to create our project by navigating to `samples/brokers` and running `cargo new http`.  Once the http project has been created, it can be added to the greater Akri project by adding `"samples/brokers/http"` to the **members** in `./Cargo.toml`.
 
-To access the http data, we first need to retrieve the discovery information.  Any information stored in the DiscoveryResult properties map will be transferred into the broker container's environment variables.  Retrieving them is simply a matter of querying environment variables like this:
+To access the HTTP-based Device data, we first need to retrieve the discovery information.  Any information stored in the DiscoveryResult properties map will be transferred into the broker container's environment variables.  Retrieving them is simply a matter of querying environment variables like this:
 
 ```rust
 let device_url = env::var("AKRI_HTTP_DEVICE_ENDPOINT")?;
@@ -300,13 +300,13 @@ ENV RUST_LOG standalone
 ENTRYPOINT ["/standalone"]
 ```
 
-Akri's `.dockerignore` is configured so that docker will ignore most files in our repository, some exceptions will need to be added to build the http broker:
+Akri's `.dockerignore` is configured so that docker will ignore most files in our repository, some exceptions will need to be added to build the HTTP broker:
 
 ```console
 !samples/brokers/http
 ```
 
-Now you are ready to **build the http broker**!  To do so, we simply need to run this step from the base folder of the Akri repo:
+Now you are ready to **build the HTTP broker**!  To do so, we simply need to run this step from the base folder of the Akri repo:
 
 ```bash
 HOST="ghcr.io"
@@ -359,7 +359,7 @@ To that end, lets:
 1. Deploy, start, and expose our mock HTTP devices and discovery service
 
 ## Mock HTTP devices and Discovery service
-To simulate a set of discoverable HTTP devices and a discovery service, create a simple http server (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will define endpoints that the service will respond to.  These endpoints represent devices in our HTTP protocol.  The application will also accept a set of `device` arguments, which will define the set of discovered devices.
+To simulate a set of discoverable HTTP devices and a discovery service, create a simple HTTP server (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will define endpoints that the service will respond to.  These endpoints represent devices in our HTTP protocol.  The application will also accept a set of `device` arguments, which will define the set of discovered devices.
 
 ```go
 package main
@@ -372,16 +372,29 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/deislabs/akri/http-extensibility/shared"
+    "strings"
 )
 
 const (
 	addr = ":8080"
 )
 
-var _ flag.Value = (*shared.RepeatableFlag)(nil)
-var paths shared.RepeatableFlag
+// RepeatableFlag is an alias to use repeated flags with flag
+type RepeatableFlag []string
+
+// String is a method required by flag.Value interface
+func (e *RepeatableFlag) String() string {
+	result := strings.Join(*e, "\n")
+	return result
+}
+
+// Set is a method required by flag.Value interface
+func (e *RepeatableFlag) Set(value string) error {
+	*e = append(*e, value)
+	return nil
+}
+var _ flag.Value = (*RepeatableFlag)(nil)
+var paths RepeatableFlag
 
 func main() {
 	flag.Var(&paths, "path", "Repeat this flag to add paths for the device")
@@ -616,7 +629,7 @@ kubectl get pods --selector=app=akri-controller
 
 ## Deploy Broker
 
-Once the http broker has been created, the next question is how to deploy it.  For this, we need the Configuration we created earlier `samples/brokers/http/kubernetes/http.yaml`.  To deploy, use a simple `kubectl` command like this:
+Once the HTTP broker has been created, the next question is how to deploy it.  For this, we need the Configuration we created earlier `samples/brokers/http/kubernetes/http.yaml`.  To deploy, use a simple `kubectl` command like this:
 ```bash
 kubectl apply --filename=./samples/brokers/http/kubernetes/http.yaml
 ```
