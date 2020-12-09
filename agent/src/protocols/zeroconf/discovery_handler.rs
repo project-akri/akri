@@ -18,6 +18,8 @@ use zeroconf::{MdnsBrowser, ServiceDiscovery};
 
 use zeroconf_filter::parse;
 
+const SCAN_DURATION: u64 = 5;
+
 const BROKER_NAME: &str = "AKRI_ZEROCONF";
 const DEVICE_KIND: &str = "AKRI_ZEROCONF_DEVICE_KIND";
 const DEVICE_NAME: &str = "AKRI_ZEROCONF_DEVICE_NAME";
@@ -72,7 +74,7 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
         trace!("[zeroconf:discovery] Started browsing");
         let event_loop = browser.browse_services().unwrap();
         let now = Instant::now();
-        let end = Duration::from_secs(5);
+        let end = Duration::from_secs(SCAN_DURATION);
         while now.elapsed() < end {
             event_loop.poll(Duration::from_secs(0)).unwrap();
         }
