@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-grpc-client-rust
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      project: akri
+      protocol: http
+      function: client
+      language: rust
+  template:
+    metadata:
+      labels:
+        project: akri
+        protocol: http
+        function: client
+        language: rust
+      name: http-grpc-client-rust
+    spec:
+      imagePullSecrets:
+        - name: SECRET
+      containers:
+        - name: http-grpc-client-rust
+          image: IMAGE
+          args:
+            - --grpc_endpoint=http-svc:50051

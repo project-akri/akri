@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/deislabs/akri/http-extensibility/proto";
+
+package http;
+
+service DeviceService {
+    rpc ReadSensor (ReadSensorRequest) returns (ReadSensorResponse);
+}
+
+message ReadSensorRequest {
+    string name = 1;
+}
+message ReadSensorResponse {
+    string value = 1;
+}

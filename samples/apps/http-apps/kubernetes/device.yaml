@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      project: akri
+      protocol: http
+      function: device
+  template:
+    metadata:
+      labels:
+        project: akri
+        protocol: http
+        function: device
+      name: device
+    spec:
+      imagePullSecrets:
+        - name: SECRET
+      containers:
+        - name: device
+          image: IMAGE
+          imagePullPolicy: Always
+          args:
+            - --path=/
+          ports:
+            - name: http
+              containerPort: 8080

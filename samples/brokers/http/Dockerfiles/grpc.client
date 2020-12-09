@@ -1,0 +1,48 @@
+ARG PLATFORM=amd64
+ARG CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu
+ARG BROKER=http
+
+FROM ${PLATFORM}/rust:1.47 as build
+
+ARG BROKER
+
+RUN rustup component add rustfmt --toolchain 1.47.0-x86_64-unknown-linux-gnu
+
+RUN USER=root cargo new --bin ${BROKER}
+
+WORKDIR /${BROKER}
+
+COPY ./samples/brokers/${BROKER}/Cargo.toml ./Cargo.toml
+RUN cargo build \
+    --bin=standalone \
+    --release
+RUN rm ./src/*.rs
+RUN rm ./target/release/deps/${BROKER}*
+
+COPY ./samples/brokers/${BROKER} .
+
+RUN cargo build \
+    --bin=client \
+    --release
+
+FROM amd64/debian:buster-slim
+
+ARG BROKER
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl-dev \
+    openssl && \
+    apt-get clean
+
+COPY --from=build /${BROKER}/target/release/client /client
+
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+ENV RUST_LOG ${BROKER},akri_shared
+
+ENTRYPOINT ["/client"]
+CMD ["--grpc_endpoint=:8084"]

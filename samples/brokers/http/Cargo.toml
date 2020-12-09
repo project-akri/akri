@@ -1,0 +1,29 @@
+[package]
+name = "http"
+version = "0.1.0"
+authors = ["DazWilkin <daz.wilkin@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "standalone"
+path = "src/main.rs"
+
+[[bin]]
+name = "broker"
+path = "src/grpc/broker.rs"
+
+[[bin]]
+name = "client"
+path = "src/grpc/client.rs"
+
+[dependencies]
+clap = "2.33.3"
+futures = "0.3"
+futures-util = "0.3"
+prost = "0.6"
+reqwest = "0.10.8"
+tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
+tonic = "0.1"
+
+[build-dependencies]
+tonic-build = "0.1.1"
