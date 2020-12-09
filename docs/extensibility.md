@@ -38,7 +38,7 @@ mod onvif;
 
 Next, add a few files to the new http folder:
 
-To provide an implementation for the Http protocol discovery, create `agent/src/protocols/http/discovery_handler.rs` and define **HTTPDiscoveryHandler** and its HttpDiscoveryHandler.discover implementation (for the Http protocol, this implementation is essentially an HTTP GET):
+To provide an implementation for the HTTP protocol discovery, create `agent/src/protocols/http/discovery_handler.rs` and define **HTTPDiscoveryHandler** and its HttpDiscoveryHandler.discover implementation.  For the HTTP protocol, the discovery handler will perform an HTTP GET on the protocol's discovery service URL:
 ```rust
 use super::super::{DiscoveryHandler, DiscoveryResult};
 
@@ -124,7 +124,7 @@ reqwest = "0.10.8"
 ## Update Configuration CRD
 Now we need to update the Configuration CRD so that we can pass some properties to our new protocol handler.  First, lets create our data structures.
 
-The first step is to create a DiscoveryHandler configuration struct. This struct will be used to deserialize the CRD contents and will be passed on to our HttpDiscoveryHandler. Here we are specifying that users must pass in the url for where Nessie lives. This means that Agent is not doing any discovery work besides validating a URL, but this is the scenario we are using to simplify the example. Add this code to `shared/src/akri/configuration.rs`:
+The first step is to create a DiscoveryHandler configuration struct. This struct will be used to deserialize the CRD contents and will be passed on to our HttpDiscoveryHandler. Here we are specifying that users must pass in the URL of a discovery service which will be queried to find our HTTP-based Devices.  Add this code to `shared/src/akri/configuration.rs`:
 
 ```rust
 /// This defines the HTTP data stored in the Configuration
@@ -144,7 +144,7 @@ pub enum ProtocolHandler {
 }
 ```
 
-Finally, we need to add http to the CRD yaml so that Kubernetes can properly validate any one attempting to configure Akri to search for Http devices.  To do this, we need to modify `deployment/helm/crds/akri-configuration-crd.yaml`:
+Finally, we need to add http to the CRD yaml so that Kubernetes can properly validate any one attempting to configure Akri to search for HTTP devices.  To do this, we need to modify `deployment/helm/crds/akri-configuration-crd.yaml`:
 
 > **NOTE** Making this change means you must `helm install` a copy of this directory **not** deislabs/akri hosted
 
@@ -198,7 +198,7 @@ To access the http data, we first need to retrieve the discovery information.  A
 let device_url = env::var("AKRI_HTTP_DEVICE_ENDPOINT")?;
 ```
 
-For our Http broker, the data can be retrieved with a simple GET:
+For our HTTP broker, the data can be retrieved with a simple GET:
 
 ```rust
 async fn read_sensor(device_url: &str) {
@@ -264,7 +264,7 @@ tonic = "0.1"
 tonic-build = "0.1.1"
 ```
 
-To build the Http broker, we need to create a Dockerfile, `samples/brokers/http/Dockerfiles/standalone`:
+To build the HTTP broker, we need to create a Dockerfile, `samples/brokers/http/Dockerfiles/standalone`:
 
 ```dockerfile
 FROM amd64/rust:1.47 as build
@@ -348,18 +348,18 @@ spec:
 > **NOTE** If you're using a non-public repo, you can create an `imagePullSecrets` to authenticate
 
 
-# Create some Http devices
-At this point, we've extended Akri to include discovery for our Http protocol and we've created an Http broker that can be deployed.  To really test our new discovery and brokers, we need to create something to discover.
+# Create some HTTP devices
+At this point, we've extended Akri to include discovery for our HTTP protocol and we've created an HTTP broker that can be deployed.  To really test our new discovery and brokers, we need to create something to discover.
 
-For this exercise, we can create an Http service that listens to various paths.  Each path can simulate a different device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.  To make our scenario more realistic, we can add a discovery endpoint as well.  Further, we can create a series of Kubernetes services that create facades for the various paths, giving the illusion of multiple devices and a separate discovery service.
+For this exercise, we can create an HTTP service that listens to various paths.  Each path can simulate a different device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.  To make our scenario more realistic, we can add a discovery endpoint as well.  Further, we can create a series of Kubernetes services that create facades for the various paths, giving the illusion of multiple devices and a separate discovery service.
 
 To that end, lets:
 
-1. Create a web service that mocks Http devices and a discovery service
-1. Deploy, start, and expose our mock Http devices and discovery service
+1. Create a web service that mocks HTTP devices and a discovery service
+1. Deploy, start, and expose our mock HTTP devices and discovery service
 
-## Mock Http devices and Discovery service
-To simulate a set of discoverable Http devices and a discovery service, create a simple http server (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will define endpoints that the service will respond to.  These endpoints represent devices in our Http protocol.  The application will also accept a set of `device` arguments, which will define the set of discovered devices.
+## Mock HTTP devices and Discovery service
+To simulate a set of discoverable HTTP devices and a discovery service, create a simple http server (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will define endpoints that the service will respond to.  These endpoints represent devices in our HTTP protocol.  The application will also accept a set of `device` arguments, which will define the set of discovered devices.
 
 ```go
 package main
@@ -571,7 +571,7 @@ kubectl expose deployment/discovery \
 
 
 # Where the rubber meets the road!
-At this point, we've extended Akri to include discovery for our Http protocol and we've created an Http broker that can be deployed.  Let's take Http for a spin!!
+At this point, we've extended Akri to include discovery for our HTTP protocol and we've created an HTTP broker that can be deployed.  Let's take HTTP for a spin!!
 
 ## Deploy Akri
 
@@ -634,7 +634,7 @@ Now that you have a working protocol implementation and broker, we'd love for yo
 3. Implement your protocol and provide a full end to end sample.
 4. Create a pull request, updating the minor version of akri. See [contributing](./contributing.md#versioning) to learn more about our versioning strategy.
 
-For a protocol to be considered fully implemented the following must be included in the PR. Note how the Nessie protocol above only has completed the first 3 requirements. 
+For a protocol to be considered fully implemented the following must be included in the PR. Note that the HTTP protocol above has not completed all of the requirements. 
 1. A new DiscoveryHandler implementation in the Akri Agent
 1. An update to the Configuration CRD to include the new `ProtocolHandler`
 1. A sample protocol broker for the new resource
