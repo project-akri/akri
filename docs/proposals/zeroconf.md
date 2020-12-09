@@ -110,26 +110,7 @@ The limit of a generic Akri Zeroconf Broker is to enumerate services that it dis
 
 + Discovery applies user-defined filters against services so that the Agent limits discovered filtered services to those matching the user's requirements.
 
-The [`zeroconf-filter`](https://github.com/DazWilkin/akri-pest) crate used by the Zeroconf Protocol implementation enables filtering of discovered services. The filter permits `name`, `domain`, `kind` and `port` filtering.
-
-For example to filter services named `freddie` on `local` domain with a kind of `_http._tcp`, the filter could be:
-
-```bash
-filter='name="freddie" domain="local" kind="_http._tcp"'
-```
-
-The `filter` is specific in the Zeroconf CRD Configuration:
-
-```YAML
-properties:
-  zeroconf: # {{ZeroconfDiscoveryHandler}}
-    type: object
-    properties:
-      filter: 
-        type: string
-```
-
-And thus, the Agent may be applied to the cluster:
+For example to filter services named `freddie` on `local` domain with a kind of `_http._tcp`, an example Zeroconf configuration may be applied to the cluster as:
 
 ```YAML
 apiVersion: akri.sh/v0
@@ -139,7 +120,27 @@ metadata:
 spec:
   protocol:
     zeroconf:
-      filter: 'kind="_http._tcp"'
+      kind: "_http._tcp"
+      domain: "local"
+      name: "freddie"
+...
+```
+
+The `filter` is specified in the Zeroconf CRD Configuration:
+
+```YAML
+properties:
+  zeroconf: # {{ZeroconfDiscoveryHandler}}
+    type: object
+    properties:
+      kind: 
+        type: string
+      name: 
+        type: string
+      domain: 
+        type: string
+      port: 
+        type: integer
 ```
 
 ## References
