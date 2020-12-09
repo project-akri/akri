@@ -71,6 +71,6 @@ spec:
   {{- toYaml . | nindent 4 }}
   {{- else }}
   properties: {}
-  capacity: {{ .Values.udev.capacity }}
   {{- end }}
+  capacity: {{ .Values.udev.capacity }}
 {{- end }}
