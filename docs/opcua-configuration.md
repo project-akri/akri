@@ -108,7 +108,7 @@ helm install akri akri-helm-charts/akri \
 ### Mounting OPC UA credentials to enable security
 For your broker pod to utilize a discovered OPC UA server, it will need to contain an OPC UA Client. OPC UA Clients and Servers can establish an insecure connection so long as the OPC UA Servers support a Security Policy of None. However, if you would like your broker's OPC UA Client to establish a secure connection with an OPC UA server, the Client and Server must trust each other's x509 v3 certificates. This can be done in one of the three ways explained
 in the [OPC UA proposal](./proposals/opcua.md#giving-proper-credentials-to-the-akri-broker). The simplest method is to
-sign the OPC UA monitoring broker's certificate with the same Certificate Authority (CA) as the Server with which it
+sign the OPC UA broker's certificate with the same Certificate Authority (CA) as the Server with which it
 wishes to connect. The certificates are passed to the broker via a Kubernetes Secret mounted as a volume to the directory `/etc/opcua-certs/client-pki`.
 
 It is the operator's responsibility to generate the certificates and securely create a Kubernetes Secret named
@@ -128,8 +128,8 @@ generator tool](https://github.com/OPCFoundation/Misc-Tools), or Akri's [certifi
 
 Finally, when mounting certificates is enabled with with Helm via `--set opcua.mountCertificates='true'`, the
 secret named `opcua-broker-credentials` will be mounted into the OPC UA brokers. It is mounted to the volume
-`credentials` at the `mountPath` /etc/opcua-certs/client-pki, as shown in the [OPC UA monitoring Helm
-template](../deployment/helm/templates/opcua-monitoring.yaml). This is the path where the broker expects to find the
+`credentials` at the `mountPath` /etc/opcua-certs/client-pki, as shown in the [OPC UA Helm
+template](../deployment/helm/templates/opcua.yaml). This is the path where the broker expects to find the
 certificates. The following is an example how how to enable security:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/

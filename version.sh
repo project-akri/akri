@@ -184,7 +184,7 @@ then
         elif [ "$MINOR" == "1" ]; then
             NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $2 + 1}' ).0"
         elif [ "$PATCH" == "1" ]; then
-            NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $3 + 1}' )"
+            NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $2}' ).$( echo $OLD_VERSION | awk -F '.' '{print $3 + 1}' )"
         fi
     else
         NEW_VERSION=$(cat $BASEDIR/version.txt)

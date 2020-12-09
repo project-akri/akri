@@ -1,7 +1,7 @@
 apiVersion: akri.sh/v0
 kind: Configuration
 metadata:
-  name: akri-opcua-monitoring
+  name: akri-opcua
 spec:
   protocol:
     opcua:
@@ -14,7 +14,7 @@ spec:
         items: []
   brokerPodSpec:
     containers:
-    - name: akri-opcua-monitoring-broker
+    - name: akri-opcua-broker
       image: "ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev"
       imagePullPolicy: Always
       env:
