@@ -190,7 +190,13 @@ The final step, is to create a protocol broker that will make the HTTP-based Dev
 
 For this, we will describe the first option, a standalone broker.  For a more detailed look at the other gRPC options, please look at [extensibility-http-grpc.md in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/docs/extensibility-http-grpc.md).
 
-We can use cargo to create our project by navigating to `samples/brokers` and running `cargo new http`.  Once the http project has been created, it can be added to the greater Akri project by adding `"samples/brokers/http"` to the **members** in `./Cargo.toml`.
+First, lets create a new Rust project for our sample broker.  We can use cargo to create our project by navigating to `samples/brokers` and running:
+
+```bash
+cargo new http
+```
+
+Once the http project has been created, it can be added to the greater Akri project by adding `"samples/brokers/http"` to the **members** in `./Cargo.toml`.
 
 To access the HTTP-based Device data, we first need to retrieve the discovery information.  Any information stored in the DiscoveryResult properties map will be transferred into the broker container's environment variables.  Retrieving them is simply a matter of querying environment variables like this:
 
@@ -252,16 +258,9 @@ name = "standalone"
 path = "src/main.rs"
 
 [dependencies]
-clap = "2.33.3"
 futures = "0.3"
-futures-util = "0.3"
-prost = "0.6"
 reqwest = "0.10.8"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
-tonic = "0.1"
-
-[build-dependencies]
-tonic-build = "0.1.1"
 ```
 
 To build the HTTP broker, we need to create a Dockerfile, `samples/brokers/http/Dockerfiles/standalone`:
@@ -277,7 +276,7 @@ RUN cargo build \
     --bin=standalone \
     --release
 RUN rm ./src/*.rs
-RUN rm ./target/release/deps/http*
+RUN rm ./target/release/deps/standalone*
 COPY ./samples/brokers/http .
 RUN cargo build \
     --bin=standalone \
@@ -332,7 +331,7 @@ metadata:
 spec:
   protocol:
     http:
-      discoveryEndpoint: http://discovery:9999
+      discoveryEndpoint: http://discovery:9999/discovery
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
@@ -372,7 +371,7 @@ import (
 	"net"
 	"net/http"
 	"time"
-    "strings"
+	"strings"
 )
 
 const (
@@ -395,6 +394,7 @@ func (e *RepeatableFlag) Set(value string) error {
 }
 var _ flag.Value = (*RepeatableFlag)(nil)
 var paths RepeatableFlag
+var devices RepeatableFlag
 
 func main() {
 	flag.Var(&paths, "path", "Repeat this flag to add paths for the device")
@@ -438,6 +438,14 @@ func main() {
 	log.Printf("[main] Starting Device: [%s]", addr)
 	log.Fatal(s.Serve(listen))
 }
+```
+
+To ensure that our GoLang project builds, we need to create `samples/apps/http-apps/go.mod`:
+
+```
+module github.com/deislabs/akri/http-extensibility
+
+go 1.15
 ```
 
 ## Build and Deploy devices and discovery
@@ -559,7 +567,7 @@ done
 Then create a Service (called `discovery`) using the deployment:
 
 ```bash
-kubectl expose deployment/discovery \
+kubectl expose deployment/device \
 --name=discovery \
 --port=8080 \
 --target-port=8080 \
@@ -656,4 +664,3 @@ For a protocol to be considered fully implemented the following must be included
 1. Dockerfile[s] for broker [and sample app] and associated update to the [makefile](../build/akri-containers.mk)
 1. Github workflow[s] for broker [and sample app] to build containers and push to Akri container repository
 1. Documentation on how to use the new sample Configuration, like the [udev Configuration document](./udev-configuration.md)
-
