@@ -183,7 +183,7 @@ opcua:
   enabled: false
   # name is the Kubernetes resource name that will be created for this
   # OPC UA configuration
-  name: akri-opcua-monitoring
+  name: akri-opcua
   # properties is a map of properties that will be passed to any instances
   # created as a result of applying this OPC UA configuration
   properties:
@@ -215,7 +215,7 @@ opcua:
   createInstanceServices: true
   instanceService:
     # name is the description of the instance service
-    name: akri-opcua-monitoring-instance-service
+    name: akri-opcua-instance-service
     # type is the service type of the instance service
     type: ClusterIP
     # port is the service port of the instance service
@@ -229,7 +229,7 @@ opcua:
   createConfigurationService: true
   configurationService:
     # name is the description of the configuration service
-    name: akri-opcua-monitoring-configuration-service
+    name: akri-opcua-configuration-service
     # type is the service type of the instance service
     type: ClusterIP
     # port is the service port of the instance service
