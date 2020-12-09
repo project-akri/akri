@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: akri-anomaly-detection-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: akri-anomaly-detection-app
+  template:
+    metadata:
+      labels:
+        app: akri-anomaly-detection-app
+    spec:
+      containers:
+      - name: akri-anomaly-detection-app
+        image: ghcr.io/deislabs/akri/anomaly-detection-app:latest-dev
+        imagePullPolicy: Always
+        env:
+        - name: CONFIGURATION_NAME
+          value: akri-opcua-monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: akri-anomaly-detection-app
+  namespace: default
+  labels:
+    app: akri-anomaly-detection-app
+spec:
+  selector:
+    app: akri-anomaly-detection-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5000
+  type: NodePort

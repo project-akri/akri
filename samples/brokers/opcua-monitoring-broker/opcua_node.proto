@@ -1,0 +1,21 @@
+/*
+ * This file is used to generate gRPC code for sending and requesting the value
+ * of an OPC UA Variable (with a specific NodeID). If this file is changed, the
+ * gRPC code needs to be regenerated for the anomaly-detection-app (by running
+ * ./generategrpc.sh from within the akri/samples/apps/anomaly-detection-app
+ * directory) and all other sample applications that use this proto file.
+ */
+syntax = "proto3";
+
+option csharp_namespace = "OpcuaNode";
+
+package OpcuaNode;
+
+service OpcuaNode { rpc GetValue(ValueRequest) returns (ValueResponse); }
+
+message ValueRequest {}
+
+message ValueResponse {
+  int32 value = 1;
+  string opcua_server = 2;
+}

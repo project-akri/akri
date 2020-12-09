@@ -114,6 +114,8 @@ PREFIX=$CONTAINER_REPOSITORY make akri-controller
 PREFIX=$CONTAINER_REPOSITORY make akri-agent
 PREFIX=$CONTAINER_REPOSITORY make akri-udev
 PREFIX=$CONTAINER_REPOSITORY make akri-onvif
+PREFIX=$CONTAINER_REPOSITORY make akri-opcua-monitoring
+PREFIX=$CONTAINER_REPOSITORY make akri-anomaly-detection
 PREFIX=$CONTAINER_REPOSITORY make akri-streaming
 
 # To make a specific component on specific platform(s):
