@@ -90,7 +90,6 @@ Revise `./agent/Cargo.toml`:
 ```TOML
 [dependencies]
 zeroconf = "0.6.2"
-zeroconf-filter = { git = "https://github.com/DazWilkin/akri-pest", version = "0.0.2" }
 ```
 
 ## Akri Configuration CRD
@@ -104,8 +103,14 @@ properties:
   zeroconf: # {{ZeroconfDiscoveryHandler}}
     type: object
     properties:
-      filter: 
+      kind:
         type: string
+      name:
+        type: string
+      domain:
+        type: string
+      port:
+        type: integer
 ```
 
 > **NOTE** `filter` strings are defined in the Zeroconf Broker configuration. See [Deploy standalone Zeroconf Broker](#deploy-standalone-zeroconf-broker).
@@ -135,7 +140,13 @@ And:
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ZeroconfDiscoveryHandlerConfig {
-    pub filter: String,
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
 }
 ```
 

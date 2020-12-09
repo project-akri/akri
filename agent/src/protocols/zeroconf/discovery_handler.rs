@@ -16,8 +16,6 @@ use zeroconf::browser::TMdnsBrowser;
 use zeroconf::event_loop::TEventLoop;
 use zeroconf::{MdnsBrowser, ServiceDiscovery};
 
-use zeroconf_filter::parse;
-
 const SCAN_DURATION: u64 = 5;
 
 const BROKER_NAME: &str = "AKRI_ZEROCONF";
@@ -26,6 +24,35 @@ const DEVICE_NAME: &str = "AKRI_ZEROCONF_DEVICE_NAME";
 const DEVICE_HOST: &str = "AKRI_ZEROCONF_DEVICE_HOST";
 const DEVICE_ADDR: &str = "AKRI_ZEROCONF_DEVICE_ADDR";
 const DEVICE_PORT: &str = "AKRI_ZEROCONF_DEVICE_PORT";
+
+fn filter(config: &ZeroconfDiscoveryHandlerConfig, service: &ServiceDiscovery) -> bool {
+    trace!("[zeroconf:filter] Service: {:?}", service);
+    let include = (if let Some(name) = &config.name {
+        let result = name == service.name();
+        trace!("[zeroconf:filter] Name ({}) [{}]", name, result);
+        result
+    } else {
+        true
+    }) && (if let Some(domain) = &config.domain {
+        let result = domain == service.domain();
+        trace!("[zeroconf:filter] Domain ({}) [{}]", domain, result);
+        result
+    } else {
+        true
+    }) && (if let Some(port) = config.port {
+        let result = &port == service.port();
+        trace!("[zeroconf:filter] Port ({}) [{}]", port, result);
+        result
+    } else {
+        true
+    });
+    trace!(
+        "[zeroconf:filter] {} Service: {:?}",
+        if include { "INCLUDE" } else { "EXCLUDE" },
+        service
+    );
+    include
+}
 
 #[derive(Debug)]
 pub struct ZeroconfDiscoveryHandler {
@@ -44,13 +71,7 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
         trace!("[zeroconf:discover] Entered");
 
-        let filter = parse(&self.discovery_handler_config.filter).expect("valid filter");
-        let kind = match filter.kind() {
-            Some(kind) => kind,
-            None => return Err(format_err!("filter must include `kind` term")),
-        };
-
-        let mut browser = MdnsBrowser::new(&kind);
+        let mut browser = MdnsBrowser::new(&self.discovery_handler_config.kind);
 
         // Channel for results
         let (tx, rx): (Sender<ServiceDiscovery>, Receiver<ServiceDiscovery>) = channel();
@@ -87,38 +108,7 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
         // TODO(dazwilkin) Provide additional filtering, e.g. domain here
         let result = rx
             .iter()
-            .filter(|service| {
-                trace!("[zeroconf:discovery] Service: {:?}", service);
-
-                // TODO(dazwilkin) leaky abstraction... perhaps match(filter1,filter2)?
-                // Any term that's present (Some) must match the equivalent service term
-                // If any of the terms is a mismatch, then the entirety is a mismatch
-                (if let Some(name) = &filter.name {
-                    let result = name == service.name();
-                    trace!("[zeroconf:discovery] Name ({}) [{}]", name, result);
-                    result
-                } else {
-                    false
-                }) && (if let Some(kind) = filter.kind() {
-                    let result = &kind == service.kind();
-                    trace!("[zeroconf:discovery] Kind ({}) [{}]", kind, result);
-                    result
-                } else {
-                    false
-                }) && (if let Some(domain) = &filter.domain {
-                    let result = domain == service.domain();
-                    trace!("[zeroconf:discovery] Domain ({}) [{}]", domain, result);
-                    result
-                } else {
-                    false
-                }) && (if let Some(port) = filter.port {
-                    let result = &port == service.port();
-                    trace!("[zeroconf:discovery] Port ({}) [{}]", port, result);
-                    result
-                } else {
-                    false
-                })
-            })
+            .filter(|service| filter(&self.discovery_handler_config, service))
             .map(|service| {
                 trace!("[zeroconf:discovery] Service: {:?}", service);
                 let mut props = HashMap::new();

@@ -21,7 +21,14 @@ spec:
                     zeroconf: # {{ZeroconfDiscoveryHandler}}
                       type: object
                       properties:
-                        filter: string
+                        kind:
+                          type: string
+                        name:
+                          type: string
+                        domain:
+                          type: string
+                        port:
+                          type: integer
                     debugEcho: # {{DebugEchoDiscoveryHandler}}
                       type: object
                       properties:

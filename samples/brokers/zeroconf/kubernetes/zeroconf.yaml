@@ -5,7 +5,8 @@ metadata:
 spec:
   protocol:
     zeroconf:
-      filter: 'kind="_http._tcp"'
+      kind: "_http._tcp"
+      domain: "local"
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
