@@ -39,7 +39,7 @@ DiscoveryHandler has the following functions:
 1. **discover** - This function is called periodically by the Akri agent and returns the list of discovered devices. It should have all the functionality desired for discovering devices via your protocol and filtering for only the desired set. In our case, we will require that a URL is passed via the Configuration as a discovery endpoint. Our implementation will ping the discovery service at that URL to see if there are any devices.
 1. **are_shared** - This function defines whether the instances discovered are shared or not.  A shared Instance is typically something that multiple nodes can interact with (like an IP camera).  An unshared Instance is typically something only one node can access.
 
-To create a new protocol type, a new struct and implementation of DiscoveryHandler is required.  To that end, create a new folder for the HTTP code: `agent/src/protocols/http` and add a reference this new module in `agent/src/protocols/mod.rs`:
+To create a new protocol type, a new struct and implementation of DiscoveryHandler is required.  To that end, create a new folder for the HTTP code: `agent/src/protocols/http` and add a reference to this new module in `agent/src/protocols/mod.rs`:
 
 ```rust
 mod debug_echo;
