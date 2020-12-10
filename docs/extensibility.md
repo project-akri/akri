@@ -1,19 +1,23 @@
 # Extensibility
 
-While Akri has several [currently supported discovery protocols](./roadmap.md#currently-supported-protocols) and sample brokers and applications to go with them, the protocol you want to use to discover resources may not be implemented yet. This walks you through all the development steps needed to implement a new protocol and sample broker. It will also cover the steps to get your protocol and broker[s] added to Akri, should you wish to contribute them back.
+While Akri has several [currently supported discovery protocols](./roadmap.md#currently-supported-protocols) and sample brokers and applications to go with them, the protocol you want to use to discover resources may not be implemented yet. This document walks you through how to extend Akri to discover new types of devices that you are interested in.  You will find all the development steps needed to implement a new protocol and sample broker. It will also cover the steps to get your protocol and broker[s] added to Akri, should you wish to contribute them back.
+
+Before continuing, please read the [Akri architecture](./architecture.md) and [development](./development.md) documentation pages.  They will provide a good understanding of Akri, how it works, what components it is composed of, and how to build it.
 
 To add a new protocol implementation, several things are needed:
 
-1. Add a new DiscoveryHandler implementation in Akri Agent
-1. Update Configuration CRD to include the new DiscoveryHandler implementation
+1. Add a new DiscoveryHandler implementation in Akri agent
+1. Update the Akri Configuration Custom Resource Definition (CRD) to include the new DiscoveryHandler implementation
 1. Build versions of Akri agent and controller that understand the new DiscoveryHandler
-1. Create a (protocol) Broker for the new capability
+1. Create a (protocol) broker pod for the new capability
 
-This document is intended to demonstrate how a new protocol can be implemented.For reference, we have created a [http-extensibility branch](https://github.com/deislabs/akri/tree/http-extensibility) with the implementation defined below.  For convenience, you can [compare the http-extensibility branch with main here](https://github.com/deislabs/akri/compare/http-extensibility).
+> **Note:** a protocol implementation can be any set of steps to discover devices. It does not have to be a "protocol" in the traditional sense. For example, Akri defines udev (not often called a "protocol") and OPC UA as protocols.
 
-Here, we will create a protocol to discover **HTTP-based devices** that publish random sensor data.  An implementation of these devices and a discovery protocol is described in [this README in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/samples/apps/http-apps/README.md).
+Here, we will create a protocol to discover **HTTP-based devices** that publish random sensor data.  For reference, we have created a [http-extensibility branch](https://github.com/deislabs/akri/tree/http-extensibility) with the implementation defined below.  For convenience, you can [compare the http-extensibility branch with main here](https://github.com/deislabs/akri/compare/http-extensibility).
 
-Any Docker-compatible container registry will work (dockerhub, Github Container Registry, Azure Container Registry, etc).  For this sample, we are using the [GitHub Container Registry](https://github.blog/2020-09-01-introducing-github-container-registry/). You can follow the [getting started guide here to enable it for yourself](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry).
+Any Docker-compatible container registry will work for hosting the containers being used in this example (dockerhub, Github Container Registry, Azure Container Registry, etc).  Here, we are using the [GitHub Container Registry](https://github.blog/2020-09-01-introducing-github-container-registry/). You can follow the [getting started guide here to enable it for yourself](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry).
+
+> **Note:** if your container registry is private, you will need to create a kubernetes secret (`kubectl create secret docker-registry crPullSecret --docker-server=<cr>  --docker-username=<cr-user> --docker-password=<cr-token>`) and access it with an `imagePullSecret`.  Here, we will assume the secret is named `crPullSecret`.
 
 ## New DiscoveryHandler implementation
 If the resource you are interested in defining is not accessible through the [included protocols](./roadmap.md#currently-supported-protocols), then you will need to create a DiscoveryHandler for your new protocol.  Here, we will create a discovery handler in order to discover HTTP resources.
@@ -28,7 +32,12 @@ pub trait DiscoveryHandler {
 }
 ```
 
-To create a new protocol type, a new struct and impl block is required.  To that end, create a new folder for the HTTP code: `agent/src/protocols/http` and add a reference this new module in `agent/src/protocols/mod.rs`:
+DiscoveryHandler has the following functions:
+
+1. **discover** - This function is called periodically by the Akri agent and returns the list of discovered devices. It should have all the functionality desired for discovering devices via your protocol and filtering for only the desired set. In our case, we will require that a URL is passed via the Configuration as a discovery endpoint. Our implementation will ping the discovery service at that URL to see if there are any devices.
+1. **are_shared** - This function defines whether the instances discovered are shared or not.  A shared Instance is typically something that multiple nodes can interact with (like an IP camera).  An unshared Instance is typically something only one node can access.
+
+To create a new protocol type, a new struct and implementation of DiscoveryHandler is required.  To that end, create a new folder for the HTTP code: `agent/src/protocols/http` and add a reference this new module in `agent/src/protocols/mod.rs`:
 
 ```rust
 mod debug_echo;
@@ -38,7 +47,9 @@ mod onvif;
 
 Next, add a few files to the new http folder:
 
-To provide an implementation for the HTTP protocol discovery, create `agent/src/protocols/http/discovery_handler.rs` and define **HTTPDiscoveryHandler** and its HttpDiscoveryHandler.discover implementation.  For the HTTP protocol, the discovery handler will perform an HTTP GET on the protocol's discovery service URL:
+To provide an implementation for the HTTP protocol discovery, create `agent/src/protocols/http/discovery_handler.rs` and define **HTTPDiscoveryHandler**.
+
+For the HTTP protocol, `discover` will perform an HTTP GET on the protocol's discovery service URL and the Instances will be shared (reflecting that multiple nodes likely have access to HTTP-based Devices):
 ```rust
 use super::super::{DiscoveryHandler, DiscoveryResult};
 
@@ -121,10 +132,10 @@ hyper-async = { version = "0.13.5", package = "hyper" }
 reqwest = "0.10.8"
 ```
 
-## Update Configuration CRD
-Now we need to update the Configuration CRD so that we can pass some properties to our new protocol handler.  First, lets create our data structures.
+## Update Akri Configuration Custom Resource Definition (CRD)
+Now we need to update the Akri Configuration CRD so that we can pass some properties to our new protocol handler.  First, lets create our data structures.
 
-The first step is to create a DiscoveryHandler configuration struct. This struct will be used to deserialize the CRD contents and will be passed on to our HttpDiscoveryHandler. Here we are specifying that users must pass in the URL of a discovery service which will be queried to find our HTTP-based Devices.  Add this code to `shared/src/akri/configuration.rs`:
+The first step is to create a DiscoveryHandler configuration struct. This struct will be used to deserialize the Configuration CRD contents and will be passed on to our HttpDiscoveryHandler. Here we are specifying that users must pass in the URL of a discovery service which will be queried to find our HTTP-based Devices.  Add this code to `shared/src/akri/configuration.rs`:
 
 ```rust
 /// This defines the HTTP data stored in the Configuration
@@ -144,9 +155,9 @@ pub enum ProtocolHandler {
 }
 ```
 
-Finally, we need to add http to the CRD yaml so that Kubernetes can properly validate any one attempting to configure Akri to search for HTTP devices.  To do this, we need to modify `deployment/helm/crds/akri-configuration-crd.yaml`:
+Finally, we need to add http to the Configuration CRD yaml so that Kubernetes can properly validate an Akri Configuration attempting to search for HTTP devices.  The Akri CRDs are defined by the Akri Helm chart.  To add http, `deployment/helm/crds/akri-configuration-crd.yaml` needs to be changed:
 
-> **NOTE** Making this change means you must `helm install` a copy of this directory **not** deislabs/akri hosted
+> **NOTE** Because we are making local changes to the Akri Helm chart, the deislabs/akri hosted charts will not include our change.  To use your local Akri chart, you must `helm install` a copy of this directory and **not** deislabs/akri hosted charts.  This will be explained later in the **Deploy Akri** steps.
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -169,7 +180,7 @@ spec:
                     - required: ["http"]           # <--- add this line
 ```
 
-## Building Akri Agent|Controller
+## Building Akri agent|controller
 Having successfully updated the Akri agent and controller to understand our HTTP resource, the agent and controller need to be built.  Running the following `make` commands will build and push new versions of the agent and controller to your container registry (in this case ghcr.io/[[GITHUB-USER]]/agent and ghcr.io/[[GITHUB-USER]]/controller).
 
 ```bash
@@ -178,14 +189,14 @@ PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-agent
 PREFIX=ghcr.io/${USER} BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=0 make akri-controller
 ```
 
-> **NOTE** These commands build for amd64 (`BUILD_AMD64=1`), other archs can be built by setting `BUILD_*` differently.
+> **NOTE** These commands build for amd64 (`BUILD_AMD64=1`), other archs can be built by setting `BUILD_*` differently.  You can find more details on building Akri in the [development guide](./development.md).
 
 ## Create a sample protocol broker
 The final step, is to create a protocol broker that will make the HTTP-based Device data available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod.
 
 3 different broker implementations have been created for the HTTP protocol in the [http-extensibility branch](https://github.com/deislabs/akri/tree/http-extensibility), 2 in Rust and 1 in Go:
 * The standalone broker is a self-contained scenario that demonstrates the ability to interact with HTTP-based devices by `curl`ing a device's endpoints. This type of solution would be applicable in batch-like scenarios where the broker performs a predictable set of processing steps for a device.
-* The second scenario uses gRPC. gRPC is an increasingly common alternative to REST-like APIs and supports high-throughput and streaming methods. gRPC is not a requirement for broker implements in Akri but is used here as one of many mechanisms that may be used. The gRPC-based broker has a companion client. This is a more realistic scenario in which the broker proxies client requests using gRPC to HTTP-based devices. The advantage of this approach is that device functionality is encapsulated by an API that is exposed by the broker. In this case the API has a single method but in practice, there could be many methods implemented.
+* The second scenario uses gRPC. gRPC is an increasingly common alternative to REST-like APIs and supports high-throughput and streaming methods. gRPC is not a requirement for broker implementations in Akri but is used here as one of many mechanisms that may be used. The gRPC-based broker has a companion client. This is a more realistic scenario in which the broker proxies client requests using gRPC to HTTP-based devices. The advantage of this approach is that device functionality is encapsulated by an API that is exposed by the broker. In this case the API has a single method but in practice, there could be many methods implemented.
 * The third implemnentation is a gRPC-based broker and companion client implemented in Golang. This is functionally equivalent to the Rust implementation and shares a protobuf definition. For this reason, you may combine the Rust broker and client with the Golang broker and client arbitrarily. The Golang broker is described in the [`http-apps`](https://github.com/deislabs/akri/blob/http-extensibility/samples/apps/http-apps/README.md) directory.
 
 For this, we will describe the first option, a standalone broker.  For a more detailed look at the other gRPC options, please look at [extensibility-http-grpc.md in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/docs/extensibility-http-grpc.md).
@@ -217,7 +228,7 @@ async fn read_sensor(device_url: &str) {
 }
 ```
 
-We can tie all the pieces together in our main and retrieve the url from the Configuration in `samples/brokers/http/src/main.rs`:
+We can tie all the pieces together in `samples/brokers/http/src/main.rs`.  We retrieve the HTTP-based Device url from the environment variables, make a simple GET request to retrieve the device data, and output the response to the log:
 
 ```rust
 use reqwest::get;
@@ -335,7 +346,7 @@ spec:
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
-      - name: SECRET
+      - name: crPullSecret
     containers:
       - name: http-broker
         image: IMAGE
@@ -343,8 +354,6 @@ spec:
           limits:
             "{{PLACEHOLDER}}": "1"
 ```
-
-> **NOTE** If you're using a non-public repo, you can create an `imagePullSecrets` to authenticate
 
 
 # Create some HTTP devices
@@ -485,7 +494,7 @@ docker build \
 docker push ${IMAGE}
 ```
 
-The mock devices can be deployed with a Kubernetes Deployment `samples/apps/http-apps/kubernetes/device.yaml` (update **image** based on the ${IMAGE}):
+The mock devices can be deployed with a Kubernetes deployment `samples/apps/http-apps/kubernetes/device.yaml` (update **image** based on the ${IMAGE}):
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -503,7 +512,7 @@ spec:
       name: device
     spec:
       imagePullSecrets:
-        - name: SECRET
+        - name: crPullSecret
       containers:
         - name: device
           image: IMAGE
@@ -524,13 +533,13 @@ spec:
               containerPort: 8080
 ```
 
-Then apply `device.yaml` to create a Deployment (called `device`) and a Pod (called `device-...`):
+Then apply `device.yaml` to create a deployment (called `device`) and a pod (called `device-...`):
 
 ```bash
 kubectl apply --filename=./samples/apps/http-apps/kubernetes/device.yaml
 ```
 
-> **NOTE** We're using one Deployment|Pod to represent 9 devices AND a discovery service ... we will create 9 (distinct) Services against it (1 for each mock device) and 1 Service to present the disvoery service.
+> **NOTE** We're using one deployment|pod to represent 9 devices AND a discovery service ... we will create 9 (distinct) Services against it (1 for each mock device) and 1 Service to present the discovery service.
 
 Then create 9 mock device Services:
 
@@ -596,7 +605,7 @@ At this point, we've extended Akri to include discovery for our HTTP protocol an
 >
 > ```bash
 > # Delete Akri Helm
-> sudo microk8s.helm3 uninstall akri
+> sudo helm delete akri
 >
 > # Delete Akri CRDs
 > kubectl delete crd/configurations.akri.sh
@@ -611,8 +620,8 @@ USER="[[GITHUB-USER]]"
 REPO="${HOST}/${USER}"
 VERS="v$(cat version.txt)-amd64"
 
-sudo microk8s.helm3 install akri ./akri/deployment/helm \
-   --set imagePullSecrets[0].name="${HOST}" \
+sudo helm install akri ./akri/deployment/helm \
+   --set imagePullSecrets[0].name=crPullSecret \
    --set agent.image.repository="${REPO}/agent" \
    --set agent.image.tag="${VERS}" \
    --set controller.image.repository="${REPO}/controller" \
@@ -631,7 +640,7 @@ kubectl get pods --selector=app=akri-controller
 ```
 
 
-## Deploy Broker
+## Deploy broker
 
 Once the HTTP broker has been created, the next question is how to deploy it.  For this, we need the Configuration we created earlier `samples/brokers/http/kubernetes/http.yaml`.  To deploy, use a simple `kubectl` command like this:
 ```bash
@@ -640,7 +649,7 @@ kubectl apply --filename=./samples/brokers/http/kubernetes/http.yaml
 
 We can watch as the broker pods get deployed: 
 ```bash
-microk8s watch kubectl get pods -o wide
+watch kubectl get pods -o wide
 ```
 
 
@@ -652,7 +661,7 @@ Now that you have a working protocol implementation and broker, we'd love for yo
 4. Create a pull request, updating the minor version of akri. See [contributing](./contributing.md#versioning) to learn more about our versioning strategy.
 
 For a protocol to be considered fully implemented the following must be included in the PR. Note that the HTTP protocol above has not completed all of the requirements. 
-1. A new DiscoveryHandler implementation in the Akri Agent
+1. A new DiscoveryHandler implementation in the Akri agent
 1. An update to the Configuration CRD to include the new `ProtocolHandler`
 1. A sample protocol broker for the new resource
 1. A sample Configuration that uses the new protocol in the form of a Helm template and values
