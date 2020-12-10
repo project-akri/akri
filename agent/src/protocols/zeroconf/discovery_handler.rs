@@ -12,9 +12,10 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use zeroconf::browser::TMdnsBrowser;
-use zeroconf::event_loop::TEventLoop;
-use zeroconf::{MdnsBrowser, ServiceDiscovery};
+use zeroconf::{
+    browser::TMdnsBrowser, event_loop::TEventLoop, prelude::TTxtRecord, MdnsBrowser,
+    ServiceDiscovery,
+};
 
 const SCAN_DURATION: u64 = 5;
 
@@ -25,6 +26,10 @@ const DEVICE_HOST: &str = "AKRI_ZEROCONF_DEVICE_HOST";
 const DEVICE_ADDR: &str = "AKRI_ZEROCONF_DEVICE_ADDR";
 const DEVICE_PORT: &str = "AKRI_ZEROCONF_DEVICE_PORT";
 
+// Prefix for environment variables created from discovered device's TXT records
+const DEVICE_ENVS: &str = "AKRI_ZEROCONF_DEVICE";
+
+// TODO(dazwilkin) Refactor :-)
 fn filter(config: &ZeroconfDiscoveryHandlerConfig, service: &ServiceDiscovery) -> bool {
     trace!("[zeroconf:filter] Service: {:?}", service);
     let include = (if let Some(name) = &config.name {
@@ -44,6 +49,59 @@ fn filter(config: &ZeroconfDiscoveryHandlerConfig, service: &ServiceDiscovery) -
         trace!("[zeroconf:filter] Port ({}) [{}]", port, result);
         result
     } else {
+        true
+    }) && (if let Some(txt_records) = &config.txt_records {
+        // The config has TXT records
+        trace!(
+            "[zeroconf:filter] TXT Records [Config={}]",
+            &txt_records.len()
+        );
+        // Get this service's TXT records, if any
+        let result = match service.txt() {
+            // The service has TXT records, match every one
+            Some(service_txt_records) => {
+                trace!(
+                    "[zeroconf:filter] TXT Records [Service={}]",
+                    &service_txt_records.len()
+                );
+                // The Service must have the same key and same value in each record to pass the filter
+                let result = txt_records
+                    .iter()
+                    .map(|(key, value)| {
+                        // Apply keys consistently as UPPERCASE
+                        let key = key.to_ascii_uppercase();
+                        let result = match service_txt_records.get(&key) {
+                            Some(service_value) => {
+                                let result = &service_value == value;
+                                trace!(
+                                    "[zeroconf:filter] TXT Record Key: {} Value: {} [{}]",
+                                    key,
+                                    value,
+                                    result
+                                );
+                                result
+                            }
+                            None => {
+                                // The service doesn't have the key so it doesn't match
+                                false
+                            }
+                        };
+                        result
+                    })
+                    // The result is only true if *all* the keys and values match
+                    .all(|x| x == true);
+                trace!("[zeroconf:filter] TXT Records [{}]", result);
+                result
+            }
+            None => {
+                // The service has no TXT records (but the config does), can't be match
+                false
+            }
+        };
+        trace!("[zeroconf:filter] TXT Records [{}]", result);
+        result
+    } else {
+        // If the handler has no TXT records, the service's TXT records (if any) pass
         true
     });
     trace!(
@@ -112,13 +170,30 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
             .map(|service| {
                 trace!("[zeroconf:discovery] Service: {:?}", service);
                 let mut props = HashMap::new();
+
+                // Create environment values to expose to each Akri Instance
                 props.insert(BROKER_NAME.to_string(), "zeroconf".to_string());
                 props.insert(DEVICE_KIND.to_string(), service.kind().to_string());
                 props.insert(DEVICE_NAME.to_string(), service.name().to_string());
                 props.insert(DEVICE_HOST.to_string(), service.host_name().to_string());
                 props.insert(DEVICE_ADDR.to_string(), service.address().to_string());
                 props.insert(DEVICE_PORT.to_string(), service.port().to_string());
-                // TODO(dazwilkin) Consider enumerating TXT records as `DEVICE_[[KEY]]=[[VALUE]] pairs
+
+                // Map (any) TXT records
+                // Prefix TXT records keys with a constant
+                match service.txt() {
+                    Some(txt_records) => {
+                        trace!("[zeroconf:discovery] TXT records: some");
+                        for (key, value) in txt_records.iter() {
+                            props.insert(
+                                format!("{}_{}", DEVICE_ENVS, key.to_ascii_uppercase()),
+                                value,
+                            );
+                        }
+                    }
+                    None => trace!("[zeroconf:discovery] TXT records: none"),
+                }
+
                 DiscoveryResult::new(service.host_name(), props, true)
             })
             .collect::<Vec<DiscoveryResult>>();

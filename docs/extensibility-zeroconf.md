@@ -111,6 +111,10 @@ properties:
         type: string
       port:
         type: integer
+      txtRecords: # map<string,string>
+        type: object
+        additionalProperties:
+          type: string
 ```
 
 > **NOTE** `filter` strings are defined in the Zeroconf Broker configuration. See [Deploy standalone Zeroconf Broker](#deploy-standalone-zeroconf-broker).
@@ -140,13 +144,17 @@ And:
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ZeroconfDiscoveryHandlerConfig {
+    // Required
     pub kind: String,
+    // Optional
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub txt_records: Option<HashMap<String, String>>,
 }
 ```
 
@@ -240,11 +248,14 @@ To ensure that you have a service for the Akri Agent to resolve, you may use the
 
 ```bash
 NAME="freddie"
-KIND="_http._tcp"
-PORT="7777"
+KIND="_rust._tcp"
+PORT="8888"
+TXT_RECORDS=("project=akri" "protocol=zeroconf" "component=avahi-publish")
 
-avahi-publish --service ${NAME} ${KIND} ${PORT}
+avahi-publish --service ${NAME} ${KIND} ${PORT} ${TXT_RECORDS[@]}
 ```
+
+> **NOTE** Although not a requirement of (m)DNS, this implementation expects `TXT` records of the form `key=value`. These `TXT` records are projected into Akri instances as environment variables.
 
 ## Confirm GitHub Packages for Akri
 
@@ -309,16 +320,22 @@ kubectl get pods --selector=app=akri-controller
 
 ## Deploy standalone Zeroconf Broker
 
-Before applying `zeroconf.yaml`, you may wish to revise the `filter`. In the current configuration file, the filter limits service discovery to those services that have a `kind` (i.e. type) of `_http._tcp`, i.e. services advertizing themselves as being `http` over `tcp`. The list of documented `kind`s is at [Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml)
+Before applying `zeroconf.yaml`, you may wish to revise the `filter`. In the current configuration file, the filter limits service discovery to those services that have a `kind` (i.e. type) of `_rust._tcp`, i.e. services advertizing themselves as being `http` over `tcp`. The list of documented `kind`s is at [Service Name and Transport Protocol Port Number Registry](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml)
 
 ```YAML
 spec:
   protocol:
     zeroconf:
-      filter: 'kind="_http._tcp"'
+      kind: "_rust._tcp"
+      name: "freddie"
+      port: 8888
+      txtRecords:
+        project: akri
+        protocol: zeroconf
+        component: avahi-publish
 ```
 
-> **NOTE** The `filter` permits additional terms of `domain`, `name`, `port` but these are not support by the [`zeroconf`](https://crates.io/crates/zeroconf) crate.
+> **NOTE** The properties defined under `zeroconf` function as a filter. The only required property is `kind`. The other properties are optional. The properties do not permit wildcards. Only services that include all the properties specified will be discovered by the Akri Agent. The above configuration matches the service published previously using `avahi-publish`. If any (or all) of `name`, `port`, or any of the properties under `txtRecords` is omitted, the service published by `avahi-publish` will continue to match.
 
 
 ```bash
@@ -331,10 +348,13 @@ Check the agent's (!) logs:
 [zeroconf:new] Entered
 [zeroconf:discover] Entered
 [zeroconf:discovery] Started browsing
-[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "freddie", kind: "_http._tcp", domain: "local", host_name: "akri.local", address: "", port: 9999, txt: None }
+[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "freddie", kind: "_rust._tcp", domain: "local", host_name: "akri.local", address: "", port: 8888, txt: Some(AvahiTxtRecord(UnsafeCell)) }
 [zeroconf:discovery] Stopped browsing
 [zeroconf:discovery] Iterating over services
-[zeroconf:discovery] Service: ServiceDiscovery { name: "freddie", kind: "_http._tcp", domain: "local", host_name: "akri.local", address: "", port: 9999, txt: None }
+[zeroconf:discovery] Service: ServiceDiscovery { name: "freddie", kind: "_rust._tcp", domain: "local", host_name: "akri.local", address: "", port: 8888, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[zeroconf:discovery] TXT records: some
+[zeroconf:filter] Name (freddie) [true]
+[zeroconf:filter] Port (8888) [true]
 ```
 
 You may check the Akri Configurations:
@@ -373,19 +393,19 @@ Yields:
 [zeroconf:main] Entered
 [zeroconf:new] Entered
 [zeroconf:new]
-  Kind: _http._tcp
+  Kind: _rust._tcp
   Name: freddie
   Host: akri.local
   Addr: 10.138.0.2
-  Port: 9999
-[zeroconf:main] Service: kind: _http._tcp
+  Port: 8888
+[zeroconf:main] Service: kind: _rust._tcp
 name: freddie
 host: akri.local
 addr: 10.138.0.2
-port: 9999
+port: 8888
 [zeroconf:main:loop] Sleep
-[zeroconf:main:loop] check_device(Service { kind: "_http._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 9999 })
-[zeroconf:read_device] Entered: Service { kind: "_http._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 9999 }
+[zeroconf:main:loop] check_device(Service { kind: "_rust._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 8888 })
+[zeroconf:read_device] Entered: Service { kind: "_rust._tcp", name: "freddie", host: "akri.local", addr: "10.138.0.2", port: 8888 }
 [zeroconf:main:loop] Sleep
 ```
 
@@ -398,12 +418,15 @@ kubectl exec --stdin --tty ${POD} -- env | grep ^AKRI
 Yields:
 
 ```console
-AKRI_ZEROCONF_DEVICE_KIND=_http._tcp
 AKRI_ZEROCONF=zeroconf
-AKRI_ZEROCONF_DEVICE_HOST=akri.local
+AKRI_ZEROCONF_DEVICE_KIND=_rust._tcp
 AKRI_ZEROCONF_DEVICE_NAME=freddie
-AKRI_ZEROCONF_DEVICE_PORT=9999
+AKRI_ZEROCONF_DEVICE_HOST=akri.local
+AKRI_ZEROCONF_DEVICE_PORT=8888
 AKRI_ZEROCONF_DEVICE_ADDR=10.138.0.2
+AKRI_ZEROCONF_DEVICE_PROTOCOL=zeroconf
+AKRI_ZEROCONF_DEVICE_PROJECT=akri
+AKRI_ZEROCONF_DEVICE_COMPONENT=avahi-publish
 ```
 
 ### CRDs
@@ -418,6 +441,8 @@ Labels:       <none>
 Annotations:  API Version:  akri.sh/v0
 Kind:         Configuration
 Metadata:
+  Creation Timestamp:  2020-12-10T20:13:50Z
+  Generation:          1
   Managed Fields:
     API Version:  akri.sh/v0
     Fields Type:  FieldsV1
@@ -437,13 +462,23 @@ Metadata:
           .:
           f:zeroconf:
             .:
-            f:filter:
+            f:kind:
+            f:port:
+            f:txtRecords:
+              .:
+              f:component:
+              f:project:
+              f:protocol:
     Manager:         kubectl
     Operation:       Update
+    Time:            2020-12-10T20:13:50Z
+  Resource Version:  357426
+  Self Link:         /apis/akri.sh/v0/namespaces/default/configurations/zeroconf
+  UID:               f8e58ecb-c16e-44ad-a38b-200540992330
 Spec:
   Broker Pod Spec:
     Containers:
-      Image:  ghcr.io/dazwilkin/zeroconf-broker@sha256:616a800d5754336229dad7b02c6f20e8511981195e6c5f89e2073ac660b17b4a
+      Image:  ghcr.io/dazwilkin/akri-zeroconf-broker@sha256:616a800d5754336229dad7b02c6f20e8511981195e6c5f89e2073ac660b17b4a
       Name:   zeroconf-broker
       Resources:
         Limits:
@@ -453,8 +488,13 @@ Spec:
   Capacity:  1
   Protocol:
     Zeroconf:
-      Filter:  kind="_http._tcp"
-Events:        <none>
+      Kind:  _rust._tcp
+      Port:  8888
+      Txt Records:
+        Component:  avahi-publish
+        Project:    akri
+        Protocol:   zeroconf
+Events:             <none>
 ```
 
 #### Instance(s)
@@ -468,6 +508,8 @@ Annotations:  <none>
 API Version:  akri.sh/v0
 Kind:         Instance
 Metadata:
+  Creation Timestamp:  2020-12-10T20:14:00Z
+  Generation:          2
   Managed Fields:
     API Version:  akri.sh/v0
     Fields Type:  FieldsV1
@@ -475,7 +517,7 @@ Metadata:
       f:metadata:
         f:ownerReferences:
           .:
-          k:{"uid":"b3de3379-855d-4336-8ebe-11b02686d0d2"}:
+          k:{"uid":"f8e58ecb-c16e-44ad-a38b-200540992330"}:
             .:
             f:apiVersion:
             f:blockOwnerDeletion:
@@ -497,37 +539,45 @@ Metadata:
           f:AKRI_ZEROCONF_DEVICE_KIND:
           f:AKRI_ZEROCONF_DEVICE_NAME:
           f:AKRI_ZEROCONF_DEVICE_PORT:
+          f:AKRI_ZEROCONF_DEVICE_COMPONENT:
+          f:AKRI_ZEROCONF_DEVICE_PROJECT:
+          f:AKRI_ZEROCONF_DEVICE_PROTOCOL:
         f:nodes:
         f:rbac:
         f:shared:
     Manager:    unknown
     Operation:  Update
+    Time:       2020-12-10T20:14:23Z
   Owner References:
     API Version:           akri.sh/v0
     Block Owner Deletion:  true
     Controller:            true
     Kind:                  Configuration
     Name:                  zeroconf
-    UID:                   b3de3379-855d-4336-8ebe-11b02686d0d2
-  Resource Version:        318993
+    UID:                   f8e58ecb-c16e-44ad-a38b-200540992330
+  Resource Version:        357507
   Self Link:               /apis/akri.sh/v0/namespaces/default/instances/zeroconf-074bbf
-  UID:                     52c6a861-67e4-4e97-b24f-c4f6287ae21e
+  UID:                     6abd275c-9c8c-43f4-80d7-cf5b26df2c13
 Spec:
   Configuration Name:  zeroconf
   Device Usage:
     zeroconf-074bbf-0:  akri
   Metadata:
-    AKRI_ZEROCONF:              zeroconf
-    AKRI_ZEROCONF_DEVICE_ADDR:  10.138.0.2
-    AKRI_ZEROCONF_DEVICE_HOST:  akri.local
-    AKRI_ZEROCONF_DEVICE_KIND:  _http._tcp
-    AKRI_ZEROCONF_DEVICE_NAME:  freddie
-    AKRI_ZEROCONF_DEVICE_PORT:  9999
+    AKRI_ZEROCONF:                     zeroconf
+    AKRI_ZEROCONF_DEVICE_ADDR:         10.138.0.2
+    AKRI_ZEROCONF_DEVICE_HOST:         akri.local
+    AKRI_ZEROCONF_DEVICE_KIND:         _rust._tcp
+    AKRI_ZEROCONF_DEVICE_NAME:         freddie
+    AKRI_ZEROCONF_DEVICE_PORT:         8888
+    AKRI_ZEROCONF_DEVICE_COMPONENT:    avahi-publish
+    AKRI_ZEROCONF_DEVICE_PROJECT:      akri
+    AKRI_ZEROCONF_DEVICE_PROTOCOL:     zeroconf
   Nodes:
     akri
   Rbac:    rbac
   Shared:  true
 Events:    <none>
+
 ```
 
 ### crictl
@@ -560,12 +610,12 @@ But:
 [zeroconf:new] Entered
 [zeroconf::discover] Entered
 [zeroconf:discovery] Started browsing
-[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "10.1.1.43", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_rust._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[zeroconf:discovery:λ] Service Discovered: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_rust._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "10.1.1.43", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
 [zeroconf:discovery] Stopped browsing
 [zeroconf:discovery] Iterating over services
-[zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
-[zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_http._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "10.1.1.43", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_rust._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
+[zeroconf:discovery] Service: ServiceDiscovery { name: "prove-zeroconf-6658dd567-8wml7", kind: "_rust._tcp", domain: "local", host_name: "prove-zeroconf-6658dd567-8wml7.local", address: "10.1.1.43", port: 8080, txt: Some(AvahiTxtRecord(UnsafeCell)) }
 ```
 
 Debugging Akri instances not being created:
@@ -582,7 +632,7 @@ No resources found in default namespace.
 Run the broker directly:
 
 ```bash
-AKRI_ZEROCONF_DEVICE_KIND="_http._tcp" \
+AKRI_ZEROCONF_DEVICE_KIND="_rust._tcp" \
 AKRI_ZEROCONF_DEVICE_NAME="hades-canyon" \
 AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local" \
 AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1" \
@@ -594,7 +644,7 @@ Or:
 
 ```bash
 docker run --interactive --tty --rm \
---env=AKRI_ZEROCONF_DEVICE_KIND="_http._tcp" \
+--env=AKRI_ZEROCONF_DEVICE_KIND="_rust._tcp" \
 --env=AKRI_ZEROCONF_DEVICE_NAME="hades-canyon" \
 --env=AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local" \
 --env=AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1" \
@@ -608,7 +658,7 @@ Or:
 kubectl run test \
 --image=ghcr.io/deislabs/akri/zeroconf-broker@sha256:a506722c43fb847a9cff9d5e81292ca99db71d03a9d3e37f4aa38c1ee80205dd \
 --env=\
-AKRI_ZEROCONF_DEVICE_KIND="_http._tcp",\
+AKRI_ZEROCONF_DEVICE_KIND="_rust._tcp",\
 AKRI_ZEROCONF_DEVICE_NAME="hades-canyon",\
 AKRI_ZEROCONF_DEVICE_HOST="hades-canyon.local",\
 AKRI_ZEROCONF_DEVICE_ADDR="127.0.0.1",\

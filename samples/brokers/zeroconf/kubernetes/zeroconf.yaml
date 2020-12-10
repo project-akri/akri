@@ -7,6 +7,10 @@ spec:
     zeroconf:
       kind: "_http._tcp"
       domain: "local"
+      txtRecords:
+        project: akri
+        protocol: zeroconf
+        component: avahi-publish
   capacity: 1
   brokerPodSpec:
     imagePullSecrets: # Container Registry secret
