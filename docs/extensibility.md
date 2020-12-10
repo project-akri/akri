@@ -1,6 +1,8 @@
 # Extensibility
 
-While Akri has several [currently supported discovery protocols](./roadmap.md#currently-supported-protocols) and sample brokers and applications to go with them, the protocol you want to use to discover resources may not be implemented yet. This document walks you through how to extend Akri to discover new types of devices that you are interested in.  You will find all the development steps needed to implement a new protocol and sample broker. It will also cover the steps to get your protocol and broker[s] added to Akri, should you wish to contribute them back.
+Akri has [implemented several discovery protocols](./roadmap.md#currently-supported-protocols) with sample brokers and applications. However, there may be protocols you would like to use to discover resources that have not been implemented yet.  This document walks you through how to **extend Akri** to discover new types of devices that you are interested in.
+
+Below, you will find all the development steps needed to implement a new protocol and sample broker. This document will also cover the steps to get your protocol and broker added to Akri, should you wish to contribute them back.
 
 Before continuing, please read the [Akri architecture](./architecture.md) and [development](./development.md) documentation pages.  They will provide a good understanding of Akri, how it works, what components it is composed of, and how to build it.
 
