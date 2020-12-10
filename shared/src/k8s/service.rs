@@ -136,6 +136,10 @@ pub fn create_new_service_from_spec(
             AKRI_INSTANCE_LABEL_NAME.to_string(),
             instance_name.to_string(),
         );
+        labels.insert(
+            AKRI_CONFIGURATION_LABEL_NAME.to_string(),
+            configuration_name.to_string(),
+        );
     } else {
         labels.insert(
             AKRI_CONFIGURATION_LABEL_NAME.to_string(),
