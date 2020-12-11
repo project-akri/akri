@@ -50,7 +50,6 @@ def index():
 # Returns the current list of cameras to allow for refresh
 def camera_list():
     global small_frame_sources
-    logging.info(small_frame_sources)
     return ",".join(small_frame_sources)
 
 # Generator function for video streaming.
