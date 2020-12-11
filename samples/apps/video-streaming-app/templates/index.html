@@ -21,13 +21,13 @@
     function refresh_on_device_change() {
       fetch('/camera_list').then(resp => resp.text()).then(new_camera_list => {
         if (new_camera_list != last_camera_list && last_camera_list != "") {
-          location.reload()
+          window.location.reload(false);
         } else {
-          last_camera_list = new_camera_list
+          last_camera_list = new_camera_list;
         }
-      })
+      });
     }
-    setInterval(refresh_on_device_change, 3000)
+    setInterval(refresh_on_device_change, 1000);
   </script>
   </body>
 </html>
