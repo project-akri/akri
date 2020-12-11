@@ -77,7 +77,7 @@ def index():
 def camera_list():
     camera_list = []
     if 'CONFIGURATION_NAME' in os.environ:
-        camera_list = get_camera_list()
+        camera_list = get_camera_list(os.environ['CONFIGURATION_NAME'])
     else:
         camera_list = small_frame_sources
     return ",".join(camera_list.sort())
