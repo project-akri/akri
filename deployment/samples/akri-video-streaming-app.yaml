@@ -47,3 +47,30 @@ spec:
     port: 80
     targetPort: 5000
   type: NodePort
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: akri-video-streaming-app-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: akri-video-streaming-app-role
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: akri-video-streaming-app-binding
+roleRef:
+  apiGroup: ""
+  kind: ClusterRole
+  name: akri-video-streaming-app-role
+subjects:
+  - kind: ServiceAccount
+    name: akri-video-streaming-app-sa
+    namespace: default
