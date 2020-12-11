@@ -1,11 +1,11 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
+use super::filter::filter;
 use akri_shared::akri::configuration::ZeroconfDiscoveryHandlerConfig;
 use async_trait::async_trait;
-use failure::{format_err, Error};
+use failure::Error;
 use std::{
     any::Any,
     collections::HashMap,
-    ops::Add,
     sync::{
         mpsc::{channel, Receiver, Sender},
         Arc,
@@ -28,89 +28,6 @@ const DEVICE_PORT: &str = "AKRI_ZEROCONF_DEVICE_PORT";
 
 // Prefix for environment variables created from discovered device's TXT records
 const DEVICE_ENVS: &str = "AKRI_ZEROCONF_DEVICE";
-
-// TODO(dazwilkin) Refactor :-)
-fn filter(config: &ZeroconfDiscoveryHandlerConfig, service: &ServiceDiscovery) -> bool {
-    trace!("[zeroconf:filter] Service: {:?}", service);
-    let include = (if let Some(name) = &config.name {
-        let result = name == service.name();
-        trace!("[zeroconf:filter] Name ({}) [{}]", name, result);
-        result
-    } else {
-        true
-    }) && (if let Some(domain) = &config.domain {
-        let result = domain == service.domain();
-        trace!("[zeroconf:filter] Domain ({}) [{}]", domain, result);
-        result
-    } else {
-        true
-    }) && (if let Some(port) = config.port {
-        let result = &port == service.port();
-        trace!("[zeroconf:filter] Port ({}) [{}]", port, result);
-        result
-    } else {
-        true
-    }) && (if let Some(txt_records) = &config.txt_records {
-        // The config has TXT records
-        trace!(
-            "[zeroconf:filter] TXT Records [Config={}]",
-            &txt_records.len()
-        );
-        // Get this service's TXT records, if any
-        let result = match service.txt() {
-            // The service has TXT records, match every one
-            Some(service_txt_records) => {
-                trace!(
-                    "[zeroconf:filter] TXT Records [Service={}]",
-                    &service_txt_records.len()
-                );
-                // The Service must have the same key and same value in each record to pass the filter
-                let result = txt_records
-                    .iter()
-                    .map(|(key, value)| {
-                        // Apply keys consistently as UPPERCASE
-                        let key = key.to_ascii_uppercase();
-                        let result = match service_txt_records.get(&key) {
-                            Some(service_value) => {
-                                let result = &service_value == value;
-                                trace!(
-                                    "[zeroconf:filter] TXT Record Key: {} Value: {} [{}]",
-                                    key,
-                                    value,
-                                    result
-                                );
-                                result
-                            }
-                            None => {
-                                // The service doesn't have the key so it doesn't match
-                                false
-                            }
-                        };
-                        result
-                    })
-                    // The result is only true if *all* the keys and values match
-                    .all(|x| x == true);
-                trace!("[zeroconf:filter] TXT Records [{}]", result);
-                result
-            }
-            None => {
-                // The service has no TXT records (but the config does), can't be match
-                false
-            }
-        };
-        trace!("[zeroconf:filter] TXT Records [{}]", result);
-        result
-    } else {
-        // If the handler has no TXT records, the service's TXT records (if any) pass
-        true
-    });
-    trace!(
-        "[zeroconf:filter] {} Service: {:?}",
-        if include { "INCLUDE" } else { "EXCLUDE" },
-        service
-    );
-    include
-}
 
 #[derive(Debug)]
 pub struct ZeroconfDiscoveryHandler {
