@@ -18,7 +18,7 @@ spec:
         imagePullPolicy: Always
         env:
         # Streamer works in two modes; either specify the following commented
-        # block of env vars to explicitly target cameras (update the values for
+        # block of env vars to explicitly target cameras (update the <id>s for
         # your specific cameras) or 
         # specify a Akri configuration name to pick up cameras automatically
         # - name: CAMERAS_SOURCE_SVC
@@ -26,9 +26,9 @@ spec:
         # - name: CAMERA_COUNT
         #   value: "2"
         # - name: CAMERA1_SOURCE_SVC
-        #   value: "akri-udev-video-5c8604-svc"
+        #   value: "akri-udev-video-<id>-svc"
         # - name: CAMERA2_SOURCE_SVC
-        #   value: "akri-udev-video-677160-svc"
+        #   value: "akri-udev-video-<id>-svc"
         - name: CONFIGURATION_NAME
           value: akri-udev-video
 ---
