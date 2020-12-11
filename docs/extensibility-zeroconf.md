@@ -428,6 +428,31 @@ AKRI_ZEROCONF_DEVICE_PROTOCOL=zeroconf
 AKRI_ZEROCONF_DEVICE_PROJECT=akri
 AKRI_ZEROCONF_DEVICE_COMPONENT=avahi-publish
 ```
+### Unit tests
+
+```bash
+cargo test \
+--package=agent \
+--bin=agent \
+-- \
+protocols::zeroconf
+```
+
+Yields:
+
+```console
+running 10 tests
+test protocols::zeroconf::filter_tests::test_parse_all_none ... ok
+test protocols::zeroconf::filter_tests::test_parse_name_match ... ok
+test protocols::zeroconf::filter_tests::test_parse_name_nomatch ... ok
+test protocols::zeroconf::filter_tests::test_parse_host_match ... ok
+test protocols::zeroconf::filter_tests::test_parse_host_nomatch ... ok
+test protocols::zeroconf::filter_tests::test_parse_port_match ... ok
+test protocols::zeroconf::filter_tests::test_parse_port_nomatch ... ok
+test protocols::zeroconf::filter_tests::test_parse_txt_records_nomatch_1 ... ok
+test protocols::zeroconf::filter_tests::test_parse_txt_records_nomatch_2 ... ok
+test protocols::zeroconf::filter_tests::test_parse_txt_records_match ... ok
+```
 
 ### CRDs
 
