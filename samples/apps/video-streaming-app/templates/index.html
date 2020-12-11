@@ -16,5 +16,18 @@
         {%endfor%}
       </ul>
     </div>
+    <script>
+    var last_camera_list = ""
+    function refresh_on_device_change() {
+      fetch('/camera_list').then(resp => resp.text()).then(new_camera_list => {
+        if (new_camera_list != last_camera_list && last_camera_list != "") {
+          location.reload()
+        } else {
+          last_camera_list = new_camera_list
+        }
+      })
+    }
+    setInterval(updateLog, 3000)
+  </script>
   </body>
 </html>

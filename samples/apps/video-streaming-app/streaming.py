@@ -16,31 +16,45 @@ import traceback
 
 from flask import Flask, render_template, Response
 
+from kubernetes import client, config
+import re
+
 camera_frame_queues = []
 
 main_frame_source = ""
 small_frame_sources = []
 
-if 'CONFIGURATION_NAME' in os.environ:
-    configuration_name = os.environ['CONFIGURATION_NAME']
-    short_env_var_prefix = (configuration_name + '-').upper().replace('-', '_')
-    # For every k8s service, an env var is set in every node with its ports.  The
-    # format is <SERVICE_NAME_IN_CAPS>_SERVICE_PORT_<PORT_NAME>.  Here, we will query
-    # these values on the streaming app node, to get the exposed port number ... but
-    # we will assume that the ports are named 'grpc', if the name changes, THIS CODE
-    # WILL BREAK.
-    env_var_prefix = short_env_var_prefix + 'SVC_SERVICE_'
-    grpc_port = os.environ[env_var_prefix + 'PORT_GRPC'] # instance services are using the same port by default
-    main_frame_source = "{0}:{1}".format(os.environ[env_var_prefix + 'HOST'], grpc_port)
-    instance_service_hosts = filter(
-        lambda name: name.startswith(short_env_var_prefix) and not name.startswith(env_var_prefix) and name.endswith('_SERVICE_HOST'),
-        os.environ)
-    camera_count = 0
-    for svc_host_env_var in instance_service_hosts:
-        url = "{0}:{1}".format(os.environ[svc_host_env_var], grpc_port)
-        small_frame_sources.append(url)
-        camera_count += 1
+def get_camera_list(configuration_name):
+    camera_list = []
+    config.load_incluster_config()
+    coreV1Api = client.CoreV1Api()
+    ret = coreV1Api.list_service_for_all_namespaces(watch=False)
+    p = re.compile(configuration_name + "-[\da-f]{6}-svc")
+    for svc in ret.items:
+        if not p.match(svc.metadata.name):
+            continue
+        grpc_ports = list(filter(lambda port: port.name == "grpc", svc.spec.ports))
+        if (len(grpc_ports) == 1):
+            url = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
+            camera_list.append(url)
+    return camera_list
 
+if 'CONFIGURATION_NAME' in os.environ:
+    # Expecting source service ports to be named grpc
+
+    configuration_name = os.environ['CONFIGURATION_NAME']
+
+    config.load_incluster_config()
+    coreV1Api = client.CoreV1Api()
+    ret = coreV1Api.list_service_for_all_namespaces(watch=False)
+    for svc in ret.items:
+        if svc.metadata.name == configuration_name + "-svc":
+            grpc_ports = list(filter(lambda port: port.name == "grpc", svc.spec.ports))
+            if (len(grpc_ports) == 1):
+                main_frame_source = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
+
+    small_frame_sources = get_camera_list(configuration_name)
+    camera_count = len(small_frame_sources)
 else:
     camera_count = int(os.environ['CAMERA_COUNT'])
     main_frame_source = "{0}:80".format(os.environ['CAMERAS_SOURCE_SVC'])
@@ -56,7 +70,17 @@ app = Flask(__name__)
 @app.route('/')
 # Home page for video streaming.
 def index():
-    return render_template('index.html', camera_count = camera_count)
+    return render_template('index.html', camera_count=camera_count)
+    
+@app.route('/camera_list')
+# Returns the current list of cameras to allow for refresh
+def camera_list():
+    camera_list = []
+    if 'CONFIGURATION_NAME' in os.environ:
+        camera_list = get_camera_list()
+    else:
+        camera_list = small_frame_sources
+    return ",".join(camera_list.sort())
 
 # Generator function for video streaming.
 def gen(frame_queue, verbose=False):

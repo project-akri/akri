@@ -5,13 +5,11 @@ FROM ${PLATFORM}/debian:buster-slim
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim" && \
-    apt update && \
-    apt install -y protobuf-compiler libprotoc-dev python3-pip \
+    apt-get update && \
+    apt-get install -y protobuf-compiler libprotoc-dev python3-pip \
     python3-grpcio python3-sklearn && \
-    apt clean && \
-    pip3 install --upgrade pip && \
-    pip3 install numpy protobuf flask && \
-    mkdir app
+    apt-get clean && \
+    pip3 install numpy protobuf flask
 
 WORKDIR /app
 COPY ./samples/apps/anomaly-detection-app .
