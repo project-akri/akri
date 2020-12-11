@@ -23,9 +23,21 @@ camera_frame_queues = []
 small_frame_sources = []
 
 def get_camera_list(configuration_name):
+    main_frame_source = ""
     camera_list = []
+
     config.load_incluster_config()
     coreV1Api = client.CoreV1Api()
+
+    ret = coreV1Api.list_service_for_all_namespaces(watch=False)
+    for svc in ret.items:
+        if svc.metadata.name == configuration_name + "-svc":
+            grpc_ports = list(
+                filter(lambda port: port.name == "grpc", svc.spec.ports))
+            if (len(grpc_ports) == 1):
+                main_frame_source = "{0}:{1}".format(
+                    svc.spec.cluster_ip, grpc_ports[0].port)
+
     ret = coreV1Api.list_service_for_all_namespaces(watch=False)
     p = re.compile(configuration_name + "-[\da-f]{6}-svc")
     for svc in ret.items:
@@ -36,7 +48,8 @@ def get_camera_list(configuration_name):
             url = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
             camera_list.append(url)
     camera_list.sort()
-    return camera_list
+
+    return main_frame_source, camera_list
 
 app = Flask(__name__)
 
@@ -78,7 +91,7 @@ def camera_frame_feed(camera_id=0):
 def refresh_cameras(camera_frame_threads, small_frame_sources, camera_frame_queues, stop_event):
     while True:
         sleep(1)
-        camera_list = get_camera_list(os.environ['CONFIGURATION_NAME'])
+        main_frame_source, camera_list = get_camera_list(os.environ['CONFIGURATION_NAME'])
         if camera_list != small_frame_sources:
             old_count = len(small_frame_sources)
             new_count = len(camera_list)
@@ -95,7 +108,7 @@ def refresh_cameras(camera_frame_threads, small_frame_sources, camera_frame_queu
                 small_frame_sources[:] = camera_list
             logging.info(small_frame_sources)
             schedule_get_frames(
-                camera_frame_threads, small_frame_sources, camera_frame_queues, stop_event)
+                camera_frame_threads, main_frame_source, small_frame_sources, camera_frame_queues, stop_event)
 
 def run_webserver():
     app.run(host='0.0.0.0', threaded=True)
@@ -131,7 +144,7 @@ def get_frames(url, frame_queue, stop_event):
             sleep(1)
 
 # schedules frame polling threads
-def schedule_get_frames(camera_frame_threads, small_frame_sources, camera_frame_queues, stop_event):
+def schedule_get_frames(camera_frame_threads, main_frame_source, small_frame_sources, camera_frame_queues, stop_event):
     if camera_frame_threads:
         stop_event.set()
         for camera_frame_thread in camera_frame_threads:
@@ -151,25 +164,11 @@ def schedule_get_frames(camera_frame_threads, small_frame_sources, camera_frame_
 print("Starting...", flush=True)
 logging.basicConfig(format="%(asctime)s: %(message)s", level=logging.INFO, datefmt="%H:%M:%S")
 
-main_frame_source = ""
-
 if 'CONFIGURATION_NAME' in os.environ:
     # Expecting source service ports to be named grpc
 
     configuration_name = os.environ['CONFIGURATION_NAME']
-
-    config.load_incluster_config()
-    coreV1Api = client.CoreV1Api()
-    ret = coreV1Api.list_service_for_all_namespaces(watch=False)
-    for svc in ret.items:
-        if svc.metadata.name == configuration_name + "-svc":
-            grpc_ports = list(
-                filter(lambda port: port.name == "grpc", svc.spec.ports))
-            if (len(grpc_ports) == 1):
-                main_frame_source = "{0}:{1}".format(
-                    svc.spec.cluster_ip, grpc_ports[0].port)
-
-    small_frame_sources = get_camera_list(configuration_name)
+    main_frame_source, small_frame_sources = get_camera_list(configuration_name)
     camera_count = len(small_frame_sources)
 else:
     camera_count = int(os.environ['CAMERA_COUNT'])
@@ -187,7 +186,7 @@ webserver_thread.start()
 
 stop_event = threading.Event()
 camera_frame_threads = []
-schedule_get_frames(camera_frame_threads, small_frame_sources, camera_frame_queues, stop_event)
+schedule_get_frames(camera_frame_threads, main_frame_source, small_frame_sources, camera_frame_queues, stop_event)
 
 if 'CONFIGURATION_NAME' in os.environ:
     refresh_thread = threading.Thread(target=refresh_cameras, args=(camera_frame_threads, small_frame_sources, camera_frame_queues, stop_event))
