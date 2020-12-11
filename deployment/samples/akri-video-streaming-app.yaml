@@ -12,6 +12,7 @@ spec:
       labels:
         app: akri-video-streaming-app
     spec:
+      serviceAccountName: akri-video-streaming-app-sa
       containers:
       - name: akri-video-streaming-app
         image: ghcr.io/deislabs/akri/video-streaming-app:latest-dev
