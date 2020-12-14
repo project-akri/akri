@@ -34,7 +34,7 @@ class CameraFeed:
         return self.url == other.url
 
     def StartHandler(self):
-        self.thread = threading.Thread(target=self.get_frames)
+        self.thread = threading.Thread(target=self.GetFrames)
         self.thread.start()
 
     def WaitHandler(self):
@@ -48,7 +48,7 @@ class CameraFeed:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     # Loops, creating gRPC client and grabing frame from camera serving specified url.
-    def get_frames(self):
+    def GetFrames(self):
         logging.info("Starting get_frames(%s)" % self.url)
         while not self.stop_event.wait(0.01):
             try:
@@ -152,6 +152,10 @@ def get_camera_display(configuration_name):
     config.load_incluster_config()
     coreV1Api = client.CoreV1Api()
 
+    # TODO use labels instead once available
+    instance_service_name_regex = re.compile(
+        configuration_name + "-[\da-f]{6}-svc")
+
     ret = coreV1Api.list_service_for_all_namespaces(watch=False)
     for svc in ret.items:
         if svc.metadata.name == configuration_name + "-svc":
@@ -160,16 +164,12 @@ def get_camera_display(configuration_name):
             if (len(grpc_ports) == 1):
                 url = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
                 camera_display.main_camera = CameraFeed(url)
-
-    ret = coreV1Api.list_service_for_all_namespaces(watch=False)
-    p = re.compile(configuration_name + "-[\da-f]{6}-svc")
-    for svc in ret.items:
-        if not p.match(svc.metadata.name):
-            continue
-        grpc_ports = list(filter(lambda port: port.name == "grpc", svc.spec.ports))
-        if (len(grpc_ports) == 1):
-            url = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
-            camera_display.small_cameras.append(CameraFeed(url))
+        elif instance_service_name_regex.match(svc.metadata.name):
+            grpc_ports = list(
+                filter(lambda port: port.name == "grpc", svc.spec.ports))
+            if (len(grpc_ports) == 1):
+                url = "{0}:{1}".format(svc.spec.cluster_ip, grpc_ports[0].port)
+                camera_display.small_cameras.append(CameraFeed(url))
 
     camera_display.small_cameras.sort(key=lambda camera: camera.url)
 
@@ -201,7 +201,7 @@ def index():
 @app.route('/camera_list')
 def camera_list():
     global global_camera_display
-    logging.info("Expected cameras: %s" % global_camera_display)
+    logging.info("Expected cameras: %s" % global_camera_display.HashCode())
     return global_camera_display.HashCode()
 
 # Gets frame feed for specified camera.
@@ -230,6 +230,7 @@ else:
         url = "{0}:80".format(
             os.environ['CAMERA{0}_SOURCE_SVC'.format(camera_id)])
         global_camera_display.small_cameras.append(CameraFeed(url))
+    global_camera_display.StartHandlers()
 
 webserver_thread = threading.Thread(target=run_webserver)
 webserver_thread.start()
