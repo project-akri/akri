@@ -378,6 +378,14 @@ zeroconf-e7f45d   zeroconf   true     [akri]   2m
 
 You may describe this too: `kubectl describe instance/zeroconf-e7f45d`
 
+You may access the Instance's configuration metadata to confirm the environment variables:
+
+```bash
+kubectl get instances \
+--output=jsonpath="{.items[*].spec.metadata.AKRI_ZEROCONF_DEVICE_NAME}"
+freddie
+```
+
 And for each Instance, there should be a corresponding Pod with logs:
 
 ```bash
