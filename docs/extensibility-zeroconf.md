@@ -89,6 +89,7 @@ Revise `./agent/Cargo.toml`:
 
 ```TOML
 [dependencies]
+tokio-test = "0.3.0"
 zeroconf = "0.6.2"
 ```
 
