@@ -380,7 +380,7 @@ You may describe this too: `kubectl describe instance/zeroconf-e7f45d`
 And for each Instance, there should be a corresponding Pod with logs:
 
 ```bash
-for INSTANCE in $(kubectl get instances --output=jsonpath="{.items[].metadata.name}")
+for INSTANCE in $(kubectl get instances --output=jsonpath="{.items[*].metadata.name}")
 do
   POD="pod/akri-${INSTANCE}-pod"
   kubectl logs ${POD}
