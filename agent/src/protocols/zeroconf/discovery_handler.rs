@@ -1,33 +1,20 @@
-use super::super::{DiscoveryHandler, DiscoveryResult};
 use super::filter::filter;
+use super::map::map;
+use crate::protocols::{DiscoveryHandler, DiscoveryResult};
 use akri_shared::akri::configuration::ZeroconfDiscoveryHandlerConfig;
 use async_trait::async_trait;
 use failure::Error;
 use std::{
     any::Any,
-    collections::HashMap,
     sync::{
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
     time::{Duration, Instant},
 };
-use zeroconf::{
-    browser::TMdnsBrowser, event_loop::TEventLoop, prelude::TTxtRecord, MdnsBrowser,
-    ServiceDiscovery,
-};
+use zeroconf::{browser::TMdnsBrowser, event_loop::TEventLoop, MdnsBrowser, ServiceDiscovery};
 
 const SCAN_DURATION: u64 = 5;
-
-const BROKER_NAME: &str = "AKRI_ZEROCONF";
-const DEVICE_KIND: &str = "AKRI_ZEROCONF_DEVICE_KIND";
-const DEVICE_NAME: &str = "AKRI_ZEROCONF_DEVICE_NAME";
-const DEVICE_HOST: &str = "AKRI_ZEROCONF_DEVICE_HOST";
-const DEVICE_ADDR: &str = "AKRI_ZEROCONF_DEVICE_ADDR";
-const DEVICE_PORT: &str = "AKRI_ZEROCONF_DEVICE_PORT";
-
-// Prefix for environment variables created from discovered device's TXT records
-const DEVICE_ENVS: &str = "AKRI_ZEROCONF_DEVICE";
 
 #[derive(Debug)]
 pub struct ZeroconfDiscoveryHandler {
@@ -39,6 +26,17 @@ impl ZeroconfDiscoveryHandler {
         ZeroconfDiscoveryHandler {
             discovery_handler_config: discovery_handler_config.clone(),
         }
+    }
+    pub fn transform<Z>(&self, services_discovered: Z) -> Vec<DiscoveryResult>
+    where
+        Z: IntoIterator<Item = ServiceDiscovery>,
+    {
+        let result = services_discovered
+            .into_iter()
+            .filter(|service| filter(&self.discovery_handler_config, service))
+            .map(|service| map(service))
+            .collect();
+        result
     }
 }
 #[async_trait]
@@ -79,43 +77,10 @@ impl DiscoveryHandler for ZeroconfDiscoveryHandler {
         drop(browser);
 
         // Receive
-        trace!("[zeroconf:discovery] Iterating over services");
-        // TODO(dazwilkin) Provide additional filtering, e.g. domain here
-        let result = rx
-            .iter()
-            .filter(|service| filter(&self.discovery_handler_config, service))
-            .map(|service| {
-                trace!("[zeroconf:discovery] Service: {:?}", service);
-                let mut props = HashMap::new();
-
-                // Create environment values to expose to each Akri Instance
-                props.insert(BROKER_NAME.to_string(), "zeroconf".to_string());
-                props.insert(DEVICE_KIND.to_string(), service.kind().to_string());
-                props.insert(DEVICE_NAME.to_string(), service.name().to_string());
-                props.insert(DEVICE_HOST.to_string(), service.host_name().to_string());
-                props.insert(DEVICE_ADDR.to_string(), service.address().to_string());
-                props.insert(DEVICE_PORT.to_string(), service.port().to_string());
-
-                // Map (any) TXT records
-                // Prefix TXT records keys with a constant
-                match service.txt() {
-                    Some(txt_records) => {
-                        trace!("[zeroconf:discovery] TXT records: some");
-                        for (key, value) in txt_records.iter() {
-                            props.insert(
-                                format!("{}_{}", DEVICE_ENVS, key.to_ascii_uppercase()),
-                                value,
-                            );
-                        }
-                    }
-                    None => trace!("[zeroconf:discovery] TXT records: none"),
-                }
-
-                DiscoveryResult::new(service.host_name(), props, true)
-            })
-            .collect::<Vec<DiscoveryResult>>();
-
+        trace!("[zeroconf:discovery] Transforming services discovered into discovery results");
+        let result = self.transform(rx);
         trace!("[zeroconf:discovery] Result: {:?}", result);
+
         Ok(result)
     }
     fn are_shared(&self) -> Result<bool, Error> {

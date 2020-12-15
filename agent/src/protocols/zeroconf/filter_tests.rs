@@ -1,20 +1,10 @@
+use super::constants::*;
 use super::filter::filter;
 use akri_shared::akri::configuration::ZeroconfDiscoveryHandlerConfig;
 use std::collections::{hash_map::RandomState, HashMap};
 use zeroconf::{browser::ServiceDiscoveryBuilder, TxtRecord};
 
-// `kind` is not considered by filter; so no tests matching `kind` are included here
-const KIND: &str = "_rust._tcp";
-
-const NAME: &str = "freddie";
-const DOMAIN: &str = "local";
-
-// HOST = NAME.DOMAIN
-const HOST: &str = "freddie.local";
-
-const ADDR: &str = "127.0.0.1";
-const PORT: u16 = 8888;
-
+// `kind` is filtered when the mDNS browser is created **not** by filter; so no tests matching `kind` are included here
 #[test]
 fn test_parse_all_none() {
     let config = ZeroconfDiscoveryHandlerConfig {
