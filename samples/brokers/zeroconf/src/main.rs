@@ -29,10 +29,7 @@ impl Service {
         let host = env::var(DEVICE_HOST).unwrap();
         let addr = env::var(DEVICE_ADDR).unwrap();
         let port: u16 = env::var(DEVICE_PORT).unwrap().parse().unwrap();
-        println!(
-            "[zeroconf:new]\n  Kind: {}\n  Name: {}\n  Host: {}\n  Addr: {}\n  Port: {}",
-            kind, name, host, addr, port
-        );
+
         Self {
             kind,
             name,
@@ -66,8 +63,19 @@ impl fmt::Display for Service {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "kind: {}\nname: {}\nhost: {}\naddr: {}\nport: {}",
-            self.kind, self.name, self.host, self.addr, self.port
+            "kind: {}\nname: {}\nhost: {}\naddr: {}\nport: {}\nTXTs:\n{}",
+            self.kind,
+            self.name,
+            self.host,
+            self.addr,
+            self.port,
+            match &self.txts {
+                Some(txts) => txts
+                    .into_iter()
+                    .map(|(key, value)| format!("  {}: {}\n", key, value))
+                    .collect(),
+                None => format!("  Empty"),
+            }
         )
     }
 }
@@ -106,7 +114,7 @@ mod test {
 
     // An array (!) containing test TXT records
     // These will be prefixed by `${DEVICE_ENVS}_`
-    const TXTS: [&'static str; 5] = ["A", "B", "C", "D", "E"];
+    const TXT_VALUE: [&'static str; 5] = ["A", "B", "C", "D", "E"];
 
     // Create the service once
     fn new() -> Service {
@@ -116,7 +124,7 @@ mod test {
         env::set_var(DEVICE_ADDR, STR_VALUE);
         env::set_var(DEVICE_PORT, U16_VALUE.to_string());
 
-        for txt in TXTS.iter() {
+        for txt in TXT_VALUE.iter() {
             env::set_var(format!("{}_{}", DEVICE_ENVS, txt), STR_VALUE);
         }
 
@@ -138,9 +146,8 @@ mod test {
     pub fn test_new_txts() {
         let s = new();
         match s.txts {
-            Some(txts) => assert!(TXTS.iter().all(|&e| {
+            Some(txts) => assert!(TXT_VALUE.iter().all(|&e| {
                 let key = format!("{}_{}", DEVICE_ENVS, e);
-                println!("{} {} {:?}", e, txts.contains_key(&key), txts.get(&key));
                 txts.contains_key(&key) && txts.get(&key) == Some(&STR_VALUE.to_string())
             })),
             None => panic!(),
