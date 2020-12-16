@@ -8,7 +8,7 @@ use blake2::VarBlake2b;
 use failure::Error;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DiscoveryResult {
     pub digest: String,
     pub properties: HashMap<String, String>,
