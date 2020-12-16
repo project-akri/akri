@@ -38,7 +38,7 @@ spec:
       {{- end }}
       {{- if .Values.controller.allowOnControlPlane }}
       tolerations:
-        # Allow this pod to run on the master.
+        {{- /* Allow this pod to run on the master. */}}
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
       {{- end }}
