@@ -80,7 +80,7 @@ debugEcho:
   properties:
   # capacity is the capacity for any instances created as a result of
   # applying this debugEcho configuration
-  capacity: 5
+  capacity: 1
   # descriptions is the list of instances created as a result of
   # applying this debugEcho configuration
   descriptions:
