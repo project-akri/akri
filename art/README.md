@@ -32,8 +32,8 @@ AKRI's wordmark uses rounded, playful lettering. Ideally complimentary text shou
 Brand only (not for text):
 
 ```
-$purplebrand:   #78FFC9;
-$greenbrand:    #3E446F;
+$purplebrand:   #3E446F;
+$greenbrand:    #78FFC9;
 $greenshade:    #8CCFCE;
 $purpleshade:   #524886;
 ```
