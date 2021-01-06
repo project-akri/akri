@@ -40,10 +40,18 @@ helm install akri akri-helm-charts/akri
     ```
 1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using **K3s**, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl.
+    1. If using **K3s**, point to `kubeconfig` for Helm, install crictl, and configure Akri to use K3s' CRI socket.
         ```sh
+        # Install crictl locally (note: there are no known version limitations, any crictl version is expected to work). 
+        # This step is not necessary if using a K3s version below 1.19, in which case K3s' embedded crictl can be used.
+        VERSION="v1.17.0"
+        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+        rm -f crictl-$VERSION-linux-amd64.tar.gz
+
         # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
         # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```

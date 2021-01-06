@@ -91,12 +91,15 @@ jobs:
         kube-runtime:
           - K3s-1.18
           - K3s-1.19
+          - K3s-1.20
           - MicroK8s-1.18
           - MicroK8s-1.19
+          - MicroK8s-1.20
           - Kubernetes-1.16
           - Kubernetes-1.17
           - Kubernetes-1.18
           - Kubernetes-1.19
+          - Kubernetes-1.20
         test-case:
           - end-to-end
         include:
@@ -104,10 +107,14 @@ jobs:
             kube-version: 1.18/stable
           - kube-runtime: MicroK8s-1.19
             kube-version: 1.19/stable
+          - kube-runtime: MicroK8s-1.20
+            kube-version: 1.20/stable
           - kube-runtime: K3s-1.18
             kube-version: v1.18.9+k3s1
           - kube-runtime: K3s-1.19
             kube-version: v1.19.4+k3s1
+          - kube-runtime: K3s-1.20
+            kube-version: v1.20.0+k3s2
           - kube-runtime: Kubernetes-1.16
             kube-version: 1.16.15-00
           - kube-runtime: Kubernetes-1.17
@@ -116,6 +123,8 @@ jobs:
             kube-version: 1.18.12-00
           - kube-runtime: Kubernetes-1.19
             kube-version: 1.19.4-00
+          - kube-runtime: Kubernetes-1.20
+            kube-version: 1.20.1-00
           - test-case: end-to-end
             test-file: test/run-end-to-end.py
 
