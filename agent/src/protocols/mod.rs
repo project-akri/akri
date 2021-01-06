@@ -8,7 +8,7 @@ use blake2::VarBlake2b;
 use failure::Error;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DiscoveryResult {
     pub digest: String,
     pub properties: HashMap<String, String>,
@@ -165,5 +165,37 @@ mod test {
                 .unwrap()
                 .digest
         );
+    }
+
+    #[tokio::test]
+    async fn test_discovery_result_partialeq() {
+        let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        assert_eq!(left, right);
+    }
+
+    #[tokio::test]
+    async fn test_discovery_result_partialeq_false() {
+        {
+            let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+            let right = DiscoveryResult::new(&"foo2".to_string(), HashMap::new(), true);
+            assert_ne!(left, right);
+        }
+
+        // TODO 201217: Needs work on `DiscoveryResult::new` to enable test (https://github.com/deislabs/akri/pull/176#discussion_r544703968)
+        // {
+        //     std::env::set_var("AGENT_NODE_NAME", "something");
+        //     let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        //     let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), false);
+        //     assert_ne!(left, right);
+        // }
+
+        {
+            let mut nonempty: HashMap<String, String> = HashMap::new();
+            nonempty.insert("one".to_string(), "two".to_string());
+            let left = DiscoveryResult::new(&"foo1".to_string(), nonempty, true);
+            let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+            assert_ne!(left, right);
+        }
     }
 }
