@@ -89,42 +89,42 @@ jobs:
       fail-fast: false
       matrix:
         kube-runtime:
-          - K3s-latest
-          - MicroK8s-latest
-          - Kubernetes-latest
-          # - K3s-1.18
-          # - K3s-1.19
-          # - MicroK8s-1.18
-          # - MicroK8s-1.19
-          # - Kubernetes-1.16
-          # - Kubernetes-1.17
-          # - Kubernetes-1.18
-          # - Kubernetes-1.19
+          - K3s-1.18
+          - K3s-1.19
+          - K3s-1.20
+          - MicroK8s-1.18
+          - MicroK8s-1.19
+          - MicroK8s-1.20
+          - Kubernetes-1.16
+          - Kubernetes-1.17
+          - Kubernetes-1.18
+          - Kubernetes-1.19
+          - Kubernetes-1.20
         test-case:
           - end-to-end
         include:
-          - kube-runtime: K3s-latest
-            kube-version: latest
-          - kube-runtime: MicroK8s-latest
-            kube-version: latest
-          - kube-runtime: Kubernetes-latest
-            kube-version: latest
-          # - kube-runtime: MicroK8s-1.18
-          #   kube-version: 1.18/stable
-          # - kube-runtime: MicroK8s-1.19
-          #   kube-version: 1.19/stable
-          # - kube-runtime: K3s-1.18
-          #   kube-version: v1.18.9+k3s1
-          # - kube-runtime: K3s-1.19
-          #   kube-version: v1.19.4+k3s1
-          # - kube-runtime: Kubernetes-1.16
-          #   kube-version: 1.16.15-00
-          # - kube-runtime: Kubernetes-1.17
-          #   kube-version: 1.17.14-00
-          # - kube-runtime: Kubernetes-1.18
-          #   kube-version: 1.18.12-00
-          # - kube-runtime: Kubernetes-1.19
-          #   kube-version: 1.19.4-00
+          - kube-runtime: MicroK8s-1.18
+            kube-version: 1.18/stable
+          - kube-runtime: MicroK8s-1.19
+            kube-version: 1.19/stable
+          - kube-runtime: MicroK8s-1.20
+            kube-version: 1.20/stable
+          - kube-runtime: K3s-1.18
+            kube-version: v1.18.9+k3s1
+          - kube-runtime: K3s-1.19
+            kube-version: v1.19.4+k3s1
+          - kube-runtime: K3s-1.20
+            kube-version: v1.20.0+k3s2
+          - kube-runtime: Kubernetes-1.16
+            kube-version: 1.16.15-00
+          - kube-runtime: Kubernetes-1.17
+            kube-version: 1.17.14-00
+          - kube-runtime: Kubernetes-1.18
+            kube-version: 1.18.12-00
+          - kube-runtime: Kubernetes-1.19
+            kube-version: 1.19.4-00
+          - kube-runtime: Kubernetes-1.20
+            kube-version: 1.20.1-00
           - test-case: end-to-end
             test-file: test/run-end-to-end.py
 
@@ -156,6 +156,8 @@ jobs:
 
     - if: startsWith(matrix.kube-runtime, 'K3s')
       name: Install K3s
+      env:
+        INSTALL_K3S_VERSION: ${{ matrix.kube-version }}
       run: |
         sudo curl -sfL https://get.k3s.io | sh -
         sudo addgroup k3s-admin
@@ -184,7 +186,7 @@ jobs:
       name: Install Kubernetes
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y --allow-downgrades kubelet kubeadm kubectl
+        sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube-version }} kubeadm=${{ matrix.kube-version }} kubectl=${{ matrix.kube-version }} 
         kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
         kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
         kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
@@ -208,7 +210,7 @@ jobs:
     - if: startsWith(matrix.kube-runtime, 'MicroK8s')
       name: Install MicroK8s
       run: |
-        sudo snap install microk8s --classic
+        sudo snap install microk8s --classic --channel=${{ matrix.kube-version }}
         sudo microk8s status --wait-ready
         sudo usermod -a -G microk8s $USER
         sudo ls -la $HOME/.kube
