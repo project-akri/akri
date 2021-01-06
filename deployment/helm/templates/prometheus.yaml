@@ -1,8 +1,9 @@
+{{- if .Values.prometheus.enabled }}
 {{- if and .Values.udev.enabled .Values.udev.brokerPod.image.repository }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ .Values.udev.name }}-broker
+  name: {{ .Values.udev.name }}-broker-metrics
   labels:
     release: prometheus
 spec:
@@ -11,4 +12,61 @@ spec:
       akri.sh/configuration: {{ .Values.udev.name }}
   endpoints:
   - port: metrics
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: akri-agent-metrics
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: akri-agent-metrics
+  endpoints:
+  - port: metrics
+---
+{{- /* If Prometheus is enabled, create a service to target the metrics */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: akri-agent-metrics
+  labels:
+    app: akri-agent-metrics
+spec:
+  selector:
+    name: akri-agent
+  ports:
+  - name: {{ .Values.prometheus.metricsService.metricsPortName }}
+    port: {{ .Values.prometheus.metricsService.metricsPort }}
+  type: {{ .Values.prometheus.metricsService.type }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: akri-controller-metrics
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: akri-controller-metrics
+  endpoints:
+  - port: metrics
+---
+{{- /* If Prometheus is enabled, create a service to target the metrics */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: akri-controller-metrics
+  labels:
+    app: akri-controller-metrics
+spec:
+  selector:
+    app: akri-controller
+  ports:
+  - name: {{ .Values.prometheus.metricsService.metricsPortName }}
+    port: {{ .Values.prometheus.metricsService.metricsPort }}
+  type: {{ .Values.prometheus.metricsService.type }}
 {{- end }}

@@ -20,6 +20,17 @@ rbac:
   # enabled defines whether to apply rbac to Akri
   enabled: true
 
+prometheus:
+  enabled: false
+  metricsService:
+    # type is the service type of the metrics service
+    type: ClusterIP
+    # metricsPortName is the name of the port exposed for metrics
+    metricsPortName: metrics
+    # metricsPort is the metrics service port of the instance service
+    metricsPort: 8080
+
+
 controller:
   # enabled defines whether to apply the Akri Controller
   enabled: true
@@ -88,7 +99,7 @@ debugEcho:
   - "foo1"
   # shared defines whether instances created as a result of
   # applying this debugEcho configuration as shared
-  shared: true
+  shared: false
   brokerPod:
     # container used by debugEcho
     image: nginx:latest
@@ -274,10 +285,6 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
-    # metricsPortName is the name of the port exposed for metrics
-    metricsPortName: metrics
-    # metricsPort is the metrics service port of the instance service
-    metricsPort: 8080
   # createConfigurationService is specified if a single service should automatically be
   # created for all broker pods of a Configuration
   createConfigurationService: true
@@ -292,7 +299,3 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
-    # metricsPortName is the name of the port exposed for metrics
-    metricsPortName: metrics
-    # metricsPort is the metrics service port of the configuration service
-    metricsPort: 8080

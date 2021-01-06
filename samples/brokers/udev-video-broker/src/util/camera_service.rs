@@ -1,4 +1,4 @@
-use super::super::FRAME_COUNT;
+use super::super::FRAME_COUNT_METRIC;
 use super::camera::{
     camera_client::CameraClient,
     camera_server::{Camera, CameraServer},
@@ -31,7 +31,7 @@ impl Camera for CameraService {
         _request: tonic::Request<NotifyRequest>,
     ) -> Result<tonic::Response<NotifyResponse>, tonic::Status> {
         trace!("CameraService.get_frame grpc request");
-        FRAME_COUNT.inc();
+        FRAME_COUNT_METRIC.inc();
         Ok(tonic::Response::new(NotifyResponse {
             frame: {
                 let frame = self.camera_capturer.capture().unwrap();

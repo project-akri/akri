@@ -34,11 +34,13 @@ dependencies = [
  "hyper 0.11.27",
  "k8s-openapi",
  "kube",
+ "lazy_static",
  "log 0.4.8",
  "mockall",
  "opcua-client",
  "pest",
  "pest_derive",
+ "prometheus",
  "prost",
  "rand 0.7.3",
  "regex 1.3.9",
@@ -96,6 +98,7 @@ dependencies = [
  "kube",
  "log 0.4.8",
  "mockall",
+ "prometheus",
  "rand 0.7.3",
  "serde",
  "serde_derive",
@@ -106,6 +109,7 @@ dependencies = [
  "tokio 0.2.21",
  "tokio-core",
  "tokio-signal",
+ "warp",
 ]
 
 [[package]]
@@ -482,8 +486,10 @@ dependencies = [
  "futures 0.3.5",
  "k8s-openapi",
  "kube",
+ "lazy_static",
  "log 0.4.8",
  "mockall",
+ "prometheus",
  "serde",
  "serde_derive",
  "serde_json",
@@ -3415,7 +3421,6 @@ dependencies = [
  "tokio 0.2.21",
  "tonic",
  "tonic-build",
- "warp",
 ]
 
 [[package]]

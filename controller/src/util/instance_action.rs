@@ -1,3 +1,4 @@
+use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
     akri::{
@@ -253,6 +254,7 @@ fn determine_action_for_pod(
 /// and the capability Service (if there are no remaining capability Pods).
 async fn handle_deletion_work(
     instance_name: &str,
+    configuration_name: &str,
     instance_shared: bool,
     node_to_delete_pod: &str,
     context: &PodContext,
@@ -289,6 +291,9 @@ async fn handle_deletion_work(
         .remove_pod(&pod_app_name, &context_namespace)
         .await?;
     trace!("handle_deletion_work - pod::remove_pod succeeded",);
+    BROKER_POD_COUNT_METRIC
+        .with_label_values(&[configuration_name, context_node_name])
+        .dec();
     Ok(())
 }
 
@@ -309,6 +314,7 @@ mod handle_deletion_work_tests {
 
         assert!(handle_deletion_work(
             "instance_name",
+            "configuration_name",
             true,
             "node_to_delete_pod",
             &context,
@@ -330,6 +336,7 @@ mod handle_deletion_work_tests {
 
         assert!(handle_deletion_work(
             "instance_name",
+            "configuration_name",
             true,
             "node_to_delete_pod",
             &context,
@@ -380,6 +387,9 @@ async fn handle_addition_work(
             .create_pod(&new_pod, &instance_namespace)
             .await?;
         trace!("handle_addition_work - pod::create_pod succeeded",);
+        BROKER_POD_COUNT_METRIC
+            .with_label_values(&[instance_class_name, new_node])
+            .inc();
     }
     trace!("handle_addition_work - POST nodeInfo.SetNode \n");
     Ok(())
@@ -464,6 +474,7 @@ pub async fn handle_instance_change(
     }) {
         handle_deletion_work(
             &instance_name,
+            &instance.spec.configuration_name,
             instance.spec.shared,
             node_to_delete_pod,
             context,
@@ -975,5 +986,75 @@ mod handle_instance_tests {
             },
         );
         run_handle_instance_change_test(&mut mock, &instance_file, &InstanceAction::Update).await;
+    }
+
+    /// Checks that the BROKER_POD_COUNT_METRIC is appropriately incremented
+    /// and decremented when an instance is added and deleted (and pods are
+    /// created and deleted). Cannot be run in parallel with other tests
+    /// due to the metric being a global variable and modified unpredictably by
+    /// other tests.
+    /// Run with: cargo test -- test_broker_pod_count_metric --ignored
+    #[tokio::test]
+    #[ignore]
+    async fn test_broker_pod_count_metric() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        BROKER_POD_COUNT_METRIC
+            .with_label_values(&["config-a", "node-a"])
+            .set(0);
+
+        let mut mock = MockKubeImpl::new();
+        configure_for_handle_instance_change(
+            &mut mock,
+            &HandleInstanceWork {
+                find_pods_selector: "akri.sh/instance=config-a-b494b6",
+                find_pods_result: "../test/json/empty-list.json",
+                find_pods_phase: None,
+                find_pods_start_time: None,
+                find_pods_delete_start_time: false,
+                deletion_work: None,
+                addition_work: Some(configure_add_local_config_a_b494b6()),
+            },
+        );
+        run_handle_instance_change_test(
+            &mut mock,
+            "../test/json/local-instance.json",
+            &InstanceAction::Add,
+        )
+        .await;
+
+        // Check that broker pod count metric has been incremented to include new pod for this instance
+        assert_eq!(
+            BROKER_POD_COUNT_METRIC
+                .with_label_values(&["config-a", "node-a"])
+                .get(),
+            1
+        );
+
+        configure_for_handle_instance_change(
+            &mut mock,
+            &HandleInstanceWork {
+                find_pods_selector: "akri.sh/instance=config-a-b494b6",
+                find_pods_result: "../test/json/running-pod-list-for-config-a-local.json",
+                find_pods_phase: None,
+                find_pods_start_time: None,
+                find_pods_delete_start_time: false,
+                deletion_work: Some(configure_deletion_work_for_config_a_b494b6()),
+                addition_work: None,
+            },
+        );
+        run_handle_instance_change_test(
+            &mut mock,
+            "../test/json/local-instance.json",
+            &InstanceAction::Remove,
+        )
+        .await;
+
+        // Check that broker pod count metric has been decremented to reflect deleted instance and pod
+        assert_eq!(
+            BROKER_POD_COUNT_METRIC
+                .with_label_values(&["config-a", "node-a"])
+                .get(),
+            0
+        );
     }
 }

@@ -17,7 +17,6 @@ prost = "0.6"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
 tonic = "0.1"
 rscam = "0.5.5"
-warp = "0.2"
 
 [build-dependencies]
 tonic-build = "0.1.1"
