@@ -47,24 +47,17 @@ helm install akri akri-helm-charts/akri \
 ```
 
 ### Modifying the brokerPod spec
-The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podspec-v1-core) and can be modified as such.  For example, to configure the frame rate, resolution, and image type the broker streams from the discovered video cameras, environment variables can be modified in the podspec. To examine what settings are supported by a camera, install `v4l-utils` and run `sudo v4l2-ctl -d /dev/video0 --list-formats-ext` on the node. By default, the environment variables are set to MJPG format, 640x480 resolution, and 10 frames per second. If the broker sees that those settings are not supported by the camera, it will query the v4l device for supported settings and use the first format, resolution, and fps in the lists returned. The environment variables can be changed when installing the Akri helm chart by passing in a values file. First, create an `env.yaml` file containing the values that should be set as environment variables, namely the preferred format, resolution width, resolution height, and frames per second.
-```yaml
-udev:
-  brokerPod:
-    env:
-      FORMAT: JPEG
-      RESOLUTION_WIDTH: 1000
-      RESOLUTION_HEIGHT: 800
-      FRAMES_PER_SECOND: 30
-```
-Now, tell the broker to stream JPEG format, 1000x800 resolution, and 30 frames per second by setting those environment variables when installing Akri.
+The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podspec-v1-core) and can be modified as such.  For example, to configure the frame rate, resolution, and image type the broker streams from the discovered video cameras, environment variables can be modified in the podspec. To examine what settings are supported by a camera, install `v4l-utils` and run `sudo v4l2-ctl -d /dev/video0 --list-formats-ext` on the node. By default, the environment variables are set to MJPG format, 640x480 resolution, and 10 frames per second. If the broker sees that those settings are not supported by the camera, it will query the v4l device for supported settings and use the first format, resolution, and fps in the lists returned. The environment variables can be changed when installing the Akri Helm chart. For example, tell the broker to stream JPEG format, 1000x800 resolution, and 30 frames per second by setting those environment variables when installing Akri.
 ```bash
   helm install akri akri-helm-charts/akri \
     --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
     --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev" \
-    -f env.yaml
+    --set udev.brokerPod.env.FORMAT='JPEG' \
+    --set udev.brokerPod.env.RESOLUTION_WIDTH='1000' \
+    --set udev.brokerPod.env.RESOLUTION_HEIGHT='800' \
+    --set udev.brokerPod.env.FRAMES_PER_SECOND='30'
 ```
 
 **Note:** The udev video broker pods run privileged in order to access the video devices. More explicit device access
