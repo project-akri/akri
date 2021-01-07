@@ -66,7 +66,7 @@ async function shell_cmd(cmd) {
 
         if (core.getInput('build_rust') == '1') {
             console.log(`Install Rust`)
-            child_process.execSync(`curl https://sh.rustup.rs | sh -s -- -y --default-toolchain=1.41.0`);
+            child_process.execSync(`curl https://sh.rustup.rs | sh -s -- -y --default-toolchain=1.49.0`);
             const bindir = `${process.env.HOME}/.cargo/bin`;
             process.env.PATH = `${process.env.PATH}:${bindir}`;
 
