@@ -12,8 +12,8 @@ async fn metrics_handler() -> Result<impl Reply, Rejection> {
     encoder
         .encode(&prometheus::gather(), &mut buffer)
         .expect("couldn't encode prometheus metrics");
-    let res = String::from_utf8(buffer)
-        .expect("prometheus metrics could not be converted to String");
+    let res =
+        String::from_utf8(buffer).expect("prometheus metrics could not be converted to String");
     Ok(res)
 }
 
