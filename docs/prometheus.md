@@ -35,7 +35,7 @@ Prometheus operator, node exporter, built in Grafana support, and more.
     > prometheus.service.type=NodePort`.
 
 ## Enabling Prometheus in Akri
-The Akri Controller and Agent publishes metrics to port 8080 at a `/metrics` endpoint. However, these cannot be accessed
+The Akri Controller and Agent publish metrics to port 8080 at a `/metrics` endpoint. However, these cannot be accessed
 by Prometheus without first creating Kubernetes Services to expose the Agent and Controller's metrics and secondly
 creating ServiceMonitors, which are custom resources that tell Prometheus which Services to discover. These components
 can all be automatically created and deployed via Helm by setting `--set prometheus.enabled=true` when installing Akri.
@@ -69,11 +69,12 @@ Now that Akri's metrics are being exposed to Prometheus, they can be visualized 
 Akri uses the [Rust Prometheus client library](https://github.com/tikv/rust-prometheus) to expose metrics. It exposes
 all the [default process metrics](https://prometheus.io/docs/instrumenting/writing_clientlibs/#process-metrics), such as
 Agent or Controller total CPU time usage (`process_cpu_seconds_total`) and RAM usage (`process_resident_memory_bytes`),
-along with the following custom metrics, all of which are prefixed with `akri`. | Metric Name | Metric Type | Metric
-Source | Buckets |
+along with the following custom metrics, all of which are prefixed with `akri`. 
+| Metric Name | Metric Type | Metric Source | Buckets |
 |---|---|---|---|
-| akri_instance_count | IntGaugeVec | Agent | Configuration, shared | | akri_discovery_response_time_bucket |
-HistogramVec | Agent | Configuration | | akri_broker_pod_count | IntGaugeVec | Controller | Configuration, Node |
+| akri_instance_count | IntGaugeVec | Agent | Configuration, shared | 
+| akri_discovery_response_time | HistogramVec | Agent | Configuration | 
+| akri_broker_pod_count | IntGaugeVec | Controller | Configuration, Node |
 
 ## Exposing metrics from an Akri Broker Pod
 Metrics can also be published by Broker Pods and exposed to Prometheus. This workflow is not unique to Akri and is
