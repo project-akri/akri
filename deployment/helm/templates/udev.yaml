@@ -56,11 +56,6 @@ spec:
       port: {{ .Values.udev.configurationService.port }}
       protocol: {{ .Values.udev.configurationService.protocol }}
       targetPort: {{ .Values.udev.configurationService.targetPort }}
-    {{- if .Values.prometheus.enabled }}
-    {{- /* If Prometheus is enabled, expose a port for the metrics service */}}
-    - name: {{ .Values.prometheus.metricsService.metricsPortName }}
-      port: {{ .Values.prometheus.metricsService.metricsPort }}
-    {{- end }}
   {{- end }}
   {{- end }}
   {{- if .Values.udev.properties }}
