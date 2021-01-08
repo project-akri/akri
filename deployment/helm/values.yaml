@@ -21,14 +21,16 @@ rbac:
   enabled: true
 
 prometheus:
+  # enabled defines whether metrics ports are exposed on
+  # the Controller and Agent
   enabled: false
-  metricsService:
-    # type is the service type of the metrics service
-    type: ClusterIP
-    # metricsPortName is the name of the port exposed for metrics
-    metricsPortName: metrics
-    # metricsPort is the metrics service port of the instance service
-    metricsPort: 8080
+  # endpoint is the path the port exposed for metrics
+  endpoint: /metrics
+  # port is the port that the metrics service is exposed on
+  port: 8080
+  # portName is the name of the metrics port
+  portName: metrics
+
 
 
 controller:

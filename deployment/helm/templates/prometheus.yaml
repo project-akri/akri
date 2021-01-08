@@ -1,6 +1,6 @@
 {{- if .Values.prometheus.enabled }}
 apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+kind: PodMonitor
 metadata:
   name: akri-agent-metrics
   namespace: {{ .Release.Namespace }}
@@ -9,12 +9,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: akri-agent-metrics
-  endpoints:
-  - port: metrics
+      name: akri-agent
+  podMetricsEndpoints:
+  - port: {{ .Values.prometheus.portName | quote }}
+    path: {{ .Values.prometheus.endpoint }}
 ---
 apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+kind: PodMonitor
 metadata:
   name: akri-controller-metrics
   namespace: {{ .Release.Namespace }}
@@ -23,39 +24,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: akri-controller-metrics
-  endpoints:
-  - port: metrics
----
-{{- /* If Prometheus is enabled, create a service to target the metrics */}}
-apiVersion: v1
-kind: Service
-metadata:
-  name: akri-agent-metrics
-  labels:
-    app: akri-agent-metrics
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    name: akri-agent
-  ports:
-  - name: {{ .Values.prometheus.metricsService.metricsPortName }}
-    port: {{ .Values.prometheus.metricsService.metricsPort }}
-  type: {{ .Values.prometheus.metricsService.type }}
----
-{{- /* If Prometheus is enabled, create a service to target the metrics */}}
-apiVersion: v1
-kind: Service
-metadata:
-  name: akri-controller-metrics
-  labels:
-    app: akri-controller-metrics
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    app: akri-controller
-  ports:
-  - name: {{ .Values.prometheus.metricsService.metricsPortName }}
-    port: {{ .Values.prometheus.metricsService.metricsPort }}
-  type: {{ .Values.prometheus.metricsService.type }}
+      app: akri-controller
+  podMetricsEndpoints:
+  - port: {{ .Values.prometheus.portName | quote }}
+    path: {{ .Values.prometheus.endpoint }}
 {{- end }}

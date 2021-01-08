@@ -33,10 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     info!("{} Udev Broker logging started", API_NAMESPACE);
 
     tokio::spawn(async move {
-        trace!(
-            "{} starting metrics server on port 8080 at /metrics",
-            API_NAMESPACE
-        );
         run_metrics_server().await.unwrap();
     });
 

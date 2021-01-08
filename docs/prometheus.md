@@ -21,24 +21,30 @@ Prometheus operator, node exporter, built in Grafana support, and more.
     helm repo add stable https://charts.helm.sh/stable
     helm repo update
     ```
-2. Install the chart, specifying what namespace you want Prometheus to run in. It does not have to be the same namespace
+1. Install the chart, specifying what namespace you want Prometheus to run in. It does not have to be the same namespace
    in which you are running Akri. For example, it may be in a namespace called `monitoring` as in the command below. [By
    default](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#prometheusioscrape),
-   Prometheus only discovers ServiceMonitors within its namespace. This should be disabled by setting
-   `serviceMonitorSelectorNilUsesHelmValues` to `false` so that Akri's custom Services and ServiceMonitors can be
-   discovered. Additionally, the Grafana service can be exposed to the host by making it a NodePort service. It may take
-   a minute or so to deploy all the components.
+   Prometheus only discovers PodMonitors within its namespace. This should be disabled by setting
+   `podMonitorSelectorNilUsesHelmValues` to `false` so that Akri's custom PodMonitors can be discovered. Additionally,
+   the Grafana service can be exposed to the host by making it a NodePort service. It may take a minute or so to deploy
+   all the components.
     ```sh
-    helm install prometheus prometheus-community/kube-prometheus-stack --set grafana.service.type=NodePort --namespace monitoring  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+    helm install prometheus prometheus-community/kube-prometheus-stack \
+       --set grafana.service.type=NodePort \
+       --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+       --namespace monitoring
     ```
     > **Note**: The Prometheus dashboard can also be exposed to the host by adding `--set
-    > prometheus.service.type=NodePort`.
+    > prometheus.service.type=NodePort`. **Note**: If intending to [expose metrics from a Broker
+    > Pod](#exposing-metrics-from-an-akri-broker-pod) via a ServiceMonitor also set
+    > `serviceMonitorSelectorNilUsesHelmValues` to `false`.
 
 ## Enabling Prometheus in Akri
 The Akri Controller and Agent publish metrics to port 8080 at a `/metrics` endpoint. However, these cannot be accessed
-by Prometheus without first creating Kubernetes Services to expose the Agent and Controller's metrics and secondly
-creating ServiceMonitors, which are custom resources that tell Prometheus which Services to discover. These components
-can all be automatically created and deployed via Helm by setting `--set prometheus.enabled=true` when installing Akri.
+by Prometheus without creating PodMonitors, which are custom resources that tell Prometheus which Pods to monitor. These
+components can all be automatically created and deployed via Helm by setting `--set prometheus.enabled=true` when
+installing Akri. 
+
 Install Akri and expose the Controller and Agent's metrics to Prometheus by running:
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
@@ -55,14 +61,15 @@ Now that Akri's metrics are being exposed to Prometheus, they can be visualized 
     ```sh
     kubectl get service/prometheus-grafana  --namespace=monitoring --output=jsonpath='{.spec.ports[?(@.name=="service")].nodePort}' && echo
     ```
-1. SSH port forwarding can be used to access Grafana. Open a new terminal enter your ssh command to access the machine
+1. SSH port forwarding can be used to access Grafana. Open a new terminal, and enter your ssh command to access the machine
    running Akri and Prometheus followed by the port forwarding request. The following command will use port 50000 on the
    host. Feel free to change it if it is not available. Be sure to replace `<Grafana Service port>` with the port number
    outputted in the previous step.
     ```sh
     ssh someuser@<IP address> -L 50000:localhost:<Grafana Service port>
     ```
-1. Navigate to `http://localhost:50000/` and enter Grafana's default username `admin` and password `prom-operator`. Now,
+1. Navigate to `http://localhost:50000/` and enter Grafana's default username `admin` and password `prom-operator`. 
+   Once logged in, the username and password can be changed in account settings. Now, 
    you can create a Dashboard to display the Akri metrics. 
 
 ## Akri's currently exposed metrics
@@ -81,8 +88,9 @@ Metrics can also be published by Broker Pods and exposed to Prometheus. This wor
 equivalent to exposing metrics from any deployment to Prometheus. Using the [appropriate Prometheus client
 library](https://prometheus.io/docs/instrumenting/clientlibs/) for your broker, expose some metrics. Then, deploy a
 Service to expose the metrics, specifying the name of the associated Akri Configuration as a selector
-(`akri.sh/configuration: <Akri Configuration>`), as the Configuration name is added as a label to all the Broker Pods by
-the Akri Controller. Finally, deploy a ServiceMonitor that selects for the previously mentioned service.
+(`akri.sh/configuration: <Akri Configuration>`), since the Configuration name is added as a label to all the Broker Pods
+by the Akri Controller. Finally, deploy a ServiceMonitor that selects for the previously mentioned service. This tells
+Prometheus which service(s) to discover.
 
 ### Example: Exposing metrics from the udev video sample Broker
 As an example, an `akri_frame_count` metric has been created in the sample
@@ -102,7 +110,20 @@ process metrics and the custom `akri_frame_count` metric to port 8080 at a `/met
     > **Note**: This instruction assumes you are using vanilla Kubernetes. Be sure to reference the [user
     > guide](./user-guide.md) to determine whether the distribution you are using requires crictl path configuration.
 
+
     > **Note**: Also, expose the Agent and Controller's Prometheus metrics by adding `--set prometheus.enabled=true`.
+
+
+    > **Note**: If Prometheus is running in a different namespace as Akri and was not enabled to discover
+    > ServiceMonitors in other namespaces when installed, upgrade your Prometheus Helm installation to set
+    > `prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues` to `false`.
+    > ```sh
+    > helm upgrade prometheus prometheus-community/kube-prometheus-stack \
+    >   --set grafana.service.type=NodePort \
+    >   --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+    >   --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+    >   --namespace monitoring 
+    > ```
 1. Then, create a Service for exposing these metrics, targeting all Pods labeled with the Configuration name
    `akri-udev-video`. 
     ```yaml
@@ -117,9 +138,11 @@ process metrics and the custom `akri_frame_count` metric to port 8080 at a `/met
         akri.sh/configuration: akri-udev-video
     ports:
     - name: metrics
-        port: 8080
+      port: 8080
     type: ClusterIP
     ```
+    > **Note**: The metrics also could have been exposed by adding the metrics port to the Configuration level service
+    > in the udev Configuration. 
 1. Apply the Service to your cluster.
     ```sh
     kubectl apply -f akri-udev-video-broker-metrics-service.yaml
@@ -146,7 +169,7 @@ process metrics and the custom `akri_frame_count` metric to port 8080 at a `/met
 1. The frame count metric reports the number of video frames that have been requested by some application. It will
    remain at zero unless an application is deployed that utilizes the video Brokers. Deploy the Akri sample streaming
    application by running the following:
-```sh
-kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
-watch kubectl get pods
-```
+    ```sh
+    kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
+    watch kubectl get pods
+    ```

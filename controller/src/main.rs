@@ -39,10 +39,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     // Start server for prometheus metrics
     tasks.push(tokio::spawn(async move {
-        log::info!(
-            "{} starting metrics server on port 8080 at /metrics",
-            API_NAMESPACE
-        );
         run_metrics_server().await.unwrap();
     }));
 
