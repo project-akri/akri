@@ -96,9 +96,11 @@ helm install akri akri-helm-charts/akri
     controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
     run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
     runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
-    the control plane node for Kubernetes. However, control plane nodes on MicroK8s and K3s do not have this label by
+    the control plane node for Kubernetes.
+    
+    However, control plane nodes on MicroK8s and K3s may not have this exact label by
     default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
-    --overwrite=true`. 
+    --overwrite=true`. Or alternatively, in K3s, you can keep the default label value on the master and add `--set controller.nodeSelectors."node-role\.kubernetes\.io/master"=true` to the install command below.
 
     Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
