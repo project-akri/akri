@@ -5,7 +5,7 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a protocol
 that can be used to discover resources of that type. To see the list of currently supported protocols, see our
 [roadmap](./roadmap.md).
 

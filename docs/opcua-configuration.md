@@ -6,7 +6,7 @@ industrial automation. Akri has implemented a discovery handler for discovering 
 Every OPC UA server/application has a DiscoveryEndpoint that Clients can access without establishing a session. The
 address for this endpoint is defined by a DiscoveryURL. A Local Discovery Server (LDS) is a unique type of OPC UA server
 which maintains a list of OPC UA servers that have registered with it. The generic OPC UA Configuration takes in a list of
-DiscoveryURLs, whether for LDSes or a specific servers and an optional list of application names to either include or exclude. By default, if no DiscoveryURLs are set, Agent will attempt to reach out to the Local Discovery Server on it's host at the default address [from OPC UA Specification
+DiscoveryURLs, whether for LDSes or a specific servers and an optional list of application names to either include or exclude. By default, if no DiscoveryURLs are set, Agent will attempt to reach out to the Local Discovery Server on its host at the default address [from OPC UA Specification
 12](https://reference.opcfoundation.org/v104/Core/docs/Part6/7.6/) of `opc.tcp://localhost:4840/` and get the list of
 OPC UA servers registered with it. 
 
@@ -126,11 +126,11 @@ kubectl create secret generic opcua-broker-credentials \
 Certificates can be created and signed with a CA manually using openssl, by using the OPC Foundation [certificate
 generator tool](https://github.com/OPCFoundation/Misc-Tools), or Akri's [certificate generator](../samples/opcua-certificate-generator/README.md). Be sure that the certificates are in the format expected by your OPC UA Client.
 
-Finally, when mounting certificates is enabled with with Helm via `--set opcua.mountCertificates='true'`, the
+Finally, when mounting certificates is enabled with Helm via `--set opcua.mountCertificates='true'`, the
 secret named `opcua-broker-credentials` will be mounted into the OPC UA brokers. It is mounted to the volume
 `credentials` at the `mountPath` /etc/opcua-certs/client-pki, as shown in the [OPC UA Helm
 template](../deployment/helm/templates/opcua.yaml). This is the path where the broker expects to find the
-certificates. The following is an example how how to enable security:
+certificates. The following is an example how to enable security:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
