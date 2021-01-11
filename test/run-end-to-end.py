@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import shared_test_code
-import json, os, subprocess, time, yaml
+import json, os, time, yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
@@ -111,14 +111,14 @@ def do_test():
         if log_result == 0:
             break
         print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
-        if x == 3:
+        if x == 2:
             return False
     grep_result = os.system('grep "get_node_slots - crictl called successfully" {} | wc -l | grep -v 0'.format(temporary_agent_log_path))
     if grep_result != 0:
         print("Akri failed to successfully connect to crictl via the CRI socket with stdout result of {}", grep_result)
-        # Log information to understand why error occured
-        subprocess.run(['sudo', kubectl_cmd, 'get', 'pods,services,akric,akrii', '--show-labels'], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        subprocess.run(['grep', 'get_node_slots', temporary_agent_log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        # Log information to understand why error occurred
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('grep get_node_slots {}'.format(temporary_agent_log_path))
         return False
 
     #
