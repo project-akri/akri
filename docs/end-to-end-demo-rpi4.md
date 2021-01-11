@@ -1,11 +1,11 @@
 # Raspberry Pi 4 Demo   
-This demo will demonstrate how to get Akri working on a **Raspberry Pi 4** and feature the scenario of using Akri to discover mock USB cameras attached to nodes in a Kubernetes cluster. You'll see how Akri automatically deploys workloads to pull frames from the cameras. We will then deploy a streaming application that will point to services automatically created by Akri to access the video frames from the workloads.
+This will demonstrate how to get Akri working on a **Raspberry Pi 4** and walk through using Akri to discover mock USB cameras attached to nodes in a Kubernetes cluster. You'll see how Akri automatically deploys workloads to pull frames from the cameras. We will then deploy a streaming application that will point to services automatically created by Akri to access the video frames from the workloads.
 
 The following will be covered in this demo:
 1. Setting up single node cluster on a Raspberry Pi 4
 1. Setting up mock udev video devices
 1. Installing Akri via Helm with settings to create your Akri udev Configuration
-1. Investigating Akri
+1. Inspecting Akri
 1. Deploying a streaming application
 1. Cleanup
 1. Going beyond the demo
@@ -50,13 +50,22 @@ The following will be covered in this demo:
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb 
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
+    > **Note**: If not able to install the debian package of v4l2loopback due to using a different
+    > Linux kernel, you can clone the repo, build the module, and setup the module dependencies 
+    > like so:
+    > ```sh
+    > git clone https://github.com/umlaeute/v4l2loopback.git
+    > sudo make installs
+    > sudo make install-utils
+    > sudo depmod -a  
+    > ```
 1. "Plug-in" two cameras by inserting the kernel module. To create different number video devices modify the `video_nr` argument. 
     ```sh
     sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1,2
     ```
 1. Confirm that two video device nodes (video1 and video2) have been created.
     ```sh
-    ls /dev
+    ls /dev/video*
     ```
 1. Install the necessary Gstreamer packages.
     ```sh
@@ -83,13 +92,12 @@ You tell Akri what you want to find with an Akri Configuration, which is one of 
 
 For this demo, we will specify (1) Akri's udev discovery protocol, which is used to discover devices in the Linux device file system. Akri's udev discovery protocol supports (2) filtering by udev rules. We want to find all video devices in the Linux device file system, which can be specified by the udev rule `KERNEL=="video[0-9]*"`. Say we wanted to be more specific and only discover devices made by Great Vendor, we could adjust our rule to be `KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Great Vendor"`. For (3) a broker Pod image, we will use a sample container that Akri has provided that pulls frames from the cameras and serves them over gRPC. 
 
-Instead of having to build a Configuration from scratch, Akri has provided [Helm templates](../deployment/helm/templates) for each supported discovery protocol. Lets customize the generic [udev Helm template](../deployment/helm/templates/udev.yaml) with our three specifications above. We can also set the name for the Configuration to be `akri-udev-video`. Also, if using MicroK8s or K3s, configure the crictl path and socket using the `AKRI_HELM_CRICTL_CONFIGURATION` variable created when setting up your cluster. 
+Instead of having to build a Configuration from scratch, Akri has provided [Helm templates](../deployment/helm/templates) for each supported discovery protocol. Lets customize the generic [udev Helm template](../deployment/helm/templates/udev.yaml) with our three specifications above. We can also set the name for the Configuration to be `akri-udev-video`.
 
 1. Add the Akri Helm chart and run the install command, setting Helm values as described above.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        $AKRI_HELM_CRICTL_CONFIGURATION \
         --set useLatestContainers=true \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
@@ -97,15 +105,10 @@ Instead of having to build a Configuration from scratch, Akri has provided [Helm
         --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     ```
 
-## Investigating Akri
+## Inspecting Akri
 After installing Akri, since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. 
 
 1. List all that Akri has automatically created and deployed, namely the Akri Configuration we created when installing Akri, two Instances (which are the Akri custom resource that represents each device), two broker Pods (one for each camera), a service for each broker Pod, and a service for all brokers.
-
-    ```sh
-    watch microk8s kubectl get pods,akric,akrii,services -o wide
-    ```
-    For K3s and vanilla Kubernetes
     ```sh
     watch kubectl get pods,akric,akrii,services -o wide
     ```
@@ -114,10 +117,11 @@ Look at the Configuration and Instances in more detail.
     ```sh
     kubectl get akric -o yaml
     ```
-1. Inspect the two Instances. Notice that in the metadata of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. This metadata of each Instance was passed to it's broker Pod as an environment variable. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. If this was a shared device (such as an IP camera), you could have increased the number of nodes that could use the same device (via `--set <protocol>.capacity=2 for two nodes) and more usage slots would have been created in the Instance. Each Instance represents a device and its usage.
+1. Inspect the two Instances. Notice that in the metadata of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. This metadata of each Instance was passed to it's broker Pod as an environment variable. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. Each Instance represents a device and its usage.
     ```sh 
     kubectl get akrii -o yaml
     ```
+    If this was a shared device (such as an IP camera), you may have wanted to increase the number of nodes that could use the same device by specifying `capacity`. There is a `capacity` parameter for each protocol, which defaults to `1`. Its value could have been increased when installing Akri (via `--set <protocol>.capacity=2` to allow 2 nodes to use the same device) and more usage slots (the number of usage slots is equal to `capacity`) would have been created in the Instance. 
 ## Deploying a streaming application
 1. Deploy a video streaming web application that points to both the Configuration and Instance level services that were automatically created by Akri.
     ```sh
@@ -141,25 +145,11 @@ Look at the Configuration and Instances in more detail.
     ```sh
     kubectl delete service akri-video-streaming-app
     kubectl delete deployment akri-video-streaming-app
-    ```
-    For MicroK8s
-    ```sh
-    watch microk8s kubectl get pods
-    ```
-    For K3s and vanilla Kubernetes
-    ```sh
     watch kubectl get pods
     ```
 1. Delete the configuration, and watch the associated instances, pods, and services be deleted.
     ```sh
     kubectl delete akric akri-udev-video
-    ```
-    For MicroK8s
-    ```sh
-    watch microk8s kubectl get pods,services,akric,akrii -o wide
-    ```
-    For K3s and vanilla Kubernetes
-    ```sh
     watch kubectl get pods,services,akric,akrii -o wide
     ```
 1. If you are done using Akri, it can be uninstalled via Helm.
