@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import shared_test_code
-import json, os, time, yaml
+import json, os, subprocess, time, yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
@@ -107,7 +107,7 @@ def do_test():
     temporary_agent_log_path = "/tmp/agent_log.txt"
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
     for x in range(3):
-        log_result = os.system('sudo {} logs {} >> {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path))
+        log_result = os.system('sudo {} logs {} > {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path))
         if log_result == 0:
             break
         print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
@@ -116,6 +116,9 @@ def do_test():
     grep_result = os.system('grep "get_node_slots - crictl called successfully" {} | wc -l | grep -v 0'.format(temporary_agent_log_path))
     if grep_result != 0:
         print("Akri failed to successfully connect to crictl via the CRI socket with stdout result of {}", grep_result)
+        # Log information to understand why error occured
+        subprocess.run(['sudo', kubectl_cmd, 'get', 'pods,services,akric,akrii', '--show-labels'], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        subprocess.run(['grep', 'get_node_slots', temporary_agent_log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
         return False
 
     #
