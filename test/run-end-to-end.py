@@ -104,10 +104,18 @@ def do_test():
     #
     # Check that slot reconciliation is working on agent
     # 
+    temporary_agent_log_path = "/tmp/agent_log.txt"
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
-    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
-    if result != 0:
-        print("Akri failed to successfully connect to crictl via the CRI socket")
+    for x in range(3):
+        log_result = os.system('sudo {} logs {} >> {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path))
+        if log_result == 0:
+            break
+        print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
+        if x == 3:
+            return False
+    grep_result = os.system('grep "get_node_slots - crictl called successfully" {} | wc -l | grep -v 0'.format(temporary_agent_log_path))
+    if grep_result != 0:
+        print("Akri failed to successfully connect to crictl via the CRI socket with stdout result of {}", grep_result)
         return False
 
     #
