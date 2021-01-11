@@ -101,7 +101,7 @@ debugEcho:
   - "foo1"
   # shared defines whether instances created as a result of
   # applying this debugEcho configuration as shared
-  shared: false
+  shared: true
   brokerPod:
     # container used by debugEcho
     image: nginx:latest
