@@ -12,6 +12,8 @@ async-trait = "0.1.0"
 blake2 = "0.8.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
+coap = { version = "0.9", optional = true }
+coap-lite = { version = "0.3", optional = true }
 env_logger = "0.6.1"
 failure = "0.1.5"
 futures = { version = "0.3.1", package = "futures" }
@@ -42,6 +44,7 @@ tower = "0.3"
 udev = { version = "0.4", optional = true }
 url = "2.1.0"
 uuid = { version = "0.8.1", features = ["v4"] }
+xml-rs = { version = "0.8.0", optional = true }
 yaserde = { version = "0.3.13", optional = true }
 yaserde_derive = { version = "0.3.13", optional = true }
 
@@ -49,8 +52,9 @@ yaserde_derive = { version = "0.3.13", optional = true }
 tonic-build = "0.1.1"
 
 [features]
-default = ["onvif", "opcua", "udevf"]
+default = ["onvif", "opcua", "udevf", "coapcore"]
 
-onvif = ["yaserde", "yaserde_derive"]
+onvif = ["xml-rs", "yaserde", "yaserde_derive"]
 opcua = ["opcua-client"]
 udevf = ["pest", "pest_derive", "udev"]
+coapcore = ["coap", "coap-lite"]

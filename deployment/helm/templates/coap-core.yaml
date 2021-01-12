@@ -1,0 +1,57 @@
+{{- if .Values.coapcore.enabled }}
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: {{ .Values.coapcore.name }}
+spec:
+  protocol:
+    coapcore:
+      {{- if .Values.coapcore.ipAddresses}}
+      ipAddresses: 
+        {{- toYaml .Values.coapcore.ipAddresses | nindent 8 }}
+      {{- else }}
+      ipAddresses: []
+      {{- end }}
+  {{- if .Values.coapcore.brokerPod.image.repository }}
+  {{- /* Only add broker pod spec if a broker image is provided */}}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.coapcore.name }}-broker
+      image: {{ .Values.coapcore.brokerPod.image.repository | quote }}
+      imagePullPolicy: {{ .Values.coapcore.brokerPod.image.pullPolicy }}
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- /* Only add service specs if a broker image was specified and service creation was not disabled */}}
+  {{- if .Values.coapcore.brokerPod.image.repository }}
+  {{- if .Values.coapcore.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.coapcore.instanceService.type }}
+    ports:
+    - name: {{ .Values.coapcore.instanceService.portName }}
+      port: {{ .Values.coapcore.instanceService.port }}
+      protocol: {{ .Values.coapcore.instanceService.protocol }}
+      targetPort: {{ .Values.coapcore.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.coapcore.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.coapcore.configurationService.type }}
+    ports:
+    - port: {{ .Values.coapcore.configurationService.port }}
+      protocol: {{ .Values.coapcore.configurationService.protocol }}
+      targetPort: {{ .Values.coapcore.configurationService.targetPort }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.coapcore.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  {{- end }}
+  capacity: {{ .Values.coapcore.capacity }}
+{{- end }}

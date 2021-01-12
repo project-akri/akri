@@ -26,6 +26,7 @@ pub enum ProtocolHandler {
     onvif(OnvifDiscoveryHandlerConfig),
     udev(UdevDiscoveryHandlerConfig),
     opcua(OpcuaDiscoveryHandlerConfig),
+    coapcore(CoAPCoREDiscoveryHandlerConfig),
     debugEcho(DebugEchoDiscoveryHandlerConfig),
 }
 
@@ -143,6 +144,20 @@ pub struct StandardOpcuaDiscovery {
 /// for the LocalDiscoveryServer running on the host
 fn lds_discovery_url() -> Vec<String> {
     vec!["opc.tcp://localhost:4840/".to_string()]
+}
+
+/// This defines the CoAP CoRE data stored in the Configuration
+/// CRD
+///
+/// The CoAP CoRE discovery handler is designed to discover devices implementing the CoAP protocol,
+/// which specificies that the default port :5683 MUST be supported by a server what offers resources
+/// for resources discovery.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CoAPCoREDiscoveryHandlerConfig {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ip_addresses: Vec<String>,
+    // TODO: It should support resource discovering by using a multicast CoAP request
 }
 
 /// This defines the DebugEcho data stored in the Configuration

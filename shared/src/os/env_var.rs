@@ -5,7 +5,7 @@ use std::{env, env::VarError};
 /// This provides a mockable way to query an env var.
 #[automock]
 pub trait EnvVarQuery {
-    fn get_env_var(&self, name: &'static str) -> Result<String, VarError>;
+    fn get_env_var(&self, name: &str) -> Result<String, VarError>;
 }
 
 pub struct ActualEnvVarQuery;
@@ -22,7 +22,7 @@ impl EnvVarQuery for ActualEnvVarQuery {
     ///     env_query.get_env_var("HOSTNAME")
     /// );
     /// ```
-    fn get_env_var(&self, name: &'static str) -> Result<String, VarError> {
+    fn get_env_var(&self, name: &str) -> Result<String, VarError> {
         env::var(name)
     }
 }

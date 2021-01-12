@@ -63,6 +63,8 @@ pub trait DiscoveryHandler {
     fn are_shared(&self) -> Result<bool, Error>;
 }
 
+#[cfg(feature = "coapcore")]
+mod coap_core;
 pub mod debug_echo;
 #[cfg(feature = "onvif")]
 mod onvif;
@@ -89,6 +91,10 @@ fn inner_get_discovery_handler(
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
         #[cfg(feature = "opcua")]
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
+        #[cfg(feature = "coapcore")]
+        ProtocolHandler::coapcore(coapcore) => Ok(Box::new(
+            coap_core::CoAPCoREDiscoveryHandler::new(&coapcore),
+        )),
         ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
             Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
             _ => Err(failure::format_err!("No protocol configured")),

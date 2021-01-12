@@ -17,6 +17,11 @@
 # build
 !samples/brokers/opcua-monitoring-broker
 
+# CoAP CoRE broker is built using a `docker build` command, so
+# the source code needs to be available to the DotNet container
+# build
+!samples/brokers/coap-core-broker
+
 # The streaming app is built using a `docker build` command, so
 # the source code needs to be available to the container
 # build
@@ -39,18 +44,24 @@
 !target/x86_64-unknown-linux-gnu/release/agent
 !target/x86_64-unknown-linux-gnu/debug/udev-video-broker
 !target/x86_64-unknown-linux-gnu/release/udev-video-broker
+!target/x86_64-unknown-linux-gnu/debug/coap-core-broker
+!target/x86_64-unknown-linux-gnu/release/coap-core-broker
 !target/aarch64-unknown-linux-gnu/debug/controller
 !target/aarch64-unknown-linux-gnu/release/controller
 !target/aarch64-unknown-linux-gnu/debug/agent
 !target/aarch64-unknown-linux-gnu/release/agent
 !target/aarch64-unknown-linux-gnu/debug/udev-video-broker
 !target/aarch64-unknown-linux-gnu/release/udev-video-broker
+!target/aarch64-unknown-linux-gnu/debug/coap-core-broker
+!target/aarch64-unknown-linux-gnu/release/coap-core-broker
 !target/armv7-unknown-linux-gnueabihf/debug/controller
 !target/armv7-unknown-linux-gnueabihf/release/controller
 !target/armv7-unknown-linux-gnueabihf/debug/agent
 !target/armv7-unknown-linux-gnueabihf/release/agent
 !target/armv7-unknown-linux-gnueabihf/debug/udev-video-broker
 !target/armv7-unknown-linux-gnueabihf/release/udev-video-broker
+!target/armv7-unknown-linux-gnueabihf/debug/coap-core-broker
+!target/armv7-unknown-linux-gnueabihf/release/coap-core-broker
 
 # Cross toml file needs to be available for making the cross build containers
 !Cross.toml

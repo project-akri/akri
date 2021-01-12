@@ -100,11 +100,20 @@ spec:
                               type: array
                               items:
                                 type: string
+                    coapcore: # {{CoAPCoREDiscoveryHandler}}
+                      type: object
+                      properties:
+                        ipAddresses: # {{DeviceIPs}}
+                          type: array
+                          items:
+                            type: string
+                              
                   oneOf:
                     - required: ["debugEcho"]
                     - required: ["onvif"]
                     - required: ["udev"]
                     - required: ["opcua"]
+                    - required: ["coapcore"]
                 capacity:
                   type: integer
                 units:

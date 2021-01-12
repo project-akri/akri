@@ -288,3 +288,51 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+
+coapcore:
+  # enabled defines whether to load a coapcore configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # onvif configuration
+  name: coap-core
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this onvif configuration
+  properties:
+  ipAddresses: []
+  # capacity is the capacity for any instances created as a result of
+  # applying this onvif configuration
+  capacity: 1
+  brokerPod:
+    image:
+      # repository is the container reference
+      repository:
+      # pullPolicy is the Akri onvif broker pull policy
+      pullPolicy: Always
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
+  instanceService:
+    # name is the description of the instance service
+    name: coap-core-instance-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
+  configurationService:
+    # name is the description of the configuration service
+    name: coap-core-configuration-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 80
+    # targetPort is the service targetPort of the instance service
+    targetPort: 8083
+    # protocol is the service protocol of the instance service
+    protocol: TCP

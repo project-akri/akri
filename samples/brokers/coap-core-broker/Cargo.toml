@@ -1,0 +1,15 @@
+[package]
+name = "coap-core-broker"
+version = "0.1.0"
+authors = ["Jiayi Hu <jiayi.ghu@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "3.3.2"
+akri-shared = { path = "../../../shared" }
+env_logger = "0.8.2"
+log = "0.4.13"
+coap = "0.9"
+coap-lite = "0.3"
