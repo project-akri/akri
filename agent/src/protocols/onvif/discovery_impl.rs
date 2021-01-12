@@ -225,7 +225,7 @@ pub mod util {
         }
     }
 
-    pub async fn simple_onvif_discover(timeout: Duration) -> Result<Vec<String>, failure::Error> {
+    pub async fn simple_onvif_discover(timeout: Duration) -> Result<Vec<String>, anyhow::Error> {
         let (mut discovery_timeout_tx, mut discovery_timeout_rx) = mpsc::channel(2);
         let (mut discovery_cancel_tx, mut discovery_cancel_rx) = mpsc::channel(2);
         let shared_devices = Arc::new(Mutex::new(Vec::new()));

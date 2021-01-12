@@ -94,14 +94,14 @@ fn get_discovery_urls(
 /// The Rust OPC UA implementation of FindServers does not use a timeout when connecting with a Server over TCP
 /// So, an unsuccessful attempt can take over 2 minutes.
 /// Therefore, this tests the connection using a timeout before calling FindServers on the DiscoveryURL.
-fn test_tcp_connection(url: &str, tcp_stream: &impl TcpStream) -> Result<(), failure::Error> {
+fn test_tcp_connection(url: &str, tcp_stream: &impl TcpStream) -> Result<(), anyhow::Error> {
     let socket_addr = get_socket_addr(url)?;
     match tcp_stream.connect_timeout(
         &socket_addr,
         Duration::from_secs(TCP_CONNECTION_TEST_TIMEOUT_SECS),
     ) {
         Ok(_stream) => Ok(()),
-        Err(e) => Err(failure::format_err!("{:?}", e)),
+        Err(e) => Err(anyhow::format_err!("{:?}", e)),
     }
 }
 
@@ -158,10 +158,10 @@ fn get_discovery_url_from_application_description(
 }
 
 /// This returns a socket address for the OPC UA DiscoveryURL else an error if not properly formatted
-fn get_socket_addr(url: &str) -> Result<SocketAddr, failure::Error> {
-    let url = Url::parse(&url).map_err(|_| failure::format_err!("could not parse url"))?;
+fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
+    let url = Url::parse(&url).map_err(|_| anyhow::format_err!("could not parse url"))?;
     if url.scheme() != OPC_TCP_SCHEME {
-        return Err(failure::format_err!(
+        return Err(anyhow::format_err!(
             "format of OPC UA url {} is not valid",
             url
         ));
@@ -169,7 +169,7 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, failure::Error> {
     let host = url.host_str().unwrap();
     let port = url
         .port()
-        .ok_or_else(|| failure::format_err!("provided discoveryURL is missing port"))?;
+        .ok_or_else(|| anyhow::format_err!("provided discoveryURL is missing port"))?;
 
     // Convert host and port to socket address
     let addr_str = format!("{}:{}", host, port);

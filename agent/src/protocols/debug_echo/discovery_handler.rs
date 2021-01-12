@@ -1,7 +1,7 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
 use akri_shared::akri::configuration::DebugEchoDiscoveryHandlerConfig;
+use anyhow::Error;
 use async_trait::async_trait;
-use failure::Error;
 use std::{collections::HashMap, fs};
 
 /// File acting as an environment variable for testing discovery.

@@ -11,7 +11,7 @@ async-trait = "0.1.0"
 bytes = "0.5"
 
 either = '*'
-failure = "0.1.5"
+anyhow = "1.0.38"
 futures = "0.3.1"
 futures-old = { version = "0.1", package = "futures" }
 futures-util = "0.3"

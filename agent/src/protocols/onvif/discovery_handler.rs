@@ -5,8 +5,8 @@ use akri_shared::onvif::device_info::{
     OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
     ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
 };
+use anyhow::Error;
 use async_trait::async_trait;
-use failure::Error;
 use std::{collections::HashMap, time::Duration};
 
 /// `OnvifDiscoveryHandler` discovers the onvif instances as described by the filters `discover_handler_config.ip_addresses`,
@@ -53,7 +53,7 @@ impl OnvifDiscoveryHandler {
         &self,
         device_service_uris: Vec<String>,
         onvif_query: &impl OnvifQuery,
-    ) -> Result<Vec<DiscoveryResult>, failure::Error> {
+    ) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
         let mut result = Vec::new();
         for device_service_url in device_service_uris.iter() {
             trace!("apply_filters - device service url {}", &device_service_url);
@@ -128,7 +128,7 @@ impl OnvifDiscoveryHandler {
 
 #[async_trait]
 impl DiscoveryHandler for OnvifDiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
+    async fn discover(&self) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
         let onvif_query = OnvifQueryImpl {};
 
         info!("discover - filters:{:?}", &self.discovery_handler_config,);
