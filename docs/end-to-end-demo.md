@@ -201,8 +201,8 @@ Look at the Configuration and Instances in more detail.
     ```sh
     ssh someuser@<Ubuntu VM IP address> -L 50000:localhost:<streaming-app-port>
     ```
-> **Note** we've noticed issues with port forwarding with WSL 2. Please use a different terminal.
-1. Navigate to `http://localhost:50000/`. The large feed points to Configuration level service(`udev-camera-svc`), while the bottom feed points to the service for each Instance or camera (`udev-camera-svc-<id>`).
+    > **Note** we've noticed issues with port forwarding with WSL 2. Please use a different terminal.
+1. Navigate to `http://localhost:50000/`. The large feed points to Configuration level service (`udev-camera-svc`), while the bottom feed points to the service for each Instance or camera (`udev-camera-svc-<id>`).
 
 
 ## Cleanup 
