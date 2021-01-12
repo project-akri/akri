@@ -55,7 +55,7 @@ fn get_video_devnode(env_var_query: &impl EnvVarQuery) -> String {
 
     let device_devnode = env_var_query
         .get_env_var(UDEV_DEVNODE_LABEL_ID)
-        .expect("devnode not set in envrionment variable");
+        .expect("devnode not set in environment variable");
 
     trace!("get_video_devnode - found devnode {}", device_devnode);
     device_devnode
