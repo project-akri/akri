@@ -1,16 +1,16 @@
 #[macro_use]
 extern crate log;
 
-#[cfg(feature = "onvif")]
+#[cfg(feature = "onvif-feat")]
 #[macro_use]
 extern crate yaserde_derive;
 
 #[macro_use]
 extern crate serde_derive;
 
-#[cfg(feature = "udevf")]
+#[cfg(feature = "udev-feat")]
 extern crate pest;
-#[cfg(feature = "udevf")]
+#[cfg(feature = "udev-feat")]
 #[macro_use]
 extern crate pest_derive;
 

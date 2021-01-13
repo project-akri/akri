@@ -5,7 +5,7 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a protocol
 that can be used to discover resources of that type. To see the list of currently supported protocols, see our
 [roadmap](./roadmap.md).
 
@@ -96,9 +96,11 @@ helm install akri akri-helm-charts/akri
     controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
     run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
     runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
-    the control plane node for Kubernetes. However, control plane nodes on MicroK8s and K3s do not have this label by
+    the control plane node for Kubernetes.
+    
+    However, control plane nodes on MicroK8s and K3s may not have this exact label by
     default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
-    --overwrite=true`. 
+    --overwrite=true`. Or alternatively, in K3s, you can keep the default label value on the master and add `--set controller.nodeSelectors."node-role\.kubernetes\.io/master"=true` to the install command below.
 
     Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.

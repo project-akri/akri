@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.1.5"
+version = "0.1.7"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -52,9 +52,9 @@ yaserde_derive = { version = "0.3.13", optional = true }
 tonic-build = "0.1.1"
 
 [features]
-default = ["onvif", "opcua", "udevf", "coapcore"]
+default = ["onvif-feat", "opcua-feat", "udev-feat", "coapcore-feat"]
 
-onvif = ["xml-rs", "yaserde", "yaserde_derive"]
-opcua = ["opcua-client"]
-udevf = ["pest", "pest_derive", "udev"]
-coapcore = ["coap", "coap-lite"]
+onvif-feat = ["xml-rs", "yaserde", "yaserde_derive"]
+opcua-feat = ["opcua-client"]
+udev-feat = ["pest", "pest_derive", "udev"]
+coapcore-feat = ["coap", "coap-lite"]

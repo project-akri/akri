@@ -63,7 +63,7 @@ pub trait DiscoveryHandler {
     fn are_shared(&self) -> Result<bool, Error>;
 }
 
-#[cfg(feature = "coapcore")]
+#[cfg(feature = "coapcore-feat")]
 mod coap_core;
 pub mod debug_echo;
 #[cfg(feature = "onvif")]
@@ -71,6 +71,11 @@ mod onvif;
 #[cfg(feature = "opcua")]
 mod opcua;
 #[cfg(feature = "udev")]
+#[cfg(feature = "onvif-feat")]
+mod onvif;
+#[cfg(feature = "opcua-feat")]
+mod opcua;
+#[cfg(feature = "udev-feat")]
 mod udev;
 
 pub fn get_discovery_handler(
@@ -85,13 +90,13 @@ fn inner_get_discovery_handler(
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
-        #[cfg(feature = "onvif")]
+        #[cfg(feature = "onvif-feat")]
         ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
-        #[cfg(feature = "udevf")]
+        #[cfg(feature = "udev-feat")]
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
-        #[cfg(feature = "opcua")]
+        #[cfg(feature = "opcua-feat")]
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
-        #[cfg(feature = "coapcore")]
+        #[cfg(feature = "coapcore-feat")]
         ProtocolHandler::coapcore(coapcore) => Ok(Box::new(
             coap_core::CoAPCoREDiscoveryHandler::new(&coapcore),
         )),
@@ -100,24 +105,8 @@ fn inner_get_discovery_handler(
             _ => Err(failure::format_err!("No protocol configured")),
         },
         config => {
-            log::info!("No handler found for configuration {:?}, the default NoopDiscoveryHandler will be used", config);
-
-            Ok(Box::new(NoopDiscoveryHandler::default()))
+            panic!("No handler found for configuration {:?}", config);
         }
-    }
-}
-
-#[derive(Default)]
-pub struct NoopDiscoveryHandler {}
-
-#[async_trait]
-impl DiscoveryHandler for NoopDiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
-        Ok(vec![])
-    }
-
-    fn are_shared(&self) -> Result<bool, failure::Error> {
-        Ok(true)
     }
 }
 
