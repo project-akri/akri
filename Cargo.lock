@@ -17,7 +17,7 @@ checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
 name = "agent"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "akri-shared",
  "async-stream",
@@ -35,7 +35,6 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "log 0.4.8",
- "mime",
  "mockall",
  "opcua-client",
  "pest",
@@ -47,8 +46,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
- "sxd-document",
- "sxd-xpath",
  "tempfile",
  "tokio 0.2.21",
  "tokio-core",
@@ -83,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "async-trait",
  "bytes 0.5.6",
@@ -434,7 +431,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "controller"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "akri-shared",
  "async-std",
@@ -3044,7 +3041,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "akri-shared",
  "env_logger",

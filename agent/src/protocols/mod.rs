@@ -64,8 +64,11 @@ pub trait DiscoveryHandler {
 }
 
 pub mod debug_echo;
+#[cfg(feature = "onvif-feat")]
 mod onvif;
+#[cfg(feature = "opcua-feat")]
 mod opcua;
+#[cfg(feature = "udev-feat")]
 mod udev;
 
 pub fn get_discovery_handler(
@@ -80,13 +83,19 @@ fn inner_get_discovery_handler(
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
+        #[cfg(feature = "onvif-feat")]
         ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
+        #[cfg(feature = "udev-feat")]
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
+        #[cfg(feature = "opcua-feat")]
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
         ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
             Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
             _ => Err(failure::format_err!("No protocol configured")),
         },
+        config => {
+            panic!("No handler found for configuration {:?}", config);
+        }
     }
 }
 
