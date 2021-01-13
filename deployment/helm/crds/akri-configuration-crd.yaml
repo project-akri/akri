@@ -88,6 +88,29 @@ spec:
                             type: string
                     opcua:
                       type: object
+                      properties:
+                        opcuaDiscoveryMethod:
+                          type: object
+                          properties:
+                            standard: # {{StandardOpcuaDiscovery}}
+                              type: object
+                              properties:
+                                  discoveryUrls:
+                                    type: array
+                                    items:
+                                      type: string
+                        applicationNames:
+                          type: object
+                          properties:
+                            action:
+                              type: string
+                              enum:
+                                - Include
+                                - Exclude
+                            items:
+                              type: array
+                              items:
+                                type: string
                   oneOf:
                     - required: ["zeroconf"]
                     - required: ["debugEcho"]

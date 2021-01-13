@@ -156,7 +156,7 @@ if [ "$CHECK" == "1" ]; then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml"
+    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml $BASEDIR/deployment/helm/templates/opcua.yaml"
     YAML_VERSION_PATTERN="^apiVersion: akri.sh/"
     for YAML_FILE in $YAML_FILES
     do
@@ -184,7 +184,7 @@ then
         elif [ "$MINOR" == "1" ]; then
             NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $2 + 1}' ).0"
         elif [ "$PATCH" == "1" ]; then
-            NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $3 + 1}' )"
+            NEW_VERSION="$( echo $OLD_VERSION | awk -F '.' '{print $1}' ).$( echo $OLD_VERSION | awk -F '.' '{print $2}' ).$( echo $OLD_VERSION | awk -F '.' '{print $3 + 1}' )"
         fi
     else
         NEW_VERSION=$(cat $BASEDIR/version.txt)
@@ -230,7 +230,7 @@ then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo-foo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml"
+    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml $BASEDIR/deployment/helm/templates/opcua.yaml"
     YAML_VERSION_PATTERN="^apiVersion: akri.sh\/.*"
     YAML_VERSION_LINE="apiVersion: akri.sh\/$CRD_VERSION"
     for YAML_FILE in $YAML_FILES

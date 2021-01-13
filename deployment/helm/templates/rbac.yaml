@@ -10,7 +10,7 @@ metadata:
   name: akri-agent-sa
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "akri-controller-role"
 rules:
@@ -28,7 +28,7 @@ rules:
   verbs: ["get", "list", "watch"]
 ---
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "akri-agent-role"
 rules:

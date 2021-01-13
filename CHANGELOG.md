@@ -1,3 +1,48 @@
+# v0.1.5
+
+## Announcing Akri v0.1.5!
+Akri v0.1.5 is a pre-release of Akri.
+
+To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/v0.1.5/README.md) and start [contributing](https://github.com/deislabs/akri/blob/v0.1.5/docs/contributing.md) today!
+
+## New Features
+The v0.1.5 release introduces support for OPC UA discovery along with:
+
+* End to end demo for discovering and utilizing OPC UA servers
+* Sample anomaly detection application for OPC UA demo
+* Sample OPC UA broker
+* OPC UA certificate generator
+
+View the [full change log](https://github.com/deislabs/akri/compare/v0.0.44...v0.1.5)
+
+## Breaking Changes
+N/A
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.20.0+k3s2 |
+| K3s | v1.19.4+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+
+## What's next?
+Check out our [roadmap](https://github.com/deislabs/akri/blob/v0.1.5/docs/roadmap.md) to see the features we are looking forward to!
+
+## Release history
+See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.1.5/CHANGELOG.md) for more information on what changed in this and previous releases.
+
 # v0.0.44
 
 ## Announcing Akri v0.0.44!

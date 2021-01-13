@@ -5,7 +5,7 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a protocol
 that can be used to discover resources of that type. To see the list of currently supported protocols, see our
 [roadmap](./roadmap.md).
 
@@ -40,10 +40,18 @@ helm install akri akri-helm-charts/akri
     ```
 1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using **K3s**, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl.
+    1. If using **K3s**, point to `kubeconfig` for Helm, install crictl, and configure Akri to use K3s' CRI socket.
         ```sh
+        # Install crictl locally (note: there are no known version limitations, any crictl version is expected to work). 
+        # This step is not necessary if using a K3s version below 1.19, in which case K3s' embedded crictl can be used.
+        VERSION="v1.17.0"
+        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+        rm -f crictl-$VERSION-linux-amd64.tar.gz
+
         # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
         # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
@@ -77,10 +85,10 @@ helm install akri akri-helm-charts/akri
 
 1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the discovery protocol
    that will be used in the Configuration. This is done in the setting `--set <protocol>.enabled=true` below. Here,
-   `<protocol>` could be `udev` or `ONVIF`. Helm will automatically apply the default Configuration for that protocol to
+   `<protocol>` could be `udev`, `onvif`, or `opcua`. Helm will automatically apply the default Configuration for that protocol to
    the cluster. You can set values in the Helm install command to customize the Configuration. To explore the values you
-   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md) and
-   [udev](./udev-configuration.md) Configuration templates.
+   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md),
+   [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) Configuration templates.
 
     The Helm settings can also be used to customize where the Akri Controller runs. By default the Controller can be
     deployed to any control plane or worker node. These settings can be changed by adding extra settings when installing
@@ -88,9 +96,11 @@ helm install akri akri-helm-charts/akri
     controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
     run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
     runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
-    the control plane node for Kubernetes. However, control plane nodes on MicroK8s and K3s do not have this label by
+    the control plane node for Kubernetes.
+    
+    However, control plane nodes on MicroK8s and K3s may not have this exact label by
     default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
-    --overwrite=true`. 
+    --overwrite=true`. Or alternatively, in K3s, you can keep the default label value on the master and add `--set controller.nodeSelectors."node-role\.kubernetes\.io/master"=true` to the install command below.
 
     Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.

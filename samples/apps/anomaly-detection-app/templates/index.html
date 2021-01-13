@@ -1,0 +1,47 @@
+<html>
+
+<head>
+  <title>Akri OPC UA Node value Detection</title>
+</head>
+
+<body>
+  <div style="max-width: 800px;  margin: auto;text-align:center">
+    <h1>Akri OPCUA Node Value Anomaly Detection</h1>
+    <div style="display: inline-block;clear:both;margin-bottom:30px">
+      <ul id="values_log">
+        <li>No values</li>
+      </ul>
+    </div>
+  </div>
+  <script>
+    function updateLog() {
+      fetch('/values_log').then(resp => resp.text()).then(values => {
+        const container = document.getElementById('values_log');
+        // Clear previous values
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+        // Add new values
+        let values_log = values.split(";");
+        values_log.forEach(value => {
+          let li = document.createElement("li");
+          let is_anomaly = (value[value.length - 1] == "Y");
+          // Remove value character
+          value = value.substring(0, value.length - 1);
+          console.log("value is " + value);
+          if (is_anomaly) {
+            li.style.color = 'red';
+          } else {
+            li.style.color = 'black';
+          }
+          let node = document.createTextNode(value);
+          li.appendChild(node);
+          container.prepend(li);
+        });
+      })
+    }
+    setInterval(updateLog, 3000)
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,23 @@
+ARG PLATFORM=amd64
+FROM ${PLATFORM}/debian:buster-slim
+
+# Avoid tzdata prompt 
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim" && \
+    apt-get update && \
+    apt-get install -y protobuf-compiler libprotoc-dev python3-pip \
+    python3-grpcio python3-sklearn && \
+    apt-get clean && \
+    pip3 install numpy protobuf flask
+
+WORKDIR /app
+COPY ./samples/apps/anomaly-detection-app .
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
+
+CMD python3 ./anomaly_detection.py

@@ -12,6 +12,12 @@ if you pass a second Configuration. This is a fairly specific implementation tha
 The next section discusses some ways the Akri Controller and Agent could be extended to allow for other broker
 deployment strategies.
 ## New Deployment Strategies
+### DeploymentSpec-based
+Unlike a DaemonSet, where each broker is deployed once to each node (bounded by Configuration.Capacity), a 
+DeploymentSpec-based approach could be provided.  With this approach, the number of brokers deployed would be governed by the minimum of Deployment.Replicas and Configuration.Capacity.  Brokers would be scheduled by the default Kubernetes scheduler.
+
+One benefit to this would be high availability for non-shared Instances (currently, using the DaemonSet paradigm, only 1 broker is deployed per non-shared Instance), as the number of deployed brokers would be configured by Deployment.Replicas.
+
 ### Instance Pooling
 With regular [Kubernetes device
 plugins](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/), operators can

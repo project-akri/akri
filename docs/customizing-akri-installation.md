@@ -1,5 +1,5 @@
 # Customizing an Akri Installation
-The [onvif](./onvif-configuration.md) and [udev](./udev-configuration.md) documentation explains how to deploy Akri for a specific
+The [ONVIF](./onvif-configuration.md), [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) documentation explains how to deploy Akri for a specific
 protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
 1. Generating, modifying and applying a custom Configuration
@@ -23,7 +23,7 @@ them, run `helm inspect values akri-helm-charts/akri`).  For more advanced confi
 our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it.
 
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
-substitute `onvif.enabled` with `udev.enabled` and add a udev rule.)
+substitute `onvif.enabled` with `udev.enabled` and add a udev rule. For OPC UA, substitute with `opcua.enabled`.)
 ```bash
 helm template akri akri-helm-charts/akri \
     --set useLatestContainers=true \
