@@ -135,7 +135,7 @@ reqwest = "0.10.8"
 ```
 
 ## Update Akri Configuration Custom Resource Definition (CRD)
-Now we need to update the Akri Configuration CRD so that we can pass some properties to our new protocol handler.  First, lets create our data structures.
+Now we need to update the Akri Configuration CRD so that we can pass some properties to our new protocol handler.  First, let's create our data structures.
 
 The first step is to create a DiscoveryHandler configuration struct. This struct will be used to deserialize the Configuration CRD contents and will be passed on to our HttpDiscoveryHandler. Here we are specifying that users must pass in the URL of a discovery service which will be queried to find our HTTP-based Devices.  Add this code to `shared/src/akri/configuration.rs`:
 
@@ -203,7 +203,7 @@ The final step, is to create a protocol broker that will make the HTTP-based Dev
 
 For this, we will describe the first option, a standalone broker.  For a more detailed look at the other gRPC options, please look at [extensibility-http-grpc.md in the http-extensibility branch](https://github.com/deislabs/akri/blob/http-extensibility/docs/extensibility-http-grpc.md).
 
-First, lets create a new Rust project for our sample broker.  We can use cargo to create our project by navigating to `samples/brokers` and running:
+First, let's create a new Rust project for our sample broker.  We can use cargo to create our project by navigating to `samples/brokers` and running:
 
 ```bash
 cargo new http
@@ -363,7 +363,7 @@ At this point, we've extended Akri to include discovery for our HTTP protocol an
 
 For this exercise, we can create an HTTP service that listens to various paths.  Each path can simulate a different device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.  To make our scenario more realistic, we can add a discovery endpoint as well.  Further, we can create a series of Kubernetes services that create facades for the various paths, giving the illusion of multiple devices and a separate discovery service.
 
-To that end, lets:
+To that end, let's:
 
 1. Create a web service that mocks HTTP devices and a discovery service
 1. Deploy, start, and expose our mock HTTP devices and discovery service
@@ -460,7 +460,7 @@ go 1.15
 ```
 
 ## Build and Deploy devices and discovery
-To build and deploy the mock devices and discovery, a simple Dockerfile can be created that buidls and exposes our mock server `samples/apps/http-apps/Dockerfiles/device`:
+To build and deploy the mock devices and discovery, a simple Dockerfile can be created that builds and exposes our mock server `samples/apps/http-apps/Dockerfiles/device`:
 ```dockerfile
 FROM golang:1.15 as build
 WORKDIR /http-extensibility
@@ -660,7 +660,7 @@ Now that you have a working protocol implementation and broker, we'd love for yo
 1. Create an Issue with a feature request for this protocol.
 2. Create a proposal and put in PR for it to be added to the [proposals folder](./proposals).
 3. Implement your protocol and provide a full end to end sample.
-4. Create a pull request, updating the minor version of akri. See [contributing](./contributing.md#versioning) to learn more about our versioning strategy.
+4. Create a pull request, updating the minor version of Akri. See [contributing](./contributing.md#versioning) to learn more about our versioning strategy.
 
 For a protocol to be considered fully implemented the following must be included in the PR. Note that the HTTP protocol above has not completed all of the requirements. 
 1. A new DiscoveryHandler implementation in the Akri agent
