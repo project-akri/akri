@@ -31,8 +31,6 @@ prometheus:
   # portName is the name of the metrics port
   portName: metrics
 
-
-
 controller:
   # enabled defines whether to apply the Akri Controller
   enabled: true
