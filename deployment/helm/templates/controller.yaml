@@ -44,14 +44,14 @@ spec:
       {{- end }}
       {{- if or .Values.controller.linuxOnly .Values.controller.onlyOnControlPlane .Values.controller.nodeSelectors }}
       nodeSelector:
-        {{- if .Values.controller.nodeSelectors }}
-          {{- toYaml .Values.controller.nodeSelectors | nindent 8 }}
+        {{- if .Values.controller.onlyOnControlPlane }}
+        node-role.kubernetes.io/master: ""
         {{- end }}
         {{- if .Values.controller.linuxOnly }}
         "kubernetes.io/os": linux
         {{- end }}
-        {{- if .Values.controller.onlyOnControlPlane }}
-        node-role.kubernetes.io/master: ""
+        {{- if .Values.controller.nodeSelectors }}
+          {{- toYaml .Values.controller.nodeSelectors | nindent 8 }}
         {{- end }}
       {{- end }}
 {{- end }}

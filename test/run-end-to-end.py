@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import shared_test_code
-import json, os, time, yaml
+import json, os, subprocess, time, yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
@@ -105,9 +105,21 @@ def do_test():
     # Check that slot reconciliation is working on agent
     # 
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
-    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
-    if result != 0:
-        print("Akri failed to successfully connect to crictl via the CRI socket")
+    temporary_agent_log_path = "/tmp/agent_log.txt"
+    for x in range(3):
+        log_result = subprocess.run('sudo {} logs {} > {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path), shell=True)
+        if log_result.returncode == 0:
+            print("Successfully stored Agent logs in {}".format(temporary_agent_log_path))
+            break
+        print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
+        if x == 2:
+            return False
+    grep_result = subprocess.run(['grep', "get_node_slots - crictl called successfully", temporary_agent_log_path])
+    if grep_result.returncode != 0:
+        print("Akri failed to successfully connect to crictl via the CRI socket with return value of {}", grep_result)
+        # Log information to understand why error occurred
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('grep get_node_slots {}'.format(temporary_agent_log_path))
         return False
 
     #
@@ -141,7 +153,7 @@ def do_test():
     restored_brokers_info = shared_test_code.get_running_pod_names_and_uids(broker_pod_selector)
     if len(restored_brokers_info) != 2:
         print("Expected to find 2 broker pods but found: {}", len(restored_brokers_info))
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.foramt(kubectl_cmd))
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
 
     # Make sure that the deleted broker uid is different from the restored broker pod uid ... signifying

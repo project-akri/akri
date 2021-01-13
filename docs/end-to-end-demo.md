@@ -5,7 +5,7 @@ The following will be covered in this demo:
 1. Setting up mock udev video devices
 1. Setting up a cluster
 1. Installing Akri via Helm with settings to create your Akri udev Configuration
-1. Investigating Akri
+1. Inspecting Akri
 1. Deploying a streaming application
 1. Cleanup
 1. Going beyond the demo
@@ -24,7 +24,20 @@ The following will be covered in this demo:
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
     sudo dpkg -i v4l2loopback-dkms_0.12.5-1_all.deb
     ```
-    When running on Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS, do NOT install v4l2loopback  through `sudo apt install -y v4l2loopback-dkms`, you will get an older version (0.12.3). 0.12.5-1 is required for gstreamer to work properly.
+    > **Note** When running on Ubuntu 20.04 LTS, 18.04 LTS or 16.04 LTS, do NOT install 
+    > v4l2loopback  through `sudo apt install -y v4l2loopback-dkms`, you will get an older version (0.12.3). 
+    > 0.12.5-1 is required for gstreamer to work properly.
+
+
+    > **Note**: If not able to install the debian package of v4l2loopback due to using a different
+    > Linux kernel, you can clone the repo, build the module, and setup the module dependencies 
+    > like so:
+    > ```sh
+    > git clone https://github.com/umlaeute/v4l2loopback.git
+    > sudo make installs
+    > sudo make install-utils
+    > sudo depmod -a  
+    > ```
     
 1. "Plug-in" two cameras by inserting the kernel module. To create different number video devices modify the `video_nr` argument. 
     ```sh
@@ -32,7 +45,7 @@ The following will be covered in this demo:
     ```
 1. Confirm that two video device nodes (video1 and video2) have been created.
     ```sh
-    ls /dev
+    ls /dev/video*
     ```
 1. Install the necessary Gstreamer packages.
     ```sh
@@ -152,7 +165,7 @@ Instead of having to build a Configuration from scratch, Akri has provided [Helm
         --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
     ```
 
-## Investigating Akri
+## Inspecting Akri
 After installing Akri, since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. 
 
 1. List all that Akri has automatically created and deployed, namely the Akri Configuration we created when installing Akri, two Instances (which are the Akri custom resource that represents each device), two broker Pods (one for each camera), a service for each broker Pod, and a service for all brokers.
@@ -169,10 +182,11 @@ Look at the Configuration and Instances in more detail.
     ```sh
     kubectl get akric -o yaml
     ```
-1. Inspect the two Instances. Notice that in the metadata of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. This metadata of each Instance was passed to it's broker Pod as an environment variable. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. If this was a shared device (such as an IP camera), you could have increased the number of nodes that could use the same device (via `--set <protocol>.capacity=2 for two nodes) and more usage slots would have been created in the Instance. Each Instance represents a device and its usage.
+1. Inspect the two Instances. Notice that in the metadata of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. This metadata of each Instance was passed to it's broker Pod as an environment variable. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. Each Instance represents a device and its usage.
     ```sh 
     kubectl get akrii -o yaml
     ```
+    If this was a shared device (such as an IP camera), you may have wanted to increase the number of nodes that could use the same device by specifying `capacity`. There is a `capacity` parameter for each protocol, which defaults to `1`. Its value could have been increased when installing Akri (via `--set <protocol>.capacity=2` to allow 2 nodes to use the same device) and more usage slots (the number of usage slots is equal to `capacity`) would have been created in the Instance. 
 ## Deploying a streaming application
 1. Deploy a video streaming web application that points to both the Configuration and Instance level services that were automatically created by Akri.
     ```sh
@@ -187,8 +201,8 @@ Look at the Configuration and Instances in more detail.
     ```sh
     ssh someuser@<Ubuntu VM IP address> -L 50000:localhost:<streaming-app-port>
     ```
-> **Note** we've noticed issues with port forwarding with WSL 2. Please use a different terminal.
-1. Navigate to `http://localhost:50000/`. The large feed points to Configuration level service(`udev-camera-svc`), while the bottom feed points to the service for each Instance or camera (`udev-camera-svc-<id>`).
+    > **Note** we've noticed issues with port forwarding with WSL 2. Please use a different terminal.
+1. Navigate to `http://localhost:50000/`. The large feed points to Configuration level service (`udev-camera-svc`), while the bottom feed points to the service for each Instance or camera (`udev-camera-svc-<id>`).
 
 
 ## Cleanup 
@@ -238,8 +252,8 @@ Look at the Configuration and Instances in more detail.
     ```
 
 ## Going beyond the demo
-1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-ther-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
-1. Apply the [onvif-camera configuration](onvif-configuration.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
+1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-the-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
+1. Apply the [ONVIF configuration](onvif-configuration.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
 1. Add more nodes to the cluster.
 1. [Modify the udev rule](udev-video-sample.md#modifying-the-udev-rule) to find a more specific subset of cameras.
 1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-configuration.md).

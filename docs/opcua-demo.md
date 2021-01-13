@@ -3,7 +3,7 @@ OPC UA is a communication protocol for industrial automation. It is a client/ser
 security and communication framework. This demo will help you get started using Akri to discover OPC UA Servers and
 utilize them via a broker that contains an OPC UA Client. Specifically, a Akri Configuration called OPC UA Monitoring
 was created for this scenario, which will show how Akri can be used to detect anomaly values of a specific OPC UA
-Variable. To do so, the OPC UA Clients in the brokers will subscribe to that variable and serve it's value over gRPC for
+Variable. To do so, the OPC UA Clients in the brokers will subscribe to that variable and serve its value over gRPC for
 an anomaly detection web application to consume. This Configuration could be used to monitor a barometer, CO detector,
 and more; however, for this example, that variable will represent the temperature of a thermostat and any value outside
 the range of 70-80 degrees is an anomaly. 
@@ -109,7 +109,7 @@ to the OPC Foundation's .NET Console Reference Server.
 
 1. Open the UA Reference solution file and navigate to NetCoreReferenceServer project.
 
-1. Open `Quickstarts.Reference.Config.xml`. This application configuration file is where many features can configured,
+1. Open `Quickstarts.Reference.Config.xml`. This application configuration file is where many features can be configured,
    such as the application description (application name, uri, etc), security configuration, and base address. Only the
    latter needs to be modified if using no security. On lines 76 and 77, modify the address of the server, by replacing
    `localhost` with the IP address of the machine the server is running on. If left as   `localhost` the application
@@ -142,12 +142,12 @@ to the OPC Foundation's .NET Console Reference Server.
     its variables) 2. We care about the `NamespaceIndex` because it along with `Identifier`, are the two fields to a
     `NodeId`. If you inspect the `CreateDynamicVariable` function, you will see that it creates an OPC UA variable,
     using the `path` parameter ("Thermometer_Temperature") as the `Identifier` when creating the NodeID for that
-    variable. It then add the variable to the `m_dynamicNodes` list. At the bottom of `CreateAddressSpace` the following
+    variable. It then adds the variable to the `m_dynamicNodes` list. At the bottom of `CreateAddressSpace` the following
     line initializes a simulation that will periodically change the value of all the variables in `m_dynamicNodes`: 
     ``` c#
     m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
     ```
-    Lets change the simulation so that it usually returns a value between 70-80 and periodically returns an outlier of
+    Let's change the simulation so that it usually returns a value between 70-80 and periodically returns an outlier of
     120. Go to the `DoSimulation` function. Replace `variable.Value = GetNewValue(variable);` with the following
     ```c#
     Random rnd = new Random();
@@ -211,7 +211,7 @@ A sample anomaly detection web application was created for this end-to-end demo.
 brokers' gRPC clients, getting the latest temperature value. It then determines whether this value is an outlier to the
 dataset using the Local Outlier Factor strategy. The dataset is simply a csv with the numbers between 70-80 repeated
 several times; therefore, any value significantly outside this range will be seen as an outlier. The web application
-serves as a log, displaying all the temperature values and the address of the OPC UA Server that sent the value. It
+serves as a log, displaying all the temperature values and the address of the OPC UA Server that sent the values. It
 shows anomaly values in red. The anomalies always have a value of 120 due to how we set up the `DoSimulation` function
 in the OPC UA Servers.
 1. Deploy the anomaly detection app and watch a pod spin up for the app.
@@ -242,7 +242,7 @@ in the OPC UA Servers.
     ```
 1. Navigate in your browser to http://ip-address:32624/ where ip-address is the IP address of your Ubuntu VM (not the
    cluster-IP) and the port number is from the output of `kubectl get services`. It takes 3 seconds for the site to
-   load, after which, you should a log of the temperature values, which updates every few seconds. Note how the values
+   load, after which, you should see a log of the temperature values, which updates every few seconds. Note how the values
    are coming from two different DiscoveryURLs, namely the ones for each of the two OPC UA Servers.
 
 ## Clean up
@@ -271,7 +271,7 @@ in the OPC UA Servers.
     ```
 
 ## Extensions
-Now that you have the end to end demo running lets talk about some ways you can go beyond the demo to better understand
+Now that you have the end to end demo running let's talk about some ways you can go beyond the demo to better understand
 the advantages of Akri. This section will cover:
 1. Adding a node to the cluster
 1. Using a Local Discovery Server to discover the Servers instead of passing the DiscoveryURLs to the OPC UA Monitoring
@@ -348,7 +348,7 @@ address [from OPC UA Specification 12](https://reference.opcfoundation.org/v104/
 `opc.tcp://localhost:4840/`. This is seen on line 205 of `Quickstarts.ReferenceServer.xml`. 
 
 Make sure you have restarted your OPC UA Servers, since they attempt to register with their LDS on start up. Now, we can
-install Akri with the OPC UA Configuration, passing in the LDS DiscoveryURL instead of both server's DiscoveryURLs.
+install Akri with the OPC UA Configuration, passing in the LDS DiscoveryURL instead of both servers' DiscoveryURLs.
 Replace "Windows host IP address" with the IP address of the Windows machine you installed the LDS on (and is hosting
 the servers). Be sure to uncomment mounting certificates if you are enabling security:
 ```sh
