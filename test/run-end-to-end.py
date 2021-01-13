@@ -114,7 +114,7 @@ def do_test():
         print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
         if x == 2:
             return False
-    grep_result = subprocess.run('grep "get_node_slots - crictl called successfully" {} | wc -l | grep -v 0'.format(temporary_agent_log_path), shell=True)
+    grep_result = subprocess.run(['grep', "get_node_slots - crictl called successfully", temporary_agent_log_path])
     if grep_result.returncode != 0:
         print("Akri failed to successfully connect to crictl via the CRI socket with return value of {}", grep_result)
         # Log information to understand why error occurred
