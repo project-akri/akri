@@ -65,6 +65,11 @@ spec:
             mountPath: /host/var/run/dockershim.sock
           - name: devices
             mountPath: /run/udev
+        {{- if .Values.prometheus.enabled }}
+        ports:
+          - name: {{ .Values.prometheus.portName | quote }}
+            containerPort: {{ .Values.prometheus.port }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

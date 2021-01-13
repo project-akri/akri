@@ -1,9 +1,10 @@
+use super::super::FRAME_COUNT_METRIC;
 use super::camera::{
     camera_client::CameraClient,
     camera_server::{Camera, CameraServer},
     NotifyRequest, NotifyResponse,
 };
-use log::trace;
+use log::{info, trace};
 use rscam::Camera as RsCamera;
 use std::{
     net::SocketAddr,
@@ -30,6 +31,7 @@ impl Camera for CameraService {
         _request: tonic::Request<NotifyRequest>,
     ) -> Result<tonic::Response<NotifyResponse>, tonic::Status> {
         trace!("CameraService.get_frame grpc request");
+        FRAME_COUNT_METRIC.inc();
         Ok(tonic::Response::new(NotifyResponse {
             frame: {
                 let frame = self.camera_capturer.capture().unwrap();
@@ -42,7 +44,7 @@ impl Camera for CameraService {
 
 /// This creates camera server
 pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), String> {
-    trace!("Entered serve for camera service");
+    info!("Entered serve for camera service");
     let camera_service = CameraService {
         camera_capturer,
         devnode: devnode.to_string(),

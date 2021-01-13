@@ -20,6 +20,17 @@ rbac:
   # enabled defines whether to apply rbac to Akri
   enabled: true
 
+prometheus:
+  # enabled defines whether metrics ports are exposed on
+  # the Controller and Agent
+  enabled: false
+  # endpoint is the path the port exposed for metrics
+  endpoint: /metrics
+  # port is the port that the metrics service is exposed on
+  port: 8080
+  # portName is the name of the metrics port
+  portName: metrics
+
 controller:
   # enabled defines whether to apply the Akri Controller
   enabled: true

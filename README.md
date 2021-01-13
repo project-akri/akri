@@ -1,6 +1,6 @@
 # Akri
 [![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri) 
-[![Rust Version](https://img.shields.io/badge/rustc-1.41.0-blue.svg)](https://blog.rust-lang.org/2020/01/30/Rust-1.41.0.html) 
+[![Rust Version](https://img.shields.io/badge/rustc-1.49.0-blue.svg)](https://blog.rust-lang.org/2020/12/31/Rust-1.49.0.html) 
 [![Kubernetes Version](https://img.shields.io/badge/kubernetes-≥%201.16-blue.svg)](https://v1-16.docs.kubernetes.io/) 
 [![codecov](https://codecov.io/gh/deislabs/akri/branch/main/graph/badge.svg?token=V468HO7CDE)](https://codecov.io/gh/deislabs/akri) 
 

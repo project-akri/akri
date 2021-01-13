@@ -1,0 +1,31 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: akri-agent-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      name: akri-agent
+  podMetricsEndpoints:
+  - port: {{ .Values.prometheus.portName | quote }}
+    path: {{ .Values.prometheus.endpoint }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: akri-controller-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: akri-controller
+  podMetricsEndpoints:
+  - port: {{ .Values.prometheus.portName | quote }}
+    path: {{ .Values.prometheus.endpoint }}
+{{- end }}
