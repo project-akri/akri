@@ -8,11 +8,7 @@ checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
 name = "agent"
-<<<<<<< HEAD
-version = "0.1.8"
-=======
-version = "0.1.6"
->>>>>>> Include Cargo.lock updates
+version = "0.1.9"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -77,11 +73,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-<<<<<<< HEAD
 version = "0.1.8"
-=======
-version = "0.1.6"
->>>>>>> Include Cargo.lock updates
 dependencies = [
  "anyhow",
  "async-trait",
@@ -460,11 +452,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "controller"
-<<<<<<< HEAD
-version = "0.1.8"
-=======
-version = "0.1.6"
->>>>>>> Include Cargo.lock updates
+version = "0.1.9"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -3345,11 +3333,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-<<<<<<< HEAD
-version = "0.1.8"
-=======
-version = "0.1.6"
->>>>>>> Include Cargo.lock updates
+version = "0.1.9"
 dependencies = [
  "akri-shared",
  "env_logger",
