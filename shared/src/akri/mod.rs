@@ -13,6 +13,7 @@ pub const AKRI_SLOT_ANNOTATION_NAME: &str = "akri.agent.slot";
 
 pub mod configuration;
 pub mod instance;
+pub mod metrics;
 
 pub mod retry {
     use rand::random;

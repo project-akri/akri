@@ -26,7 +26,7 @@ pub struct UdevFilter<'a> {
 pub fn do_parse_and_find(
     enumerator: impl Enumerator,
     udev_rule_string: &str,
-) -> Result<Vec<String>, failure::Error> {
+) -> Result<Vec<String>, anyhow::Error> {
     let udev_filters = parse_udev_rule(udev_rule_string)?;
     let devpaths = find_devices(enumerator, udev_filters)?;
     trace!(
@@ -44,7 +44,7 @@ pub fn do_parse_and_find(
 /// Udev discovery is only interested in match operations ("==",  "!="), so all action ("=" , "+=" , "-=" , ":=") operations
 /// will be ignored.
 /// Udev discovery is only interested in match fields, so all action fields, such as TEST, are ignored
-fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::Error> {
+fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Error> {
     info!(
         "parse_udev_rule - enter for udev rule string {}",
         udev_rule_string
@@ -69,7 +69,7 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
         let field_pair = inner_rules.next().unwrap();
         let inner_field = field_pair.into_inner().next().unwrap();
         if inner_field.as_rule() == Rule::unsupported_field {
-            return Err(failure::format_err!(
+            return Err(anyhow::format_err!(
                 "parse_udev_rule - unsupported field {}",
                 inner_field.into_inner().next().unwrap().as_str()
             ));
@@ -91,7 +91,7 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
                 value: value.to_string(),
             });
         } else {
-            return Err(failure::format_err!("parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
+            return Err(anyhow::format_err!("parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
             inner_field.into_inner().as_str(), operation, value));
         }
     }
