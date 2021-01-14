@@ -36,7 +36,7 @@ Guidance:
 Various Kubernetes Resources have been developed:
 
 + CRDS: `Configurations`, `Instances`
-+ Instances: `akri-agent-daemonset`, `akri-controller-deployment`, `akri-onvif`, `akri-opcua`
++ Instances: `akri-agent-daemonset`, `akri-controller-deployment`, `akri-onvif`, `akri-opcua`, 'akri-udev`
 
 Guidance:
 
