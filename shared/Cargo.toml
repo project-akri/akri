@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1.0"
 bytes = "0.5"
-
 either = '*'
 anyhow = "1.0.38"
 futures = "0.3.1"
