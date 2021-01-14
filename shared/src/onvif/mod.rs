@@ -31,19 +31,19 @@ pub mod device_info {
         async fn get_device_ip_and_mac_address(
             &self,
             service_url: &str,
-        ) -> Result<(String, String), failure::Error>;
-        async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error>;
+        ) -> Result<(String, String), anyhow::Error>;
+        async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, anyhow::Error>;
         async fn get_device_service_uri(
             &self,
             url: &str,
             service: &str,
-        ) -> Result<String, failure::Error>;
-        async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, failure::Error>;
+        ) -> Result<String, anyhow::Error>;
+        async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, anyhow::Error>;
         async fn get_device_profile_streaming_uri(
             &self,
             url: &str,
             profile_token: &str,
-        ) -> Result<String, failure::Error>;
+        ) -> Result<String, anyhow::Error>;
     }
 
     pub struct OnvifQueryImpl {}
@@ -54,13 +54,13 @@ pub mod device_info {
         async fn get_device_ip_and_mac_address(
             &self,
             service_url: &str,
-        ) -> Result<(String, String), failure::Error> {
+        ) -> Result<(String, String), anyhow::Error> {
             let http = HttpRequest {};
             inner_get_device_ip_and_mac_address(service_url, &http).await
         }
 
         /// Gets the list of scopes for a given ONVIF camera
-        async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error> {
+        async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, anyhow::Error> {
             let http = HttpRequest {};
             inner_get_device_scopes(url, &http).await
         }
@@ -70,13 +70,13 @@ pub mod device_info {
             &self,
             url: &str,
             service: &str,
-        ) -> Result<String, failure::Error> {
+        ) -> Result<String, anyhow::Error> {
             let http = HttpRequest {};
             inner_get_device_service_uri(url, service, &http).await
         }
 
         /// Gets the list of streaming profiles for a given ONVIF camera
-        async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, failure::Error> {
+        async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, anyhow::Error> {
             let http = HttpRequest {};
             inner_get_device_profiles(url, &http).await
         }
@@ -86,7 +86,7 @@ pub mod device_info {
             &self,
             url: &str,
             profile_token: &str,
-        ) -> Result<String, failure::Error> {
+        ) -> Result<String, anyhow::Error> {
             let http = HttpRequest {};
             inner_get_device_profile_streaming_uri(url, profile_token, &http).await
         }
@@ -102,14 +102,14 @@ pub mod device_info {
             url: &str,
             mime_action: &str,
             msg: &str,
-        ) -> Result<Package, failure::Error>;
+        ) -> Result<Package, anyhow::Error>;
     }
 
     struct HttpRequest {}
 
     impl HttpRequest {
         /// This converts an http response body into an sxd_document::Package
-        fn handle_request_body(body: &str) -> Result<Package, failure::Error> {
+        fn handle_request_body(body: &str) -> Result<Package, anyhow::Error> {
             let xml_as_tree = match parser::parse(&body) {
                 Ok(xml_as_tree) => xml_as_tree,
                 Err(e) => return Err(Error::new(ErrorKind::InvalidData, e).into()),
@@ -130,7 +130,7 @@ pub mod device_info {
             url: &str,
             mime_action: &str,
             msg: &str,
-        ) -> Result<Package, failure::Error> {
+        ) -> Result<Package, anyhow::Error> {
             trace!(
                 "post - url:{}, mime_action:{}, msg:{}",
                 &url,
@@ -148,7 +148,7 @@ pub mod device_info {
                 .expect("infallible");
             let response = hyper_async::Client::new().request(request).await.unwrap();
             if response.status() != 200 {
-                return Err(failure::format_err!("failure"));
+                return Err(anyhow::format_err!("failure"));
             }
             let response_body = response
                 .into_body()
@@ -181,7 +181,7 @@ pub mod device_info {
     async fn inner_get_device_ip_and_mac_address(
         service_url: &str,
         http: &impl Http,
-    ) -> Result<(String, String), failure::Error> {
+    ) -> Result<(String, String), anyhow::Error> {
         let network_interfaces_xml = match http
             .post(
                 service_url,
@@ -192,7 +192,7 @@ pub mod device_info {
         {
             Ok(xml) => xml,
             Err(e) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "failed to get network interfaces from device: {:?}",
                     e
                 ))
@@ -206,11 +206,11 @@ pub mod device_info {
                 Ok(Value::String(ip)) => ip,
                 Ok(Value::Nodeset(ns)) => match ns.into_iter().map(|x| x.string_value()).collect::<Vec<String>>().first() {
                     Some(first) => first.to_string(),
-                    None => return Err(failure::format_err!("Failed to get ONVIF ip address: none specified in response"))
+                    None => return Err(anyhow::format_err!("Failed to get ONVIF ip address: none specified in response"))
                 },
                 Ok(Value::Boolean(_)) |
-                Ok(Value::Number(_)) => return Err(failure::format_err!("Failed to get ONVIF ip address: unexpected type")),
-                Err(e) => return Err(failure::format_err!("Failed to get ONVIF ip address: {}", e))
+                Ok(Value::Number(_)) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: unexpected type")),
+                Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: {}", e))
             };
         trace!(
             "inner_get_device_ip_and_mac_address - network interfaces (ip address): {:?}",
@@ -223,11 +223,11 @@ pub mod device_info {
                 Ok(Value::String(mac)) => mac,
                 Ok(Value::Nodeset(ns)) => match ns.iter().map(|x| x.string_value()).collect::<Vec<String>>().first() {
                     Some(first) => first.to_string(),
-                    None => return Err(failure::format_err!("Failed to get ONVIF mac address: none specified in response"))
+                    None => return Err(anyhow::format_err!("Failed to get ONVIF mac address: none specified in response"))
                 },
                 Ok(Value::Boolean(_)) |
-                Ok(Value::Number(_)) => return Err(failure::format_err!("Failed to get ONVIF mac address: unexpected type")),
-                Err(e) => return Err(failure::format_err!("Failed to get ONVIF mac address: {}", e))
+                Ok(Value::Number(_)) => return Err(anyhow::format_err!("Failed to get ONVIF mac address: unexpected type")),
+                Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF mac address: {}", e))
             };
         trace!(
             "inner_get_device_ip_and_mac_address - network interfaces (mac address): {:?}",
@@ -240,7 +240,7 @@ pub mod device_info {
     async fn inner_get_device_scopes(
         url: &str,
         http: &impl Http,
-    ) -> Result<Vec<String>, failure::Error> {
+    ) -> Result<Vec<String>, anyhow::Error> {
         let scopes_xml = match http
             .post(
                 &url,
@@ -251,7 +251,7 @@ pub mod device_info {
         {
             Ok(xml) => xml,
             Err(e) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "failed to get scopes from device: {:?}",
                     e
                 ))
@@ -268,11 +268,11 @@ pub mod device_info {
                 .map(|scope_item| scope_item.string_value())
                 .collect::<Vec<String>>(),
             Ok(Value::Boolean(_)) | Ok(Value::Number(_)) | Ok(Value::String(_)) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "Failed to get ONVIF scopes: unexpected type"
                 ))
             }
-            Err(e) => return Err(failure::format_err!("Failed to get ONVIF scopes: {}", e)),
+            Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF scopes: {}", e)),
         };
         trace!("inner_get_device_scopes - scopes: {:?}", scopes);
         Ok(scopes)
@@ -299,7 +299,7 @@ pub mod device_info {
         url: &str,
         service: &str,
         http: &impl Http,
-    ) -> Result<String, failure::Error> {
+    ) -> Result<String, anyhow::Error> {
         let services_xml = match http
             .post(
                 &url,
@@ -310,7 +310,7 @@ pub mod device_info {
         {
             Ok(xml) => xml,
             Err(e) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "failed to get services from device: {:?}",
                     e
                 ))
@@ -325,7 +325,7 @@ pub mod device_info {
             match sxd_xpath::evaluate_xpath(&services_doc, service_xpath_query.as_str()) {
                 Ok(uri) => uri.string(),
                 Err(e) => {
-                    return Err(failure::format_err!(
+                    return Err(anyhow::format_err!(
                         "failed to get servuce uri from resoinse: {:?}",
                         e
                     ))
@@ -351,13 +351,13 @@ pub mod device_info {
     async fn inner_get_device_profiles(
         url: &str,
         http: &impl Http,
-    ) -> Result<Vec<String>, failure::Error> {
+    ) -> Result<Vec<String>, anyhow::Error> {
         let action = get_action(MEDIA_WSDL, "GetProfiles");
         let message = GET_PROFILES_TEMPLATE.to_string();
         let profiles_xml = match http.post(&url, &action, &message).await {
             Ok(xml) => xml,
             Err(e) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "failed to get profiles from device: {:?}",
                     e
                 ))
@@ -374,11 +374,11 @@ pub mod device_info {
                 .map(|profile_item| profile_item.string_value())
                 .collect::<Vec<String>>(),
             Ok(Value::Boolean(_)) | Ok(Value::Number(_)) | Ok(Value::String(_)) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "Failed to get ONVIF profiles: unexpected type"
                 ))
             }
-            Err(e) => return Err(failure::format_err!("Failed to get ONVIF profiles: {}", e)),
+            Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF profiles: {}", e)),
         };
         trace!("inner_get_device_scopes - profiles: {:?}", profiles);
         Ok(profiles)
@@ -389,7 +389,7 @@ pub mod device_info {
         url: &str,
         profile_token: &str,
         http: &impl Http,
-    ) -> Result<String, failure::Error> {
+    ) -> Result<String, anyhow::Error> {
         let stream_soap = get_stream_uri_message(&profile_token);
         let stream_uri_xml = match http
             .post(&url, &get_action(MEDIA_WSDL, "GetStreamUri"), &stream_soap)
@@ -397,7 +397,7 @@ pub mod device_info {
         {
             Ok(xml) => xml,
             Err(e) => {
-                return Err(failure::format_err!(
+                return Err(anyhow::format_err!(
                     "failed to get streaming uri from device: {:?}",
                     e
                 ))
@@ -410,7 +410,7 @@ pub mod device_info {
             ) {
                 Ok(stream) => stream.string(),
                 Err(e) => {
-                    return Err(failure::format_err!(
+                    return Err(anyhow::format_err!(
                         "failed to get servuce uri from resoinse: {:?}",
                         e
                     ))
@@ -478,7 +478,7 @@ pub mod device_info {
         //
         mock! {
             pub HttpImpl {
-                fn post(&self, url: &str, mime_action: &str, msg: &str) -> Result<Package, failure::Error>;
+                fn post(&self, url: &str, mime_action: &str, msg: &str) -> Result<Package, anyhow::Error>;
             }
         }
 
@@ -489,7 +489,7 @@ pub mod device_info {
                 url: &str,
                 mime_action: &str,
                 msg: &str,
-            ) -> Result<Package, failure::Error> {
+            ) -> Result<Package, anyhow::Error> {
                 self.post(url, mime_action, msg)
             }
         }
@@ -499,22 +499,22 @@ pub mod device_info {
                 fn get_device_ip_and_mac_address(
                     &self,
                     service_url: &str,
-                ) -> Result<(String, String), failure::Error>;
-                fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error>;
+                ) -> Result<(String, String), anyhow::Error>;
+                fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, anyhow::Error>;
                 fn get_device_service_uri(
                     &self,
                     url: &str,
                     service: &str,
-                ) -> Result<String, failure::Error>;
+                ) -> Result<String, anyhow::Error>;
                 fn get_device_profiles(
                     &self,
                     url: &str,
-                ) -> Result<Vec<String>, failure::Error>;
+                ) -> Result<Vec<String>, anyhow::Error>;
                 fn get_device_profile_streaming_uri(
                     &self,
                     url: &str,
                     profile_token: &str,
-                ) -> Result<String, failure::Error>;
+                ) -> Result<String, anyhow::Error>;
             }
         }
 
@@ -523,27 +523,27 @@ pub mod device_info {
             async fn get_device_ip_and_mac_address(
                 &self,
                 service_url: &str,
-            ) -> Result<(String, String), failure::Error> {
+            ) -> Result<(String, String), anyhow::Error> {
                 self.get_device_ip_and_mac_address(service_url)
             }
-            async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error> {
+            async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, anyhow::Error> {
                 self.get_device_scopes(url)
             }
             async fn get_device_service_uri(
                 &self,
                 url: &str,
                 service: &str,
-            ) -> Result<String, failure::Error> {
+            ) -> Result<String, anyhow::Error> {
                 self.get_device_service_uri(url, service)
             }
-            async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, failure::Error> {
+            async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, anyhow::Error> {
                 self.get_device_profiles(url)
             }
             async fn get_device_profile_streaming_uri(
                 &self,
                 url: &str,
                 profile_token: &str,
-            ) -> Result<String, failure::Error> {
+            ) -> Result<String, anyhow::Error> {
                 self.get_device_profile_streaming_uri(url, profile_token)
             }
         }
