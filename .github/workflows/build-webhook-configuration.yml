@@ -6,6 +6,7 @@ on:
       - main
       - "webhook-configuration"
     paths:
+      - .github/workflows/build-webhook-configuration.yml
       - webhooks/validating/configuration/**
       - version.txt
 
