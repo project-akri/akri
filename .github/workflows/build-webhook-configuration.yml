@@ -2,7 +2,9 @@ name: Build Webhook Configuration
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - webhook-configuration
     paths:
       - webhooks/validating/configuration/**
       - version.txt
