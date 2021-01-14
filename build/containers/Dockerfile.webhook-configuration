@@ -1,0 +1,54 @@
+ARG WEBHOOK="webhooks/validating/configuration"
+
+FROM rustlang/rust:nightly-slim as builder
+
+ARG WEBHOOK
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libssl-dev \
+    pkg-config
+
+WORKDIR /akri
+
+# For: akri_shared::akri::configuration::KubeAkriConfig;
+COPY ./shared ./shared
+
+RUN USER=root cargo new --bin ./${WEBHOOK}
+
+# Saves repeatedly building the dependencies
+# Because the project doesn't use main, add it here, purely as a throwaway
+COPY ${WEBHOOK}/Cargo.toml ./${WEBHOOK}/Cargo.toml
+RUN echo "fn main() {}" > ./${WEBHOOK}/src/main.rs
+RUN cargo build --release --manifest-path=./${WEBHOOK}/Cargo.toml
+RUN rm ./${WEBHOOK}/src/*.rs
+RUN rm ./${WEBHOOK}/target/release/deps/webhook_configuration*
+
+
+COPY ${WEBHOOK}/src/main.rs ./${WEBHOOK}/src
+RUN cargo build --release --manifest-path=./${WEBHOOK}/Cargo.toml
+
+FROM debian:buster-slim as runtime
+
+ARG WEBHOOK
+
+LABEL org.label-schema.docker.dockerfile="./Dockerfile" \
+    org.label-schema.url="https://github.com/deislabs/akri/" \
+    org.label-schema.vcs-ref=$VCS_REF \
+    org.label-schema.vcs-url="https://github.com/deislabs/akri.git" \
+    org.label-schema.vcs-type="Git"
+
+WORKDIR /bin
+
+# Copy from builder and rename to 'server'
+COPY --from=builder /akri/${WEBHOOK}/target/release/webhook-configuration /server
+
+RUN apt update \
+    && apt install -y \
+    ca-certificates \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/server"]
+CMD ["--tls-crt-file=/path/to/crt","--tls-key-file=/path/to/key","--port=8443"]
