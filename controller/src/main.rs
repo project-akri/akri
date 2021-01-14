@@ -1,13 +1,20 @@
+#[macro_use]
+extern crate lazy_static;
 mod util;
 
-use akri_shared::akri::API_NAMESPACE;
+use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
 use async_std::sync::Mutex;
-use env_logger;
+use prometheus::IntGaugeVec;
 use std::sync::Arc;
 use util::{instance_action, node_watcher, pod_watcher};
 
 /// Length of time to sleep between controller system validation checks
 pub const SYSTEM_CHECK_DELAY_SECS: u64 = 30;
+
+lazy_static! {
+    // Reports the number of Broker pods running, grouped by Configuration and Node
+    pub static ref BROKER_POD_COUNT_METRIC: IntGaugeVec = prometheus::register_int_gauge_vec!("akri_broker_pod_count", "Akri Broker Pod Count", &["configuration", "node"]).unwrap();
+}
 
 /// This is the entry point for the controller.
 #[tokio::main]
@@ -29,6 +36,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let synchronization = Arc::new(Mutex::new(()));
     let instance_watch_synchronization = synchronization.clone();
     let mut tasks = Vec::new();
+
+    // Start server for prometheus metrics
+    tasks.push(tokio::spawn(async move {
+        run_metrics_server().await.unwrap();
+    }));
 
     // Handle existing instances
     tasks.push(tokio::spawn({

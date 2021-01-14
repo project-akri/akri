@@ -57,7 +57,7 @@ use super::super::{DiscoveryHandler, DiscoveryResult};
 
 use akri_shared::akri::configuration::HTTPDiscoveryHandlerConfig;
 use async_trait::async_trait;
-use failure::Error;
+use anyhow::Error;
 use reqwest::get;
 use std::collections::HashMap;
 
@@ -77,7 +77,7 @@ impl HTTPDiscoveryHandler {
 #[async_trait]
 
 impl DiscoveryHandler for HTTPDiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
+    async fn discover(&self) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
         let url = self.discovery_handler_config.discovery_endpoint.clone();
         match get(&url).await {
             Ok(resp) => {
@@ -96,7 +96,7 @@ impl DiscoveryHandler for HTTPDiscoveryHandler {
                 Ok(result)
             }
             Err(err) => {
-                Err(failure::format_err!(
+                Err(anyhow::format_err!(
                     "Failed to connect to discovery endpoint results: {:?}",
                     err
                 ))
