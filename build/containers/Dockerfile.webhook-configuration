@@ -14,15 +14,15 @@ WORKDIR /akri
 # For: akri_shared::akri::configuration::KubeAkriConfig;
 COPY ./shared ./shared
 
-RUN USER=root cargo new --bin ./${WEBHOOK}
+# RUN USER=root cargo new --bin ./${WEBHOOK}
 
 # Saves repeatedly building the dependencies
 # Because the project doesn't use main, add it here, purely as a throwaway
 COPY ${WEBHOOK}/Cargo.toml ./${WEBHOOK}/Cargo.toml
-RUN echo "fn main() {}" > ./${WEBHOOK}/src/main.rs
-RUN cargo build --release --manifest-path=./${WEBHOOK}/Cargo.toml
-RUN rm ./${WEBHOOK}/src/*.rs
-RUN rm ./${WEBHOOK}/target/release/deps/webhook_configuration*
+# RUN echo "fn main() {}" > ./${WEBHOOK}/src/main.rs
+# RUN cargo build --release --manifest-path=./${WEBHOOK}/Cargo.toml
+# RUN rm ./${WEBHOOK}/src/*.rs
+# RUN rm ./${WEBHOOK}/target/release/deps/webhook_configuration*
 
 
 COPY ${WEBHOOK}/src/main.rs ./${WEBHOOK}/src
