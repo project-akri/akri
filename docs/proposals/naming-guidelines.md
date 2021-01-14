@@ -13,7 +13,7 @@ Akri existed before naming guidelines were documented and may not employ the gui
 
 ## Akri Discovery Handlers
 
-Various Discovery Handlers have been developed: `debug_echo`, `http`, `onvif`, `opcua`, `udev`
+Various Discovery Handlers have been developed: `debug_echo`, `onvif`, `opcua`, `udev`
 
 Guidance:
 
@@ -22,7 +22,7 @@ Guidance:
 
 ## Akri Brokers
 
-Various Brokers have been developed: `http-broker`, `onvif-video-broker`, `opcua-monitoring-broker`
+Various Brokers have been developed: `onvif-video-broker`, `opcua-monitoring-broker`
 
 Guidance:
 
