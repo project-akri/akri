@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - main
-      - "webhook-configuration"
     paths:
-      - .github/workflows/build-webhook-configuration.yml
       - webhooks/validating/configuration/**
       - version.txt
 
@@ -35,4 +33,4 @@ jobs:
             COMPONENT=${{ matrix.component }}
           context: .
           file: ./build/containers/Dockerfile.webhook-configuration
-          tags: ghcr.io/deislabs/akri/${{ env.AKRI_COMPONENT }}:v1
+          tags: ghcr.io/${{ secrets.crUsername }}/${{ env.AKRI_COMPONENT }}:v1
