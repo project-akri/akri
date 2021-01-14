@@ -311,7 +311,7 @@ webhook-configuration:
   image:
     # repository is the Akri Webhook for Configurations image reference
     repository: ghcr.io/deislabs/akri/webhook-configuration
-    tag: null
+    tag:
     # pullPolicy is the Akri Controller pull policy
     pullPolicy: Always
   # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
