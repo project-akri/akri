@@ -66,8 +66,6 @@ items:
             - --tls-crt-file=/secrets/tls.crt
             - --tls-key-file=/secrets/tls.key
             - --port=8443
-            - --logtostderr
-            - --v=2
             volumeMounts:
             - name: secrets
               mountPath: /secrets
