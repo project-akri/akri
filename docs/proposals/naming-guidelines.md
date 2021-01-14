@@ -41,7 +41,7 @@ Various Kubernetes Resources have been developed:
 Guidance:
 
 + Kubernetes Convention is that Resources (e.g. `DaemonSet`) and CRDs use (upper) CamelCase
-+ Akri Convention is that Instances of Akri (!) Resources e.g. `akri-agent-daemonset` be prefixed `akri-`
++ Akri Convention is that Akri Kubernetes Resources be prefixed `akri-`, e.g. `akri-agent-daemonset`
 + Names combining words should use hypens (`-`) to separate the words e.g. `akri-debug-echo`
 
 > **NOTE** `akri-agent-daemonset` contradicts the general principle of not including types, if it had been named after these guidelines were drafted, it would be named `akri-agent`.
