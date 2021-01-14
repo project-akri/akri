@@ -22,7 +22,7 @@ Guidance:
 
 ## Akri Brokers
 
-Various Brokers have been developed: `onvif-video-broker`, `opcua-monitoring-broker`
+Various Brokers have been developed: `onvif-video-broker`, `opcua-monitoring-broker`, `udev-broker`
 
 Guidance:
 
