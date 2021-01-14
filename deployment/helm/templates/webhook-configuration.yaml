@@ -1,0 +1,139 @@
+{{- if .Values.rbac.enabled }}
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+    namespace: {{ .Release.Namespace }}
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+    namespace: {{ .Release.Namespace }}
+  rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+    namespace: {{ .Release.Namespace }}
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: {{ .Values.webhook-configuration.name }}
+  subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.webhook-configuration.name }}
+    namespace: {{ .Release.Namespace }}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: {{ .Values.webhook-configuration.name }}
+    template:
+      metadata:
+        labels:
+          app: {{ .Values.webhook-configuration.name }}
+      spec:
+        {{- if .Values.rbac.enabled }}
+        serviceAccountName: {{ .Values.webhook-configuration.name }}
+        {{- end }}
+        containers:
+          - name: webhook
+            {{- if .Values.useDevelopmentContainers }}
+            {{- if .Values.useLatestContainers }}
+            image: {{ printf "%s:latest-dev" .Values.webhook-configuration.image.repository | quote }}
+            {{- else }}
+            image: {{ printf "%s:%s" .Values.webhook-configuration.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.webhook-configuration.image.tag) | quote }}
+            {{- end }}
+            {{- else }}
+            {{- if .Values.useLatestContainers }}
+            image: {{ printf "%s:latest" .Values.webhook-configuration.image.repository | quote }}
+            {{- else }}
+            image: {{ printf "%s:%s" .Values.webhook-configuration.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.webhook-configuration.image.tag) | quote }}
+            {{- end }}
+            {{- end }}
+            imagePullPolicy: {{ .Values.webhook-configuration.image.pullPolicy }}
+            args:
+            - --tls-crt-file=/secrets/tls.crt
+            - --tls-key-file=/secrets/tls.key
+            - --port=8443
+            - --logtostderr
+            - --v=2
+            volumeMounts:
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
+        volumes:
+          - name: secrets
+            secret:
+              secretName: {{ .Values.webhook-configuration.name }}
+        {{- with .Values.imagePullSecrets }}
+        imagePullSecrets:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.webhook-configuration.allowOnControlPlane }}
+        tolerations:
+          {{- /* Allow this pod to run on the master. */}}
+          - key: node-role.kubernetes.io/master
+            effect: NoSchedule
+        {{- end }}
+        {{- if or .Values.webhook-configuration.linuxOnly .Values.webhook-configuration.onlyOnControlPlane .Values.webhook-configuration.nodeSelectors }}
+        nodeSelector:
+          {{- if .Values.webhook-configuration.nodeSelectors }}
+            {{- toYaml .Values.webhook-configuration.nodeSelectors | nindent 8 }}
+          {{- end }}
+          {{- if .Values.webhook-configuration.linuxOnly }}
+          "kubernetes.io/os": linux
+          {{- end }}
+          {{- if .Values.webhook-configuration.onlyOnControlPlane }}
+          node-role.kubernetes.io/master: ""
+          {{- end }}
+        {{- end }}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+  spec:
+    selector:
+      app: {{ .Values.webhook-configuration.name }}
+    ports:
+      - name: http
+        port: 443
+        targetPort: 8443
+- apiVersion: admissionregistration.k8s.io/v1
+  kind: ValidatingWebhookConfiguration
+  metadata:
+    name: {{ .Values.webhook-configuration.name }}
+  webhooks:
+    - name: {{ .Values.webhook-configuration.name }}.{{ .Release.Namespace }}.svc
+      clientConfig:
+        service:
+          name: {{ .Values.webhook-configuration.name }}
+          namespace: {{ .Release.Namespace }}
+          port: 443
+          path: "/validate"
+        caBundle: {{ required "please rerun helm install" .Values.webhook-configuration.caBundle }}
+      rules:
+        - operations:
+            - "CREATE"
+            - "UPDATE"
+          apiGroups:
+            - {{ .Values.crds.group }}
+          apiVersions:
+            - {{ .Values.crds.version }}
+          resources:
+            - "configurations"
+          scope: "*"
+      admissionReviewVersions:
+        - v1
+      sideEffects: None
+{{- end }}
