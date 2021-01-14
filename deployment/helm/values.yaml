@@ -299,3 +299,17 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+
+# Admission Controllers (Webhooks)
+webhook-configuration:
+  enabled: true
+  name: akri-webhook-configuration
+  caBundle: null
+  image:
+    repository: ghcr.io/deislabs/akri/webhook-configuration
+    tag: null
+    pullPolicy: Always
+  onlyOnControlPlane: false
+  allowOnControlPlane: true
+  linuxOnly: true
+  nodeSelectors: {}
