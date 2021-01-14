@@ -187,7 +187,7 @@ Akri existed before naming guidelines were documented and may not employ the gui
 ### General Principles
 
 + Akri uses English
-+ Akri is written principally in Rust and Rust [Naming](https://rust-lang.github.io/api-guidelines/naming.html) conventions are used
++ Akri is written principally in Rust, and Rust [naming](https://rust-lang.github.io/api-guidelines/naming.html) conventions are used
 + Types need not be included in names unless ambiguity would result
 + Shorter, simpler names are preferred
 
