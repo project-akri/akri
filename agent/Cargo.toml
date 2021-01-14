@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ blake2 = "0.8.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
 env_logger = "0.6.1"
-failure = "0.1.5"
+anyhow = "1.0.38"
 futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"

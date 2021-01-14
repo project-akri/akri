@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -9,9 +9,8 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1.0"
 bytes = "0.5"
-
 either = '*'
-failure = "0.1.5"
+anyhow = "1.0.38"
 futures = "0.3.1"
 futures-old = { version = "0.1", package = "futures" }
 futures-util = "0.3"
