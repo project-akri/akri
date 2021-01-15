@@ -1,3 +1,4 @@
+ARG PLATFORM=amd64
 ARG WEBHOOK="webhooks/validating/configuration"
 
 FROM rustlang/rust:nightly-slim as builder
@@ -28,15 +29,9 @@ COPY ${WEBHOOK}/src/main.rs ./${WEBHOOK}/src
 RUN cargo build --release --manifest-path=./${WEBHOOK}/Cargo.toml
 
 
-FROM debian:buster-slim as runtime
+FROM ${PLATFORM}/debian:buster-slim as runtime
 
 ARG WEBHOOK
-
-LABEL org.label-schema.docker.dockerfile="./Dockerfile" \
-    org.label-schema.url="https://github.com/deislabs/akri/" \
-    org.label-schema.vcs-ref=$VCS_REF \
-    org.label-schema.vcs-url="https://github.com/deislabs/akri.git" \
-    org.label-schema.vcs-type="Git"
 
 WORKDIR /bin
 
@@ -44,11 +39,17 @@ WORKDIR /bin
 COPY --from=builder /akri/${WEBHOOK}/target/release/webhook-configuration /server
 
 RUN apt update \
-    && apt install -y \
+    && apt install -y --no-install-recommends \
     ca-certificates \
     libssl-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
 
 ENTRYPOINT ["/server"]
 CMD ["--tls-crt-file=/path/to/crt","--tls-key-file=/path/to/key","--port=8443"]
