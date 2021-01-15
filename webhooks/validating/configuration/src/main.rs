@@ -176,18 +176,21 @@ async fn main() -> std::io::Result<()> {
             Arg::new("crt_file")
                 .long("tls-crt-file")
                 .takes_value(true)
+                .required(true)
                 .about("TLS certificate file"),
         )
         .arg(
             Arg::new("key_file")
                 .long("tls-key-file")
                 .takes_value(true)
+                .required(true)
                 .about("TLS private key file"),
         )
         .arg(
             Arg::new("port")
                 .long("port")
                 .takes_value(true)
+                .required(true)
                 .about("port"),
         )
         .get_matches();
