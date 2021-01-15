@@ -2,9 +2,6 @@
 # Ignore everything
 **
 
-!shared
-!webhooks/validating/configuration
-
 # The anomaly detection app is built using a `docker build` command, 
 # so the source code needs to be available to the container
 # build
