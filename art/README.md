@@ -3,7 +3,7 @@
 
 ## Logo
 
-![Screen Shot 2020-11-24 at 11 10 44 AM](https://user-images.githubusercontent.com/686194/100140376-b6d58600-2e45-11eb-877a-ca135eed7d6f.png)
+![Screen Shot 2020-11-24 at 11 10 44 AM](https://user-images.githubusercontent.com/686194/104776503-0c842b80-572f-11eb-8c69-a74df6d3d3f3.png)
 
 
 ---
@@ -16,9 +16,12 @@ This directory contains the AKRI icon and logo in different settings. Choose the
 
 ## Typography
 
-AKRI's wordmark uses rounded, playful lettering. Ideally complimentary text should follow these attributes - I recommend the [Varela Round](https://fonts.google.com/specimen/Varela+Round) typeface, a rounded, soft and playful sans-serif typeface created by Joe Prince. These fonts are licensed under the Open Font License.
- 
-* [Download Varela Round](https://fonts.google.com/specimen/Varela+Round)  
+AKRI's wordmark uses a monospaced typeface (Inconsolata) to lend a technical, developer-centric style. Ideally complimentary text should follow these attributes - I recommend use of a common, device-friendly default [monospaced typeface](https://en.wikipedia.org/wiki/List_of_monospaced_typefaces) to style headlines to work well with Inconsolata.
+
+Standard page copy *should not* be written in a monospaced font in this way - this typography style is decorative and not used extensively, or legibility can suffer. Standard page copy should use [standard sans-serif typefaces](https://fontsarena.com/blog/operating-systems-default-sans-serif-fonts/) such as Helvetica, Segoe, Arial, etc.
+
+* [Download Inconsolata](https://fonts.google.com/specimen/Inconsolata) _Open Font Licence_  
+* [Standard Monospaced Typefaces](https://www.cssfontstack.com/)  
 * [Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)  
 
 ---
