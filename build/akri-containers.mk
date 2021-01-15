@@ -150,7 +150,7 @@ ifeq (1, ${BUILD_AMD64})
 endif
 webhook-configuration-build-arm32:
 ifeq (1, ${BUILD_ARM32})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD32V7_SUFFIX) --build-arg PLATFORM=$(AMD32V7_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX)
 endif
 webhook-configuration-build-arm64:
 ifeq (1, ${BUILD_ARM64})
