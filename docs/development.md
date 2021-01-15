@@ -1,5 +1,7 @@
 # Development
-This document will walk you through how to set up a local development environment, build Akri component containers, and test Akri using your newly built containers. 
+This document will walk you through how to set up a local development environment, build Akri component containers, and test Akri using your newly built containers.
+
+The document includes [naming guidelines](#naming-guidelines) to help as you extend Akri.
 
 ## Required Tools
 To develop, you'll need:
@@ -175,3 +177,53 @@ helm get manifest akri | less
 
 ### Helm Upgrade
 To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [Customizing an Akri Installation document](./customizing-akri-installation.md) for further explanation. 
+
+## Naming Guidelines
+
+One of the [two hard things](https://martinfowler.com/bliki/TwoHardThings.html) in Compute Science is naming things. It is proposed that Akri adopt naming guidelines to make developers' lives easier by providing consistency and reduce naming complexity.
+
+Akri existed before naming guidelines were documented and may not employ the guidelines summarized here. However, it is hoped that developers will, at least, consider these guidelines when extending Akri.
+
+### General Principles
+
++ Akri uses English
++ Akri is written principally in Rust, and Rust [naming](https://rust-lang.github.io/api-guidelines/naming.html) conventions are used
++ Types need not be included in names unless ambiguity would result
++ Shorter, simpler names are preferred
+
+### Akri Discovery Handlers
+
+Various Discovery Handlers have been developed: `debug_echo`, `onvif`, `opcua`, `udev`
+
+Guidance:
+
++ `snake_case` names
++ (widely understood) initializations|acronyms are preferred
+
+### Akri Brokers
+
+Various Brokers have been developed: `onvif-video-broker`, `opcua-monitoring-broker`, `udev-video-broker`
+
+Guidance:
+
++ Broker names should reflect Discovery Handler (Protocol) names and be suffixed `-broker`
++ Use Programming language-specific naming conventions when developing Brokers in non-Rust languages
+
+> **NOTE** Even though the initialization of [ONVIF](https://en.wikipedia.org/wiki/ONVIF) includes "Video", the specification is broader than video and the broker name adds specificity by including the word (`onvif-video-broker`) in order to effectively describe its functionality.
+
+### Kubernetes Resources
+
+Various Kubernetes Resources have been developed:
+
++ CRDS: `Configurations`, `Instances`
++ Instances: `akri-agent-daemonset`, `akri-controller-deployment`, `akri-onvif`, `akri-opcua`, `akri-udev`
+
+Guidance:
+
++ Kubernetes Convention is that resources (e.g. `DaemonSet`) and CRDs use (upper) CamelCase
++ Akri Convention is that Akri Kubernetes resources be prefixed `akri-`, e.g. `akri-agent-daemonset`
++ Names combining words should use hypens (`-`) to separate the words e.g. `akri-debug-echo`
+
+> **NOTE** `akri-agent-daemonset` contradicts the general principle of not including types, if it had been named after these guidelines were drafted, it would be named `akri-agent`.
+>
+> Kubernetes' resources are strongly typed and the typing is evident through the CLI e.g. `kubectl get daemonsets/akri-agent-daemonset` and through a resource's `Kind` (e.g. `DaemonSet`). Including such types in the name is redundant.
