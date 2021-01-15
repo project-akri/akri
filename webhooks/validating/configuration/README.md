@@ -62,9 +62,9 @@ CABUNDLE=...
 
 helm install webhook akri-helm-charts/akri-dev \
 --namespace=${DEFAULT} \
---set=webhook.enabled=true \
---set=webhook.name=${WEBHOOK} \
---set=webhook.caBundle=${CABUNDLE} \
---set=webhook.image.repository=ghcr.io/deislabs/akri/webhook-configuration \
---set=webhook.image.tag=v1
+--set=webhookConfiguration.enabled=true \
+--set=webhookConfiguration.name=${WEBHOOK} \
+--set=webhookConfiguration.caBundle=${CABUNDLE} \
+--set=webhookConfiguration.image.repository=ghcr.io/deislabs/akri/webhook-configuration \
+--set=webhookConfiguration.image.tag=v1
 ```

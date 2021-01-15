@@ -301,7 +301,7 @@ udev:
     protocol: TCP
 
 # Admission Controllers (Webhooks)
-webhook-configuration:
+webhookConfiguration:
   # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
   enabled: false
   # name of the webhook
