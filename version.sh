@@ -124,7 +124,7 @@ if [ "$CHECK" == "1" ]; then
     echo "    Verified format: $BASEDIR/version.txt"
     fi
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml $BASEDIR/webhooks/validating/configuration/Cargo.toml"
     TOML_VERSION_PATTERN="^version"
     TOML_VERSION="\"$(echo $VERSION)\""
     for CARGO_FILE in $CARGO_FILES
@@ -191,7 +191,7 @@ then
     fi
     echo "Updating to version: $NEW_VERSION"
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml  $BASEDIR/webhooks/validating/configuration/Cargo.toml"
     TOML_VERSION_PATTERN="^version = .*"
     TOML_VERSION_LINE="version = \"$NEW_VERSION\""
     for CARGO_FILE in $CARGO_FILES
