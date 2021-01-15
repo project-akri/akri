@@ -43,7 +43,6 @@ spec:
 
 > **NOTE** You must provide the above with a `${NAMESPACE}` even if the value is `default` so that it may construct qualified DNS for the Webhook Service.
 
-
 When Kubernetes is configured to use the Webhook, it requires the base64-encoded PEM certificate of the CA. The CA certificate may be obtained from the Webhook's certificate using:
 
 ```bash
