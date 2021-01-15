@@ -31,7 +31,7 @@ akri-onvif: akri-build akri-docker-onvif
 akri-streaming: akri-build akri-docker-streaming
 akri-opcua-monitoring: akri-docker-opcua-monitoring
 akri-anomaly-detection: akri-docker-anomaly-detection
-akri-webhook-configuration: akri-docker-webhook-configuration
+akri-webhook-configuration: akri-build akri-docker-webhook-configuration
 
 akri-build: install-cross akri-cross-build
 akri-docker: akri-docker-build akri-docker-push-per-arch akri-docker-push-multi-arch-create akri-docker-push-multi-arch-push
