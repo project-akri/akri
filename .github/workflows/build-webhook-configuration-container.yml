@@ -6,9 +6,9 @@ on:
     paths:
       - .github/actions/build-component-per-arch/**
       - .github/actions/build-component-multi-arch/**
-      - .github/workflows/build-anomaly-detection-app-container.yml
-      - build/containers/Dockerfile.anomaly-detection-app
-      - samples/apps/anomaly-detection-app/**
+      - .github/workflows/build-webhook-configuration-container.yml
+      - build/containers/Dockerfile.webhook-configuration
+      - webhooks/validating/configuration
       - version.txt
       - build/akri-containers.mk
       - Makefile
@@ -17,9 +17,9 @@ on:
     paths:
       - .github/actions/build-component-per-arch/**
       - .github/actions/build-component-multi-arch/**
-      - .github/workflows/build-anomaly-detection-app-container.yml
-      - build/containers/Dockerfile.anomaly-detection-app
-      - samples/apps/anomaly-detection-app/**
+      - .github/workflows/build-workflow-configuration-container.yml
+      - build/containers/Dockerfile.workflow-configuration
+      - webhooks/validating/configuration
       - version.txt
       - build/akri-containers.mk
       - Makefile
