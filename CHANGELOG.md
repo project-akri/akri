@@ -1,3 +1,11 @@
+# v0.2.0
+
+## Announcing Akri v0.2.0!
+Akri v0.2.0 is a pre-release of Akri.
+
+## New Features
+The v0.2.0 release introduces an [Admission Controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) to validate Akri Configurations when they are applied to the cluster. See [README](./webhooks/validating/configuration/README.md).
+
 # v0.1.5
 
 ## Announcing Akri v0.1.5!
