@@ -47,36 +47,36 @@ items:
           serviceAccountName: {{ .Values.webhookConfiguration.name }}
           {{- end }}
           containers:
-            - name: webhook
-              {{- if .Values.useDevelopmentContainers }}
-              {{- if .Values.useLatestContainers }}
-              image: {{ printf "%s:latest-dev" .Values.webhookConfiguration.image.repository | quote }}
-              {{- else }}
-              image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
-              {{- end }}
-              {{- else }}
-              {{- if .Values.useLatestContainers }}
-              image: {{ printf "%s:latest" .Values.webhookConfiguration.image.repository | quote }}
-              {{- else }}
-              image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
-              {{- end }}
-              {{- end }}
-              imagePullPolicy: {{ .Values.webhookConfiguration.image.pullPolicy }}
-              args:
-              - --tls-crt-file=/secrets/tls.crt
-              - --tls-key-file=/secrets/tls.key
-              - --port=8443
-              volumeMounts:
-              - name: secrets
-                mountPath: /secrets
-                readOnly: true
+          - name: webhook
+            {{- if .Values.useDevelopmentContainers }}
+            {{- if .Values.useLatestContainers }}
+            image: {{ printf "%s:latest-dev" .Values.webhookConfiguration.image.repository | quote }}
+            {{- else }}
+            image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
+            {{- end }}
+            {{- else }}
+            {{- if .Values.useLatestContainers }}
+            image: {{ printf "%s:latest" .Values.webhookConfiguration.image.repository | quote }}
+            {{- else }}
+            image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
+            {{- end }}
+            {{- end }}
+            imagePullPolicy: {{ .Values.webhookConfiguration.image.pullPolicy }}
+            args:
+            - --tls-crt-file=/secrets/tls.crt
+            - --tls-key-file=/secrets/tls.key
+            - --port=8443
+            volumeMounts:
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
           volumes:
             - name: secrets
               secret:
                 secretName: {{ .Values.webhookConfiguration.name }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
-            {{- toYaml . | nindent 8 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- if .Values.webhookConfiguration.allowOnControlPlane }}
           tolerations:
