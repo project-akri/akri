@@ -180,7 +180,7 @@ To modify an Akri installation to reflect a new state, you can use [`helm upgrad
 
 ## Naming Guidelines
 
-One of the [two hard things](https://martinfowler.com/bliki/TwoHardThings.html) in Compute Science is naming things. It is proposed that Akri adopt naming guidelines to make developers' lives easier by providing consistency and reduce naming complexity.
+One of the [two hard things](https://martinfowler.com/bliki/TwoHardThings.html) in Computer Science is naming things. It is proposed that Akri adopt naming guidelines to make developers' lives easier by providing consistency and reduce naming complexity.
 
 Akri existed before naming guidelines were documented and may not employ the guidelines summarized here. However, it is hoped that developers will, at least, consider these guidelines when extending Akri.
 
