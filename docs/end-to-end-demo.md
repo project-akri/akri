@@ -34,7 +34,8 @@ The following will be covered in this demo:
     > like so:
     > ```sh
     > git clone https://github.com/umlaeute/v4l2loopback.git
-    > sudo make installs
+    > cd v4l2loopback
+    > make & sudo make install
     > sudo make install-utils
     > sudo depmod -a  
     > ```
