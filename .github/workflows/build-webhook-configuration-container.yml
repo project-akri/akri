@@ -34,7 +34,7 @@ env:
 jobs:
   per-arch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     strategy:
       matrix:
         arch:
@@ -77,7 +77,7 @@ jobs:
     if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
     needs: per-arch
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repo
