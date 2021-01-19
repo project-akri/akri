@@ -66,11 +66,6 @@ pub trait DiscoveryHandler {
 #[cfg(feature = "coapcore-feat")]
 mod coap_core;
 pub mod debug_echo;
-#[cfg(feature = "onvif")]
-mod onvif;
-#[cfg(feature = "opcua")]
-mod opcua;
-#[cfg(feature = "udev")]
 #[cfg(feature = "onvif-feat")]
 mod onvif;
 #[cfg(feature = "opcua-feat")]
