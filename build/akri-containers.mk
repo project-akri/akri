@@ -146,15 +146,15 @@ endif
 webhook-configuration-build: webhook-configuration-build-amd64 webhook-configuration-build-arm32 webhook-configuration-build-arm64
 webhook-configuration-build-amd64:
 ifeq (1, ${BUILD_AMD64})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg PLATFORM=$(AMD64_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg PLATFORM=$(AMD64_SUFFIX)  --build-arg CROSS_BUILD_TARGET=$(AMD64_TARGET)
 endif
 webhook-configuration-build-arm32:
 ifeq (1, ${BUILD_ARM32})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM32V7_TARGET)
 endif
 webhook-configuration-build-arm64:
 ifeq (1, ${BUILD_ARM64})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM64V8_TARGET)
 endif
 
 streaming-build: streaming-build-amd64 streaming-build-arm32 streaming-build-arm64
