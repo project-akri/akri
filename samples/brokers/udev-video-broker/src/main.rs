@@ -1,7 +1,8 @@
 mod util;
-
+#[macro_use]
+extern crate lazy_static;
 use akri_shared::{
-    akri::API_NAMESPACE,
+    akri::{metrics::run_metrics_server, API_NAMESPACE},
     os::{
         env_var::{ActualEnvVarQuery, EnvVarQuery},
         signal,
@@ -9,7 +10,14 @@ use akri_shared::{
 };
 use futures::Future;
 use log::{info, trace};
+use prometheus::IntCounter;
 use util::{camera_capturer, camera_service};
+
+lazy_static! {
+    pub static ref FRAME_COUNT_METRIC: IntCounter =
+        prometheus::register_int_counter!("akri_frame_count", "Akri Frame Count")
+            .expect("akri_frame_count cannot be created");
+}
 
 /// devnode environment variable id
 pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
@@ -24,6 +32,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     );
     info!("{} Udev Broker logging started", API_NAMESPACE);
 
+    tokio::spawn(async move {
+        run_metrics_server().await.unwrap();
+    });
+
     // Set up shutdown channel
     let (exit_tx, exit_rx) = std::sync::mpsc::channel::<()>();
     let _shutdown_signal = signal::shutdown().then(|_| {
@@ -34,8 +46,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let env_var_query = ActualEnvVarQuery {};
     let devnode = get_video_devnode(&env_var_query);
 
-    // let frames_per_second = get_frames_per_second(&env_var_query);
-    // let resolution = get_resolution(&env_var_query);
     let camera_capturer = camera_capturer::build_and_start_camera_capturer(&devnode);
     camera_service::serve(&devnode, camera_capturer)
         .await

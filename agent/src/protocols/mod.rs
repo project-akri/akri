@@ -2,10 +2,10 @@ use akri_shared::{
     akri::configuration::ProtocolHandler,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
+use anyhow::Error;
 use async_trait::async_trait;
 use blake2::digest::{Input, VariableOutput};
 use blake2::VarBlake2b;
-use failure::Error;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +49,7 @@ impl DiscoveryResult {
 /// pub struct SampleDiscoveryHandler {}
 /// #[async_trait]
 /// impl DiscoveryHandler for SampleDiscoveryHandler {
-///     async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
+///     async fn discover(&self) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
 ///         Ok(Vec::new())
 ///     }
 ///     fn are_shared(&self) -> Result<bool, Error> {
@@ -97,7 +97,7 @@ fn inner_get_discovery_handler(
         )),
         ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
             Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
-            _ => Err(failure::format_err!("No protocol configured")),
+            _ => Err(anyhow::format_err!("No protocol configured")),
         },
         config => {
             panic!("No handler found for configuration {:?}", config);

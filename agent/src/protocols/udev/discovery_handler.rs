@@ -1,8 +1,8 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
 use super::{discovery_impl, udev_enumerator, UDEV_DEVNODE_LABEL_ID};
 use akri_shared::akri::configuration::UdevDiscoveryHandlerConfig;
+use anyhow::Error;
 use async_trait::async_trait;
-use failure::Error;
 use std::collections::HashSet;
 
 /// `UdevDiscoveryHandler` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.

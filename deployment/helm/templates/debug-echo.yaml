@@ -1,5 +1,5 @@
 {{- if .Values.debugEcho.enabled }}
-apiVersion: akri.sh/v0
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
   name: {{ .Values.debugEcho.name }}

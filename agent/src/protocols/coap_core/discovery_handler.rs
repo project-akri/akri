@@ -62,7 +62,7 @@ impl CoAPCoREDiscoveryHandler {
 
 #[async_trait]
 impl DiscoveryHandler for CoAPCoREDiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
+    async fn discover(&self) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
         let coap_client = CoAPClientImpl {};
         let ip_addresses = &self.discovery_handler_config.ip_addresses;
         let mut results: Vec<DiscoveryResult> = vec![];
@@ -79,7 +79,7 @@ impl DiscoveryHandler for CoAPCoREDiscoveryHandler {
         Ok(results)
     }
 
-    fn are_shared(&self) -> Result<bool, failure::Error> {
+    fn are_shared(&self) -> Result<bool, anyhow::Error> {
         Ok(false)
     }
 }
