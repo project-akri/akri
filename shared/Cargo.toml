@@ -10,6 +10,8 @@ edition = "2018"
 async-trait = "0.1.0"
 bytes = "0.5"
 
+coap = "0.9"
+coap-lite = "0.3.5"
 either = '*'
 failure = "0.1.5"
 futures = "0.3.1"

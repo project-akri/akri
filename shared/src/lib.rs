@@ -7,6 +7,7 @@ extern crate serde_yaml;
 extern crate tokio_core;
 
 pub mod akri;
+pub mod coap_core;
 pub mod k8s;
 pub mod onvif;
 pub mod os;
