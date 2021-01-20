@@ -1,7 +1,7 @@
 pub mod device_info {
     use async_trait::async_trait;
     use futures_util::stream::TryStreamExt;
-    use hyper_async::Request;
+    use hyper::Request;
     use log::trace;
     use std::io::{Error, ErrorKind};
     use sxd_document::{parser, Package};
@@ -146,7 +146,7 @@ pub mod device_info {
                 .header("CONTENT-TYPE", full_mime)
                 .body(msg.to_string().into())
                 .expect("infallible");
-            let response = hyper_async::Client::new().request(request).await.unwrap();
+            let response = hyper::Client::new().request(request).await.unwrap();
             if response.status() != 200 {
                 return Err(anyhow::format_err!("failure"));
             }

@@ -84,7 +84,6 @@ dependencies = [
  "futures 0.1.30",
  "futures 0.3.12",
  "futures-util",
- "hyper 0.12.35",
  "hyper 0.13.9",
  "k8s-openapi",
  "kube",
