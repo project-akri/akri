@@ -100,7 +100,7 @@ fn inner_get_discovery_handler(
             _ => Err(anyhow::format_err!("No protocol configured")),
         },
         config => {
-            panic!("No handler found for configuration {:?}", config);
+            Err(anyhow::format_err!("No handler found for configuration {:?}", config))
         }
     }
 }

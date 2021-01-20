@@ -1,4 +1,4 @@
-# [CoAPCore](https://tools.ietf.org/html/rfc6690#:~:text=well-known%2Fcore) Protocol Implementation
+# [CoAP CoRE](https://tools.ietf.org/html/rfc6690#:~:text=well-known%2Fcore) Protocol Implementation
 
 ## Goal
 
