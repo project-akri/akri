@@ -151,7 +151,7 @@ impl DiscoveryHandler for OnvifDiscoveryHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use akri_shared::onvif::device_info::test_onvif::MockOnvifQueryImpl;
+    use akri_shared::onvif::device_info::MockOnvifQuery;
 
     struct IpAndMac {
         mock_uri: &'static str,
@@ -165,7 +165,7 @@ mod tests {
     }
 
     fn configure_scenario(
-        mock: &mut MockOnvifQueryImpl,
+        mock: &mut MockOnvifQuery,
         ip_and_mac: Option<IpAndMac>,
         scope: Option<Scope>,
     ) {
@@ -183,7 +183,7 @@ mod tests {
     }
 
     fn configure_get_device_ip_and_mac_address(
-        mock: &mut MockOnvifQueryImpl,
+        mock: &mut MockOnvifQuery,
         uri: &'static str,
         ip: &'static str,
         mac: &'static str,
@@ -195,7 +195,7 @@ mod tests {
     }
 
     fn configure_get_device_scopes(
-        mock: &mut MockOnvifQueryImpl,
+        mock: &mut MockOnvifQuery,
         uri: &'static str,
         scope: &'static str,
     ) {
@@ -209,7 +209,7 @@ mod tests {
     async fn test_apply_filters_no_filters() {
         let mock_uri = "device_uri";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -242,7 +242,7 @@ mod tests {
         let mock_uri = "device_uri";
         let mock_ip = "mock.ip";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -277,7 +277,7 @@ mod tests {
     async fn test_apply_filters_include_ip_nonexist() {
         let mock_uri = "device_uri";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -309,7 +309,7 @@ mod tests {
     async fn test_apply_filters_exclude_ip_nonexist() {
         let mock_uri = "device_uri";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -345,7 +345,7 @@ mod tests {
         let mock_uri = "device_uri";
         let mock_ip = "mock.ip";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -378,7 +378,7 @@ mod tests {
         let mock_uri = "device_uri";
         let mock_mac = "mock:mac";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -413,7 +413,7 @@ mod tests {
     async fn test_apply_filters_include_mac_nonexist() {
         let mock_uri = "device_uri";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -445,7 +445,7 @@ mod tests {
     async fn test_apply_filters_exclude_mac_nonexist() {
         let mock_uri = "device_uri";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
@@ -481,7 +481,7 @@ mod tests {
         let mock_uri = "device_uri";
         let mock_mac = "mock:mac";
 
-        let mut mock = MockOnvifQueryImpl::new();
+        let mut mock = MockOnvifQuery::new();
         configure_scenario(
             &mut mock,
             Some(IpAndMac {
