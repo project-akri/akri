@@ -10,8 +10,8 @@ edition = "2018"
 async-trait = "0.1.0"
 bytes = "0.5"
 
-coap = "0.9"
-coap-lite = "0.3.5"
+coap = { git = "https://github.com/jiayihu/coap-rs", branch = "receive_from" }
+coap-lite = "0.3.4"
 either = '*'
 anyhow = "1.0.38"
 futures = "0.3.1"

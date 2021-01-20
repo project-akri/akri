@@ -6,8 +6,10 @@ metadata:
 spec:
   protocol:
     coapcore:
-      ipAddresses: 
-        {{- toYaml .Values.coapcore.ipAddresses | nindent 8 }}
+      multicast: {{ .Values.coapcore.multicast }}
+      multicastIpAddress: {{ .Values.coapcore.multicastIpAddress }}
+      staticIpAddresses: 
+        {{- toYaml .Values.coapcore.staticIpAddresses | nindent 8 }}
   {{- if .Values.coapcore.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:

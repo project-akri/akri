@@ -314,7 +314,9 @@ coapcore:
   # properties is a map of properties that will be passed to any instances
   # created as a result of applying this onvif configuration
   properties:
-  ipAddresses: []
+  multicast: true
+  multicastIpAddress: 224.0.1.187
+  staticIpAddresses: []
   # capacity is the capacity for any instances created as a result of
   # applying this onvif configuration
   capacity: 1

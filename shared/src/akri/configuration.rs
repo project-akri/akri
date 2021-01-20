@@ -155,9 +155,10 @@ fn lds_discovery_url() -> Vec<String> {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CoAPCoREDiscoveryHandlerConfig {
+    pub multicast: bool,
+    pub multicast_ip_address: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub ip_addresses: Vec<String>,
-    // TODO: It should support resource discovering by using a multicast CoAP request
+    pub static_ip_addresses: Vec<String>,
 }
 
 /// This defines the DebugEcho data stored in the Configuration

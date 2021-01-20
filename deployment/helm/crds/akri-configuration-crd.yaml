@@ -103,7 +103,11 @@ spec:
                     coapcore: # {{CoAPCoREDiscoveryHandler}}
                       type: object
                       properties:
-                        ipAddresses: # {{DeviceIPs}}
+                        multicast:
+                          type: boolean
+                        multicastIpAddress:
+                          type: string
+                        staticIpAddresses: # {{DeviceIPs}}
                           type: array
                           items:
                             type: string

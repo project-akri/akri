@@ -12,8 +12,8 @@ async-trait = "0.1.0"
 blake2 = "0.8.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
-coap = { version = "0.9", optional = true }
-coap-lite = { version = "0.3.5", optional = true }
+coap = { git = "https://github.com/jiayihu/coap-rs", branch = "receive_from", optional = true }
+coap-lite = { version = "0.3.4", optional = true }
 env_logger = "0.6.1"
 anyhow = "1.0.38"
 futures = { version = "0.3.1", package = "futures" }
@@ -55,7 +55,7 @@ yaserde_derive = { version = "0.3.13", optional = true }
 tonic-build = "0.1.1"
 
 [features]
-default = ["onvif-feat", "opcua-feat", "udev-feat", "coapcore-feat"]
+default = ["onvif-feat", "opcua-feat", "coapcore-feat"]
 
 onvif-feat = ["xml-rs", "yaserde", "yaserde_derive"]
 opcua-feat = ["opcua-client"]
