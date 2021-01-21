@@ -99,9 +99,10 @@ fn inner_get_discovery_handler(
             Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
             _ => Err(anyhow::format_err!("No protocol configured")),
         },
-        config => {
-            Err(anyhow::format_err!("No handler found for configuration {:?}", config))
-        }
+        config => Err(anyhow::format_err!(
+            "No handler found for configuration {:?}",
+            config
+        )),
     }
 }
 

@@ -1,13 +1,13 @@
+use actix_web::http::{Method, StatusCode};
+use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
+use coap::CoAPClient;
+use coap_lite::{MessageClass, ResponseType};
+use log::{debug, info};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
-use actix_web::http::{Method, StatusCode};
-use log::{info, debug};
-use akri_shared::os::env_var::{EnvVarQuery, ActualEnvVarQuery};
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
-use actix_web::middleware::Logger;
-use coap::{CoAPClient};
-use coap_lite::{MessageClass, ResponseType};
 
 pub const COAP_RESOURCE_TYPES_LABEL_ID: &str = "COAP_RESOURCE_TYPES";
 pub const COAP_IP_LABEL_ID: &str = "COAP_IP";
@@ -25,7 +25,7 @@ async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
     if req.method() != &Method::GET {
         return HttpResponse::NotImplemented().body("Only GET requests are supported for now");
     }
-    
+
     // TODO: should some HTTP headers to set or copied to the CoAP request? E.g. 'Forwarded'
     let response = CoAPClient::get_with_timeout(endpoint.as_str(), Duration::from_secs(5));
 
@@ -50,7 +50,7 @@ async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
             // TODO: Convert and copy over headers from CoAP to HTTP
 
             proxy_res.body(response.message.payload)
-        },
+        }
         Err(e) => {
             info!("Error while trying to request the device {}", e);
 
@@ -62,19 +62,17 @@ async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
                     debug!("Found response in the cache");
 
                     HttpResponse::Ok().body(payload.clone())
-                },
-                None => {
-                    HttpResponse::ServiceUnavailable().body(e.to_string())
                 }
+                None => HttpResponse::ServiceUnavailable().body(e.to_string()),
             }
         }
     }
 }
 
 /// Converts a CoAP status code to HTTP status code. The CoAP status code field is described in
-/// RFC 7252 Section 3. 
+/// RFC 7252 Section 3.
 ///
-/// Put simply, a CoAP status code is 8bits, where the first 3 bits indicate the class and the 
+/// Put simply, a CoAP status code is 8bits, where the first 3 bits indicate the class and the
 /// remaining 5 bits the type. For instance a status code 0x84 is 0b100_01000, which is 4_04 aka
 /// NotFound in HTTP :)
 fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {
@@ -89,7 +87,7 @@ fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {
 
 struct AppState {
     ip_address: String,
-    cache: Mutex<HashMap<String, Vec<u8>>>
+    cache: Mutex<HashMap<String, Vec<u8>>>,
 }
 
 #[actix_web::main]
@@ -99,13 +97,19 @@ async fn main() -> std::io::Result<()> {
     let env_var_query = ActualEnvVarQuery {};
     let device_ip = get_device_ip(&env_var_query);
     let resource_types = get_resources_types(&env_var_query);
-    let resource_uris: Vec<String> = resource_types.iter().map(|rtype| get_resource_uri(&env_var_query, rtype)).collect();
-    
-    info!("Found device IP {} with resource types {:?}", device_ip, resource_types);
+    let resource_uris: Vec<String> = resource_types
+        .iter()
+        .map(|rtype| get_resource_uri(&env_var_query, rtype))
+        .collect();
+
+    info!(
+        "Found device IP {} with resource types {:?}",
+        device_ip, resource_types
+    );
 
     let state = web::Data::new(AppState {
         ip_address: device_ip,
-        cache: Mutex::new(HashMap::new())
+        cache: Mutex::new(HashMap::new()),
     });
 
     HttpServer::new(move || {
@@ -120,9 +124,9 @@ async fn main() -> std::io::Result<()> {
 
         app
     })
-        .bind("0.0.0.0:8083")?
-        .run()
-        .await
+    .bind("0.0.0.0:8083")?
+    .run()
+    .await
 }
 
 fn get_device_ip(env_var_query: &impl EnvVarQuery) -> String {
@@ -143,19 +147,15 @@ fn get_resources_types(env_var_query: &impl EnvVarQuery) -> Vec<String> {
 }
 
 fn get_resource_uri(env_var_query: &impl EnvVarQuery, resource_type: &str) -> String {
-    let value = env_var_query
-        .get_env_var(resource_type);
+    let value = env_var_query.get_env_var(resource_type).expect(
+        format!(
+            "Device resource URI for type {} not set in environment variable",
+            resource_type
+        )
+        .as_str(),
+    );
 
-    match value {
-        Ok(uri) => {
-            info!("Found resource URI {} for resource type {}", uri, resource_type);
-
-            uri
-        },
-        Err(e) => {
-            panic!("Device resource URI for type {} not set in environment variable: {}", resource_type, e);
-        }
-    }
+    value
 }
 
 #[cfg(test)]
