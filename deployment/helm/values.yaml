@@ -317,6 +317,8 @@ coapcore:
   multicast: true
   multicastIpAddress: 224.0.1.187
   staticIpAddresses: []
+  queryFilter: null
+  discoveryTimeoutSeconds: 5
   # capacity is the capacity for any instances created as a result of
   # applying this onvif configuration
   capacity: 1

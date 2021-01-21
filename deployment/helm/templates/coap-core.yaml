@@ -10,6 +10,14 @@ spec:
       multicastIpAddress: {{ .Values.coapcore.multicastIpAddress }}
       staticIpAddresses: 
         {{- toYaml .Values.coapcore.staticIpAddresses | nindent 8 }}
+      {{- if .Values.coapcore.queryFilter }}
+      queryFilter:
+        name: {{ .Values.coapcore.queryFilter.name }}
+        value: {{ .Values.coapcore.queryFilter.value }}
+      {{- else }}
+      queryFilter: null
+      {{- end }}
+      discoveryTimeoutSeconds: {{ .Values.coapcore.discoveryTimeoutSeconds }}
   {{- if .Values.coapcore.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:

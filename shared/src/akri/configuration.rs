@@ -146,6 +146,14 @@ fn lds_discovery_url() -> Vec<String> {
     vec!["opc.tcp://localhost:4840/".to_string()]
 }
 
+/// This defines a query filter. The RFC7252 allows only one filter element.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryFilter {
+    pub name: String,
+    pub value: String,
+}
+
 /// This defines the CoAP CoRE data stored in the Configuration
 /// CRD
 ///
@@ -159,6 +167,8 @@ pub struct CoAPCoREDiscoveryHandlerConfig {
     pub multicast_ip_address: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub static_ip_addresses: Vec<String>,
+    pub query_filter: Option<QueryFilter>,
+    pub discovery_timeout_seconds: u32,
 }
 
 /// This defines the DebugEcho data stored in the Configuration

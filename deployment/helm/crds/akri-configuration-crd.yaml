@@ -111,6 +111,16 @@ spec:
                           type: array
                           items:
                             type: string
+                        queryFilter:
+                          type: object
+                          nullable: true
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                        discoveryTimeoutSeconds:
+                          type: integer
                               
                   oneOf:
                     - required: ["debugEcho"]

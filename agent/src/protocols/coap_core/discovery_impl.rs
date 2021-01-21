@@ -26,7 +26,10 @@ pub fn parse_link_value(link_value: &str) -> Vec<(String, String)> {
         debug!("Found CoAP resource {}", uri);
         let mut resource = CoREResource::new(uri.to_string());
 
-        while let Some((attr, value)) = attr_it.next().map(|attr| (attr.0, attr.1.to_string())) {
+        while let Some((attr, value)) = attr_it
+            .next()
+            .map(|(name, unquote)| (name, unquote.to_string()))
+        {
             debug!("attr {} value {}", attr, value);
 
             match attr {
