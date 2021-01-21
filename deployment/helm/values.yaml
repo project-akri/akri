@@ -327,7 +327,7 @@ coapcore:
       # repository is the container reference
       repository:
       # pullPolicy is the Akri onvif broker pull policy
-      pullPolicy: Always
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true

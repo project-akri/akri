@@ -24,7 +24,9 @@ spec:
     containers:
     - name: {{ .Values.coapcore.name }}-broker
       image: {{ .Values.coapcore.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.coapcore.brokerPod.image.pullPolicy }}
+      {{- with .Values.coapcore.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       resources:
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"
