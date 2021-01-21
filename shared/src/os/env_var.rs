@@ -1,5 +1,4 @@
-use mockall::predicate::*;
-use mockall::*;
+use mockall::{automock, predicate::*};
 use std::{env, env::VarError};
 
 /// This provides a mockable way to query an env var.

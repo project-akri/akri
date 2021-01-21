@@ -503,7 +503,7 @@ impl PeriodicDiscovery {
 #[cfg(test)]
 mod config_action_tests {
     use super::*;
-    use akri_shared::k8s::test_kube::MockKubeImpl;
+    use akri_shared::k8s::MockKubeInterface;
     use protocols::debug_echo::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use std::{env, fs};
     use tempfile::Builder;
@@ -555,7 +555,7 @@ mod config_action_tests {
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
@@ -620,7 +620,7 @@ mod config_action_tests {
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
-        let mock = MockKubeImpl::new();
+        let mock = MockKubeInterface::new();
 
         //
         // 1: Assert that ConnectivityStatus of instance that are no longer visible is changed to Offline
@@ -747,7 +747,7 @@ mod config_action_tests {
         let mut list_and_watch_message_receivers = Vec::new();
         let (mut watch_periph_tx, watch_periph_rx) = mpsc::channel(2);
         let (finished_watching_tx, mut finished_watching_rx) = broadcast::channel(2);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
 
         // Set instance count metric to ensure it is cleared
         INSTANCE_COUNT_METRIC
