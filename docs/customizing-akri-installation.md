@@ -12,8 +12,7 @@ protocol Configuration using Helm (more information about the Akri Helm charts c
 To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true
+helm install akri akri-helm-charts/akri
 ```
 This will start the Akri controller and deploy Akri Agents.
 
@@ -26,7 +25,6 @@ For example, to create an ONVIF Configuration file, run the following. (To inste
 substitute `onvif.enabled` with `udev.enabled` and add a udev rule. For OPC UA, substitute with `opcua.enabled`.)
 ```bash
 helm template akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set onvif.enabled=true \
     --set onvif.brokerPod.image.repository=nginx \
     --set rbac.enabled=false \
@@ -46,7 +44,6 @@ installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set onvif.enabled=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
@@ -71,7 +68,6 @@ say an IP camera with IP address 10.0.0.1 is malfunctioning and should be filter
 command could be run:
 ```bash 
 helm upgrade akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set onvif.enabled=true \
     --set onvif.brokerPod.image.repository=<your broker image> \
     --set onvif.ipAddresses.action=Exclude \
@@ -156,7 +152,6 @@ Another Configuration can be added to the cluster by using `helm upgrade`. For e
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
 ```bash
 helm upgrade akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set onvif.enabled=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
@@ -175,7 +170,6 @@ have been installed in a cluster, the udev Configuration can be deleted by only 
 `helm upgrade` command like the following:
 ```bash
 helm upgrade akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set onvif.enabled=true 
 ```
 ### Deleting a Configuration using kubectl

@@ -159,7 +159,6 @@ Instead of having to build a Configuration from scratch, Akri has provided [Helm
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set useLatestContainers=true \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
         --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
