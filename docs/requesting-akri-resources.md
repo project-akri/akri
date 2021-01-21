@@ -9,7 +9,6 @@ omitting a broker pod image. Note, `protocolA` must be a supported Akri discover
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set protocolA.enabled=true
 ```
 After installing Akri and your Configuration, list all discovered instances by running `kubectl get akrii`. Note `akrii`
