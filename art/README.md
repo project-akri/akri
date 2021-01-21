@@ -1,4 +1,4 @@
-# AKRI Logo & Assets
+# Akri Logo & Assets
 
 
 ## Logo
