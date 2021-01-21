@@ -16,7 +16,6 @@ spec:
     containers:
     - name: akri-opcua-broker
       image: "ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev"
-      imagePullPolicy: Always
       env:
         - name: IDENTIFIER
           value: 

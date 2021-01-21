@@ -24,7 +24,9 @@ spec:
     containers:
     - name: {{ .Values.opcua.name }}-broker
       image: {{ .Values.opcua.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.opcua.brokerPod.image.pullPolicy }}
+      {{- with .Values.opcua.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       {{- if .Values.opcua.brokerPod.env }}
       env:
         {{- range $key, $val := .Values.opcua.brokerPod.env }}
