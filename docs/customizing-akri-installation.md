@@ -97,7 +97,6 @@ spec:
     containers:
     - name: akri-onvif-video-broker
       image: "ghcr.io/deislabs/akri/onvif-video-broker:latest-dev"
-      imagePullPolicy: Always
       resources:
         limits:
           "{{PLACEHOLDER}}" : "1"
@@ -114,7 +113,6 @@ spec:
     containers:
     - name: akri-onvif-video-broker
       image: "ghcr.io/deislabs/akri/onvif-video-broker:latest-dev"
-      imagePullPolicy: Always
       resources:
         requests:
           memory: 30Mi

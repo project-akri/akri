@@ -42,7 +42,6 @@ spec:
     containers:
     - name: akri-onvif-video-broker
       image: "ghcr.io/..."
-      imagePullPolicy: Always
       resources:
         limits:
           "{{PLACEHOLDER}}" : "1"

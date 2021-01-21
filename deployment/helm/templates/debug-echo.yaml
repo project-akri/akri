@@ -17,7 +17,9 @@ spec:
     containers:
     - name: {{ .Values.debugEcho.name }}-broker
       image: {{ .Values.debugEcho.brokerPod.image | quote }}
-      imagePullPolicy: {{ .Values.debugEcho.pullPolicy }}
+      {{- with .Values.debugEcho.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       resources:
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"

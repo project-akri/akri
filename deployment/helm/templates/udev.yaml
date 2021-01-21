@@ -14,7 +14,9 @@ spec:
     containers:
     - name: {{ .Values.udev.name }}-broker
       image: {{ .Values.udev.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.udev.brokerPod.image.pullPolicy }}
+      {{- with .Values.udev.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       {{- if .Values.udev.brokerPod.env }}
       env:
         {{- range $key, $val := .Values.udev.brokerPod.env }}
