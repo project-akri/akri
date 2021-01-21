@@ -61,7 +61,7 @@ I think the current implementation would need a controller to accept queries abo
 
 ## Feature Requests
 
-- [ ] Support multicast discovery in the Agent
+- [x] Support multicast discovery in the Agent
 - [ ] Support all HTTP verbs in the Broker
 - [ ] Handle Header translation in the Broker
 - [ ] Support Observe [RFC 7641](https://tools.ietf.org/html/rfc7641) which allows the devices to push changes to interested clients.

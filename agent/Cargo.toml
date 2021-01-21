@@ -55,7 +55,7 @@ yaserde_derive = { version = "0.3.13", optional = true }
 tonic-build = "0.1.1"
 
 [features]
-default = ["onvif-feat", "opcua-feat", "coapcore-feat"]
+default = ["onvif-feat", "opcua-feat", "udev-feat", "coapcore-feat"]
 
 onvif-feat = ["xml-rs", "yaserde", "yaserde_derive"]
 opcua-feat = ["opcua-client"]
