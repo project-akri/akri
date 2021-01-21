@@ -46,7 +46,7 @@ controller:
     # controller.yaml will default to v(AppVersion)-dev
     tag:
     # pullPolicy is the Akri Controller pull policy
-    pullPolicy: IfNotPresent
+    pullPolicy: ""
   # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false
@@ -69,7 +69,7 @@ agent:
     # agent.yaml will default to v(AppVersion)-dev
     tag:
     # pullPolicy is the Akri Agent pull policy
-    pullPolicy: IfNotPresent
+    pullPolicy: ""
   securityContext: {}
   host:
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
@@ -109,7 +109,7 @@ debugEcho:
     # container used by debugEcho
     image: nginx:latest
     # pullPolicy is the debugEcho pull policy
-    pullPolicy: IfNotPresent
+    pullPolicy: ""
   instanceService:
     # name is the description of the instance service
     name: akri-debug-echo-foo-instance-service
@@ -160,7 +160,7 @@ onvif:
       # repository is the container reference
       repository:
       # pullPolicy is the Akri onvif broker pull policy
-      pullPolicy: IfNotPresent
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true
@@ -225,7 +225,7 @@ opcua:
       # repository is the Akri OPC UA broker container reference
       repository: 
       # pullPolicy is the Akri OPC UA broker pull policy
-      pullPolicy: IfNotPresent
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true
@@ -274,7 +274,7 @@ udev:
     image:
       # repository is the container reference
       repository:
-      pullPolicy: IfNotPresent
+      pullPolicy: ""
     securityContext: {}
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
