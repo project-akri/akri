@@ -18,7 +18,7 @@ futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
 futures-old = { version = "0.1", package = "futures" }
-hyper = "0.12.34"
+hyper = "0.11"
 h2 = "=0.2.6"
 kube = { version = "0.23.0", features = ["openapi"] }
 k8s-openapi = { version = "0.6.0", features = ["v1_16"] }
