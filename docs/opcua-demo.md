@@ -180,7 +180,6 @@ to the OPC Foundation's .NET Console Reference Server.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        --set useLatestContainers=true \
         --set opcua.enabled=true \
         --set opcua.name=akri-opcua-monitoring \
         --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
@@ -299,7 +298,6 @@ To see how Akri easily scales as nodes are added to the cluster, add another nod
    a Running state.
    ```sh
    helm upgrade akri akri-helm-charts/akri \
-      --set useLatestContainers=true \
       --set opcua.enabled=true \
       --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
       --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
@@ -353,7 +351,6 @@ Replace "Windows host IP address" with the IP address of the Windows machine you
 the servers). Be sure to uncomment mounting certificates if you are enabling security:
 ```sh
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
@@ -379,7 +376,6 @@ specified by UA Specification 12). For example, to discover all servers register
 server named "SomeServer0", do the following.
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
@@ -393,7 +389,6 @@ helm install akri akri-helm-charts/akri \
 Alternatively, to only discover the server named "SomeServer0", do the following:
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
@@ -416,7 +411,6 @@ image to be your container image, say `ghcr.io/<USERNAME>/opcua-broker`.
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set opcua.enabled=true \
     --set opcua.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
     --set opcua.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \

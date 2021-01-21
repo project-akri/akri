@@ -28,6 +28,16 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri
 ```
 
+To use the latest containers of the Akri components, add `--set useLatestContainers=true` when installing Akri like so:
+```sh
+helm install akri akri-helm-charts/akri \
+   --set useLatestContainers=true 
+```
+
+To see which version of the **akri** and **akri-dev** Helm charts are stored locally, run  `helm inspect chart akri-helm-charts/akri` and `helm inspect chart akri-helm-charts/akri-dev`, respectively.
+
+To grab the latest Akri Helm charts, run `helm repo update`.
+
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All
    nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must
@@ -108,7 +118,6 @@ helm install akri akri-helm-charts/akri
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set useLatestContainers=true \
         --set <protocol>.enabled=true \
         # --set <protocol>.brokerPod.image.repository=<your broker image> \
         # apply any additional settings here
