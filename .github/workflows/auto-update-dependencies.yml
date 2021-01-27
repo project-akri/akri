@@ -27,6 +27,6 @@ jobs:
     - name: Check for dependency updates
       uses: romoh/dependencies-autoupdate@v1.1
       with:  
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.AKRIBOT_TOKEN }}
         update-command: "'cargo update && cargo test'"
         on-changes-command: "'./version.sh -u -p'"
