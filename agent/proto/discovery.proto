@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package discovery;
+
+// Registration is the service advertised by the Akri Agent.
+// Any `DiscoveryHandler` can register with Akri under a specified
+// protocol.
+service Registration {
+    rpc Register(RegisterRequest) returns (Empty) {}
+}
+
+
+message RegisterRequest {
+    // Name of the protocol that the client uses for discovery
+    string protocol = 1;
+    // Name of the endpoint that is hosting the discovery service
+    // for the protocol
+    string endpoint = 2;
+    // Specifies whether this device can only be ever seen by this node (e.g. a local USB device) 
+    // rather than being visible to multiple nodes (e.g. an IP camera) 
+    bool is_local = 3;
+}
+
+message Empty {
+}
+
+service Discovery {
+  rpc Discover (DiscoverRequest) returns (stream DiscoverResponse);
+}
+
+message DiscoverRequest {
+    // Map containing all the details (such as filtering options) 
+    // the discovery handler needs to find a set of devices.
+    map<string, string> discovery_details = 1;
+}
+
+message DiscoverResponse {
+    // List of discovered devices
+    repeated Device devices = 1;
+}
+
+message Device {
+    // Identifier for this device
+    string id = 1;
+    // Properties that identify the device. These are stored in the device's instance
+    // and set as environment variables in the device's broker Pods. May be information
+    // about where to find the device such as an RTSP URL or a device node (e.g. `/dev/video1`)
+    map<string, string> properties = 2;
+    // Optionally specify mounts for Pods that request this device as a resource
+    repeated Mount mounts = 3;
+    // Optionally specify device information to be mounted for Pods that request this device as a resource
+    repeated DeviceSpec device_specs = 4;
+}
+
+// From Device Plugin  API
+// Mount specifies a host volume to mount into a container.
+// where device library or tools are installed on host and container
+message Mount {
+    // Path of the mount within the container.
+    string container_path = 1;
+    // Path of the mount on the host.
+    string host_path = 2;
+    // If set, the mount is read-only.
+    bool read_only = 3;
+}
+
+// From Device Plugin API
+// DeviceSpec specifies a host device to mount into a container.
+message DeviceSpec {
+    // Path of the device within the container.
+    string container_path = 1;
+    // Path of the device on the host.
+    string host_path = 2;
+    // Cgroups permissions of the device, candidates are one or more of
+    // * r - allows container to read from the specified device.
+    // * w - allows container to write to the specified device.
+    // * m - allows container to create device files that do not yet exist.
+    string permissions = 3;
+}
+

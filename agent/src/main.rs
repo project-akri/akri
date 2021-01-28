@@ -17,11 +17,13 @@ extern crate yaserde_derive;
 
 mod protocols;
 mod util;
+mod discover;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use discover::register::run_registration_server;
 use log::{info, trace};
 use prometheus::{HistogramVec, IntGaugeVec};
-use std::time::Duration;
+use std::{collections::HashMap, sync::{Arc, Mutex}, time::Duration};
 use util::{
     config_action, constants::SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS,
     slot_reconciliation::periodic_slot_reconciliation,
@@ -57,6 +59,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         run_metrics_server().await.unwrap();
     }));
 
+    let discovery_hndlr_map = Arc::new(Mutex::new(HashMap::new()));
+    let discovery_hndlr_map_clone = discovery_hndlr_map.clone();
+    // Start registration service for registering `DiscoveryHandler` Pods
+    tasks.push(tokio::spawn(async move {
+        run_registration_server(discovery_hndlr_map_clone).await.unwrap();
+    }));
+
     tasks.push(tokio::spawn(async move {
         let slot_grace_period = Duration::from_secs(SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS);
         periodic_slot_reconciliation(slot_grace_period)
@@ -65,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     }));
 
     tasks.push(tokio::spawn(async move {
-        config_action::do_config_watch().await.unwrap()
+        config_action::do_config_watch(discovery_hndlr_map).await.unwrap()
     }));
 
     futures::future::try_join_all(tasks).await?;

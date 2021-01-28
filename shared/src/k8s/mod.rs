@@ -621,6 +621,38 @@ impl KubeInterface for KubeImpl {
     }
 }
 
+/// This deletes an Instance unless it has already been deleted by another node
+pub async fn try_delete_instance(
+    kube_interface: &impl KubeInterface,
+    instance_name: &str,
+    instance_namespace: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    match kube_interface
+        .delete_instance(instance_name, &instance_namespace)
+        .await
+    {
+        Ok(()) => {
+            log::trace!("try_delete_instance - deleted Instance {}", instance_name);
+            Ok(())
+        }
+        Err(e) => {
+            // Check if already was deleted else return error
+            if let Err(_e) = kube_interface
+                .find_instance(&instance_name, &instance_namespace)
+                .await
+            {
+                log::trace!(
+                    "try_delete_instance - discovered Instance {} already deleted",
+                    instance_name
+                );
+                Ok(())
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod test_ownership {
     use super::*;

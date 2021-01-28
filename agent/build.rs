@@ -5,4 +5,9 @@ fn main() {
         .out_dir("./src/util")
         .compile(&["./proto/pluginapi.proto"], &["./proto"])
         .expect("failed to compile protos");
+    
+        tonic_build::configure()
+        .out_dir("./src/discover")
+        .compile(&["./proto/discovery.proto"], &["./proto"])
+        .expect("failed to compile protos");
 }

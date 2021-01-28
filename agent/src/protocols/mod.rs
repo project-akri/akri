@@ -1,10 +1,12 @@
+use super::discover::discovery::{DiscoverResponse, DiscoverRequest};
+use tonic::{Response, Status};
 use akri_shared::{
-    akri::configuration::ProtocolHandler,
+    akri::configuration::{ProtocolHandler, ProtocolHandler2},
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
 use anyhow::Error;
 use async_trait::async_trait;
-use blake2::digest::{Input, VariableOutput};
+use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
 use std::collections::HashMap;
 
@@ -24,14 +26,16 @@ impl DiscoveryResult {
                 std::env::var("AGENT_NODE_NAME").unwrap()
             );
         }
+        let digest = String::new();
         let mut hasher = VarBlake2b::new(3).unwrap();
-        hasher.input(id_to_digest);
-        let digest = hasher
-            .vec_result()
-            .iter()
-            .map(|num| format!("{:02x}", num))
-            .collect::<Vec<String>>()
-            .join("");
+        hasher.update(id_to_digest);
+        hasher.finalize_variable(|var| {
+            digest = var
+                .iter()
+                .map(|num| format!("{:02x}", num))
+                .collect::<Vec<String>>()
+                .join("")
+        });
         DiscoveryResult { digest, properties }
     }
 }
@@ -63,6 +67,12 @@ pub trait DiscoveryHandler {
     fn are_shared(&self) -> Result<bool, Error>;
 }
 
+pub type DiscoveryResultStream = tokio::sync::mpsc::Receiver<Result<DiscoverResponse, Status>>;
+#[async_trait]
+pub trait DiscoveryHandler2 {
+    async fn discover(&mut self, discover_request: DiscoverRequest) -> Result<Response<DiscoveryResultStream>, Status>;
+}
+
 pub mod debug_echo;
 #[cfg(feature = "onvif-feat")]
 mod onvif;
@@ -70,40 +80,51 @@ mod onvif;
 mod opcua;
 #[cfg(feature = "udev-feat")]
 mod udev;
+mod other;
 
 pub fn get_discovery_handler(
-    discovery_handler_config: &ProtocolHandler,
+    discovery_handler_config: &ProtocolHandler2,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     let query_var_set = ActualEnvVarQuery {};
     inner_get_discovery_handler(discovery_handler_config, &query_var_set)
 }
 
 fn inner_get_discovery_handler(
-    discovery_handler_config: &ProtocolHandler,
+    discovery_handler_config: &ProtocolHandler2,
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
-    match discovery_handler_config {
-        #[cfg(feature = "onvif-feat")]
-        ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
-        #[cfg(feature = "udev-feat")]
-        ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
-        #[cfg(feature = "opcua-feat")]
-        ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
-        ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
-            Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
-            _ => Err(anyhow::format_err!("No protocol configured")),
-        },
-        // If the feature-gated protocol handlers are not included, this catch-all
-        // should surface any invalid Configuration requests (i.e. udev-feat not
-        // included at build-time ... but at runtime, a udev Configuration is
-        // applied).  For the default build, where all features are included, this
-        // code triggers an unreachable pattern warning.  #[allow] is added to
-        // explicitly hide this warning.
-        #[allow(unreachable_patterns)]
-        config => Err(anyhow::format_err!(
-            "No handler found for configuration {:?}",
-            config
-        )),
+    // Determine whether it is an embedded protocol
+    if let Some(protocol_handler_str) = discovery_handler_config.discovery_details.get("protocolHandler") {
+        println!("protocol handler {:?}",protocol_handler_str);
+        if let Ok(protocol_handler) = serde_yaml::from_str(protocol_handler_str) {
+            match protocol_handler {
+                #[cfg(feature = "onvif-feat")]
+                ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
+                #[cfg(feature = "udev-feat")]
+                ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
+                #[cfg(feature = "opcua-feat")]
+                ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
+                ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
+                    Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(&dbg))),
+                    _ => Err(anyhow::format_err!("No protocol configured")),
+                },
+                // If the feature-gated protocol handlers are not included, this catch-all
+                // should surface any invalid Configuration requests (i.e. udev-feat not
+                // included at build-time ... but at runtime, a udev Configuration is
+                // applied).  For the default build, where all features are included, this
+                // code triggers an unreachable pattern warning.  #[allow] is added to
+                // explicitly hide this warning.
+                #[allow(unreachable_patterns)]
+                config => Err(anyhow::format_err!(
+                    "No handler found for configuration {:?}",
+                    config
+                )),
+            }
+        } else {
+            Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_handler_config.discovery_details))
+        }
+    } else {
+        Err(anyhow::format_err!("Generic discovery handlers not supported. Discovery details: {:?}", discovery_handler_config.discovery_details))
     }
 }
 
@@ -120,17 +141,49 @@ mod test {
     async fn test_inner_get_discovery_handler() {
         let mock_query = MockEnvVarQuery::new();
 
-        let onvif_json = r#"{"onvif":{}}"#;
-        let deserialized: ProtocolHandler = serde_json::from_str(onvif_json).unwrap();
+        let onvif_json = r#"{"name":"onvif", "discoveryDetails":{"protocolHandler":"{\"onvif\":{}}"}}"#;
+        let deserialized: ProtocolHandler2 = serde_json::from_str(onvif_json).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
-        let udev_json = r#"{"udev":{"udevRules":[]}}"#;
-        let deserialized: ProtocolHandler = serde_json::from_str(udev_json).unwrap();
+        let udev_yaml = r#"
+        name: udev
+        discoveryDetails:
+          protocolHandler: |+
+            udev:
+              udevRules: 
+              - 'KERNEL=="video[0-9]*"'
+        "#;
+     
+        let deserialized: ProtocolHandler2 = serde_yaml::from_str(udev_yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
-        let opcua_json = r#"{"opcua":{"opcuaDiscoveryMethod":{"standard":{}}}}"#;
-        let deserialized: ProtocolHandler = serde_json::from_str(opcua_json).unwrap();
+        let opcua_yaml = r#"
+        name: opcua
+        discoveryDetails:
+          protocolHandler: |+
+            opcua:
+              opcuaDiscoveryMethod: 
+                standard: {}
+        "#;
+        let deserialized: ProtocolHandler2 = serde_yaml::from_str(opcua_yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
+
+        let other_yaml = r#"
+        name: other
+        discoveryDetails:
+          protocolHandler: other
+        "#;
+        let deserialized: ProtocolHandler2 = serde_yaml::from_str(other_yaml).unwrap();
+        assert_eq!(inner_get_discovery_handler(&deserialized, &mock_query).err().unwrap().to_string(), format!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", deserialized.discovery_details));
+
+        let other_yaml = r#"
+        name: other
+        discoveryDetails:
+          key: value
+          key2: value2
+        "#;
+        let deserialized: ProtocolHandler2 = serde_yaml::from_str(other_yaml).unwrap();
+        assert_eq!(inner_get_discovery_handler(&deserialized, &mock_query).err().unwrap().to_string(), format!("Generic discovery handlers not supported. Discovery details: {:?}", deserialized.discovery_details));
 
         let json = r#"{}"#;
         assert!(serde_json::from_str::<Configuration>(json).is_err());
@@ -140,8 +193,15 @@ mod test {
     async fn test_udev_discover_no_rules() {
         let mock_query = MockEnvVarQuery::new();
 
-        let json = r#"{"udev":{"udevRules":[]}}"#;
-        let deserialized: ProtocolHandler = serde_json::from_str(json).unwrap();
+        let udev_yaml = r#"
+        name: udev
+        discoveryDetails:
+          protocolHandler: |+
+            udev:
+              udevRules: []
+        "#;
+     
+        let deserialized: ProtocolHandler2 = serde_yaml::from_str(udev_yaml).unwrap();
         let discovery_handler = inner_get_discovery_handler(&deserialized, &mock_query).unwrap();
         assert_eq!(discovery_handler.discover().await.unwrap().len(), 0);
     }

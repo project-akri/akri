@@ -1,0 +1,14 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: akri-opcua
+spec:
+  protocol:
+    name: opcua
+    discoveryDetails:
+      protocolHandler: |+
+        opcua:
+          opcuaDiscoveryMethod: 
+            standard: {}
+  capacity: 5
+  units: slaphappies

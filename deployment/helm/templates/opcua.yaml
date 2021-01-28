@@ -5,19 +5,22 @@ metadata:
   name: {{ .Values.opcua.name }}
 spec:
   protocol:
-    opcua:
-      opcuaDiscoveryMethod: 
-        standard:
-          discoveryUrls: 
-          {{- toYaml .Values.opcua.discoveryUrls | nindent 10 }}
-      applicationNames:
-        action: {{ .Values.opcua.applicationNames.action }}
-        {{- if .Values.opcua.applicationNames.items}}
-        items:
-        {{- toYaml .Values.opcua.applicationNames.items | nindent 8 }}
-        {{- else }}
-        items: []
-        {{- end }}
+    name: {{ .Values.opcua.protocolName }}
+    discoveryDetails:
+      protocolHandler: |+
+        opcua:
+          opcuaDiscoveryMethod: 
+            standard:
+              discoveryUrls: 
+              {{- toYaml .Values.opcua.discoveryUrls | nindent 14 }}
+          applicationNames:
+            action: {{ .Values.opcua.applicationNames.action }}
+            {{- if .Values.opcua.applicationNames.items}}
+            items:
+            {{- toYaml .Values.opcua.applicationNames.items | nindent 12 }}
+            {{- else }}
+            items: []
+            {{- end }}
   {{- if .Values.opcua.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:

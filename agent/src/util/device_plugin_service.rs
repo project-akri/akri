@@ -9,7 +9,7 @@ use super::v1beta1::{
 };
 use akri_shared::{
     akri::{
-        configuration::{Configuration, ProtocolHandler},
+        configuration::{Configuration, ProtocolHandler, ProtocolHandler2},
         instance::Instance,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
         AKRI_PREFIX, AKRI_SLOT_ANNOTATION_NAME,
@@ -449,24 +449,26 @@ async fn try_update_instance_device_usage(
 fn build_container_allocate_response(
     annotations: HashMap<String, String>,
     instance_properties: &HashMap<String, String>,
-    protocol: &ProtocolHandler,
+    protocol: &ProtocolHandler2,
 ) -> v1beta1::ContainerAllocateResponse {
     let mut mounts: Vec<v1beta1::Mount> = Vec::new();
 
     // Set mounts according to protocol
-    match protocol {
-        ProtocolHandler::udev(_handler_config) => {
-            trace!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
-            mounts = instance_properties
-                .iter()
-                .map(|(_id, devpath)| v1beta1::Mount {
-                    container_path: devpath.clone(),
-                    host_path: devpath.clone(),
-                    read_only: true,
-                })
-                .collect();
+    if let Some(protocol_handler) = protocol.discovery_details.get("protocolHandler") {
+        match serde_json::from_str(protocol_handler).unwrap() {
+            ProtocolHandler::udev(_handler_config) => {
+                trace!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
+                mounts = instance_properties
+                    .iter()
+                    .map(|(_id, devpath)| v1beta1::Mount {
+                        container_path: devpath.clone(),
+                        host_path: devpath.clone(),
+                        read_only: true,
+                    })
+                    .collect();
+            }
+            _ => trace!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
         }
-        _ => trace!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
     }
 
     // Create response, setting environment variables to be an instance's properties (specified by protocol)

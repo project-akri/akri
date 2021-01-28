@@ -18,88 +18,12 @@ spec:
                 protocol: # {{ProtocolHandler}}
                   type: object
                   properties:
-                    debugEcho: # {{DebugEchoDiscoveryHandler}}
+                    name:
+                      type: string
+                    discoveryDetails: # map<string, string>
+                      additionalProperties:
+                        type: string
                       type: object
-                      properties:
-                        shared:
-                          type: boolean
-                        descriptions:
-                          type: array
-                          items:
-                            type: string
-                    onvif: # {{OnvifDiscoveryHandler}}
-                      type: object
-                      properties:
-                        ipAddresses: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        macAddresses: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        scopes: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        discoveryTimeoutSeconds:
-                          type: integer
-                    udev:
-                      type: object
-                      properties:
-                        udevRules:
-                          type: array
-                          items:
-                            type: string
-                    opcua:
-                      type: object
-                      properties:
-                        opcuaDiscoveryMethod:
-                          type: object
-                          properties:
-                            standard: # {{StandardOpcuaDiscovery}}
-                              type: object
-                              properties:
-                                  discoveryUrls:
-                                    type: array
-                                    items:
-                                      type: string
-                        applicationNames:
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
                   oneOf:
                     - required: ["debugEcho"]
                     - required: ["onvif"]

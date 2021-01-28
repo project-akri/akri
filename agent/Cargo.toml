@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 async-stream = "0.2"
 async-trait = "0.1.0"
-blake2 = "0.8.0"
+blake2 = "0.9.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
 env_logger = "0.6.1"
