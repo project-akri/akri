@@ -1,4 +1,5 @@
-# Akri
+<p align="center"><img src="art/logo-horizontal/akri-logo-horizontal-light.svg" alt="Akri Logo"></p>
+
 [![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri) 
 [![Rust Version](https://img.shields.io/badge/rustc-1.49.0-blue.svg)](https://blog.rust-lang.org/2020/12/31/Rust-1.49.0.html) 
 [![Kubernetes Version](https://img.shields.io/badge/kubernetes-≥%201.16-blue.svg)](https://v1-16.docs.kubernetes.io/) 
@@ -9,8 +10,6 @@
 [![Build Controller](https://github.com/deislabs/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Controller%22) 
 [![Build Agent](https://github.com/deislabs/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Build+Agent%22)
 [![Test K3s, Kubernetes, and MicroK8s](https://github.com/deislabs/akri/workflows/Test%20K3s,%20Kubernetes,%20and%20MicroK8s/badge.svg?branch=main&event=push)](https://github.com/deislabs/akri/actions?query=workflow%3A%22Test+K3s%2C+Kubernetes%2C+and+MicroK8s%22)
-
-<img src="art/icon/akri-icon-light.svg" alt="Akri logo" width="100"> 
 
 
 ----
