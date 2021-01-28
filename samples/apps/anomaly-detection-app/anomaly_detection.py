@@ -71,7 +71,8 @@ def continuously_get_values():
     logging.info("Starting to call GetValue on endpoint %s", url)
     while True:
         try:
-            channel = grpc.insecure_channel(url)
+            channel = grpc.insecure_channel(url, options=(
+                ('grpc.use_local_subchannel_pool', 1),))
             stub = opcua_node_pb2_grpc.OpcuaNodeStub(channel)
             value_response = stub.GetValue(opcua_node_pb2.ValueRequest())
             channel.close()
