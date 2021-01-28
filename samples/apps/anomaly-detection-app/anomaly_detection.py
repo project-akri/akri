@@ -74,6 +74,7 @@ def continuously_get_values():
             channel = grpc.insecure_channel(url)
             stub = opcua_node_pb2_grpc.OpcuaNodeStub(channel)
             value_response = stub.GetValue(opcua_node_pb2.ValueRequest())
+            channel.close()
             if test_new_value(data, value_response.value) == -1:
                 values_log.append(make_log_entry(
                     value_response.opcua_server, value_response.value, True))
