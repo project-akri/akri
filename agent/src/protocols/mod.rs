@@ -94,7 +94,10 @@ fn inner_get_discovery_handler(
             _ => Err(anyhow::format_err!("No protocol configured")),
         },
         #[allow(unreachable_patterns)]
-        config => Err(anyhow::format_err!("No handler found for configuration {:?}", config))
+        config => Err(anyhow::format_err!(
+            "No handler found for configuration {:?}",
+            config
+        )),
     }
 }
 
