@@ -94,7 +94,7 @@ fn inner_get_discovery_handler(
             _ => Err(anyhow::format_err!("No protocol configured")),
         },
         // If the feature-gated protocol handlers are not included, this catch-all
-        // should surface any invalid Configuration requests (i.e. udev-feat not 
+        // should surface any invalid Configuration requests (i.e. udev-feat not
         // included at build-time ... but at runtime, a udev Configuration is
         // applied).  For the default build, where all features are included, this
         // code triggers an unreachable pattern warning.  #[allow] is added to
