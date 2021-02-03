@@ -213,3 +213,225 @@ async fn main() -> std::io::Result<()> {
         .run()
         .await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::test;
+
+    const VALID: &str = r#"
+    {
+        "kind": "AdmissionReview",
+        "apiVersion": "admission.k8s.io/v1",
+        "request": {
+            "uid": "00000000-0000-0000-0000-000000000000",
+            "kind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "resource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "requestKind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "requestResource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "name": "name",
+            "namespace": "default",
+            "operation": "CREATE",
+            "userInfo": {
+                "username": "admin",
+                "uid": "admin",
+                "groups": []
+            },
+            "object": {
+                "apiVersion": "akri.sh/v0",
+                "kind": "Configuration",
+                "metadata": {
+                    "annotations": {
+                        "kubectl.kubernetes.io/last-applied-configuration": ""
+                    },
+                    "creationTimestamp": "2021-01-01T00:00:00Z",
+                    "generation": 1,
+                    "managedFields": [],
+                    "name": "name",
+                    "namespace": "default",
+                    "uid": "00000000-0000-0000-0000-000000000000"
+                },
+                "spec": {
+                    "brokerPodSpec": {
+                        "containers": [
+                            {
+                                "image": "image",
+                                "name": "name",
+                                "resources": {
+                                    "limits": {
+                                        "{{PLACEHOLDER}}": "1"
+                                    }
+                                }
+                            }
+                        ],
+                        "imagePullSecrets": [
+                            {
+                                "name": "name"
+                            }
+                        ]
+                    },
+                    "capacity": 1,
+                    "protocol": {
+                        "debugEcho": {
+                            "descriptions": ["foo","bar"],
+                            "shared": true
+                        }
+                    }
+                }
+            },
+            "oldObject": null,
+            "dryRun": false,
+            "options": {
+                "kind": "CreateOptions",
+                "apiVersion": "meta.k8s.io/v1"
+            }
+        }
+    }
+    "#;
+
+    // Valid JSON but invalid akri.sh/v0/Configuration
+    // Misplaced `resources`
+    //   Valid: .request.object.spec.brokerPodSpec.containers[*].resources
+    // Invalid: .request.object.spec.brokerPodSpec.resources
+    const INVALID: &str = r#"
+    {
+        "kind": "AdmissionReview",
+        "apiVersion": "admission.k8s.io/v1",
+        "request": {
+            "uid": "00000000-0000-0000-0000-000000000000",
+            "kind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "resource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "requestKind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "requestResource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "name": "name",
+            "namespace": "default",
+            "operation": "CREATE",
+            "userInfo": {
+                "username": "admin",
+                "uid": "admin",
+                "groups": []
+            },
+            "object": {
+                "apiVersion": "akri.sh/v0",
+                "kind": "Configuration",
+                "metadata": {
+                    "annotations": {
+                        "kubectl.kubernetes.io/last-applied-configuration": ""
+                    },
+                    "creationTimestamp": "2021-01-01T00:00:00Z",
+                    "generation": 1,
+                    "managedFields": [],
+                    "name": "name",
+                    "namespace": "default",
+                    "uid": "00000000-0000-0000-0000-000000000000"
+                },
+                "spec": {
+                    "brokerPodSpec": {
+                        "containers": [
+                            {
+                                "image": "image",
+                                "name": "name"
+                            }
+                        ],
+                        "resources": {
+                            "limits": {
+                                "{{PLACEHOLDER}}": "1"
+                            }
+                        },
+                        "imagePullSecrets": [
+                            {
+                                "name": "name"
+                            }
+                        ]
+                    },
+                    "capacity": 1,
+                    "protocol": {
+                        "debugEcho": {
+                            "descriptions": ["foo","bar"],
+                            "shared": true
+                        }
+                    }
+                }
+            },
+            "oldObject": null,
+            "dryRun": false,
+            "options": {
+                "kind": "CreateOptions",
+                "apiVersion": "meta.k8s.io/v1"
+            }
+        }
+    }
+    "#;
+
+    #[test]
+    fn test_validate_configuration_valid() {
+        let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
+        let rqst = valid.request.expect("v1.AdmissionRequest JSON");
+        let resp = validate_configuration(&rqst);
+        assert_eq!(resp.allowed, true);
+    }
+    #[test]
+    fn test_validate_configuration_invalid() {
+        let invalid: AdmissionReview =
+            serde_json::from_str(INVALID).expect("v1.AdmissionReview JSON");
+        let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
+        let resp = validate_configuration(&rqst);
+        assert_eq!(resp.allowed, false);
+    }
+
+    #[actix_rt::test]
+    async fn test_validate_valid() {
+        let mut app = test::init_service(App::new().service(validate)).await;
+        let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
+        let rqst = test::TestRequest::post()
+            .uri("/validate")
+            .set_json(&valid)
+            .to_request();
+        let resp = test::call_service(&mut app, rqst).await;
+        assert_eq!(resp.status().is_success(), true);
+    }
+    #[actix_rt::test]
+    async fn test_validate_invalid() {
+        let mut app = test::init_service(App::new().service(validate)).await;
+        let invalid: AdmissionReview =
+            serde_json::from_str(INVALID).expect("v1.AdmissionReview JSON");
+        let rqst = test::TestRequest::post()
+            .uri("/validate")
+            .set_json(&invalid)
+            .to_request();
+        let resp = test::call_service(&mut app, rqst).await;
+        assert_eq!(resp.status().is_success(), true);
+    }
+}
