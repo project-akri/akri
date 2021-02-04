@@ -7,7 +7,7 @@ use openapi::models::{
     V1AdmissionReview as AdmissionReview, V1Status as Status,
 };
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 fn get_builder(key: &str, crt: &str) -> SslAcceptorBuilder {
     let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -20,17 +20,13 @@ fn check(
     v: &serde_json::Value,
     deserialized: &serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    if deserialized == &serde_json::Value::Null {
+    if v != &serde_json::Value::Null && deserialized == &serde_json::Value::Null {
         return Err(None.ok_or(format!("no matching value in `deserialized`"))?);
     }
 
     match v {
         serde_json::Value::Object(o) => {
             for (key, value) in o {
-                // TODO(dazwilkin) Issue serde'ing `creationTimestamp`
-                if key == "creationTimestamp" {
-                    return Ok(());
-                }
                 if let Err(e) = check(&value, &deserialized[key]) {
                     return Err(None.ok_or(format!(
                         "input key ({:?}) not equal to parsed: ({:?})",
@@ -90,10 +86,27 @@ fn check(
                 n, deserialized
             ))?),
         },
-        _ => Err(None.ok_or(format!("what is this? {:?}", "boooo!"))?),
+        serde_json::Value::Null => match deserialized {
+            serde_json::Value::Null => Ok(()),
+            _ => Err(None.ok_or(format!(
+                "input (Null) not equal to parsed ({:?})",
+                deserialized
+            ))?),
+        },
     }
 }
 
+fn filter_configuration(mut v: Value) -> Value {
+    let metadata = v["metadata"].as_object_mut().expect("Object");
+    metadata.remove("creationTimestamp");
+    metadata.remove("deletionTimestamp");
+    metadata.remove("managedFields");
+
+    let generation = metadata.get_mut("generation").expect(".generation");
+    *generation = json!(generation.as_f64().expect("integer"));
+
+    v
+}
 fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
     match &rqst.object {
         Some(raw) => {
@@ -103,7 +116,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let reserialized = serde_json::to_string(&c).expect("bytes");
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
 
-            let v: Value = serde_json::from_value(raw.clone()).expect("RawExtension");
+            let v: Value = filter_configuration(raw.clone());
 
             // Do they match?
             match check(&v, &deserialized) {
@@ -395,6 +408,193 @@ mod tests {
     }
     "#;
 
+    const METADATA: &str = r#"
+    {
+        "apiVersion": "akri.sh/v0",
+        "kind": "Configuration",
+        "metadata": {
+            "annotations": {
+                "kubectl.kubernetes.io/last-applied-configuration": ""
+            },
+            "creationTimestamp": "2021-01-01T00:00:00Z",
+            "generation": 1,
+            "managedFields": [],
+            "name": "name",
+            "namespace": "default",
+            "uid": "00000000-0000-0000-0000-000000000000"
+        },
+        "spec": {}
+    }
+    "#;
+
+    // JSON Syntax Tests
+    #[test]
+    fn test_both_null() {
+        assert!(check(&serde_json::Value::Null, &serde_json::Value::Null).is_ok());
+    }
+
+    #[test]
+    fn test_value_is_null() {
+        let deserialized: Value = serde_json::from_str("{}").unwrap();
+        assert!(check(&serde_json::Value::Null, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_deserialized_is_null() {
+        let v: Value = serde_json::from_str("{}").unwrap();
+        assert!(check(&v, &serde_json::Value::Null).is_err());
+    }
+
+    #[test]
+    fn test_both_empty() {
+        let deserialized: Value = serde_json::from_str("{}").unwrap();
+        let v: Value = serde_json::from_str("{}").unwrap();
+        assert!(check(&v, &deserialized).is_ok());
+    }
+
+    #[test]
+    fn test_both_same() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3 ] } }"#)
+                .unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3 ] } }"#)
+                .unwrap();
+        assert!(check(&v, &deserialized).is_ok());
+    }
+
+    #[test]
+    fn test_deserialized_has_extra() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2 } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_ok());
+    }
+
+    #[test]
+    fn test_value_has_extra() {
+        let deserialized: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2 } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_types_int_to_str() {
+        // value=#, deser=str
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": 3 } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_types_str_to_bool() {
+        // value=str, deser=bool
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": true } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "3" } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_types_bool_to_int() {
+        // value=bool, deser=#
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": 2 } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": true } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_strings() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hello" } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_numbers() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        let v: Value = serde_json::from_str(r#"{ "a": 2, "b": { "c": 2, "d": "hi" } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_bools() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi" } }"#).unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": false, "d": "hi" } }"#).unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_different_array_element() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3 ] } }"#)
+                .unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 5, 3 ] } }"#)
+                .unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_value_has_extra_array_element() {
+        let deserialized: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3 ] } }"#)
+                .unwrap();
+        let v: Value = serde_json::from_str(
+            r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3, 4 ] } }"#,
+        )
+        .unwrap();
+        assert!(check(&v, &deserialized).is_err());
+    }
+
+    #[test]
+    fn test_deserialized_has_extra_array_element() {
+        let deserialized: Value = serde_json::from_str(
+            r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3, 4 ] } }"#,
+        )
+        .unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{ "a": 1, "b": { "c": true, "d": "hi", "e": [ 1, 2, 3 ] } }"#)
+                .unwrap();
+        assert!(check(&v, &deserialized).is_ok());
+    }
+
+    // Akri Configuration schema tests
+    use kube::api::{Object, Void};
+    #[test]
+    fn test_creationtimestamp_is_filtered() {
+        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let reserialized = serde_json::to_string(&t).expect("bytes");
+        let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
+        let v = filter_configuration(deserialized);
+        assert_eq!(v["metadata"].get("creationTimestamp"), None);
+    }
+
+    #[test]
+    fn test_deletiontimestamp_is_filtered() {
+        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let reserialized = serde_json::to_string(&t).expect("bytes");
+        let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
+        let v = filter_configuration(deserialized);
+        assert_eq!(v["metadata"].get("deletionTimestamp"), None);
+    }
+
+    #[test]
+    fn test_managedfields_is_filtered() {
+        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let reserialized = serde_json::to_string(&t).expect("bytes");
+        let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
+        let v = filter_configuration(deserialized);
+        assert_eq!(v["metadata"].get("managedFields"), None);
+    }
+
     #[test]
     fn test_validate_configuration_valid() {
         let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
@@ -402,6 +602,7 @@ mod tests {
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, true);
     }
+
     #[test]
     fn test_validate_configuration_invalid() {
         let invalid: AdmissionReview =
@@ -422,6 +623,7 @@ mod tests {
         let resp = test::call_service(&mut app, rqst).await;
         assert_eq!(resp.status().is_success(), true);
     }
+
     #[actix_rt::test]
     async fn test_validate_invalid() {
         let mut app = test::init_service(App::new().service(validate)).await;
