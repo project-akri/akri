@@ -596,6 +596,15 @@ mod tests {
     }
 
     #[test]
+    fn test_generation_becomes_f64() {
+        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let reserialized = serde_json::to_string(&t).expect("bytes");
+        let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
+        let v = filter_configuration(deserialized);
+        assert!(v["metadata"].get("generation").unwrap().is_f64());
+    }
+
+    #[test]
     fn test_validate_configuration_valid() {
         let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
