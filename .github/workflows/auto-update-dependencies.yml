@@ -2,7 +2,7 @@ name: Dependencies autoupdate
 
 on:
   schedule:
-    - cron: '0 0 * * *' # run daily at 12:00 am
+    - cron: '0 0 * * 1' # run on first day of each month at 12:00 am
 
 env:
   CARGO_TERM_COLOR: always
