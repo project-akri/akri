@@ -1,7 +1,4 @@
-use super::super::{
-    discover::register::RegisteredDiscoveryHandlerMap, protocols, DISCOVERY_RESPONSE_TIME_METRIC,
-    INSTANCE_COUNT_METRIC,
-};
+use super::super::{protocols, DISCOVERY_RESPONSE_TIME_METRIC, INSTANCE_COUNT_METRIC};
 use super::{
     constants::{
         DEVICE_PLUGIN_PATH, DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
@@ -10,7 +7,8 @@ use super::{
     device_plugin_service::{
         get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
     },
-    periodic_discovery::PeriodicDiscovery,
+    discovery_operator::DiscoveryOperator,
+    registration::RegisteredDiscoveryHandlerMap,
 };
 use akri_shared::{
     akri::{
@@ -40,13 +38,14 @@ type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
 #[derive(Debug)]
 pub struct ConfigInfo {
     instance_map: InstanceMap,
-    stop_discovery_sender: mpsc::Sender<()>,
+    stop_discovery_sender: broadcast::Sender<()>,
     finished_discovery_sender: broadcast::Sender<()>,
 }
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
 pub async fn do_config_watch(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
     let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
@@ -58,18 +57,29 @@ pub async fn do_config_watch(
     for config in pre_existing_configs {
         let config_map = config_map.clone();
         let discovery_handler_map = discovery_handler_map.clone();
+        let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         tasks.push(tokio::spawn(async move {
-            handle_config_add(&config, config_map, discovery_handler_map)
-                .await
-                .unwrap();
+            handle_config_add(
+                &config,
+                config_map,
+                discovery_handler_map,
+                new_discovery_handler_sender,
+            )
+            .await
+            .unwrap();
         }));
     }
 
     // Watch for new configs and changes
     tasks.push(tokio::spawn(async move {
-        watch_for_config_changes(&kube_interface, config_map, discovery_handler_map)
-            .await
-            .unwrap();
+        watch_for_config_changes(
+            &kube_interface,
+            config_map,
+            discovery_handler_map,
+            new_discovery_handler_sender,
+        )
+        .await
+        .unwrap();
     }));
 
     futures::future::try_join_all(tasks).await?;
@@ -82,6 +92,7 @@ async fn watch_for_config_changes(
     kube_interface: &impl KubeInterface,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("watch_for_config_changes - start");
     let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
@@ -96,11 +107,13 @@ async fn watch_for_config_changes(
         // Currently, this does not handle None except to break the
         // while.
         while let Some(event) = configs.next().await {
+            let new_discovery_handler_sender = new_discovery_handler_sender.clone();
             handle_config(
                 kube_interface,
                 event?,
                 config_map.clone(),
                 discovery_handler_map.clone(),
+                new_discovery_handler_sender,
             )
             .await?
         }
@@ -114,6 +127,7 @@ async fn handle_config(
     event: WatchEvent<KubeAkriConfig>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_config - something happened to a configuration");
     match event {
@@ -123,9 +137,14 @@ async fn handle_config(
                 config.metadata.name
             );
             tokio::spawn(async move {
-                handle_config_add(&config, config_map, discovery_handler_map)
-                    .await
-                    .unwrap();
+                handle_config_add(
+                    &config,
+                    config_map,
+                    discovery_handler_map,
+                    new_discovery_handler_sender,
+                )
+                .await
+                .unwrap();
             });
             Ok(())
         }
@@ -145,9 +164,14 @@ async fn handle_config(
             );
             handle_config_delete(kube_interface, &config, config_map.clone()).await?;
             tokio::spawn(async move {
-                handle_config_add(&config, config_map, discovery_handler_map)
-                    .await
-                    .unwrap();
+                handle_config_add(
+                    &config,
+                    config_map,
+                    discovery_handler_map,
+                    new_discovery_handler_sender,
+                )
+                .await
+                .unwrap();
             });
             Ok(())
         }
@@ -164,23 +188,23 @@ async fn handle_config_add(
     config: &KubeAkriConfig,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let config_protocol = config.spec.protocol.clone();
-    let discovery_handler = protocols::get_discovery_handler(&config_protocol)?;
-    let discovery_results = discovery_handler.discover().await?;
-    let config_name = config.metadata.name.clone();
+    let protocol = config.spec.protocol.name.clone();
+    let discovery_details = config.spec.protocol.discovery_details.clone();
     let config_uid = config.metadata.uid.as_ref().unwrap().clone();
+    let config_spec = config.spec.clone();
+    let config_name = config.metadata.name.clone();
     let config_namespace = config.metadata.namespace.as_ref().unwrap().clone();
-    info!(
-        "handle_config_add - entered for Configuration {} with visible_instances={:?}",
-        config.metadata.name, &discovery_results
-    );
     // Create a new instance map for this config and add it to the config map
     let instance_map: InstanceMap = Arc::new(Mutex::new(HashMap::new()));
     // Channel capacity: should only ever be sent once upon config deletion
-    let (stop_discovery_sender, stop_discovery_receiver) = mpsc::channel(1);
+    let (stop_discovery_sender, mut stop_discovery_receiver): (
+        broadcast::Sender<()>,
+        broadcast::Receiver<()>,
+    ) = broadcast::channel(4);
     // Channel capacity: should only ever be sent once upon receiving stop watching message
-    let (finished_discovery_sender, _) = broadcast::channel(1);
+    let (mut finished_discovery_sender, _) = broadcast::channel(1);
     let config_info = ConfigInfo {
         instance_map: instance_map.clone(),
         stop_discovery_sender,
@@ -195,21 +219,22 @@ async fn handle_config_add(
     let config_spec = config.spec.clone();
     // Keep discovering instances until the config is deleted, signaled by a message from handle_config_delete
     tokio::spawn(async move {
-        let periodic_discovery = PeriodicDiscovery::new(
+        let discovery_operator = DiscoveryOperator::new(
+            discovery_handler_map,
             &config_name,
             &config_uid,
             &config_namespace,
             config_spec,
-            config_protocol,
+            &protocol,
+            discovery_details,
             instance_map,
-            discovery_handler_map,
         );
-        periodic_discovery
-            .do_periodic_discovery(
-                &kube_interface,
-                stop_discovery_receiver,
-                finished_discovery_sender,
-                DEVICE_PLUGIN_PATH,
+        let mut new_discovery_handler_receiver = new_discovery_handler_sender.subscribe();
+        discovery_operator
+            .start_discovery(
+                &mut new_discovery_handler_receiver,
+                &mut stop_discovery_receiver,
+                &mut finished_discovery_sender,
             )
             .await
             .unwrap();
@@ -239,7 +264,6 @@ pub async fn handle_config_delete(
         .stop_discovery_sender
         .clone()
         .send(())
-        .await
         .is_ok()
     {
         let mut finished_discovery_receiver = config_map
@@ -296,16 +320,21 @@ pub async fn handle_config_delete(
 
 #[cfg(test)]
 mod config_action_tests {
+    use super::super::{
+        discovery_operator::update_connectivity_status,
+        registration::register_embedded_discovery_handlers,
+    };
     use super::*;
+    use akri_debug_echo::discovery_handler::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
+    use akri_discovery_utils::discovery::v0::{Device, DiscoverRequest};
     use akri_shared::k8s::MockKubeInterface;
-    use protocols::debug_echo::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use std::{env, fs};
     use tempfile::Builder;
     use tokio::sync::broadcast;
 
     async fn build_instance_map(
         config: &KubeAkriConfig,
-        visibile_discovery_results: &mut Vec<protocols::DiscoveryResult>,
+        visibile_discovery_results: &mut Vec<Device>,
         list_and_watch_message_receivers: &mut Vec<
             broadcast::Receiver<device_plugin_service::ListAndWatchMessageKind>,
         >,
@@ -314,19 +343,33 @@ mod config_action_tests {
         // Set env vars for getting instances
         env::set_var("AGENT_NODE_NAME", "node-a");
         env::set_var("ENABLE_DEBUG_ECHO", "yes");
-        let protocol = config.spec.protocol.clone();
-        let discovery_handler = protocols::get_discovery_handler(&protocol).unwrap();
-        let discovery_results = discovery_handler.discover().await.unwrap();
+        let protocol_handler = config.spec.protocol.clone();
+        let protocol = protocol_handler.name;
+        let discovery_details = protocol_handler.discovery_details;
+
+        let discovery_handler = protocols::get_discovery_handler(&discovery_details).unwrap();
+        let discover_request = tonic::Request::new(DiscoverRequest {
+            discovery_details: discovery_details.clone(),
+        });
+        let discovery_results = discovery_handler
+            .discover(discover_request)
+            .await
+            .unwrap()
+            .into_inner()
+            .recv()
+            .await
+            .unwrap()
+            .unwrap()
+            .devices;
         *visibile_discovery_results = discovery_results.clone();
         let instance_map: InstanceMap = Arc::new(Mutex::new(
             discovery_results
                 .iter()
-                .map(|instance_info| {
+                .map(|device| {
                     let (list_and_watch_message_sender, list_and_watch_message_receiver) =
                         broadcast::channel(2);
                     list_and_watch_message_receivers.push(list_and_watch_message_receiver);
-                    let instance_name =
-                        get_device_instance_name(&instance_info.digest, &config.metadata.name);
+                    let instance_name = get_device_instance_name(&device.id, &config.metadata.name);
                     (
                         instance_name,
                         InstanceInfo {
@@ -343,9 +386,9 @@ mod config_action_tests {
     #[tokio::test]
     async fn test_handle_config_delete() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let path_to_config = "../test/json/config-a.json";
-        let dcc_json = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
@@ -357,7 +400,7 @@ mod config_action_tests {
             ConnectivityStatus::Online,
         )
         .await;
-        let (stop_discovery_sender, mut stop_discovery_receiver) = mpsc::channel(2);
+        let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
         let (finished_discovery_sender, _) = broadcast::channel(2);
         let mut map: HashMap<String, ConfigInfo> = HashMap::new();
         map.insert(
@@ -382,7 +425,7 @@ mod config_action_tests {
         });
 
         // Assert that handle_config_delete tells do_periodic_discovery to end
-        assert!(stop_discovery_receiver.recv().await.is_some());
+        assert!(stop_discovery_receiver.recv().await.is_ok());
         // Mimic do_periodic_discovery's response
         finished_discovery_sender.send(()).unwrap();
 
@@ -406,18 +449,21 @@ mod config_action_tests {
     // 2: ConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: ConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
     #[tokio::test]
-    async fn test_update_connectivity_status() {
+    async fn test_update_connectivity_status_factory() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let path_to_config = "../test/json/config-a.json";
-        let dcc_json = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
-        let mock = MockKubeInterface::new();
+        let discovery_handler_map: RegisteredDiscoveryHandlerMap =
+            Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map_clone = discovery_handler_map.clone();
+        register_embedded_discovery_handlers(discovery_handler_map_clone).unwrap();
 
         //
-        // 1: Assert that ConnectivityStatus of instance that are no longer visible is changed to Offline
+        // 1: Assert that ConnectivityStatus of non local instances that are no longer visible is changed to Offline
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
@@ -426,21 +472,15 @@ mod config_action_tests {
             ConnectivityStatus::Online,
         )
         .await;
-        let shared = true;
-        // discover returns an empty vector when instances are offline
-        let no_visible_instances: HashMap<String, protocols::DiscoveryResult> = HashMap::new();
-        let periodic_dicovery = PeriodicDiscovery::new(
-            &config_name,
-            config.metadata.uid.as_ref().unwrap(),
-            config.metadata.namespace.as_ref().unwrap(),
-            config.spec.clone(),
-            config.spec.protocol.clone(),
+        let is_local = false;
+        run_update_connectivity_status(
+            &config,
+            HashMap::new(),
+            is_local,
             instance_map.clone(),
-        );
-        periodic_dicovery
-            .update_connectivity_status(&mock, &no_visible_instances, shared)
-            .await
-            .unwrap();
+            discovery_handler_map.clone(),
+        )
+        .await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
         for (_, instance_info) in unwrapped_instance_map {
             assert_ne!(
@@ -450,7 +490,7 @@ mod config_action_tests {
         }
 
         //
-        // 2: Assert that ConnectivityStatus of shared instances that come back online in <5 mins is changed to Online
+        // 2: Assert that ConnectivityStatus of non local instances that come back online in <5 mins is changed to Online
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
@@ -459,28 +499,22 @@ mod config_action_tests {
             ConnectivityStatus::Offline(Instant::now()),
         )
         .await;
-        let shared = true;
-        let currently_visible_instances: HashMap<String, protocols::DiscoveryResult> =
-            visible_discovery_results
-                .iter()
-                .map(|instance_info| {
-                    let instance_name =
-                        get_device_instance_name(&instance_info.digest, &config_name);
-                    (instance_name, instance_info.clone())
-                })
-                .collect();
-        let periodic_dicovery = PeriodicDiscovery::new(
-            &config_name,
-            config.metadata.uid.as_ref().unwrap(),
-            config.metadata.namespace.as_ref().unwrap(),
-            config.spec.clone(),
-            config.spec.protocol.clone(),
+        let currently_visible_instances: HashMap<String, Device> = visible_discovery_results
+            .iter()
+            .map(|device| {
+                let instance_name = get_device_instance_name(&device.id, &config_name);
+                (instance_name, device.clone())
+            })
+            .collect();
+        let is_local = false;
+        run_update_connectivity_status(
+            &config,
+            currently_visible_instances.clone(),
+            is_local,
             instance_map.clone(),
-        );
-        periodic_dicovery
-            .update_connectivity_status(&mock, &currently_visible_instances, shared)
-            .await
-            .unwrap();
+            discovery_handler_map.clone(),
+        )
+        .await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
         for (_, instance_info) in unwrapped_instance_map {
             assert_eq!(
@@ -490,57 +524,110 @@ mod config_action_tests {
         }
 
         //
-        // 3: Assert that ConnectivityStatus of unshared instances that come back online before next visibility check is changed to Online
+        // 3: Assert that non local devices that are offline for >5 mins are removed
+        //
+        let instant = Instant::now();
+        instant.checked_add(Duration::from_millis(301)).unwrap();
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            ConnectivityStatus::Offline(instant),
+        )
+        .await;
+        let currently_visible_instances: HashMap<String, Device> = visible_discovery_results
+            .iter()
+            .map(|device| {
+                let instance_name = get_device_instance_name(&device.id, &config_name);
+                (instance_name, device.clone())
+            })
+            .collect();
+        let is_local = false;
+        run_update_connectivity_status(
+            &config,
+            currently_visible_instances.clone(),
+            is_local,
+            instance_map.clone(),
+            discovery_handler_map.clone(),
+        )
+        .await;
+        let unwrapped_instance_map = instance_map.lock().await.clone();
+        assert!(unwrapped_instance_map.is_empty());
+
+        //
+        // 3: Assert that local devices that go offline are removed from the instance map
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Offline(Instant::now()),
+            ConnectivityStatus::Online,
         )
         .await;
-        let shared = false;
-        let periodic_dicovery = PeriodicDiscovery::new(
-            &config_name,
-            config.metadata.uid.as_ref().unwrap(),
-            config.metadata.namespace.as_ref().unwrap(),
-            config.spec.clone(),
-            config.spec.protocol.clone(),
+        let is_local = true;
+        run_update_connectivity_status(
+            &config,
+            currently_visible_instances,
+            is_local,
             instance_map.clone(),
-        );
-        periodic_dicovery
-            .update_connectivity_status(&mock, &currently_visible_instances, shared)
-            .await
-            .unwrap();
+            discovery_handler_map.clone(),
+        )
+        .await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
-        for (_, instance_info) in unwrapped_instance_map {
-            assert_eq!(
-                instance_info.connectivity_status,
-                ConnectivityStatus::Online
-            );
-        }
+        assert!(unwrapped_instance_map.is_empty());
     }
 
+    async fn run_update_connectivity_status(
+        config: &KubeAkriConfig,
+        currently_visible_instances: HashMap<String, Device>,
+        is_local: bool,
+        instance_map: InstanceMap,
+        discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    ) {
+        //
+
+        let discovery_operator = Arc::new(DiscoveryOperator::new(
+            discovery_handler_map,
+            &config.metadata.name,
+            config.metadata.uid.as_ref().unwrap(),
+            config.metadata.namespace.as_ref().unwrap(),
+            config.spec.clone(),
+            &config.spec.protocol.name,
+            config.spec.protocol.discovery_details.clone(),
+            instance_map.clone(),
+        ));
+        update_connectivity_status(discovery_operator, currently_visible_instances, is_local)
+            .await
+            .unwrap();
+    }
     /// Checks the termination case for when an unshared instance is still offline upon the second periodic discovery
     /// Must be run independently since writing "OFFLINE" to DEBUG_ECHO_AVAILABILITY_CHECK_PATH in order to emulate
     /// offline devices can clobber other tests run in parallel that are looking for online devices.
-    /// Run with: cargo test -- test_do_periodic_discovery --ignored
+    /// Run with: cargo test -- test_start_discovery --ignored
     #[tokio::test]
     #[ignore]
-    async fn test_do_periodic_discovery() {
+    async fn test_start_discovery() {
         let _ = env_logger::builder().is_test(true).try_init();
         // Set env vars
         env::set_var("AGENT_NODE_NAME", "node-a");
         env::set_var("ENABLE_DEBUG_ECHO", "yes");
         // Make each get_instances check return an empty list of instances
-        let path_to_config = "../test/json/config-a.json";
-        let dcc_json = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         let mut visible_discovery_results = Vec::new();
         let mut list_and_watch_message_receivers = Vec::new();
-        let (mut watch_periph_tx, watch_periph_rx) = mpsc::channel(2);
-        let (finished_watching_tx, mut finished_watching_rx) = broadcast::channel(2);
+        let (new_discovery_handler_sender, mut new_discovery_handler_receiver) =
+            broadcast::channel(2);
+        let (mut stop_all_discovery_sender, mut stop_all_discovery_receiver) =
+            broadcast::channel(2);
+        let (mut finished_all_discovery_sender, mut finished_discovery_receiver) =
+            broadcast::channel(2);
+        let discovery_handler_map: RegisteredDiscoveryHandlerMap =
+            Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map_clone = discovery_handler_map.clone();
+        register_embedded_discovery_handlers(discovery_handler_map_clone).unwrap();
         let mut mock = MockKubeInterface::new();
 
         // Set instance count metric to ensure it is cleared
@@ -565,23 +652,24 @@ mod config_action_tests {
         // Change instances to be offline
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE).unwrap();
         tokio::spawn(async move {
-            let periodic_dicovery = PeriodicDiscovery::new(
+            let discovery_operator = DiscoveryOperator::new(
+                discovery_handler_map,
                 &config.metadata.name,
                 config.metadata.uid.as_ref().unwrap(),
                 config.metadata.namespace.as_ref().unwrap(),
                 config.spec.clone(),
-                config.spec.protocol.clone(),
-                instance_map_clone,
+                &config.spec.protocol.name,
+                config.spec.protocol.discovery_details.clone(),
+                instance_map,
             );
             let device_plugin_temp_dir =
                 Builder::new().prefix("device-plugins-").tempdir().unwrap();
             let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
-            periodic_dicovery
-                .do_periodic_discovery(
-                    &mock,
-                    watch_periph_rx,
-                    finished_watching_tx,
-                    device_plugin_temp_dir_path,
+            discovery_operator
+                .start_discovery(
+                    &mut new_discovery_handler_receiver,
+                    &mut stop_all_discovery_receiver,
+                    &mut finished_all_discovery_sender,
                 )
                 .await
                 .unwrap();
@@ -598,7 +686,7 @@ mod config_action_tests {
         futures::future::join_all(tasks).await;
 
         // Assert that all instances have been removed from the instance map
-        assert_eq!(instance_map.lock().await.len(), 0);
+        assert_eq!(instance_map_clone.lock().await.len(), 0);
 
         // Assert that instance count metric is reporting no instances
         assert_eq!(
@@ -608,9 +696,9 @@ mod config_action_tests {
             0
         );
 
-        watch_periph_tx.send(()).await.unwrap();
+        stop_all_discovery_sender.send(()).unwrap();
         // Assert that replies saying finished watching
-        assert!(finished_watching_rx.recv().await.is_ok());
+        assert!(finished_discovery_receiver.recv().await.is_ok());
 
         // Reset file to be online
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "ONLINE").unwrap();

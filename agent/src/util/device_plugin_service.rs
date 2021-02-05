@@ -116,7 +116,7 @@ impl DevicePlugin for DevicePluginService {
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<DevicePluginOptions>, Status> {
-        trace!("get_device_plugin_options - kubelet called get_device_plugin_options");
+        info!("get_device_plugin_options - kubelet called get_device_plugin_options");
         let resp = DevicePluginOptions {
             pre_start_required: true,
         };
@@ -166,7 +166,7 @@ impl DevicePlugin for DevicePluginService {
             }
 
             while keep_looping {
-                trace!(
+                info!(
                     "list_and_watch - loop iteration for Instance {}",
                     dps.instance_name
                 );
@@ -191,7 +191,7 @@ impl DevicePlugin for DevicePluginService {
 
                 // Send virtual devices list back to kubelet
                 if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
-                    trace!(
+                    info!(
                         "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
                         dps.instance_name,
                         e
@@ -214,7 +214,7 @@ impl DevicePlugin for DevicePluginService {
                         // If receive message to end list_and_watch, send list of unhealthy devices
                         // and shutdown the server by sending message on server_ender_sender channel
                         if message == Ok(ListAndWatchMessageKind::End) {
-                            trace!(
+                            info!(
                                 "list_and_watch - for Instance {} received message to end",
                                 dps.instance_name
                             );
@@ -229,12 +229,12 @@ impl DevicePlugin for DevicePluginService {
                             keep_looping = false;
                         }
                     }
-                    Err(_) => trace!(
+                    Err(_) => info!(
                         "list_and_watch - for Instance {} did not receive a message for {} seconds ... continuing", dps.instance_name, LIST_AND_WATCH_SLEEP_SECS
                     ),
                 }
             }
-            trace!("list_and_watch - for Instance {} ending", dps.instance_name);
+            info!("list_and_watch - for Instance {} ending", dps.instance_name);
         });
         Ok(Response::new(kubelet_update_receiver))
     }
@@ -282,14 +282,13 @@ impl DevicePluginService {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
 
         for request in requests.into_inner().container_requests {
-            trace!(
+            info!(
                 "internal_allocate - for Instance {} handling request {:?}",
-                &self.instance_name,
-                request,
+                &self.instance_name, request,
             );
             let mut akri_annotations = std::collections::HashMap::new();
             for device_usage_id in request.devices_i_ds {
-                trace!(
+                info!(
                     "internal_allocate - for Instance {} processing request for device usage slot id {}",
                     &self.instance_name,
                     device_usage_id
@@ -309,14 +308,14 @@ impl DevicePluginService {
                 )
                 .await
                 {
-                    trace!("internal_allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &self.node_name);
+                    info!("internal_allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &self.node_name);
                     self.list_and_watch_message_sender
                         .send(ListAndWatchMessageKind::Continue)
                         .unwrap();
                     return Err(e);
                 }
 
-                trace!(
+                info!(
                     "internal_allocate - finished processing device_usage_id {}",
                     device_usage_id
                 );
@@ -330,7 +329,7 @@ impl DevicePluginService {
             );
             container_responses.push(response);
         }
-        trace!(
+        info!(
             "internal_allocate - for Instance {} returning responses",
             &self.instance_name
         );
@@ -362,7 +361,7 @@ fn get_slot_value(
         } else if allocated_node == node_name {
             Ok("".to_string())
         } else {
-            trace!("internal_allocate - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
+            info!("internal_allocate - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
             Err(Status::new(
                 Code::Unknown,
                 "Requested device already in use",
@@ -370,7 +369,7 @@ fn get_slot_value(
         }
     } else {
         // No corresponding id found
-        trace!(
+        info!(
             "internal_allocate - could not find {} id in device_usage",
             device_usage_id
         );
@@ -400,7 +399,7 @@ async fn try_update_instance_device_usage(
         {
             Ok(instance_object) => instance = instance_object.spec,
             Err(_) => {
-                trace!(
+                info!(
                     "internal_allocate - could not find Instance {}",
                     instance_name
                 );
@@ -435,7 +434,7 @@ async fn try_update_instance_device_usage(
             }
             Err(e) => {
                 if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                    trace!("internal_allocate - update_instance returned error [{}] after max tries ... returning error", e);
+                    info!("internal_allocate - update_instance returned error [{}] after max tries ... returning error", e);
                     return Err(Status::new(Code::Unknown, "Could not update Instance"));
                 }
             }
@@ -457,7 +456,7 @@ fn build_container_allocate_response(
     if let Some(protocol_handler) = protocol.discovery_details.get("protocolHandler") {
         match serde_json::from_str(protocol_handler).unwrap() {
             ProtocolHandler::udev(_handler_config) => {
-                trace!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
+                info!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
                 mounts = instance_properties
                     .iter()
                     .map(|(_id, devpath)| v1beta1::Mount {
@@ -467,7 +466,7 @@ fn build_container_allocate_response(
                     })
                     .collect();
             }
-            _ => trace!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
+            _ => info!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
         }
     }
 
@@ -520,7 +519,7 @@ async fn try_create_instance(
             .await
         {
             Ok(mut instance_object) => {
-                trace!(
+                info!(
                     "try_create_instance - discovered Instance {} already created",
                     dps.instance_name
                 );
@@ -537,15 +536,14 @@ async fn try_create_instance(
                         .await
                     {
                         Ok(()) => {
-                            trace!(
+                            info!(
                                 "try_create_instance - updated Instance {} to include {}",
-                                dps.instance_name,
-                                dps.node_name
+                                dps.instance_name, dps.node_name
                             );
                             break;
                         }
                         Err(e) => {
-                            trace!("try_create_instance - call to update_instance returned with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
+                            info!("try_create_instance - call to update_instance returned with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
                             if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
                                 return Err(e);
                             }
@@ -567,14 +565,14 @@ async fn try_create_instance(
                     .await
                 {
                     Ok(()) => {
-                        trace!(
+                        info!(
                             "try_create_instance - created Instance with name {}",
                             dps.instance_name
                         );
                         break;
                     }
                     Err(e) => {
-                        trace!("try_create_instance - couldn't create instance with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
+                        info!("try_create_instance - couldn't create instance with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
                         if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                             return Err(e);
                         }
@@ -615,7 +613,7 @@ async fn build_list_and_watch_response(
         .await
         .contains_key(&dps.instance_name)
     {
-        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
+        info!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
             dps.config.capacity,
             &dps.instance_name,
@@ -631,14 +629,14 @@ async fn build_list_and_watch_response(
         .connectivity_status
         != ConnectivityStatus::Online
     {
-        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
+        info!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
             dps.config.capacity,
             &dps.instance_name,
         ));
     }
 
-    trace!(
+    info!(
         "build_list_and_watch_response -- device for Instance {} is online",
         dps.instance_name
     );
@@ -653,7 +651,7 @@ async fn build_list_and_watch_response(
             &dps.node_name,
         )),
         Err(_) => {
-            trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
+            info!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
             Ok(build_unhealthy_virtual_devices(
                 dps.config.capacity,
                 &dps.instance_name,
@@ -670,7 +668,7 @@ fn build_unhealthy_virtual_devices(capacity: i32, instance_name: &str) -> Vec<v1
             id: format!("{}-{}", instance_name, x),
             health: UNHEALTHY.to_string(),
         };
-        trace!(
+        info!(
             "build_unhealthy_virtual_devices -- for Instance {} reporting unhealthy devices for device with name [{}] and health: [{}]",
             instance_name,
             device.id,
@@ -702,11 +700,9 @@ fn build_virtual_devices(
         } else {
             HEALTHY.to_string()
         };
-        trace!(
+        info!(
             "build_virtual_devices - [shared = {}] device with name [{}] and health: [{}]",
-            shared,
-            device_name,
-            health
+            shared, device_name, health
         );
         devices.push(v1beta1::Device {
             id: device_name.clone(),
@@ -723,7 +719,7 @@ pub async fn terminate_device_plugin_service(
     instance_map: InstanceMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut instance_map = instance_map.lock().await;
-    trace!(
+    info!(
         "terminate_device_plugin_service -- forcing list_and_watch to end for Instance {}",
         instance_name
     );
@@ -734,7 +730,7 @@ pub async fn terminate_device_plugin_service(
         .send(ListAndWatchMessageKind::End)
         .unwrap();
 
-    trace!(
+    info!(
         "terminate_device_plugin_service -- removing Instance {} from instance_map",
         instance_name
     );
@@ -805,10 +801,10 @@ pub async fn build_device_plugin(
 /// Ends when it receives message from `list_and_watch`.
 async fn shutdown_signal(mut server_ender_receiver: mpsc::Receiver<()>) {
     match server_ender_receiver.recv().await {
-        Some(_) => trace!(
+        Some(_) => info!(
             "shutdown_signal - received signal ... device plugin service gracefully shutting down"
         ),
-        None => trace!("shutdown_signal - connection to server_ender_sender closed ... error"),
+        None => info!("shutdown_signal - connection to server_ender_sender closed ... error"),
     }
 }
 
@@ -837,7 +833,7 @@ async fn serve(
             )
             .await
             .unwrap();
-        trace!(
+        info!(
             "serve - gracefully shutdown ... deleting socket {}",
             socket_path_to_delete
         );
@@ -914,7 +910,7 @@ async fn register(
         resource_name: capability_id,
         options: Some(op),
     });
-    trace!(
+    info!(
         "register - before call to register with Kubelet at socket {}",
         KUBELET_SOCKET
     );
@@ -925,7 +921,7 @@ async fn register(
         .await
         .is_err()
     {
-        trace!(
+        info!(
             "register - failed to register Instance {} with kubelet ... terminating device plugin",
             instance_name
         );

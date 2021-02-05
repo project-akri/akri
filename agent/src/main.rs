@@ -17,17 +17,19 @@ extern crate yaserde_derive;
 
 mod protocols;
 mod util;
-mod discover;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
-use discover::register::run_registration_server;
 use log::{info, trace};
 use prometheus::{HistogramVec, IntGaugeVec};
 use std::{collections::HashMap, sync::{Arc, Mutex}, time::Duration};
 use util::{
     config_action, constants::SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS,
+    registration::run_registration_server,
     slot_reconciliation::periodic_slot_reconciliation,
 };
+#[cfg(feature = "agent-all-in-one")]
+use util::registration::register_embedded_discovery_handlers;
+use tokio::sync::broadcast;
 
 lazy_static! {
     // Reports the number of Instances visible to this node, grouped by Configuration and whether it is shared
@@ -61,9 +63,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     let discovery_hndlr_map = Arc::new(Mutex::new(HashMap::new()));
     let discovery_hndlr_map_clone = discovery_hndlr_map.clone();
+    let (new_discovery_handler_sender, _): (broadcast::Sender<String>, broadcast::Receiver<String>) = broadcast::channel(4);
+    let new_discovery_handler_sender_clone = new_discovery_handler_sender.clone();
+    #[cfg(feature = "agent-all-in-one")]
+    register_embedded_discovery_handlers(discovery_hndlr_map_clone.clone())?;
     // Start registration service for registering `DiscoveryHandler` Pods
     tasks.push(tokio::spawn(async move {
-        run_registration_server(discovery_hndlr_map_clone).await.unwrap();
+        run_registration_server(discovery_hndlr_map_clone, new_discovery_handler_sender).await.unwrap();
     }));
 
     tasks.push(tokio::spawn(async move {
@@ -74,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     }));
 
     tasks.push(tokio::spawn(async move {
-        config_action::do_config_watch(discovery_hndlr_map).await.unwrap()
+        config_action::do_config_watch(discovery_hndlr_map, new_discovery_handler_sender_clone).await.unwrap()
     }));
 
     futures::future::try_join_all(tasks).await?;

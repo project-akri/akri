@@ -24,11 +24,6 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                  oneOf:
-                    - required: ["debugEcho"]
-                    - required: ["onvif"]
-                    - required: ["udev"]
-                    - required: ["opcua"]
                 capacity:
                   type: integer
                 units:

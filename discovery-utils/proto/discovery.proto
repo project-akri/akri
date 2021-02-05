@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package discovery;
+package v0;
 
 // Registration is the service advertised by the Akri Agent.
 // Any `DiscoveryHandler` can register with Akri under a specified

@@ -1,0 +1,66 @@
+/// Grammar for parsing udev rules
+WHITESPACE = _{ " " }
+// if remove *, will throw error when empty string
+udev_rule = { SOI ~ (inner_rule)* ~ EOI }
+inner_rule = { udev_filter ~ ("," ~ udev_filter)* }
+udev_filter = ${ field ~ operation ~ quoted_value }
+field = { unsupported_field | attributes | attribute | devpath | drivers | driver | kernels | kernel | property | subsystems | subsystem | tags | tag }
+action_field = { label | goto | group | import | options | owner | mode | run | wait_for }
+unsupported_field = { action | action_field | constant | name | program | result | seclabel | symlink | sysctl | test }
+bounded_key = {"{" ~ key ~ "}"}
+// remove ! on key and value rules if want to allow spaces between ""/{} and key/value (ie: { DEVPATH } vs {DEVPATH})
+key = !{ (ASCII_ALPHANUMERIC | SPACE_SEPARATOR | "$" | "." | "_" | "*" | "?" | "[" | "]" | "-" | "|" | "\\" | "/" )* }
+value = !{ (ASCII_ALPHANUMERIC | SPACE_SEPARATOR | "$" | "." | "_" | "*" | ":" | "?" | "[" | "]" | "-" | "|" | "\\" | "/" | "%" | "{"| "}")* } 
+allowed_value_characters = { ASCII_DIGIT | ASCII_ALPHA | MARK | PUNCTUATION | SYMBOL | SPACE_SEPARATOR }
+quoted_value = {"\"" ~ value ~ "\""}
+operation = { equality | inequality | action_operation }
+action_operation = { addition | removal | final_assignment | assignment }
+equality = { "==" }
+inequality = { "!=" }
+assignment = { "=" }
+addition = { "+=" }
+removal = { "-=" }
+final_assignment = { ":=" } 
+ 
+// Supported fields
+attributes = { "ATTRS" ~ bounded_key }
+attribute = { "ATTR" ~ bounded_key } // {key}
+devpath = { "DEVPATH" }
+drivers = { "DRIVERS" }
+driver = { "DRIVER" }
+kernels = { "KERNELS" }
+kernel = { "KERNEL" }
+property = { "ENV" ~ bounded_key } // {key}
+subsystems = { "SUBSYSTEMS" }
+subsystem = { "SUBSYSTEM" }
+tags = { "TAGS" }
+tag = { "TAG" }
+
+
+//
+// Unsupported fields
+//
+// Unsupported action only fields
+goto = { "GOTO" }
+group = { "GROUP" }
+label = { "LABEL" }
+import = { "IMPORT" ~ bounded_key } // {type}  where type = program | builtin | file | db | cmdline | parent
+mode = { "MODE" }
+options = { "OPTIONS" }
+owner = { "OWNER" }
+run = { "RUN" ~ bounded_key } // {type} where type = program | builtin
+wait_for = { "WAIT_FOR" }
+
+// Other unsupported match (and action) fields
+action = { "ACTION" }
+constant = { "CONST" ~ bounded_key } // {key} where key = "arch" | "virt"
+name = { "NAME" }
+program = { "PROGRAM" }
+result = { "RESULT" }
+seclabel = { "SECLABEL" ~ bounded_key } // {module}
+symlink = { "SYMLINK" }
+sysctl = { "SYSCTL" ~ bounded_key } // {kernel key}
+test = { "TEST" ~ bounded_key } // {octal mode mask}
+
+
+

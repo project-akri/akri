@@ -123,7 +123,7 @@ pub mod registration_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/discovery.Registration/Register");
+            let path = http::uri::PathAndQuery::from_static("/v0.Registration/Register");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -180,7 +180,7 @@ pub mod discovery_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/discovery.Discovery/Discover");
+            let path = http::uri::PathAndQuery::from_static("/v0.Discovery/Discover");
             self.inner
                 .server_streaming(request.into_request(), path, codec)
                 .await
@@ -237,7 +237,7 @@ pub mod registration_server {
         fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/discovery.Registration/Register" => {
+                "/v0.Registration/Register" => {
                     struct RegisterSvc<T: Registration>(pub Arc<T>);
                     impl<T: Registration> tonic::server::UnaryService<super::RegisterRequest> for RegisterSvc<T> {
                         type Response = super::Empty;
@@ -294,7 +294,7 @@ pub mod registration_server {
         }
     }
     impl<T: Registration> tonic::transport::NamedService for RegistrationServer<T> {
-        const NAME: &'static str = "discovery.Registration";
+        const NAME: &'static str = "v0.Registration";
     }
 }
 #[doc = r" Generated server implementations."]
@@ -342,7 +342,7 @@ pub mod discovery_server {
         fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/discovery.Discovery/Discover" => {
+                "/v0.Discovery/Discover" => {
                     struct DiscoverSvc<T: Discovery>(pub Arc<T>);
                     impl<T: Discovery> tonic::server::ServerStreamingService<super::DiscoverRequest>
                         for DiscoverSvc<T>
@@ -403,6 +403,6 @@ pub mod discovery_server {
         }
     }
     impl<T: Discovery> tonic::transport::NamedService for DiscoveryServer<T> {
-        const NAME: &'static str = "discovery.Discovery";
+        const NAME: &'static str = "v0.Discovery";
     }
 }

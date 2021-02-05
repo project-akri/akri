@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: protocol-broker
+  labels:
+    app: protocol-broker
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: "jiria-linux"
+  containers:
+  - name: protocol-broker
+    image: nginx
+    resources:
+      limits:                        
+        akri.sh/akri-debug-echo-foo-8120fe: "1"
+      requests:
+        akri.sh/akri-debug-echo-foo-8120fe: "1"
