@@ -281,6 +281,12 @@ mod tests {
                     "uid": "00000000-0000-0000-0000-000000000000"
                 },
                 "spec": {
+                    "protocol": {
+                        "debugEcho": {
+                            "descriptions": ["foo","bar"],
+                            "shared": true
+                        }
+                    },
                     "brokerPodSpec": {
                         "containers": [
                             {
@@ -299,13 +305,7 @@ mod tests {
                             }
                         ]
                     },
-                    "capacity": 1,
-                    "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
-                    }
+                    "capacity": 1
                 }
             },
             "oldObject": null,
@@ -371,6 +371,12 @@ mod tests {
                     "uid": "00000000-0000-0000-0000-000000000000"
                 },
                 "spec": {
+                    "protocol": {
+                        "debugEcho": {
+                            "descriptions": ["foo","bar"],
+                            "shared": true
+                        }
+                    },
                     "brokerPodSpec": {
                         "containers": [
                             {
@@ -389,13 +395,111 @@ mod tests {
                             }
                         ]
                     },
-                    "capacity": 1,
+                    "capacity": 1
+                }
+            },
+            "oldObject": null,
+            "dryRun": false,
+            "options": {
+                "kind": "CreateOptions",
+                "apiVersion": "meta.k8s.io/v1"
+            }
+        }
+    }
+    "#;
+
+    const EXTENDED: &str = r#"
+    {
+        "kind": "AdmissionReview",
+        "apiVersion": "admission.k8s.io/v1",
+        "request": {
+            "uid": "00000000-0000-0000-0000-000000000000",
+            "kind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "resource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "requestKind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "requestResource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "name": "name",
+            "namespace": "default",
+            "operation": "CREATE",
+            "userInfo": {
+                "username": "admin",
+                "uid": "admin",
+                "groups": []
+            },
+            "object": {
+                "apiVersion": "akri.sh/v0",
+                "kind": "Configuration",
+                "metadata": {
+                    "annotations": {
+                        "kubectl.kubernetes.io/last-applied-configuration": ""
+                    },
+                    "creationTimestamp": "2021-01-01T00:00:00Z",
+                    "generation": 1,
+                    "managedFields": [],
+                    "name": "name",
+                    "namespace": "default",
+                    "uid": "00000000-0000-0000-0000-000000000000"
+                },
+                "spec": {
                     "protocol": {
                         "debugEcho": {
                             "descriptions": ["foo","bar"],
                             "shared": true
                         }
-                    }
+                    },
+                    "brokerPodSpec": {
+                        "containers": [
+                            {
+                                "image": "image",
+                                "name": "name",
+                                "resources": {
+                                    "limits": {
+                                        "{{PLACEHOLDER}}": "1"
+                                    }
+                                }
+                            }
+                        ],
+                        "imagePullSecrets": [
+                            {
+                                "name": "name"
+                            }
+                        ]
+                    },
+                    "instanceServiceSpec": {
+                        "type": "ClusterIP",
+                        "ports": [{
+                            "name": "name",
+                            "port": 0,
+                            "targetPort": 0,
+                            "protocol": "TCP"
+                        }]
+                    },
+                    "configurationServiceSpec": {
+                        "type": "ClusterIP",
+                        "ports": [{
+                            "name": "name",
+                            "port": 0,
+                            "targetPort": 0,
+                            "protocol": "TCP"
+                        }]
+                    },           
+                    "capacity": 1
                 }
             },
             "oldObject": null,
@@ -619,6 +723,15 @@ mod tests {
         let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, false);
+    }
+
+    #[test]
+    fn test_validate_configuration_extended() {
+        let valid: AdmissionReview =
+            serde_json::from_str(EXTENDED).expect("v1.AdmissionReview JSON");
+        let rqst = valid.request.expect("v1.AdmissionRequest JSON");
+        let resp = validate_configuration(&rqst);
+        assert_eq!(resp.allowed, true);
     }
 
     #[actix_rt::test]
