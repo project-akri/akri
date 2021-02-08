@@ -19,6 +19,7 @@ The following will be covered in this demo:
 1. To setup fake usb video devices, install the v4l2loopback kernel module and its prerequisites. Learn more about v4l2 loopback [here](https://github.com/umlaeute/v4l2loopback)
     ```sh
     sudo apt update
+    sudo apt -y install linux-headers-$(uname -r)
     sudo apt -y install linux-modules-extra-$(uname -r)
     sudo apt -y install dkms
     curl http://deb.debian.org/debian/pool/main/v/v4l2loopback/v4l2loopback-dkms_0.12.5-1_all.deb -o v4l2loopback-dkms_0.12.5-1_all.deb
@@ -34,7 +35,8 @@ The following will be covered in this demo:
     > like so:
     > ```sh
     > git clone https://github.com/umlaeute/v4l2loopback.git
-    > sudo make installs
+    > cd v4l2loopback
+    > make & sudo make install
     > sudo make install-utils
     > sudo depmod -a  
     > ```
@@ -55,6 +57,7 @@ The following will be covered in this demo:
     ```
 1. Now that our cameras are set up, lets use Gstreamer to pass fake video streams through them.
     ```sh
+    mkdir camera-logs
     sudo gst-launch-1.0 -v videotestsrc pattern=ball ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video1 > camera-logs/ball.log 2>&1 &
     sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2 > camera-logs/smpte.log 2>&1 &
     ```
@@ -158,7 +161,6 @@ Instead of having to build a Configuration from scratch, Akri has provided [Helm
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set useLatestContainers=true \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
         --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \

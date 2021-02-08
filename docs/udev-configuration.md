@@ -79,7 +79,6 @@ Configuration](./#adding-a-custom-broker-to-the-configuration).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"'
 ```
@@ -102,7 +101,6 @@ The udev protocol will find all devices that are described by ANY of the udev ru
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.udevRules[1]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Awesome Vendor"'
@@ -125,7 +123,6 @@ empty nginx pod for each instance. Instead, you can point to your image, say `gh
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.brokerPod.image.repository=nginx
@@ -143,7 +140,6 @@ Helm. For example, to instead run all processes in the Pod with user ID 1000 and
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
     --set udev.enabled=true \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.brokerPod.image.repository=nginx \

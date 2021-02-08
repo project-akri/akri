@@ -10,7 +10,8 @@ DOCKERFILE_DIR ?= build/containers
 
 PREFIX ?= $(REGISTRY)/$(UNIQUE_ID)
 VERSION=$(shell cat version.txt)
-VERSION_LABEL=v$(VERSION)
+TIMESTAMP=$(shell date +"%Y%m%d_%H%M%S")
+VERSION_LABEL=v$(VERSION)-$(TIMESTAMP)
 LABEL_PREFIX ?= $(VERSION_LABEL)
 
 CACHE_OPTION ?=

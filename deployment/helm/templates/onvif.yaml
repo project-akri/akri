@@ -37,7 +37,9 @@ spec:
     containers:
     - name: {{ .Values.onvif.name }}-broker
       image: {{ .Values.onvif.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.onvif.brokerPod.image.pullPolicy }}
+      {{- with .Values.onvif.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       {{- if .Values.onvif.brokerPod.env }}
       env:
         {{- range $key, $val := .Values.onvif.brokerPod.env }}

@@ -15,6 +15,7 @@ use kube::{
     client::APIClient,
     config,
 };
+use mockall::{automock, predicate::*};
 
 pub mod node;
 pub mod pod;
@@ -90,21 +91,7 @@ impl OwnershipInfo {
     }
 }
 
-//
-// mockall and async_trait do not work effortlessly together ... to enable both,
-// follow the example here:
-//     https://github.com/mibes/mockall-async/blob/53aec15219a720ef5ac483959ff8821cb7d656ae/src/main.rs
-//
-// When async traits are supported by Rust without the async_trait crate, we should
-// add:
-//    #[automock]
-//
-
-/// KubeInterface can query and modify Kubernetes.
-///
-/// An implementation of KubeInterface can query and modify Kubernetes Nodes, Pods,
-/// and Services, as well as modifying Akri CRDs like Configurations
-/// and Instances.
+#[automock]
 #[async_trait]
 pub trait KubeInterface: Send + Sync {
     fn get_kube_client(&self) -> APIClient;
@@ -631,198 +618,6 @@ impl KubeInterface for KubeImpl {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         instance::update_instance(instance_to_update, name, namespace, &self.get_kube_client())
             .await
-    }
-}
-
-pub mod test_kube {
-    use super::super::akri::{
-        configuration::{KubeAkriConfig, KubeAkriConfigList},
-        instance::{Instance, KubeAkriInstance, KubeAkriInstanceList},
-    };
-    use super::KubeInterface;
-    use async_trait::async_trait;
-    use k8s_openapi::api::core::v1::{
-        NodeSpec, NodeStatus, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus,
-    };
-    use kube::{
-        api::{Object, ObjectList},
-        client::APIClient,
-    };
-    use mockall::predicate::*;
-    use mockall::*;
-
-    //
-    // mockall and async_trait do not work effortlessly together ... to enable both,
-    // follow the example here:
-    //     https://github.com/mibes/mockall-async/blob/53aec15219a720ef5ac483959ff8821cb7d656ae/src/main.rs
-    //
-    // We can probably eliminate this when async traits are supported by Rust without
-    // the async_trait crate.
-    //
-    mock! {
-        pub KubeImpl {
-            fn get_kube_client(&self) -> APIClient;
-
-            fn find_node(&self, name: &str) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-            fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn create_pod(&self, pod_to_create: &Pod, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-            fn find_services(&self, selector: &str) -> Result<ObjectList<Object<ServiceSpec, ServiceStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn create_service(&self, svc_to_create: &Service, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn remove_service(&self, svc_to_remove: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn update_service(&self, svc_to_update: &Object<ServiceSpec, ServiceStatus>, name: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-            fn find_configuration(&self, name: &str, namespace: &str) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn get_configurations(&self) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-            fn find_instance(&self, name: &str, namespace: &str) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn get_instances(&self) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn create_instance(&self, instance_to_create: &Instance, name: &str, namespace: &str, owner_config_name: &str, owner_config_uid: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn delete_instance(&self, name: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-            fn update_instance(&self, instance_to_update: &Instance, name: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-        }
-    }
-
-    #[async_trait]
-    impl KubeInterface for MockKubeImpl {
-        fn get_kube_client(&self) -> APIClient {
-            self.get_kube_client()
-        }
-
-        async fn find_node(
-            &self,
-            name: &str,
-        ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
-            self.find_node(name)
-        }
-
-        async fn find_pods_with_label(
-            &self,
-            selector: &str,
-        ) -> Result<
-            ObjectList<Object<PodSpec, PodStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
-            self.find_pods_with_label(selector)
-        }
-        async fn find_pods_with_field(
-            &self,
-            selector: &str,
-        ) -> Result<
-            ObjectList<Object<PodSpec, PodStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
-            self.find_pods_with_field(selector)
-        }
-        async fn create_pod(
-            &self,
-            pod_to_create: &Pod,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.create_pod(pod_to_create, namespace)
-        }
-        async fn remove_pod(
-            &self,
-            pod_to_remove: &str,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.remove_pod(pod_to_remove, namespace)
-        }
-
-        async fn find_services(
-            &self,
-            selector: &str,
-        ) -> Result<
-            ObjectList<Object<ServiceSpec, ServiceStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
-            self.find_services(selector)
-        }
-        async fn create_service(
-            &self,
-            svc_to_create: &Service,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.create_service(svc_to_create, namespace)
-        }
-        async fn remove_service(
-            &self,
-            svc_to_remove: &str,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.remove_service(svc_to_remove, namespace)
-        }
-        async fn update_service(
-            &self,
-            svc_to_update: &Object<ServiceSpec, ServiceStatus>,
-            name: &str,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.update_service(svc_to_update, name, namespace)
-        }
-
-        async fn find_configuration(
-            &self,
-            name: &str,
-            namespace: &str,
-        ) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.find_configuration(name, namespace)
-        }
-        async fn get_configurations(
-            &self,
-        ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
-            self.get_configurations()
-        }
-
-        async fn find_instance(
-            &self,
-            name: &str,
-            namespace: &str,
-        ) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.find_instance(name, namespace)
-        }
-        async fn get_instances(
-            &self,
-        ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
-            self.get_instances()
-        }
-        async fn create_instance(
-            &self,
-            instance_to_create: &Instance,
-            name: &str,
-            namespace: &str,
-            owner_config_name: &str,
-            owner_config_uid: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.create_instance(
-                instance_to_create,
-                name,
-                namespace,
-                owner_config_name,
-                owner_config_uid,
-            )
-        }
-        async fn delete_instance(
-            &self,
-            name: &str,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.delete_instance(name, namespace)
-        }
-        async fn update_instance(
-            &self,
-            instance_to_update: &Instance,
-            name: &str,
-            namespace: &str,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.update_instance(instance_to_update, name, namespace)
-        }
     }
 }
 
