@@ -4,81 +4,83 @@ on:
   workflow_dispatch:
     inputs:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-    - test/run-end-to-end.py
-    - test/run-conservation-of-broker-pod.py
-    - test/run-helm-install-delete.py
-    - test/shared_test_code.py
-    - .github/workflows/run-test-cases.yml
-    - build/containers/Dockerfile.agent
-    - build/containers/Dockerfile.controller
-    - deployment/helm/**
-    - agent/**
-    - controller/**
-    - shared/**
-    - version.txt
-    - build/akri-containers.mk
-    - Makefile
+      - test/run-end-to-end.py
+      - test/run-conservation-of-broker-pod.py
+      - test/run-helm-install-delete.py
+      - test/run-webhook.py
+      - test/shared_test_code.py
+      - .github/workflows/run-test-cases.yml
+      - build/containers/Dockerfile.agent
+      - build/containers/Dockerfile.controller
+      - deployment/helm/**
+      - agent/**
+      - controller/**
+      - shared/**
+      - version.txt
+      - build/akri-containers.mk
+      - Makefile
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-    - test/run-end-to-end.py
-    - test/run-conservation-of-broker-pod.py
-    - test/run-helm-install-delete.py
-    - test/shared_test_code.py
-    - .github/workflows/run-test-cases.yml
-    - build/containers/Dockerfile.agent
-    - build/containers/Dockerfile.controller
-    - deployment/helm/**
-    - agent/**
-    - controller/**
-    - shared/**
-    - version.txt
-    - build/akri-containers.mk
-    - Makefile
+      - test/run-end-to-end.py
+      - test/run-conservation-of-broker-pod.py
+      - test/run-helm-install-delete.py
+      - test/run-webhook.py
+      - test/shared_test_code.py
+      - .github/workflows/run-test-cases.yml
+      - build/containers/Dockerfile.agent
+      - build/containers/Dockerfile.controller
+      - deployment/helm/**
+      - agent/**
+      - controller/**
+      - shared/**
+      - version.txt
+      - build/akri-containers.mk
+      - Makefile
   release:
     types:
       - published
-    
+
 jobs:
   build-containers:
     runs-on: ubuntu-18.04
     timeout-minutes: 35
 
     steps:
-    - name: Checkout the head commit of the branch
-      uses: actions/checkout@v2
-      with:
-        persist-credentials: false
+      - name: Checkout the head commit of the branch
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
 
-    - name: Build local containers for PR tests
-      if: startsWith(github.event_name, 'pull_request')
-      env:
-        BUILD_AMD64: 1
-        BUILD_ARM32: 0
-        BUILD_ARM64: 0 
-        PREFIX: ghcr.io/deislabs/akri
-        LABEL_PREFIX: pr
-      run: |
-        make akri-build
-        make controller-build-amd64
-        make agent-build-amd64
-        docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
-        docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
+      - name: Build local containers for PR tests
+        if: startsWith(github.event_name, 'pull_request')
+        env:
+          BUILD_AMD64: 1
+          BUILD_ARM32: 0
+          BUILD_ARM64: 0
+          PREFIX: ghcr.io/deislabs/akri
+          LABEL_PREFIX: pr
+        run: |
+          make akri-build
+          make controller-build-amd64
+          make agent-build-amd64
+          docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
+          docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
 
-    - name: Upload Agent container as artifact
-      if: startsWith(github.event_name, 'pull_request')
-      uses: actions/upload-artifact@v2
-      with:
-        name: agent.tar
-        path: agent.tar
-    - name: Upload Controller container as artifact
-      if: startsWith(github.event_name, 'pull_request')
-      uses: actions/upload-artifact@v2
-      with:
-        name: controller.tar
-        path: controller.tar
+      - name: Upload Agent container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v2
+        with:
+          name: agent.tar
+          path: agent.tar
+      - name: Upload Controller container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v2
+        with:
+          name: controller.tar
+          path: controller.tar
 
   test-cases:
     needs: build-containers
@@ -127,172 +129,174 @@ jobs:
             kube-version: 1.20.1-00
           - test-case: end-to-end
             test-file: test/run-end-to-end.py
+          - test-case: webhook
+            test-file: test/run-webhook.py
 
     steps:
-    - name: Checkout the head commit of the branch
-      uses: actions/checkout@v2
-      with:
-        persist-credentials: false
+      - name: Checkout the head commit of the branch
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
 
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-       python-version: 3.8 
-    - name: Install Python kubernetes dependency
-      run: |
-        python -m pip install --upgrade pip
-        pip install kubernetes
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Python kubernetes dependency
+        run: |
+          python -m pip install --upgrade pip
+          pip install kubernetes
 
-    - name: Download Agent container artifact
-      if: startsWith(github.event_name, 'pull_request')
-      uses: actions/download-artifact@v2
-      with:
-        name: agent.tar
-    - name: Download Controller container artifact
-      if: startsWith(github.event_name, 'pull_request')
-      uses: actions/download-artifact@v2
-      with:
-        name: controller.tar
+      - name: Download Agent container artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/download-artifact@v2
+        with:
+          name: agent.tar
+      - name: Download Controller container artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/download-artifact@v2
+        with:
+          name: controller.tar
 
-    - if: startsWith(matrix.kube-runtime, 'K3s')
-      name: Install K3s
-      env:
-        INSTALL_K3S_VERSION: ${{ matrix.kube-version }}
-      run: |
-        sudo curl -sfL https://get.k3s.io | sh -
-        sudo addgroup k3s-admin
-        sudo adduser $USER k3s-admin
-        sudo usermod -a -G k3s-admin $USER
-        sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
-        sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-        sudo chmod 666 /etc/rancher/k3s/* 
-        mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-        VERSION="v1.17.0"
-        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C $(pwd)
-        rm -f crictl-$VERSION-linux-amd64.tar.gz
-        echo '--set agent.host.crictl=$(pwd)/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
-        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
-        until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+      - if: startsWith(matrix.kube-runtime, 'K3s')
+        name: Install K3s
+        env:
+          INSTALL_K3S_VERSION: ${{ matrix.kube-version }}
+        run: |
+          sudo curl -sfL https://get.k3s.io | sh -
+          sudo addgroup k3s-admin
+          sudo adduser $USER k3s-admin
+          sudo usermod -a -G k3s-admin $USER
+          sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
+          sudo chmod g+r /etc/rancher/k3s/k3s.yaml
+          sudo chmod 666 /etc/rancher/k3s/* 
+          mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+          VERSION="v1.17.0"
+          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+          sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C $(pwd)
+          rm -f crictl-$VERSION-linux-amd64.tar.gz
+          echo '--set agent.host.crictl=$(pwd)/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
+          echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
+          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+          until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'K3s'))
-      name: Import local agent and controller to K3s
-      run: |
-        sudo k3s ctr image import agent.tar
-        sudo k3s ctr image import controller.tar
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'K3s'))
+        name: Import local agent and controller to K3s
+        run: |
+          sudo k3s ctr image import agent.tar
+          sudo k3s ctr image import controller.tar
 
-    - if: startsWith(matrix.kube-runtime, 'Kubernetes')
-      name: Install Kubernetes
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube-version }} kubeadm=${{ matrix.kube-version }} kubectl=${{ matrix.kube-version }} 
-        kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
-        kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
-        kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
-        sudo swapoff -a              
-        sudo kubeadm init
-        sudo mkdir -p $HOME/.kube
-        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-        sudo chown $(id -u):$(id -g) $HOME/.kube/config
-        kubectl taint nodes --all node-role.kubernetes.io/master-
-        echo '--set agent.host.crictl=/usr/bin/crictl --set agent.host.dockerShimSock=/var/run/dockershim.sock' > /tmp/cri_args_to_test.txt
-        echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
-        until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
+      - if: startsWith(matrix.kube-runtime, 'Kubernetes')
+        name: Install Kubernetes
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube-version }} kubeadm=${{ matrix.kube-version }} kubectl=${{ matrix.kube-version }} 
+          kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
+          kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
+          kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
+          sudo swapoff -a              
+          sudo kubeadm init
+          sudo mkdir -p $HOME/.kube
+          sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          kubectl taint nodes --all node-role.kubernetes.io/master-
+          echo '--set agent.host.crictl=/usr/bin/crictl --set agent.host.dockerShimSock=/var/run/dockershim.sock' > /tmp/cri_args_to_test.txt
+          echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
+          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+          until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'Kubernetes'))
-      name: Import local agent and controller to Kubernetes
-      run: |
-        sudo docker load --input agent.tar
-        sudo docker load --input controller.tar
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'Kubernetes'))
+        name: Import local agent and controller to Kubernetes
+        run: |
+          sudo docker load --input agent.tar
+          sudo docker load --input controller.tar
 
-    - if: startsWith(matrix.kube-runtime, 'MicroK8s')
-      name: Install MicroK8s
-      run: |
-        sudo snap install microk8s --classic --channel=${{ matrix.kube-version }}
-        sudo microk8s status --wait-ready
-        sudo usermod -a -G microk8s $USER
-        sudo ls -la $HOME/.kube
-        echo sudo chown $(id -u):$(id -g) $HOME/.kube
-        sudo chown -f -R $USER $HOME/.kube --verbose
-        sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
-        sudo cat ~/.kube/config
-        sudo microk8s.enable helm3
-        sudo microk8s.enable rbac
-        sudo microk8s.enable dns
-        sudo microk8s.status --wait-ready
-        VERSION="v1.17.0"
-        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-        rm -f crictl-$VERSION-linux-amd64.tar.gz
-        echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock' > /tmp/cri_args_to_test.txt
-        echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
-        echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
+      - if: startsWith(matrix.kube-runtime, 'MicroK8s')
+        name: Install MicroK8s
+        run: |
+          sudo snap install microk8s --classic --channel=${{ matrix.kube-version }}
+          sudo microk8s status --wait-ready
+          sudo usermod -a -G microk8s $USER
+          sudo ls -la $HOME/.kube
+          echo sudo chown $(id -u):$(id -g) $HOME/.kube
+          sudo chown -f -R $USER $HOME/.kube --verbose
+          sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
+          sudo cat ~/.kube/config
+          sudo microk8s.enable helm3
+          sudo microk8s.enable rbac
+          sudo microk8s.enable dns
+          sudo microk8s.status --wait-ready
+          VERSION="v1.17.0"
+          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+          sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+          rm -f crictl-$VERSION-linux-amd64.tar.gz
+          echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock' > /tmp/cri_args_to_test.txt
+          echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
+          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
-    - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
-      name: Import local agent and controller to MicroK8s
-      run: |
-        sudo microk8s.status --wait-ready
-        until sudo microk8s ctr images ls; do sleep 5s; echo "Try again"; done
-        sudo microk8s ctr images ls
-        sudo microk8s ctr --debug --timeout 10s images import agent.tar
-        sudo microk8s ctr --debug --timeout 10s images import controller.tar
-        sudo microk8s ctr images ls
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube-runtime, 'MicroK8s'))
+        name: Import local agent and controller to MicroK8s
+        run: |
+          sudo microk8s.status --wait-ready
+          until sudo microk8s ctr images ls; do sleep 5s; echo "Try again"; done
+          sudo microk8s ctr images ls
+          sudo microk8s ctr --debug --timeout 10s images import agent.tar
+          sudo microk8s ctr --debug --timeout 10s images import controller.tar
+          sudo microk8s ctr images ls
 
-    - name: Add Akri Helm Chart
-      run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    
-    # For push and release, we need to wait for the Helm chart and
-    # associated containers to build.
-    - if: github.event_name == 'push' || github.event_name == 'release'
-      name: Set sleep duration before running script to 1500
-      run: echo 1500 > /tmp/sleep_duration.txt
+      - name: Add Akri Helm Chart
+        run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
 
-    # For pull_request, use the locally built containers.
-    - if: startsWith(github.event_name, 'pull_request')
-      name: Tell Helm to use the 'local' labels for container images
-      run: |
-        git fetch origin main
-        git show origin/main:version.txt > /tmp/version_to_test.txt
-        echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
-    # For non-PR (i.e. push, release, manual), version.txt is corresponds
-    # to an existing Helm chart.
-    - if: (!(startsWith(github.event_name, 'pull_request')))
-      name: Use current version for push
-      run: cat version.txt > /tmp/version_to_test.txt
+      # For push and release, we need to wait for the Helm chart and
+      # associated containers to build.
+      - if: github.event_name == 'push' || github.event_name == 'release'
+        name: Set sleep duration before running script to 1500
+        run: echo 1500 > /tmp/sleep_duration.txt
 
-    # For workflow_dispatch and pull_request, use the files in deployment/helm
-    # as basis for helm install ... this enables us to test any changes made to
-    # the helm chart files in a PR (where no helm chart is published)
-    - if: github.event_name != 'push' && github.event_name != 'release'
-      name: Tell Helm to use the files in deployment/helm to build chart
-      run: |
-        echo './deployment/helm' > /tmp/helm_chart_location.txt
-    # For push, use a specific version of the `akri-dev` charts that are built and
-    # published by the helm workflow.
-    - if: github.event_name == 'push'
-      name: Tell Helm to use the `akri-dev` published charts
-      run: |
-        echo "akri-helm-charts/akri-dev --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
-    # For release, use a specific version of the `akri` charts that are built and
-    # published by the helm workflow.
-    - if: github.event_name == 'release'
-      name: Tell Helm to use the `akri` published charts
-      run: |
-        echo "akri-helm-charts/akri --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
+      # For pull_request, use the locally built containers.
+      - if: startsWith(github.event_name, 'pull_request')
+        name: Tell Helm to use the 'local' labels for container images
+        run: |
+          git fetch origin main
+          git show origin/main:version.txt > /tmp/version_to_test.txt
+          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
+      # For non-PR (i.e. push, release, manual), version.txt is corresponds
+      # to an existing Helm chart.
+      - if: (!(startsWith(github.event_name, 'pull_request')))
+        name: Use current version for push
+        run: cat version.txt > /tmp/version_to_test.txt
 
-    - name: Execute test script ${{ matrix.test-file }}
-      run: python ${{ matrix.test-file }}
-    - name: Upload Agent log as artifact
-      if: always()
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-agent-log
-        path: /tmp/agent_log.txt
-    - name: Upload controller log as artifact
-      if: always()
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-controller-log
-        path: /tmp/controller_log.txt
+      # For workflow_dispatch and pull_request, use the files in deployment/helm
+      # as basis for helm install ... this enables us to test any changes made to
+      # the helm chart files in a PR (where no helm chart is published)
+      - if: github.event_name != 'push' && github.event_name != 'release'
+        name: Tell Helm to use the files in deployment/helm to build chart
+        run: |
+          echo './deployment/helm' > /tmp/helm_chart_location.txt
+      # For push, use a specific version of the `akri-dev` charts that are built and
+      # published by the helm workflow.
+      - if: github.event_name == 'push'
+        name: Tell Helm to use the `akri-dev` published charts
+        run: |
+          echo "akri-helm-charts/akri-dev --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
+      # For release, use a specific version of the `akri` charts that are built and
+      # published by the helm workflow.
+      - if: github.event_name == 'release'
+        name: Tell Helm to use the `akri` published charts
+        run: |
+          echo "akri-helm-charts/akri --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
+
+      - name: Execute test script ${{ matrix.test-file }}
+        run: python ${{ matrix.test-file }}
+      - name: Upload Agent log as artifact
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-agent-log
+          path: /tmp/agent_log.txt
+      - name: Upload controller log as artifact
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.kube-runtime }}-${{ matrix.test-case }}-controller-log
+          path: /tmp/controller_log.txt
