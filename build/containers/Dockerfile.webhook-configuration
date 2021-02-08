@@ -20,5 +20,5 @@ COPY ./target/${CROSS_BUILD_TARGET}/release/webhook-configuration /server
 
 ENV RUST_LOG agent,akri_shared
 
-ENTRYPOINT ["/server"]
-# CMD ["--tls-crt-file=/path/to/crt","--tls-key-file=/path/to/key","--port=8443"]
+CMD ["/server"]
+# CMD ["/server", "--tls-crt-file=/path/to/crt", "--tls-key-file=/path/to/key", "--port=8443"]
