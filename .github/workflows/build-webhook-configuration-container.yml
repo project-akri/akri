@@ -1,6 +1,8 @@
 name: Build Webhook Configuration
 
 on:
+  workflow_dispatch:
+    inputs:
   push:
     branches: [main]
     paths:
