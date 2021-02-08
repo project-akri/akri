@@ -42,9 +42,16 @@ on:
       - published
     
 jobs:
+  useless-trial-job:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: does this frun from a forked pr
+        run: echo 'yes'
+
   build-containers:
     runs-on: ubuntu-18.04
     timeout-minutes: 35
+    needs: [useless-trial-job]
 
     steps:
     - name: Checkout the head commit of the branch
