@@ -134,7 +134,6 @@ def main():
     ".format(chart_name=HELM_CHART_NAME,
              location=helm_chart_location,
              namespace=NAMESPACE,
-             agent_and_controller=get_agent_and_controller(),
              webhook_config=get_webhook_helm_config(),
              cri_args=cri_args,
              helm_args=extra_helm_args)
