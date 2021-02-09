@@ -211,23 +211,26 @@ def do_test() -> bool:
     print("Debugging:")
 
     os.system("\
-        {kubectl} get deployment/{service} \
+        sudo {kubectl} get deployment/{service} \
         --namespace={namespace} \
         --output=json\
-        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
-    )
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE))
     os.system("\
-        {kubectl} get service/{service} \
+        sudo {kubectl} get service/{service} \
         --namespace={namespace} \
         --output=json\
-        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
-    )
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE))
     os.system("\
-        {kubectl} get validatingwebhookconfiguration/{service} \
+        sudo {kubectl} get validatingwebhookconfiguration/{service} \
         --namespace={namespace} \
         --output=json\
-        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
-    )
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE))
 
     # POST to Webhook endpoint
     os.system("\
@@ -239,15 +242,17 @@ def do_test() -> bool:
             --request POST \
             --header 'Content-Type: application/json' \
             https://{service}.{namespace}.svc/validate\
-        ".format(kubectl=kubectl_cmd,service=WEBHOOK_NAME,namespace=NAMESPACE)
-    )
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE))
 
     # Check Webhook's logs
     os.system("\
-        {kubectl} logs deployment/{service} \
+        sudo {kubectl} logs deployment/{service} \
         --namespace={namespace} \
-        ".format(kubectl=kubectl_cmd,service=WEBHOOK_NAME,namespace=NAMESPACE)
-    )
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE))
 
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
