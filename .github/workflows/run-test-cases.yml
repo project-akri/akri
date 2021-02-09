@@ -166,7 +166,7 @@ jobs:
         with:
           name: controller.tar
       - name: Download Webhook-Configuration container artifact
-        if: startsWith(github.event_name, 'pull-request')
+        if: startsWith(github.event_name, 'pull_request')
         uses: actions/download-artifact@v2
         with:
           name: webhook-configuration.tar
