@@ -244,7 +244,7 @@ def do_test() -> bool:
 
     # Check Webhook's logs
     os.system("\
-        {} logs deployment/{service} \
+        {kubectl} logs deployment/{service} \
         --namespace={namespace} \
         ".format(kubectl=kubectl_cmd,service=WEBHOOK_NAME,namespace=NAMESPACE)
     )
