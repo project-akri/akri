@@ -207,6 +207,48 @@ def do_test() -> bool:
             kubectl_cmd))
         return False
 
+    # Enumerate Webhook resources
+    print("Debugging:")
+
+    os.system("\
+        {kubectl} get deployment/{service} \
+        --namespace={namespace} \
+        --output=json\
+        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
+    )
+    os.system("\
+        {kubectl} get service/{service} \
+        --namespace={namespace} \
+        --output=json\
+        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
+    )
+    os.system("\
+        {kubectl} get validatingwebhookconfiguration/{service} \
+        --namespace={namespace} \
+        --output=json\
+        ".format(kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE)
+    )
+
+    # POST to Webhook endpoint
+    os.system("\
+        {kubectl} run curl \
+        --stdin --tty --rm \
+        --image=curlimages/curl \
+        -- \
+            --insecure \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            https://{service}.{namespace}.svc/validate\
+        ".format(kubectl=kubectl_cmd,service=WEBHOOK_NAME,namespace=NAMESPACE)
+    )
+
+    # Check Webhook's logs
+    os.system("\
+        {} logs deployment/{service} \
+        --namespace={namespace} \
+        ".format(kubectl=kubectl_cmd,service=WEBHOOK_NAME,namespace=NAMESPACE)
+    )
+
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
 
