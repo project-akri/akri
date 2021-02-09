@@ -262,7 +262,7 @@ jobs:
         run: |
           git fetch origin main
           git show origin/main:version.txt > /tmp/version_to_test.txt
-          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
+          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64,webhookConfiguration.image.pullPolicy=Never,webhookConfiguration.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
       # For non-PR (i.e. push, release, manual), version.txt is corresponds
       # to an existing Helm chart.
       - if: (!(startsWith(github.event_name, 'pull_request')))
