@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 import shared_test_code
-import json, os, random, string, subprocess, time, typing, yaml
+import os, subprocess
 
-from kubernetes.client.api.core_v1_api import CoreV1Api
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
@@ -253,6 +252,20 @@ def do_test() -> bool:
         ".format(kubectl=kubectl_cmd,
                  service=WEBHOOK_NAME,
                  namespace=NAMESPACE))
+
+    # Better?
+    print("Deployment:")
+    result = subprocess.run("\
+        sudo {kubectl} describe deployment/{service}\
+        --namespace={namespace} \
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE),
+                            capture_output=True)
+    print("stdout:")
+    print(result.stdout)
+    print("stderr:")
+    print(result.stderr)
 
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
