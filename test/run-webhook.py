@@ -270,7 +270,7 @@ def do_test() -> bool:
 
     print("ReplicaSet:")
     result = subprocess.run("\
-        sudo {kubectl} describe replicaset/{service}\
+        sudo {kubectl} describe replicaset \
         --selector=app={service} \
         --namespace={namespace} \
         ".format(kubectl=kubectl_cmd,
@@ -285,7 +285,7 @@ def do_test() -> bool:
 
     print("Pod:")
     result = subprocess.run("\
-        sudo {kubectl} describe pod/{service}\
+        sudo {kubectl} describe pod \
         --selector=app={service} \
         --namespace={namespace} \
         ".format(kubectl=kubectl_cmd,
