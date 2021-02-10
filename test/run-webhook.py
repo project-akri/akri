@@ -325,6 +325,14 @@ def do_test() -> bool:
         res = True
     else:
         print("Expected APIException but none was thrown. This is an error!")
+
+        # Debugging: check the Webhook's logs
+        print("Webhook logs")
+        run("sudo {kubectl} logs deployment/{service} --namespace={namespace}".
+            format(kubectl=kubectl_cmd,
+                   service=WEBHOOK_NAME,
+                   namespace=NAMESPACE))
+
         res = False
 
     print("Akri Validating Webhook test: {}".format(
