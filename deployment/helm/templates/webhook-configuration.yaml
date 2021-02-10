@@ -64,6 +64,8 @@ items:
             {{- end }}
             {{- end }}
             imagePullPolicy: {{ .Values.webhookConfiguration.image.pullPolicy }}
+            command:
+            - /server
             args:
             - --tls-crt-file=/secrets/tls.crt
             - --tls-key-file=/secrets/tls.key
