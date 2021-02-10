@@ -261,6 +261,7 @@ def do_test() -> bool:
         ".format(kubectl=kubectl_cmd,
                  service=WEBHOOK_NAME,
                  namespace=NAMESPACE),
+                            shell=True,
                             capture_output=True)
     print("stdout:")
     print(result.stdout)
