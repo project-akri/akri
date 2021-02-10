@@ -209,104 +209,67 @@ def do_test() -> bool:
     # Enumerate Webhook resources
     print("Debugging:")
 
-    os.system("\
-        sudo {kubectl} get deployment/{service} \
-        --namespace={namespace} \
-        --output=json\
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE))
-    os.system("\
-        sudo {kubectl} get service/{service} \
-        --namespace={namespace} \
-        --output=json\
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE))
-    os.system("\
-        sudo {kubectl} get validatingwebhookconfiguration/{service} \
-        --namespace={namespace} \
-        --output=json\
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE))
+    # run("sudo {kubectl} get deployment/{service} \
+    #     --namespace={namespace} \
+    #     --output=json".format(kubectl=kubectl_cmd,
+    #                           service=WEBHOOK_NAME,
+    #                           namespace=NAMESPACE))
+    # run("sudo {kubectl} get service/{service} \
+    #     --namespace={namespace} \
+    #     --output=json".format(kubectl=kubectl_cmd,
+    #                           service=WEBHOOK_NAME,
+    #                           namespace=NAMESPACE))
+    # run("sudo {kubectl} get validatingwebhookconfiguration/{service} \
+    #     --namespace={namespace} \
+    #     --output=json".format(kubectl=kubectl_cmd,
+    #                           service=WEBHOOK_NAME,
+    #                           namespace=NAMESPACE))
 
-    # POST to Webhook endpoint
-    os.system("\
-        {kubectl} run curl \
+    print("POSTing to Webhook")
+    run("{kubectl} run curl \
         --stdin --tty --rm \
         --image=curlimages/curl \
         -- \
             --insecure \
             --request POST \
             --header 'Content-Type: application/json' \
-            https://{service}.{namespace}.svc/validate\
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE))
+            https://{service}.{namespace}.svc/validate".format(
+        kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE))
 
-    # Check Webhook's logs
-    os.system("\
-        sudo {kubectl} logs deployment/{service} \
-        --namespace={namespace} \
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE))
+    print("Webhook logs")
+    run("sudo {kubectl} logs deployment/{service} \
+        --namespace={namespace}".format(kubectl=kubectl_cmd,
+                                        service=WEBHOOK_NAME,
+                                        namespace=NAMESPACE))
 
-    # Better?
     print("Deployment:")
-    result = subprocess.run("\
-        sudo {kubectl} describe deployment/{service}\
-        --namespace={namespace} \
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE),
-                            shell=True,
-                            capture_output=True)
-    print("stdout:")
-    print(result.stdout)
-    print("stderr:")
-    print(result.stderr)
+    run("sudo {kubectl} describe deployment/{service}\
+        --namespace={namespace}".format(kubectl=kubectl_cmd,
+                                        service=WEBHOOK_NAME,
+                                        namespace=NAMESPACE))
 
     print("ReplicaSet:")
-    result = subprocess.run("\
-        sudo {kubectl} describe replicaset \
+    run("sudo {kubectl} describe replicaset \
         --selector=app={service} \
-        --namespace={namespace} \
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE),
-                            shell=True,
-                            capture_output=True)
-    print("stdout:")
-    print(result.stdout)
-    print("stderr:")
-    print(result.stderr)
+        --namespace={namespace}".format(kubectl=kubectl_cmd,
+                                        service=WEBHOOK_NAME,
+                                        namespace=NAMESPACE))
 
     print("Pod:")
-    result = subprocess.run("\
-        sudo {kubectl} describe pod \
+    run("sudo {kubectl} describe pod \
         --selector=app={service} \
-        --namespace={namespace} \
-        ".format(kubectl=kubectl_cmd,
-                 service=WEBHOOK_NAME,
-                 namespace=NAMESPACE),
-                            shell=True,
-                            capture_output=True)
-    print("stdout:")
-    print(result.stdout)
-    print("stderr:")
-    print(result.stderr)
+        --namespace={namespace}".format(kubectl=kubectl_cmd,
+                                        service=WEBHOOK_NAME,
+                                        namespace=NAMESPACE))
 
     print("Node:")
     result = subprocess.run(
         "sudo {kubectl} describe node".format(kubectl=kubectl_cmd),
         shell=True,
-        capture_output=True)
+        capture_output=True,
+        text=True)
     print("stdout:")
     print(result.stdout)
-    print("stderr:")
-    print(result.stderr)
 
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
@@ -380,6 +343,19 @@ def get_webhook_helm_config() -> str:
     )
     print("Webhook configuration:\n{}".format(webhook))
     return webhook
+
+
+def run(command):
+    print("Executing: {}".format(command))
+    result = subprocess.run(command,
+                            shell=True,
+                            capture_output=True,
+                            text=True)
+    print("returncode: {}".format(result.returncode))
+    print("stdout:")
+    print(result.stdout)
+    print("stderr:")
+    print(result.stderr)
 
 
 if __name__ == "__main__":
