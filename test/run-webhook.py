@@ -268,6 +268,46 @@ def do_test() -> bool:
     print("stderr:")
     print(result.stderr)
 
+    print("ReplicaSet:")
+    result = subprocess.run("\
+        sudo {kubectl} describe replicaset/{service}\
+        --selector=app={service} \
+        --namespace={namespace} \
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE),
+                            shell=True,
+                            capture_output=True)
+    print("stdout:")
+    print(result.stdout)
+    print("stderr:")
+    print(result.stderr)
+
+    print("Pod:")
+    result = subprocess.run("\
+        sudo {kubectl} describe pod/{service}\
+        --selector=app={service} \
+        --namespace={namespace} \
+        ".format(kubectl=kubectl_cmd,
+                 service=WEBHOOK_NAME,
+                 namespace=NAMESPACE),
+                            shell=True,
+                            capture_output=True)
+    print("stdout:")
+    print(result.stdout)
+    print("stderr:")
+    print(result.stderr)
+
+    print("Node:")
+    result = subprocess.run(
+        "sudo {kubectl} describe node".format(kubectl=kubectl_cmd),
+        shell=True,
+        capture_output=True)
+    print("stdout:")
+    print(result.stdout)
+    print("stderr:")
+    print(result.stderr)
+
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
 
