@@ -9,6 +9,7 @@ from kubernetes.client.rest import ApiException
 HELM_CHART_NAME = "akri"
 NAMESPACE = "default"
 WEBHOOK_NAME = "akri-webhook-configuration"
+WEBHOOK_LOG_PATH = "/tmp/webhook_log.txt"
 
 # Required by Webhook
 # DNS: `akri-webhook-configuration.default.svc`
@@ -202,8 +203,8 @@ def do_test() -> bool:
 
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state")
-        os.system("sudo {} get pods,services,akric,akrii --show-labels".format(
-            kubectl_cmd))
+        run("sudo {kubectl} get pods,services,akric,akrii --show-labels".
+            format(kubectl=kubectl_cmd))
         return False
 
     # Enumerate Webhook resources
@@ -226,15 +227,22 @@ def do_test() -> bool:
     #                           namespace=NAMESPACE))
 
     print("POSTing to Webhook")
-    run("{kubectl} run curl \
+    run("sudo {kubectl} run curl \
         --stdin --tty --rm \
         --image=curlimages/curl \
+        --restart=Never \
+        --timeout=15s \
         -- \
+            --verbose \
             --insecure \
             --request POST \
             --header 'Content-Type: application/json' \
+            --write-out '{write_out}' \
             https://{service}.{namespace}.svc/validate".format(
-        kubectl=kubectl_cmd, service=WEBHOOK_NAME, namespace=NAMESPACE))
+        kubectl=kubectl_cmd,
+        service=WEBHOOK_NAME,
+        namespace=NAMESPACE,
+        write_out="%{response_code}"))
 
     print("Webhook logs")
     run("sudo {kubectl} logs deployment/{service} \
@@ -335,6 +343,13 @@ def do_test() -> bool:
 
         res = False
 
+    # Save Webhook logs
+    run("{kubectl} logs deployment/{service} --namespace={namespace} >> {file}"
+        .format(kubectl=kubectl_cmd,
+                service=WEBHOOK_NAME,
+                namespace=NAMESPACE,
+                file=WEBHOOK_LOG_PATH))
+
     print("Akri Validating Webhook test: {}".format(
         "Success" if res else "Failure"))
     return res
@@ -360,10 +375,12 @@ def run(command):
                             capture_output=True,
                             text=True)
     print("returncode: {}".format(result.returncode))
-    print("stdout:")
-    print(result.stdout)
-    print("stderr:")
-    print(result.stderr)
+    if result.stdout:
+        print("stdout:")
+        print(result.stdout)
+    if result.stderr:
+        print("stderr:")
+        print(result.stderr)
 
 
 if __name__ == "__main__":

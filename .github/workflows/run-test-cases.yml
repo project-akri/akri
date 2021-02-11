@@ -307,3 +307,9 @@ jobs:
         with:
           name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-controller-log
           path: /tmp/controller_log.txt
+      - name: Upload webhook log as artifact
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-webhook-log
+          path: /tmp/webhook_log.txt
