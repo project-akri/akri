@@ -108,6 +108,7 @@ fn filter_configuration(mut v: Value) -> Value {
     v
 }
 fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
+    println!("Validating Configuration");
     match &rqst.object {
         Some(raw) => {
             let x: RawExtension = serde_json::from_value(raw.clone()).expect("RawExtension");
@@ -164,8 +165,10 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
 
 #[post("/validate")]
 async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
+    println!("Handler invoked");
     match &rqst.request {
         Some(rqst) => {
+            println!("Handler received: AdmissionRequest");
             let resp = validate_configuration(&rqst);
             let resp: AdmissionReview = AdmissionReview {
                 api_version: Some("admission.k8s.io/v1".to_owned()),
@@ -177,6 +180,7 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
             return HttpResponse::Ok().body(body);
         }
         None => {
+            println!("Handler received: Nothing");
             return HttpResponse::BadRequest().body("");
         }
     }
