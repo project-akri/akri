@@ -163,13 +163,6 @@ def main():
                 chart_name=HELM_CHART_NAME,
                 namespace=NAMESPACE,
             ))
-            # Delete Akri CRDs
-            client.ApiextensionsV1Api().delete_custom_resource_definition(
-                "{kind}.{group}".format(kind="configurations", group=GROUP),
-                body=client.V1DeleteOptions())
-            client.ApiextensionsV1Api().delete_custom_resource_definition(
-                "{kind}.{group}".format(kind="instances", group=GROUP),
-                body=client.V1DeleteOptions())
             # Delete Webhook Secret
             client.CoreV1Api().delete_namespaced_secret(name=WEBHOOK_NAME,
                                                         namespace=NAMESPACE)
@@ -210,46 +203,6 @@ def do_test() -> bool:
     # Enumerate Webhook resources
     print("Debugging:")
 
-    # run("sudo {kubectl} get deployment/{service} \
-    #     --namespace={namespace} \
-    #     --output=json".format(kubectl=kubectl_cmd,
-    #                           service=WEBHOOK_NAME,
-    #                           namespace=NAMESPACE))
-    # run("sudo {kubectl} get service/{service} \
-    #     --namespace={namespace} \
-    #     --output=json".format(kubectl=kubectl_cmd,
-    #                           service=WEBHOOK_NAME,
-    #                           namespace=NAMESPACE))
-    # run("sudo {kubectl} get validatingwebhookconfiguration/{service} \
-    #     --namespace={namespace} \
-    #     --output=json".format(kubectl=kubectl_cmd,
-    #                           service=WEBHOOK_NAME,
-    #                           namespace=NAMESPACE))
-
-    print("POSTing to Webhook")
-    run("sudo {kubectl} run curl \
-        --stdin --tty --rm \
-        --image=curlimages/curl \
-        --restart=Never \
-        --timeout=15s \
-        -- \
-            --verbose \
-            --insecure \
-            --request POST \
-            --header 'Content-Type: application/json' \
-            --write-out '{write_out}' \
-            https://{service}.{namespace}.svc/validate".format(
-        kubectl=kubectl_cmd,
-        service=WEBHOOK_NAME,
-        namespace=NAMESPACE,
-        write_out="%{response_code}"))
-
-    print("Webhook logs")
-    run("sudo {kubectl} logs deployment/{service} \
-        --namespace={namespace}".format(kubectl=kubectl_cmd,
-                                        service=WEBHOOK_NAME,
-                                        namespace=NAMESPACE))
-
     print("Deployment:")
     run("sudo {kubectl} describe deployment/{service}\
         --namespace={namespace}".format(kubectl=kubectl_cmd,
@@ -269,15 +222,6 @@ def do_test() -> bool:
         --namespace={namespace}".format(kubectl=kubectl_cmd,
                                         service=WEBHOOK_NAME,
                                         namespace=NAMESPACE))
-
-    print("Node:")
-    result = subprocess.run(
-        "sudo {kubectl} describe node".format(kubectl=kubectl_cmd),
-        shell=True,
-        capture_output=True,
-        text=True)
-    print("stdout:")
-    print(result.stdout)
 
     # Apply Valid Akri Configuration
     print("Applying Valid Akri Configuration")
