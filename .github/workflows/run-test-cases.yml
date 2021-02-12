@@ -122,8 +122,6 @@ jobs:
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
-          - case: webhook
-            file: test/run-webhook.py
 
     steps:
       - name: Checkout the head commit of the branch
