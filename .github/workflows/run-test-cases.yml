@@ -195,7 +195,7 @@ jobs:
         name: Install Kubernetes
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
+          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
