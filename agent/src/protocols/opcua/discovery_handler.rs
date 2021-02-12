@@ -1,8 +1,8 @@
 use super::super::{DiscoveryHandler, DiscoveryResult};
 use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
 use akri_shared::akri::configuration::{OpcuaDiscoveryHandlerConfig, OpcuaDiscoveryMethod};
+use anyhow::Error;
 use async_trait::async_trait;
-use failure::Error;
 
 /// `OpcuaDiscoveryHandler` discovers the OPC UA server instances as described by the `discovery_handler_config.opcua_discovery_method`
 /// and the filter `discover_handler_config.application_names`. The instances it discovers are always shared.

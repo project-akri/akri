@@ -5,7 +5,7 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri current supports a protocol
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a protocol
 that can be used to discover resources of that type. To see the list of currently supported protocols, see our
 [roadmap](./roadmap.md).
 
@@ -28,6 +28,16 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri
 ```
 
+To use the latest containers of the Akri components, add `--set useLatestContainers=true` when installing Akri like so:
+```sh
+helm install akri akri-helm-charts/akri \
+   --set useLatestContainers=true 
+```
+
+To see which version of the **akri** and **akri-dev** Helm charts are stored locally, run  `helm inspect chart akri-helm-charts/akri` and `helm inspect chart akri-helm-charts/akri-dev`, respectively.
+
+To grab the latest Akri Helm charts, run `helm repo update`.
+
 ### Setting up your cluster
 1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All
    nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must
@@ -40,10 +50,18 @@ helm install akri akri-helm-charts/akri
     ```
 1. Provide runtime-specific configuration to enable Akri and Helm
 
-    1. If using **K3s**, point to `kubeconfig` for Helm and configure Akri to use the K3s embedded crictl.
+    1. If using **K3s**, point to `kubeconfig` for Helm, install crictl, and configure Akri to use K3s' CRI socket.
         ```sh
+        # Install crictl locally (note: there are no known version limitations, any crictl version is expected to work). 
+        # This step is not necessary if using a K3s version below 1.19, in which case K3s' embedded crictl can be used.
+        VERSION="v1.17.0"
+        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
+        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+        rm -f crictl-$VERSION-linux-amd64.tar.gz
+
         # Helm uses $KUBECONFIG to find the Kubernetes configuration
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
         # Configure Akri to use K3s' embedded crictl and CRI socket
         export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
         ```
@@ -88,9 +106,11 @@ helm install akri akri-helm-charts/akri
     controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
     run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
     runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
-    the control plane node for Kubernetes. However, control plane nodes on MicroK8s and K3s do not have this label by
+    the control plane node for Kubernetes.
+    
+    However, control plane nodes on MicroK8s and K3s may not have this exact label by
     default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
-    --overwrite=true`. 
+    --overwrite=true`. Or alternatively, in K3s, you can keep the default label value on the master and add `--set controller.nodeSelectors."node-role\.kubernetes\.io/master"=true` to the install command below.
 
     Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
     optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
@@ -98,7 +118,6 @@ helm install akri akri-helm-charts/akri
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
         $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set useLatestContainers=true \
         --set <protocol>.enabled=true \
         # --set <protocol>.brokerPod.image.repository=<your broker image> \
         # apply any additional settings here

@@ -2,13 +2,13 @@ use akri_shared::{
     akri::configuration::ProtocolHandler,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
+use anyhow::Error;
 use async_trait::async_trait;
 use blake2::digest::{Input, VariableOutput};
 use blake2::VarBlake2b;
-use failure::Error;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DiscoveryResult {
     pub digest: String,
     pub properties: HashMap<String, String>,
@@ -49,7 +49,7 @@ impl DiscoveryResult {
 /// pub struct SampleDiscoveryHandler {}
 /// #[async_trait]
 /// impl DiscoveryHandler for SampleDiscoveryHandler {
-///     async fn discover(&self) -> Result<Vec<DiscoveryResult>, failure::Error> {
+///     async fn discover(&self) -> Result<Vec<DiscoveryResult>, anyhow::Error> {
 ///         Ok(Vec::new())
 ///     }
 ///     fn are_shared(&self) -> Result<bool, Error> {
@@ -64,8 +64,11 @@ pub trait DiscoveryHandler {
 }
 
 pub mod debug_echo;
+#[cfg(feature = "onvif-feat")]
 mod onvif;
+#[cfg(feature = "opcua-feat")]
 mod opcua;
+#[cfg(feature = "udev-feat")]
 mod udev;
 
 pub fn get_discovery_handler(
@@ -80,13 +83,27 @@ fn inner_get_discovery_handler(
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler + Sync + Send>, Error> {
     match discovery_handler_config {
+        #[cfg(feature = "onvif-feat")]
         ProtocolHandler::onvif(onvif) => Ok(Box::new(onvif::OnvifDiscoveryHandler::new(&onvif))),
+        #[cfg(feature = "udev-feat")]
         ProtocolHandler::udev(udev) => Ok(Box::new(udev::UdevDiscoveryHandler::new(&udev))),
+        #[cfg(feature = "opcua-feat")]
         ProtocolHandler::opcua(opcua) => Ok(Box::new(opcua::OpcuaDiscoveryHandler::new(&opcua))),
         ProtocolHandler::debugEcho(dbg) => match query.get_env_var("ENABLE_DEBUG_ECHO") {
             Ok(_) => Ok(Box::new(debug_echo::DebugEchoDiscoveryHandler::new(dbg))),
-            _ => Err(failure::format_err!("No protocol configured")),
+            _ => Err(anyhow::format_err!("No protocol configured")),
         },
+        // If the feature-gated protocol handlers are not included, this catch-all
+        // should surface any invalid Configuration requests (i.e. udev-feat not
+        // included at build-time ... but at runtime, a udev Configuration is
+        // applied).  For the default build, where all features are included, this
+        // code triggers an unreachable pattern warning.  #[allow] is added to
+        // explicitly hide this warning.
+        #[allow(unreachable_patterns)]
+        config => Err(anyhow::format_err!(
+            "No handler found for configuration {:?}",
+            config
+        )),
     }
 }
 
@@ -165,5 +182,37 @@ mod test {
                 .unwrap()
                 .digest
         );
+    }
+
+    #[tokio::test]
+    async fn test_discovery_result_partialeq() {
+        let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        assert_eq!(left, right);
+    }
+
+    #[tokio::test]
+    async fn test_discovery_result_partialeq_false() {
+        {
+            let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+            let right = DiscoveryResult::new(&"foo2".to_string(), HashMap::new(), true);
+            assert_ne!(left, right);
+        }
+
+        // TODO 201217: Needs work on `DiscoveryResult::new` to enable test (https://github.com/deislabs/akri/pull/176#discussion_r544703968)
+        // {
+        //     std::env::set_var("AGENT_NODE_NAME", "something");
+        //     let left = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+        //     let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), false);
+        //     assert_ne!(left, right);
+        // }
+
+        {
+            let mut nonempty: HashMap<String, String> = HashMap::new();
+            nonempty.insert("one".to_string(), "two".to_string());
+            let left = DiscoveryResult::new(&"foo1".to_string(), nonempty, true);
+            let right = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
+            assert_ne!(left, right);
+        }
     }
 }

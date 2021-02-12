@@ -1,5 +1,5 @@
 {{- if .Values.onvif.enabled }}
-apiVersion: akri.sh/v0
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
   name: {{ .Values.onvif.name }}
@@ -32,21 +32,15 @@ spec:
         {{- end }}
       discoveryTimeoutSeconds: {{ .Values.onvif.discoveryTimeoutSeconds }}
   {{- if .Values.onvif.brokerPod.image.repository }}
-  # Only add broker pod spec if a broker image is provided
+  {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:
     containers:
     - name: {{ .Values.onvif.name }}-broker
       image: {{ .Values.onvif.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.onvif.brokerPod.image.pullPolicy }}
+      {{- with .Values.onvif.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       {{- if .Values.onvif.brokerPod.env }}
-      # Optionally set environment variables in the broker pods. 
-      # Add the environment variable keys and values into an env.yaml
-      # file and apply to your Helm install command with `-f env.yaml`.
-      # Example env.yaml file:
-      # # onvif:
-      # #   brokerPod:
-      # #     env:
-      # #       ENV_KEY1: VALUE_1
       env:
         {{- range $key, $val := .Values.onvif.brokerPod.env }}
         - name: {{ $key }}
@@ -61,8 +55,7 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
-  # Only add service specs if a broker image was specified and service
-  # creation was not disabled
+  {{- /* Only add service specs if a broker image was specified and service creation was not disabled */}}
   {{- if .Values.onvif.brokerPod.image.repository }}
   {{- if .Values.onvif.createInstanceServices }}
   instanceServiceSpec:

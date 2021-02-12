@@ -1,4 +1,4 @@
-use super::super::protocols;
+use super::super::{protocols, DISCOVERY_RESPONSE_TIME_METRIC, INSTANCE_COUNT_METRIC};
 use super::{
     constants::{
         DEVICE_PLUGIN_PATH, DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
@@ -338,8 +338,12 @@ impl PeriodicDiscovery {
                 "do_periodic_discovery - loop iteration for config {}",
                 &self.config_name
             );
-            let discovery_results = protocol.discover().await?;
             let config_name = self.config_name.clone();
+            let timer = DISCOVERY_RESPONSE_TIME_METRIC
+                .with_label_values(&[&config_name])
+                .start_timer();
+            let discovery_results = protocol.discover().await?;
+            timer.observe_duration();
             let currently_visible_instances: HashMap<String, protocols::DiscoveryResult> =
                 discovery_results
                     .iter()
@@ -349,13 +353,15 @@ impl PeriodicDiscovery {
                         (instance_name, discovery_result.clone())
                     })
                     .collect();
-
-            // Update the connectivity status of instances and return list of visible instances that don't have Instance CRDs
+            INSTANCE_COUNT_METRIC
+                .with_label_values(&[&config_name, &shared.to_string()])
+                .set(currently_visible_instances.len() as i64);
+            // Update the connectivity status of instances and return list of visible instances that don't have Instance CRs
             let new_discovery_results = self
                 .update_connectivity_status(kube_interface, &currently_visible_instances, shared)
                 .await?;
 
-            // If there are newly visible instances associated with a Config, make a device plugin and Instance CRD for them
+            // If there are newly visible instances associated with a Config, make a device plugin and Instance CR for them
             if !new_discovery_results.is_empty() {
                 for discovery_result in new_discovery_results {
                     let config_name = config_name.clone();
@@ -497,7 +503,7 @@ impl PeriodicDiscovery {
 #[cfg(test)]
 mod config_action_tests {
     use super::*;
-    use akri_shared::k8s::test_kube::MockKubeImpl;
+    use akri_shared::k8s::MockKubeInterface;
     use protocols::debug_echo::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use std::{env, fs};
     use tempfile::Builder;
@@ -549,7 +555,7 @@ mod config_action_tests {
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
@@ -614,7 +620,7 @@ mod config_action_tests {
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
-        let mock = MockKubeImpl::new();
+        let mock = MockKubeInterface::new();
 
         //
         // 1: Assert that ConnectivityStatus of instance that are no longer visible is changed to Offline
@@ -737,14 +743,16 @@ mod config_action_tests {
         let dcc_json = fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
         let config_name = config.metadata.name.clone();
-        let config_uid = config.metadata.uid.as_ref().unwrap().clone();
-        let config_namespace = config.metadata.namespace.as_ref().unwrap().clone();
-        let protocol = config.spec.protocol.clone();
         let mut visible_discovery_results = Vec::new();
         let mut list_and_watch_message_receivers = Vec::new();
         let (mut watch_periph_tx, watch_periph_rx) = mpsc::channel(2);
         let (finished_watching_tx, mut finished_watching_rx) = broadcast::channel(2);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
+
+        // Set instance count metric to ensure it is cleared
+        INSTANCE_COUNT_METRIC
+            .with_label_values(&[&config_name, "false"])
+            .set(2);
 
         // Set ConnectivityStatus of all instances in InstanceMap initially to Offline
         let instance_map: InstanceMap = build_instance_map(
@@ -755,9 +763,7 @@ mod config_action_tests {
         )
         .await;
 
-        //
         // Assert that when an unshared instance is already offline it is terminated
-        //
         mock.expect_delete_instance()
             .times(2)
             .returning(move |_, _| Ok(()));
@@ -766,11 +772,11 @@ mod config_action_tests {
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE).unwrap();
         tokio::spawn(async move {
             let periodic_dicovery = PeriodicDiscovery {
-                config_name: config_name.clone(),
-                config_uid: config_uid.clone(),
-                config_namespace: config_namespace.clone(),
+                config_name: config.metadata.name,
+                config_uid: config.metadata.uid.as_ref().unwrap().to_string(),
+                config_namespace: config.metadata.namespace.as_ref().unwrap().to_string(),
+                config_protocol: config.spec.protocol.clone(),
                 config_spec: config.spec,
-                config_protocol: protocol,
                 instance_map: instance_map_clone,
             };
             let device_plugin_temp_dir =
@@ -799,6 +805,14 @@ mod config_action_tests {
 
         // Assert that all instances have been removed from the instance map
         assert_eq!(instance_map.lock().await.len(), 0);
+
+        // Assert that instance count metric is reporting no instances
+        assert_eq!(
+            INSTANCE_COUNT_METRIC
+                .with_label_values(&[&config_name, "false"])
+                .get(),
+            0
+        );
 
         watch_periph_tx.send(()).await.unwrap();
         // Assert that replies saying finished watching

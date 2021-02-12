@@ -16,9 +16,25 @@ useDevelopmentContainers: true
 # This can be set from the helm command line using `--set imagePullSecrets[0].name="mysecret"`
 imagePullSecrets: []
 
+# generalize references to `apiGroups` and `apiVersion` values for Akri CRDs
+crds:
+  group: akri.sh
+  version: v0
+
 rbac:
   # enabled defines whether to apply rbac to Akri
   enabled: true
+
+prometheus:
+  # enabled defines whether metrics ports are exposed on
+  # the Controller and Agent
+  enabled: false
+  # endpoint is the path the port exposed for metrics
+  endpoint: /metrics
+  # port is the port that the metrics service is exposed on
+  port: 8080
+  # portName is the name of the metrics port
+  portName: metrics
 
 controller:
   # enabled defines whether to apply the Akri Controller
@@ -30,7 +46,7 @@ controller:
     # controller.yaml will default to v(AppVersion)-dev
     tag:
     # pullPolicy is the Akri Controller pull policy
-    pullPolicy: Always
+    pullPolicy: ""
   # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false
@@ -53,7 +69,7 @@ agent:
     # agent.yaml will default to v(AppVersion)-dev
     tag:
     # pullPolicy is the Akri Agent pull policy
-    pullPolicy: Always
+    pullPolicy: ""
   securityContext: {}
   host:
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
@@ -80,7 +96,7 @@ debugEcho:
   properties:
   # capacity is the capacity for any instances created as a result of
   # applying this debugEcho configuration
-  capacity: 5
+  capacity: 1
   # descriptions is the list of instances created as a result of
   # applying this debugEcho configuration
   descriptions:
@@ -93,7 +109,7 @@ debugEcho:
     # container used by debugEcho
     image: nginx:latest
     # pullPolicy is the debugEcho pull policy
-    pullPolicy: Always
+    pullPolicy: ""
   instanceService:
     # name is the description of the instance service
     name: akri-debug-echo-foo-instance-service
@@ -144,7 +160,7 @@ onvif:
       # repository is the container reference
       repository:
       # pullPolicy is the Akri onvif broker pull policy
-      pullPolicy: Always
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true
@@ -209,7 +225,7 @@ opcua:
       # repository is the Akri OPC UA broker container reference
       repository: 
       # pullPolicy is the Akri OPC UA broker pull policy
-      pullPolicy: Always
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true
@@ -258,7 +274,7 @@ udev:
     image:
       # repository is the container reference
       repository:
-      pullPolicy: Always
+      pullPolicy: ""
     securityContext: {}
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
