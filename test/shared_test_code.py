@@ -256,9 +256,6 @@ def check_controller_pods_state(v1, controllers):
 
 def check_broker_pods_state(v1, brokers):
     print("Checking for broker pods ... expected {}".format(brokers))
-    if brokers == 0:
-        return True
-
     brokers_check_failed = check_pods_running(v1, BROKER_POD_LABEL_SELECTOR,
                                               brokers)
     if not brokers_check_failed:
@@ -268,9 +265,6 @@ def check_broker_pods_state(v1, brokers):
 
 def check_config_svcs_state(v1, count: int):
     print("Checking for configuration services ... expected {}".format(count))
-    if count == 0:
-        return True
-
     config_svcs_check_failed = check_svcs_running(
         v1, CONFIGURATION_SVC_LABEL_SELECTOR, count)
     if not config_svcs_check_failed:
@@ -281,9 +275,6 @@ def check_config_svcs_state(v1, count: int):
 
 def check_instance_svcs_state(v1, count: int):
     print("Checking for instance services ... expected {}".format(count))
-    if count == 0:
-        return True
-
     instance_svcs_check_failed = check_svcs_running(
         v1, INSTANCE_SVC_LABEL_SELECTOR, count)
     if not instance_svcs_check_failed:
