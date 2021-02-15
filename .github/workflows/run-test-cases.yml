@@ -104,9 +104,9 @@ jobs:
           - runtime: MicroK8s-1.20
             version: 1.20/stable
             crictl: v1.17.0
-          - runtime: K3s-1.16
-            version: v1.16.14+k3s1
-            crictl: v1.16.0
+          # - runtime: K3s-1.16
+          #   version: v1.16.14+k3s1
+          #   crictl: v1.16.0
           - runtime: K3s-1.17
             version: v1.17.17+k3s1
             crictl: v1.16.0
