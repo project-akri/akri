@@ -104,9 +104,9 @@ jobs:
           - runtime: MicroK8s-1.20
             version: 1.20/stable
             crictl: v1.17.0
-          # - runtime: K3s-1.16
-          #   version: v1.16.14+k3s1
-          #   crictl: v1.16.0
+          - runtime: K3s-1.16
+            version: v1.16.14+k3s1
+            crictl: v1.16.0
           - runtime: K3s-1.17
             version: v1.17.17+k3s1
             crictl: v1.16.0
@@ -175,7 +175,11 @@ jobs:
           sudo usermod -a -G k3s-admin $USER
           sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
           sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-          sudo chmod 666 /etc/rancher/k3s/* 
+          sudo chmod 666 /etc/rancher/k3s/*
+          if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
+            echo "Linking K3s device-plugins to Kubernetes default location"
+            sudo ln -s /var/lib/rancher/k3s/agent/kubelet/device-plugins /var/lib/kubelet/device-plugins
+          fi
           mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
           curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.kube.crictl }}/crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz --output crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
           sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C ${PWD}
