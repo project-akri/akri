@@ -185,9 +185,9 @@ jobs:
           fi
           mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
           curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.kube.crictl }}/crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz --output crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
-          sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C ${PWD}
+          sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C /usr/local/bin
           rm -f crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
-          echo "--set agent.host.crictl=${PWD}/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock" > /tmp/cri_args_to_test.txt
+          echo "--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock" > /tmp/cri_args_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
