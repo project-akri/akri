@@ -184,7 +184,7 @@ jobs:
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
-                    if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
+          if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
             mkdir -p /var/lib/kubelet
             if [ -d /var/lib/kubelet/device-plugins ]; then
               sudo rm -rf /var/lib/kubelet/device-plugins
