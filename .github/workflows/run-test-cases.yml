@@ -176,13 +176,6 @@ jobs:
           sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
           sudo chmod g+r /etc/rancher/k3s/k3s.yaml
           sudo chmod 666 /etc/rancher/k3s/*
-          if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
-            mkdir -p /var/lib/kubelet
-            if [ -d /var/lib/kubelet/device-plugins ]; then
-              sudo rm -rf /var/lib/kubelet/device-plugins
-            fi
-            sudo ln -s /var/lib/rancher/k3s/agent/kubelet/device-plugins /var/lib/kubelet/device-plugins
-          fi
           mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
           curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.kube.crictl }}/crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz --output crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
           sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C /usr/local/bin
@@ -191,6 +184,13 @@ jobs:
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+                    if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
+            mkdir -p /var/lib/kubelet
+            if [ -d /var/lib/kubelet/device-plugins ]; then
+              sudo rm -rf /var/lib/kubelet/device-plugins
+            fi
+            sudo ln -s /var/lib/rancher/k3s/agent/kubelet/device-plugins /var/lib/kubelet/device-plugins
+          fi
 
       - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'K3s'))
         name: Import local agent and controller to K3s
