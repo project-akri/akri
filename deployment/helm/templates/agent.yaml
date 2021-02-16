@@ -59,6 +59,8 @@ spec:
               fieldRef:
                 fieldPath: spec.nodeName
         volumeMounts:
+          - name: agent-registration
+            mountPath: /var/lib/akri
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
           - name: usr-bin-crictl
@@ -77,6 +79,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      - name: agent-registration
+        hostPath:
+          path: /var/lib/akri
       - name: device-plugin
         hostPath:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"

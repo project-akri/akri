@@ -39,12 +39,9 @@
             "type": "ClusterIP"
         },
         "protocol": {
-            "debugEcho" : {
-                "descriptions": [
-                    "filter1",
-                    "filter2"
-                ],
-                "shared": false
+            "name": "debugEcho",
+            "discoveryDetails": {
+                "protocolHandler": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
             }
         },
         "properties": {}

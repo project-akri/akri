@@ -1,13 +1,17 @@
-use akri_discovery_utils::discovery::v0::{
-    registration_server::{Registration, RegistrationServer},
-    Empty, RegisterRequest,
+use akri_discovery_utils::discovery::{
+    v0::{
+        registration_server::{Registration, RegistrationServer},
+        Empty, RegisterRequest,
+    },
+    AGENT_REGISTRATION_SOCKET,
 };
+use akri_shared::uds::unix_stream;
+use futures::TryStreamExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
-const REGISTRATION_ENDPOINT: &str = "[::1]:10000";
 pub const DH_OFFLINE_GRACE_PERIOD: u64 = 300;
 pub const EMBEDDED_DISCOVERY_HANDLER_ENDPOINT: &str = "embedded";
 
@@ -109,20 +113,29 @@ pub async fn run_registration_server(
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("run_registration_server - entered");
     let registration = AgentRegistration::new(new_discovery_handler_sender, discovery_hndlr_map);
-    let addr = REGISTRATION_ENDPOINT.parse()?;
+    let socket_path = AGENT_REGISTRATION_SOCKET.to_string();
     trace!(
-        "run_registration_server - registration server listening on {}",
-        addr
+        "run_registration_server - registration server listening on socket {}",
+        socket_path
     );
-    // registration.register_local_dhs().await?;
+    // Delete socket in case previously created/used
+    std::fs::remove_file(&socket_path).unwrap_or(());
+    let mut uds =
+        tokio::net::UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
     Server::builder()
         .add_service(RegistrationServer::new(registration))
-        .serve(addr)
+        .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
         .await?;
+    trace!(
+        "serve - gracefully shutdown ... deleting socket {}",
+        socket_path
+    );
+    // Socket may already be deleted in the case of kubelet restart
+    std::fs::remove_file(socket_path).unwrap_or(());
     Ok(())
 }
 
-#[cfg(feature = "agent-all-in-one")]
+#[cfg(any(test, feature = "agent-all-in-one"))]
 pub fn register_embedded_discovery_handlers(
     discovery_hndlr_map: RegisteredDiscoveryHandlerMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -133,6 +146,14 @@ pub fn register_embedded_discovery_handlers(
     ));
     #[cfg(feature = "onvif-feat")]
     register_requests.push(akri_onvif::get_register_request(
+        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
+    ));
+    #[cfg(feature = "udev-feat")]
+    register_requests.push(akri_udev::get_register_request(
+        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
+    ));
+    #[cfg(feature = "opcua-feat")]
+    register_requests.push(akri_opcua::get_register_request(
         EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
     ));
 

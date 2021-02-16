@@ -62,6 +62,8 @@ controller:
 agent:
   # enabled defines whether to apply the Akri Agent
   enabled: true
+  # modular specifies that discovery handlers will be run outside of the Agent
+  modular: false
   image:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
@@ -84,6 +86,9 @@ agent:
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node
   linuxOnly: true
+  # registrationPortName is the name of the of the port the registration service is on
+  registrationPortName: registration
+  registrationPort: 10000
 
 debugEcho:
   # enabled defines whether to load a debugEcho configuration
@@ -132,6 +137,24 @@ debugEcho:
     targetPort: 6052
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # discovery defines a set of values for a debugEcho discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/debug-echo-discovery
+      # tag is the container tag
+      # debugEcho.yaml will default to v(AppVersion)-dev
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+
 
 onvif:
   # enabled defines whether to load a onvif configuration
@@ -193,10 +216,25 @@ onvif:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # discovery defines a set of values for a onvif discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/onvif-discovery
+      # tag is the container tag
+      # onvif.yaml will default to v(AppVersion)-dev
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
 
 opcua:
-  # protocolName identifies which protocol a Configuration uses
-  protocolName: opcua
   # enabled defines whether to load an OPC UA configuration
   enabled: false
   # name is the Kubernetes resource name that will be created for this
@@ -256,6 +294,24 @@ opcua:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # discovery defines a set of values for a opcua discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/opcua-discovery
+      # tag is the container tag
+      # opcua.yaml will default to v(AppVersion)-dev
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+
 
 udev:
   # enabled defines whether to load a udev configuration
@@ -306,6 +362,23 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # discovery defines a set of values for a udev discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/udev-discovery
+      # tag is the container tag
+      # udev.yaml will default to v(AppVersion)-dev
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
 
 # Admission Controllers (Webhooks)
 webhookConfiguration:

@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.opcua.name }}
 spec:
   protocol:
-    name: {{ .Values.opcua.protocolName }}
+    name: opcua
     discoveryDetails:
       protocolHandler: |+
         opcua:

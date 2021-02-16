@@ -1,23 +1,24 @@
-
 use super::discovery_impl::util;
-use akri_shared::onvif::device_info::{
-    OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
-    ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
+use akri_discovery_utils::discovery::v0::{
+    discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse,
 };
-use akri_discovery_utils::discovery::v0::{Device, DiscoverResponse, DiscoverRequest, discovery_server::{Discovery, DiscoveryServer}};
-use akri_shared::akri::configuration::{FilterList, FilterType};
+use akri_shared::{
+    akri::configuration::{FilterList, FilterType},
+    onvif::device_info::{
+        OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
+        ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
+    },
+};
 use anyhow::Error;
 use async_trait::async_trait;
-use std::{collections::HashMap, fs};
-use tokio::sync::mpsc;
-use tokio::time::delay_for;
 use log::{error, info, trace};
-use std::time::Duration;
-use tonic::{transport::Server, Response, Status};
+use std::{collections::HashMap, time::Duration};
+use tokio::{sync::mpsc, time::delay_for};
+use tonic::{Response, Status};
 
 /// Protocol name that onvif discovery handlers use when registering with the Agent
 pub const PROTOCOL_NAME: &str = "onvif";
-pub const DISCOVERY_ENDPOINT: &str = "[::1]:10002";
+pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 pub type DiscoverStream = mpsc::Receiver<Result<DiscoverResponse, Status>>;
@@ -50,63 +51,83 @@ fn default_discovery_timeout_seconds() -> i32 {
     1
 }
 
-/// `OnvifDiscoveryHandler` discovers the onvif instances as described by the filters `discover_handler_config.ip_addresses`,
+/// `DiscoveryHandler` discovers the onvif instances as described by the filters `discover_handler_config.ip_addresses`,
 /// `discover_handler_config.mac_addresses`, and `discover_handler_config.scopes`.
 /// The instances it discovers are always shared.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct OnvifDiscoveryHandler {
+pub struct DiscoveryHandler {
+    shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
-impl OnvifDiscoveryHandler {
-    pub fn new() -> Self {
-        OnvifDiscoveryHandler {
-        }
+impl DiscoveryHandler {
+    pub fn new(shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+        DiscoveryHandler { shutdown_sender }
     }
 }
 
 #[async_trait]
-impl Discovery for OnvifDiscoveryHandler {
+impl Discovery for DiscoveryHandler {
     type DiscoverStream = DiscoverStream;
-    async fn discover(&self, request: tonic::Request<DiscoverRequest>) -> Result<Response<Self::DiscoverStream>, Status> {
+    async fn discover(
+        &self,
+        request: tonic::Request<DiscoverRequest>,
+    ) -> Result<Response<Self::DiscoverStream>, Status> {
         info!("discover - called for ONVIF protocol");
+        let shutdown_sender = self.shutdown_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = get_configuration(&discover_request.discovery_details).map_err(|e| {
-            tonic::Status::new(
-                tonic::Code::InvalidArgument,
-                format!("Invalid ONVIF discovery handler configuration: {}", e),
-            )
-        })?;
+        let discovery_handler_config = get_configuration(&discover_request.discovery_details)
+            .map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Invalid ONVIF discovery handler configuration: {}", e),
+                )
+            })?;
         let mut cameras: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             loop {
                 let onvif_query = OnvifQueryImpl {};
 
-                info!("discover - filters:{:?}", &discovery_handler_config,);
+                trace!("discover - filters:{:?}", &discovery_handler_config,);
                 let discovered_onvif_cameras = util::simple_onvif_discover(Duration::from_secs(
                     discovery_handler_config.discovery_timeout_seconds as u64,
                 ))
-                .await.unwrap();
-                info!("discover - discovered:{:?}", &discovered_onvif_cameras,);
+                .await
+                .unwrap();
+                trace!("discover - discovered:{:?}", &discovered_onvif_cameras,);
                 // apply_filters never returns an error -- safe to unwrap
-                let filtered_onvif_cameras = apply_filters(&discovery_handler_config, discovered_onvif_cameras, &onvif_query)
-                    .await.unwrap();
-                info!("discover - filtered:{:?}", &filtered_onvif_cameras);
+                let filtered_onvif_cameras = apply_filters(
+                    &discovery_handler_config,
+                    discovered_onvif_cameras,
+                    &onvif_query,
+                )
+                .await
+                .unwrap();
+                trace!("discover - filtered:{:?}", &filtered_onvif_cameras);
                 let mut changed_camera_list = false;
                 let mut matching_camera_count = 0;
-                filtered_onvif_cameras.iter().for_each(|camera| 
+                filtered_onvif_cameras.iter().for_each(|camera| {
                     if !cameras.contains(camera) {
                         changed_camera_list = true;
                     } else {
                         matching_camera_count += 1;
                     }
-                );
+                });
                 if changed_camera_list || matching_camera_count != cameras.len() {
-                    info!("discover - sending updated device list");
+                    trace!("discover - sending updated device list");
                     cameras = filtered_onvif_cameras.clone();
-                    if let Err(e) = tx.send(Ok(DiscoverResponse{ devices: filtered_onvif_cameras })).await {
-                        error!("discover - for ONVIF failed to send discovery response with error {}", e);
+                    if let Err(e) = tx
+                        .send(Ok(DiscoverResponse {
+                            devices: filtered_onvif_cameras,
+                        }))
+                        .await
+                    {
+                        error!(
+                            "discover - for ONVIF failed to send discovery response with error {}",
+                            e
+                        );
+                        if shutdown_sender.is_some() {
+                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        }
                         break;
                     }
                 }
@@ -189,10 +210,7 @@ async fn apply_filters(
                 continue;
             }
         };
-        if execute_filter(
-            discovery_handler_config.scopes.as_ref(),
-            &device_scopes,
-        ) {
+        if execute_filter(discovery_handler_config.scopes.as_ref(), &device_scopes) {
             continue;
         }
 
@@ -209,7 +227,7 @@ async fn apply_filters(
             &ip_and_mac_joined,
             &properties
         );
-        result.push(Device{
+        result.push(Device {
             id: ip_and_mac_joined,
             properties,
             mounts: Vec::default(),
@@ -221,29 +239,44 @@ async fn apply_filters(
 
 fn get_configuration(
     discovery_details: &HashMap<String, String>,
-)  -> Result<OnvifDiscoveryHandlerConfig, Error>{
-    info!("inner_get_discovery_handler - for discovery details {:?}", discovery_details);
+) -> Result<OnvifDiscoveryHandlerConfig, Error> {
+    trace!(
+        "inner_get_discovery_handler - for discovery details {:?}",
+        discovery_details
+    );
     // Determine whether it is an embedded protocol
     if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
-        info!("protocol handler {:?}",discovery_handler_str);
+        trace!("protocol handler {:?}", discovery_handler_str);
         if let Ok(discovery_handler) = serde_yaml::from_str(discovery_handler_str) {
             match discovery_handler {
-                DiscoveryHandlerType::Onvif(onvif_discovery_handler_config) => Ok(onvif_discovery_handler_config),
-                _ => Err(anyhow::format_err!("No protocol configured")),
+                DiscoveryHandlerType::Onvif(discovery_handler_config) => {
+                    Ok(discovery_handler_config)
+                }
             }
         } else {
             Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_details))
         }
     } else {
-        Err(anyhow::format_err!("Generic discovery handlers not supported. Discovery details: {:?}", discovery_details))
+        Err(anyhow::format_err!(
+            "Generic discovery handlers not supported. Discovery details: {:?}",
+            discovery_details
+        ))
     }
 }
 
-pub async fn run_debug_echo_server(
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!("run_debug_echo_server - entered");
-    let discovery_handler = OnvifDiscoveryHandler::new();
-    let addr = DISCOVERY_ENDPOINT.parse()?;
-    Server::builder().add_service(DiscoveryServer::new(discovery_handler)).serve(addr).await?;
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_configuration() {
+        let onvif_yaml = r#"
+          protocolHandler: |+
+            onvif: {}
+        "#;
+        let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();
+        let serialized = serde_json::to_string(&get_configuration(&deserialized).unwrap()).unwrap();
+        let expected_deserialized = r#"{"discoveryTimeoutSeconds":1}"#;
+        assert_eq!(expected_deserialized, serialized);
+    }
 }

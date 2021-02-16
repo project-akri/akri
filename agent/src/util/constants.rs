@@ -18,9 +18,6 @@ pub const KUBELET_SOCKET: &str = "/var/lib/kubelet/device-plugins/kubelet.sock";
 /// Maximum length of time `list_and_watch` will sleep before sending kubelet another list of virtual devices
 pub const LIST_AND_WATCH_SLEEP_SECS: u64 = 60;
 
-/// Length of time to sleep between instance discovery checks
-pub const DISCOVERY_DELAY_SECS: u64 = 10;
-
 /// Length of time a shared instance can be offline before it's `DevicePluginService` is shutdown.
 pub const SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
 

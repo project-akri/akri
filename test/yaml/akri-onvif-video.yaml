@@ -4,25 +4,29 @@ metadata:
   name: akri-onvif-video
 spec:
   protocol:
-    onvif:
-      ipAddresses: 
-        action: Exclude
-        items:
-        - 10.0.0.1
-        - 10.0.0.2
-      macAddresses:
-        action: Exclude
-        items: []
-      scopes:
-        action: Include
-        items:
-        - onvif://www.onvif.org/name/GreatONVIFCamera
-        - onvif://www.onvif.org/name/AwesomeONVIFCamera
-      discoveryTimeoutSeconds: 2
+    name: onvif
+    discoveryDetails:
+      protocolHandler: |+
+        onvif:
+          ipAddresses: 
+            action: Exclude
+            items:
+            - 10.0.0.1
+            - 10.0.0.2
+          macAddresses:
+            action: Exclude
+            items: []
+          scopes:
+            action: Include
+            items:
+            - onvif://www.onvif.org/name/GreatONVIFCamera
+            - onvif://www.onvif.org/name/AwesomeONVIFCamera
+          discoveryTimeoutSeconds: 2
   brokerPodSpec:
     containers:
     - name: akri-onvif-video-broker
       image: "ghcr.io/deislabs/akri/onvif-video-broker:latest-dev"
+      imagePullPolicy: Always
       resources:
         limits:
           "{{PLACEHOLDER}}" : "1"

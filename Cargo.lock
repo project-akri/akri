@@ -325,7 +325,9 @@ dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
  "akri-onvif",
+ "akri-opcua",
  "akri-shared",
+ "akri-udev",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -344,13 +346,9 @@ dependencies = [
  "lazy_static",
  "log",
  "mockall",
- "opcua-client",
- "pest",
- "pest_derive",
  "prometheus",
  "prost",
  "rand 0.8.3",
- "regex 1.4.3",
  "serde",
  "serde_derive",
  "serde_json",
@@ -361,12 +359,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tower",
- "udev",
- "url 2.2.1",
  "uuid 0.8.2",
- "xml-rs",
- "yaserde",
- "yaserde_derive",
 ]
 
 [[package]]
@@ -412,11 +405,14 @@ dependencies = [
 name = "akri-discovery-utils"
 version = "0.1.0"
 dependencies = [
+ "akri-shared",
+ "futures 0.3.13",
  "log",
  "prost",
  "tokio 0.2.25",
  "tonic",
  "tonic-build",
+ "tower",
 ]
 
 [[package]]
@@ -441,6 +437,30 @@ dependencies = [
  "xml-rs",
  "yaserde",
  "yaserde_derive",
+]
+
+[[package]]
+name = "akri-opcua"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils",
+ "akri-shared",
+ "anyhow",
+ "async-trait",
+ "env_logger",
+ "futures-core",
+ "futures-util",
+ "log",
+ "mockall",
+ "opcua-client",
+ "prost",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+ "tokio 0.2.25",
+ "tonic",
+ "url 2.2.1",
 ]
 
 [[package]]
@@ -471,7 +491,34 @@ dependencies = [
  "tokio 0.2.25",
  "tokio-core",
  "tokio-signal",
+ "tonic",
+ "tower",
  "warp",
+]
+
+[[package]]
+name = "akri-udev"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils",
+ "anyhow",
+ "async-trait",
+ "env_logger",
+ "futures-core",
+ "futures-util",
+ "log",
+ "mockall",
+ "pest",
+ "pest_derive",
+ "prost",
+ "regex 1.4.3",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+ "tokio 0.2.25",
+ "tonic",
+ "udev",
 ]
 
 [[package]]
@@ -2362,6 +2409,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10acf907b94fc1b1a152d08ef97e7759650268cf986bf127f387e602b02c7e5a"
 
 [[package]]
+name = "onvif-discovery-handler"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils",
+ "akri-onvif",
+ "env_logger",
+ "log",
+ "tokio 0.2.25",
+]
+
+[[package]]
 name = "opaque-debug"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2414,6 +2472,17 @@ dependencies = [
  "serde_yaml",
  "tokio 0.1.22",
  "tokio-io",
+]
+
+[[package]]
+name = "opcua-discovery-handler"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils",
+ "akri-opcua",
+ "env_logger",
+ "log",
+ "tokio 0.2.25",
 ]
 
 [[package]]
@@ -4475,6 +4544,17 @@ checksum = "24953d50a3bce0f5f5a9a2766567072dc9af8096f8c40ea81815da651066bc9f"
 dependencies = [
  "libc",
  "libudev-sys",
+]
+
+[[package]]
+name = "udev-discovery-handler"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils",
+ "akri-udev",
+ "env_logger",
+ "log",
+ "tokio 0.2.25",
 ]
 
 [[package]]

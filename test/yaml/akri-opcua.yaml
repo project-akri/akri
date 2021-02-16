@@ -4,14 +4,17 @@ metadata:
   name: akri-opcua
 spec:
   protocol:
-    opcua:
-      opcuaDiscoveryMethod: 
-        standard:
-          discoveryUrls:
-          - opc.tcp://localhost:4840/
-      applicationNames:
-        action: Include
-        items: []
+    name: opcua
+    discoveryDetails:
+      protocolHandler: |+
+        opcua:
+          opcuaDiscoveryMethod: 
+            standard:
+              discoveryUrls:
+              - opc.tcp://localhost:4840/
+          applicationNames:
+            action: Include
+            items: []
   brokerPodSpec:
     containers:
     - name: akri-opcua-broker
@@ -28,8 +31,6 @@ spec:
       - name: credentials
         mountPath: "/etc/opcua-certs/client-pki"
         readOnly: false
-    imagePullSecrets:
-      - name: regcred
     volumes:
     - name: credentials
       secret:

@@ -10,3 +10,4 @@ pub mod akri;
 pub mod k8s;
 pub mod onvif;
 pub mod os;
+pub mod uds;

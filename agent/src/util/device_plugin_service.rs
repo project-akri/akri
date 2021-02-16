@@ -4,18 +4,20 @@ use super::constants::{
 use super::v1beta1;
 use super::v1beta1::{
     device_plugin_server::{DevicePlugin, DevicePluginServer},
-    registration_client, AllocateRequest, AllocateResponse, DevicePluginOptions, Empty,
-    ListAndWatchResponse, PreStartContainerRequest, PreStartContainerResponse,
+    registration_client, AllocateRequest, AllocateResponse, DevicePluginOptions, DeviceSpec, Empty,
+    ListAndWatchResponse, Mount, PreStartContainerRequest, PreStartContainerResponse,
 };
+use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
     akri::{
-        configuration::{Configuration, ProtocolHandler, ProtocolHandler2},
+        configuration::Configuration,
         instance::Instance,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
         AKRI_PREFIX, AKRI_SLOT_ANNOTATION_NAME,
     },
     k8s,
     k8s::KubeInterface,
+    uds::unix_stream,
 };
 use futures::stream::TryStreamExt;
 use log::{error, info, trace};
@@ -25,14 +27,14 @@ use std::{
     env,
     path::Path,
     sync::Arc,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime},
 };
 use tokio::{
     net::UnixListener,
     net::UnixStream,
     sync::{broadcast, mpsc, Mutex},
     task,
-    time::{delay_for, timeout},
+    time::timeout,
 };
 use tonic::{
     transport::{Endpoint, Server, Uri},
@@ -96,8 +98,6 @@ pub struct DevicePluginService {
     shared: bool,
     /// Hostname of node this Device Plugin is running on
     node_name: String,
-    /// Information that must be communicated with broker. Stored in Instance CRD as metadata.
-    instance_properties: HashMap<String, String>,
     /// Map of all Instances that have the same Configuration CRD as this one
     instance_map: InstanceMap,
     /// Receiver for list_and_watch continue or end messages
@@ -107,6 +107,9 @@ pub struct DevicePluginService {
     list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Upon send, terminates function that acts as the shutdown signal for this service
     server_ender_sender: mpsc::Sender<()>,
+    /// Device that the instance represents. Contains information about properties,
+    /// and container mounts.
+    device: Device,
 }
 
 #[tonic::async_trait]
@@ -116,7 +119,7 @@ impl DevicePlugin for DevicePluginService {
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<DevicePluginOptions>, Status> {
-        info!("get_device_plugin_options - kubelet called get_device_plugin_options");
+        trace!("get_device_plugin_options - kubelet called get_device_plugin_options");
         let resp = DevicePluginOptions {
             pre_start_required: true,
         };
@@ -166,7 +169,7 @@ impl DevicePlugin for DevicePluginService {
             }
 
             while keep_looping {
-                info!(
+                trace!(
                     "list_and_watch - loop iteration for Instance {}",
                     dps.instance_name
                 );
@@ -191,7 +194,7 @@ impl DevicePlugin for DevicePluginService {
 
                 // Send virtual devices list back to kubelet
                 if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
-                    info!(
+                    trace!(
                         "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
                         dps.instance_name,
                         e
@@ -214,7 +217,7 @@ impl DevicePlugin for DevicePluginService {
                         // If receive message to end list_and_watch, send list of unhealthy devices
                         // and shutdown the server by sending message on server_ender_sender channel
                         if message == Ok(ListAndWatchMessageKind::End) {
-                            info!(
+                            trace!(
                                 "list_and_watch - for Instance {} received message to end",
                                 dps.instance_name
                             );
@@ -229,12 +232,12 @@ impl DevicePlugin for DevicePluginService {
                             keep_looping = false;
                         }
                     }
-                    Err(_) => info!(
+                    Err(_) => trace!(
                         "list_and_watch - for Instance {} did not receive a message for {} seconds ... continuing", dps.instance_name, LIST_AND_WATCH_SLEEP_SECS
                     ),
                 }
             }
-            info!("list_and_watch - for Instance {} ending", dps.instance_name);
+            trace!("list_and_watch - for Instance {} ending", dps.instance_name);
         });
         Ok(Response::new(kubelet_update_receiver))
     }
@@ -282,13 +285,14 @@ impl DevicePluginService {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
 
         for request in requests.into_inner().container_requests {
-            info!(
+            trace!(
                 "internal_allocate - for Instance {} handling request {:?}",
-                &self.instance_name, request,
+                &self.instance_name,
+                request,
             );
             let mut akri_annotations = std::collections::HashMap::new();
             for device_usage_id in request.devices_i_ds {
-                info!(
+                trace!(
                     "internal_allocate - for Instance {} processing request for device usage slot id {}",
                     &self.instance_name,
                     device_usage_id
@@ -308,28 +312,24 @@ impl DevicePluginService {
                 )
                 .await
                 {
-                    info!("internal_allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &self.node_name);
+                    trace!("internal_allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &self.node_name);
                     self.list_and_watch_message_sender
                         .send(ListAndWatchMessageKind::Continue)
                         .unwrap();
                     return Err(e);
                 }
 
-                info!(
+                trace!(
                     "internal_allocate - finished processing device_usage_id {}",
                     device_usage_id
                 );
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
-            let response = build_container_allocate_response(
-                akri_annotations,
-                &self.instance_properties,
-                &self.config.protocol,
-            );
+            let response = build_container_allocate_response(akri_annotations, &self.device);
             container_responses.push(response);
         }
-        info!(
+        trace!(
             "internal_allocate - for Instance {} returning responses",
             &self.instance_name
         );
@@ -361,7 +361,7 @@ fn get_slot_value(
         } else if allocated_node == node_name {
             Ok("".to_string())
         } else {
-            info!("internal_allocate - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
+            trace!("internal_allocate - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
             Err(Status::new(
                 Code::Unknown,
                 "Requested device already in use",
@@ -369,7 +369,7 @@ fn get_slot_value(
         }
     } else {
         // No corresponding id found
-        info!(
+        trace!(
             "internal_allocate - could not find {} id in device_usage",
             device_usage_id
         );
@@ -399,7 +399,7 @@ async fn try_update_instance_device_usage(
         {
             Ok(instance_object) => instance = instance_object.spec,
             Err(_) => {
-                info!(
+                trace!(
                     "internal_allocate - could not find Instance {}",
                     instance_name
                 );
@@ -434,7 +434,7 @@ async fn try_update_instance_device_usage(
             }
             Err(e) => {
                 if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                    info!("internal_allocate - update_instance returned error [{}] after max tries ... returning error", e);
+                    trace!("internal_allocate - update_instance returned error [{}] after max tries ... returning error", e);
                     return Err(Status::new(Code::Unknown, "Could not update Instance"));
                 }
             }
@@ -447,34 +447,35 @@ async fn try_update_instance_device_usage(
 /// This sets the volume mounts and environment variables according to the instance's protocol.
 fn build_container_allocate_response(
     annotations: HashMap<String, String>,
-    instance_properties: &HashMap<String, String>,
-    protocol: &ProtocolHandler2,
+    device: &Device,
 ) -> v1beta1::ContainerAllocateResponse {
-    let mut mounts: Vec<v1beta1::Mount> = Vec::new();
-
-    // Set mounts according to protocol
-    if let Some(protocol_handler) = protocol.discovery_details.get("protocolHandler") {
-        match serde_json::from_str(protocol_handler).unwrap() {
-            ProtocolHandler::udev(_handler_config) => {
-                info!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
-                mounts = instance_properties
-                    .iter()
-                    .map(|(_id, devpath)| v1beta1::Mount {
-                        container_path: devpath.clone(),
-                        host_path: devpath.clone(),
-                        read_only: true,
-                    })
-                    .collect();
-            }
-            _ => info!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
-        }
-    }
-
+    // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
+    let mounts: Vec<Mount> = device
+        .mounts
+        .clone()
+        .into_iter()
+        .map(|mount| Mount {
+            container_path: mount.container_path,
+            host_path: mount.host_path,
+            read_only: mount.read_only,
+        })
+        .collect();
+    let device_specs: Vec<DeviceSpec> = device
+        .device_specs
+        .clone()
+        .into_iter()
+        .map(|device_spec| DeviceSpec {
+            container_path: device_spec.container_path,
+            host_path: device_spec.host_path,
+            permissions: device_spec.permissions,
+        })
+        .collect();
     // Create response, setting environment variables to be an instance's properties (specified by protocol)
     v1beta1::ContainerAllocateResponse {
         annotations,
         mounts,
-        envs: instance_properties.clone(),
+        devices: device_specs,
+        envs: device.properties.clone(),
         ..Default::default()
     }
 }
@@ -507,7 +508,7 @@ async fn try_create_instance(
         shared: dps.shared,
         nodes: vec![dps.node_name.clone()],
         device_usage,
-        metadata: dps.instance_properties.clone(),
+        metadata: dps.device.properties.clone(),
         rbac: "rbac".to_string(),
     };
 
@@ -519,7 +520,7 @@ async fn try_create_instance(
             .await
         {
             Ok(mut instance_object) => {
-                info!(
+                trace!(
                     "try_create_instance - discovered Instance {} already created",
                     dps.instance_name
                 );
@@ -536,14 +537,15 @@ async fn try_create_instance(
                         .await
                     {
                         Ok(()) => {
-                            info!(
+                            trace!(
                                 "try_create_instance - updated Instance {} to include {}",
-                                dps.instance_name, dps.node_name
+                                dps.instance_name,
+                                dps.node_name
                             );
                             break;
                         }
                         Err(e) => {
-                            info!("try_create_instance - call to update_instance returned with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
+                            trace!("try_create_instance - call to update_instance returned with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
                             if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
                                 return Err(e);
                             }
@@ -565,14 +567,14 @@ async fn try_create_instance(
                     .await
                 {
                     Ok(()) => {
-                        info!(
+                        trace!(
                             "try_create_instance - created Instance with name {}",
                             dps.instance_name
                         );
                         break;
                     }
                     Err(e) => {
-                        info!("try_create_instance - couldn't create instance with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
+                        trace!("try_create_instance - couldn't create instance with error {} on try # {} of {}", e, x, MAX_INSTANCE_UPDATE_TRIES);
                         if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                             return Err(e);
                         }
@@ -613,7 +615,7 @@ async fn build_list_and_watch_response(
         .await
         .contains_key(&dps.instance_name)
     {
-        info!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
+        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
             dps.config.capacity,
             &dps.instance_name,
@@ -629,14 +631,14 @@ async fn build_list_and_watch_response(
         .connectivity_status
         != ConnectivityStatus::Online
     {
-        info!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
+        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
             dps.config.capacity,
             &dps.instance_name,
         ));
     }
 
-    info!(
+    trace!(
         "build_list_and_watch_response -- device for Instance {} is online",
         dps.instance_name
     );
@@ -651,7 +653,7 @@ async fn build_list_and_watch_response(
             &dps.node_name,
         )),
         Err(_) => {
-            info!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
+            trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
             Ok(build_unhealthy_virtual_devices(
                 dps.config.capacity,
                 &dps.instance_name,
@@ -668,7 +670,7 @@ fn build_unhealthy_virtual_devices(capacity: i32, instance_name: &str) -> Vec<v1
             id: format!("{}-{}", instance_name, x),
             health: UNHEALTHY.to_string(),
         };
-        info!(
+        trace!(
             "build_unhealthy_virtual_devices -- for Instance {} reporting unhealthy devices for device with name [{}] and health: [{}]",
             instance_name,
             device.id,
@@ -700,9 +702,11 @@ fn build_virtual_devices(
         } else {
             HEALTHY.to_string()
         };
-        info!(
+        trace!(
             "build_virtual_devices - [shared = {}] device with name [{}] and health: [{}]",
-            shared, device_name, health
+            shared,
+            device_name,
+            health
         );
         devices.push(v1beta1::Device {
             id: device_name.clone(),
@@ -730,7 +734,7 @@ pub async fn terminate_device_plugin_service(
         .send(ListAndWatchMessageKind::End)
         .unwrap();
 
-    info!(
+    trace!(
         "terminate_device_plugin_service -- removing Instance {} from instance_map",
         instance_name
     );
@@ -746,9 +750,9 @@ pub async fn build_device_plugin(
     config_namespace: String,
     config: Configuration,
     shared: bool,
-    instance_properties: HashMap<String, String>,
     instance_map: InstanceMap,
     device_plugin_path: &str,
+    device: Device,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("build_device_plugin - entered for device {}", instance_name);
     let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
@@ -768,15 +772,15 @@ pub async fn build_device_plugin(
         instance_name: instance_name.clone(),
         endpoint: device_endpoint.clone(),
         config,
-        config_name: config_name.clone(),
-        config_uid: config_uid.clone(),
-        config_namespace: config_namespace.clone(),
+        config_name,
+        config_uid,
+        config_namespace,
         shared,
         node_name: env::var("AGENT_NODE_NAME")?,
-        instance_properties,
-        instance_map: instance_map.clone(),
-        list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+        instance_map: instance_map,
+        list_and_watch_message_sender,
         server_ender_sender: server_ender_sender.clone(),
+        device,
     };
 
     serve(
@@ -801,10 +805,10 @@ pub async fn build_device_plugin(
 /// Ends when it receives message from `list_and_watch`.
 async fn shutdown_signal(mut server_ender_receiver: mpsc::Receiver<()>) {
     match server_ender_receiver.recv().await {
-        Some(_) => info!(
+        Some(_) => trace!(
             "shutdown_signal - received signal ... device plugin service gracefully shutting down"
         ),
-        None => info!("shutdown_signal - connection to server_ender_sender closed ... error"),
+        None => trace!("shutdown_signal - connection to server_ender_sender closed ... error"),
     }
 }
 
@@ -828,12 +832,12 @@ async fn serve(
         Server::builder()
             .add_service(service)
             .serve_with_incoming_shutdown(
-                uds.incoming().map_ok(unix::UnixStream),
+                uds.incoming().map_ok(unix_stream::UnixStream),
                 shutdown_signal(server_ender_receiver),
             )
             .await
             .unwrap();
-        info!(
+        trace!(
             "serve - gracefully shutdown ... deleting socket {}",
             socket_path_to_delete
         );
@@ -841,40 +845,7 @@ async fn serve(
         std::fs::remove_file(socket_path_to_delete).unwrap_or(());
     });
 
-    // Test that server is running, trying for at most 10 seconds
-    // Similar to grpc.timeout, which is yet to be implemented for tonic
-    // See issue: https://github.com/hyperium/tonic/issues/75
-    let mut connected = false;
-    let start = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs();
-    let start_plus_10 = start + 10;
-
-    while (SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
-        < start_plus_10)
-        && !connected
-    {
-        let path = socket_path.clone();
-        if let Ok(_v) = Endpoint::try_from("lttp://[::]:50051")?
-            .connect_with_connector(service_fn(move |_: Uri| UnixStream::connect(path.clone())))
-            .await
-        {
-            connected = true
-        } else {
-            delay_for(Duration::from_secs(1)).await
-        }
-    }
-
-    if !connected {
-        error!(
-            "serve - could not connect to Device Plugin server on socket {}",
-            socket_path
-        );
-    }
+    akri_shared::uds::unix_stream::try_connect(&socket_path).await?;
     Ok(())
 }
 
@@ -910,7 +881,7 @@ async fn register(
         resource_name: capability_id,
         options: Some(op),
     });
-    info!(
+    trace!(
         "register - before call to register with Kubelet at socket {}",
         KUBELET_SOCKET
     );
@@ -921,7 +892,7 @@ async fn register(
         .await
         .is_err()
     {
-        info!(
+        trace!(
             "register - failed to register Instance {} with kubelet ... terminating device plugin",
             instance_name
         );
@@ -935,55 +906,6 @@ pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
     format!("{}-{}", config_name, &id)
         .replace(".", "-")
         .replace("/", "-")
-}
-
-/// Module to enable UDS with tonic grpc.
-/// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
-#[cfg(unix)]
-mod unix {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-
-    use tokio::io::{AsyncRead, AsyncWrite};
-    use tonic::transport::server::Connected;
-
-    #[derive(Debug)]
-    pub struct UnixStream(pub tokio::net::UnixStream);
-
-    impl Connected for UnixStream {}
-
-    impl AsyncRead for UnixStream {
-        fn poll_read(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &mut [u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.0).poll_read(cx, buf)
-        }
-    }
-
-    impl AsyncWrite for UnixStream {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.0).poll_write(cx, buf)
-        }
-
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_flush(cx)
-        }
-
-        fn poll_shutdown(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_shutdown(cx)
-        }
-    }
 }
 
 #[cfg(test)]
@@ -1047,11 +969,11 @@ mod device_plugin_service_tests {
         connectivity_status: ConnectivityStatus,
         add_to_instance_map: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
-        let path_to_config = "../test/json/config-a.json";
-        let kube_akri_config_json =
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let kube_akri_config_yaml =
             fs::read_to_string(path_to_config).expect("Unable to read file");
         let kube_akri_config: KubeAkriConfig =
-            serde_json::from_str(&kube_akri_config_json).unwrap();
+            serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
         let device_instance_name =
             get_device_instance_name("b494b6", &kube_akri_config.metadata.name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
@@ -1073,7 +995,12 @@ mod device_plugin_service_tests {
             map.insert(device_instance_name.clone(), instance_info);
         }
         let instance_map: InstanceMap = Arc::new(Mutex::new(map));
-
+        let device = Device {
+            id: "n/a".to_string(),
+            properties: HashMap::new(),
+            mounts: Vec::new(),
+            device_specs: Vec::new(),
+        };
         let dps = DevicePluginService {
             instance_name: device_instance_name,
             endpoint: device_endpoint,
@@ -1083,10 +1010,10 @@ mod device_plugin_service_tests {
             config_namespace: kube_akri_config.metadata.namespace.unwrap(),
             shared: false,
             node_name: "node-a".to_string(),
-            instance_properties: HashMap::new(),
             instance_map,
             list_and_watch_message_sender,
             server_ender_sender,
+            device,
         };
         (
             dps,
@@ -1137,11 +1064,11 @@ mod device_plugin_service_tests {
                 namespace == config_namespace && name == config_name
             })
             .returning(move |_, _| {
-                let path_to_config = "../test/json/config-a.json";
-                let kube_akri_config_json =
+                let path_to_config = "../test/yaml/config-a.yaml";
+                let kube_akri_config_yaml =
                     fs::read_to_string(path_to_config).expect("Unable to read file");
                 let kube_akri_config: KubeAkriConfig =
-                    serde_json::from_str(&kube_akri_config_json).unwrap();
+                    serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
                 Ok(kube_akri_config)
             });
     }

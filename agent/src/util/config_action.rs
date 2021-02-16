@@ -1,35 +1,17 @@
-use super::super::{protocols, DISCOVERY_RESPONSE_TIME_METRIC, INSTANCE_COUNT_METRIC};
 use super::{
-    constants::{
-        DEVICE_PLUGIN_PATH, DISCOVERY_DELAY_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
-    },
-    device_plugin_service,
-    device_plugin_service::{
-        get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
-    },
-    discovery_operator::DiscoveryOperator,
-    registration::RegisteredDiscoveryHandlerMap,
+    constants::DEVICE_PLUGIN_PATH, device_plugin_service, device_plugin_service::InstanceMap,
+    discovery_operator::DiscoveryOperator, registration::RegisteredDiscoveryHandlerMap,
 };
 use akri_shared::{
-    akri::{
-        configuration::{Configuration, KubeAkriConfig, ProtocolHandler, ProtocolHandler2},
-        API_CONFIGURATIONS, API_NAMESPACE, API_VERSION,
-    },
+    akri::{configuration::KubeAkriConfig, API_CONFIGURATIONS, API_NAMESPACE, API_VERSION},
     k8s,
     k8s::{try_delete_instance, KubeInterface},
 };
 use futures::StreamExt;
 use kube::api::{Informer, RawApi, WatchEvent};
 use log::{info, trace};
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::{Duration, Instant},
-};
-use tokio::{
-    sync::{broadcast, mpsc, Mutex},
-    time::timeout,
-};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{broadcast, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
 
@@ -199,15 +181,13 @@ async fn handle_config_add(
     // Create a new instance map for this config and add it to the config map
     let instance_map: InstanceMap = Arc::new(Mutex::new(HashMap::new()));
     // Channel capacity: should only ever be sent once upon config deletion
-    let (stop_discovery_sender, mut stop_discovery_receiver): (
-        broadcast::Sender<()>,
-        broadcast::Receiver<()>,
-    ) = broadcast::channel(4);
+    let (stop_discovery_sender, _): (broadcast::Sender<()>, broadcast::Receiver<()>) =
+        broadcast::channel(4);
     // Channel capacity: should only ever be sent once upon receiving stop watching message
     let (mut finished_discovery_sender, _) = broadcast::channel(1);
     let config_info = ConfigInfo {
         instance_map: instance_map.clone(),
-        stop_discovery_sender,
+        stop_discovery_sender: stop_discovery_sender.clone(),
         finished_discovery_sender: finished_discovery_sender.clone(),
     };
     config_map
@@ -215,8 +195,6 @@ async fn handle_config_add(
         .await
         .insert(config_name.clone(), config_info);
 
-    let kube_interface = k8s::create_kube_interface();
-    let config_spec = config.spec.clone();
     // Keep discovering instances until the config is deleted, signaled by a message from handle_config_delete
     tokio::spawn(async move {
         let discovery_operator = DiscoveryOperator::new(
@@ -228,12 +206,12 @@ async fn handle_config_add(
             &protocol,
             discovery_details,
             instance_map,
+            DEVICE_PLUGIN_PATH.to_string(),
         );
-        let mut new_discovery_handler_receiver = new_discovery_handler_sender.subscribe();
         discovery_operator
             .start_discovery(
-                &mut new_discovery_handler_receiver,
-                &mut stop_discovery_receiver,
+                new_discovery_handler_sender,
+                stop_discovery_sender,
                 &mut finished_discovery_sender,
             )
             .await
@@ -320,17 +298,27 @@ pub async fn handle_config_delete(
 
 #[cfg(test)]
 mod config_action_tests {
+    use super::super::super::{protocols, INSTANCE_COUNT_METRIC};
     use super::super::{
-        discovery_operator::update_connectivity_status,
-        registration::register_embedded_discovery_handlers,
+        device_plugin_service,
+        device_plugin_service::{
+            get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
+        },
+        discovery_operator::DiscoveryOperator,
+        registration::{register_embedded_discovery_handlers, RegisteredDiscoveryHandlerMap},
     };
     use super::*;
     use akri_debug_echo::discovery_handler::{DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE};
     use akri_discovery_utils::discovery::v0::{Device, DiscoverRequest};
-    use akri_shared::k8s::MockKubeInterface;
-    use std::{env, fs};
+    use akri_shared::{akri::configuration::KubeAkriConfig, k8s::MockKubeInterface};
+    use std::{
+        collections::HashMap,
+        env, fs,
+        sync::Arc,
+        time::{Duration, Instant},
+    };
     use tempfile::Builder;
-    use tokio::sync::broadcast;
+    use tokio::sync::{broadcast, Mutex};
 
     async fn build_instance_map(
         config: &KubeAkriConfig,
@@ -344,7 +332,6 @@ mod config_action_tests {
         env::set_var("AGENT_NODE_NAME", "node-a");
         env::set_var("ENABLE_DEBUG_ECHO", "yes");
         let protocol_handler = config.spec.protocol.clone();
-        let protocol = protocol_handler.name;
         let discovery_details = protocol_handler.discovery_details;
 
         let discovery_handler = protocols::get_discovery_handler(&discovery_details).unwrap();
@@ -448,7 +435,7 @@ mod config_action_tests {
     // 1: ConnectivityStatus of all instances that go offline is changed from Online to Offline
     // 2: ConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: ConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
-    #[tokio::test]
+    #[tokio::test(core_threads = 2)]
     async fn test_update_connectivity_status_factory() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
@@ -479,8 +466,11 @@ mod config_action_tests {
             is_local,
             instance_map.clone(),
             discovery_handler_map.clone(),
+            MockKubeInterface::new(),
         )
         .await;
+        // Make sure update_connectivity_status has updated the map before grabbing it
+        tokio::time::delay_for(Duration::from_millis(500)).await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
         for (_, instance_info) in unwrapped_instance_map {
             assert_ne!(
@@ -513,8 +503,11 @@ mod config_action_tests {
             is_local,
             instance_map.clone(),
             discovery_handler_map.clone(),
+            MockKubeInterface::new(),
         )
         .await;
+        // Make sure update_connectivity_status has updated the map before grabbing it
+        tokio::time::delay_for(Duration::from_millis(500)).await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
         for (_, instance_info) in unwrapped_instance_map {
             assert_eq!(
@@ -524,39 +517,13 @@ mod config_action_tests {
         }
 
         //
-        // 3: Assert that non local devices that are offline for >5 mins are removed
+        // 4: Assert that local devices that go offline are removed from the instance map
         //
-        let instant = Instant::now();
-        instant.checked_add(Duration::from_millis(301)).unwrap();
-        let instance_map: InstanceMap = build_instance_map(
-            &config,
-            &mut visible_discovery_results,
-            &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Offline(instant),
-        )
-        .await;
-        let currently_visible_instances: HashMap<String, Device> = visible_discovery_results
-            .iter()
-            .map(|device| {
-                let instance_name = get_device_instance_name(&device.id, &config_name);
-                (instance_name, device.clone())
-            })
-            .collect();
-        let is_local = false;
-        run_update_connectivity_status(
-            &config,
-            currently_visible_instances.clone(),
-            is_local,
-            instance_map.clone(),
-            discovery_handler_map.clone(),
-        )
-        .await;
-        let unwrapped_instance_map = instance_map.lock().await.clone();
-        assert!(unwrapped_instance_map.is_empty());
+        let mut mock = MockKubeInterface::new();
+        mock.expect_delete_instance()
+            .times(2)
+            .returning(move |_, _| Ok(()));
 
-        //
-        // 3: Assert that local devices that go offline are removed from the instance map
-        //
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
@@ -567,12 +534,15 @@ mod config_action_tests {
         let is_local = true;
         run_update_connectivity_status(
             &config,
-            currently_visible_instances,
+            HashMap::new(),
             is_local,
             instance_map.clone(),
             discovery_handler_map.clone(),
+            mock,
         )
         .await;
+        // Make sure update_connectivity_status has updated the map before grabbing it
+        tokio::time::delay_for(Duration::from_millis(500)).await;
         let unwrapped_instance_map = instance_map.lock().await.clone();
         assert!(unwrapped_instance_map.is_empty());
     }
@@ -583,9 +553,10 @@ mod config_action_tests {
         is_local: bool,
         instance_map: InstanceMap,
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
+        mock: MockKubeInterface,
     ) {
-        //
-
+        let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
+        let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             &config.metadata.name,
@@ -595,8 +566,10 @@ mod config_action_tests {
             &config.spec.protocol.name,
             config.spec.protocol.discovery_details.clone(),
             instance_map.clone(),
+            device_plugin_temp_dir_path.to_string(),
         ));
-        update_connectivity_status(discovery_operator, currently_visible_instances, is_local)
+        discovery_operator
+            .update_connectivity_status(Arc::new(mock), currently_visible_instances, is_local)
             .await
             .unwrap();
     }
@@ -612,18 +585,13 @@ mod config_action_tests {
         env::set_var("AGENT_NODE_NAME", "node-a");
         env::set_var("ENABLE_DEBUG_ECHO", "yes");
         // Make each get_instances check return an empty list of instances
+        fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "").unwrap();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         let mut visible_discovery_results = Vec::new();
         let mut list_and_watch_message_receivers = Vec::new();
-        let (new_discovery_handler_sender, mut new_discovery_handler_receiver) =
-            broadcast::channel(2);
-        let (mut stop_all_discovery_sender, mut stop_all_discovery_receiver) =
-            broadcast::channel(2);
-        let (mut finished_all_discovery_sender, mut finished_discovery_receiver) =
-            broadcast::channel(2);
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
             Arc::new(std::sync::Mutex::new(HashMap::new()));
         let discovery_handler_map_clone = discovery_handler_map.clone();
@@ -632,7 +600,7 @@ mod config_action_tests {
 
         // Set instance count metric to ensure it is cleared
         INSTANCE_COUNT_METRIC
-            .with_label_values(&[&config_name, "false"])
+            .with_label_values(&[&config_name, "true"])
             .set(2);
 
         // Set ConnectivityStatus of all instances in InstanceMap initially to Offline
@@ -651,7 +619,11 @@ mod config_action_tests {
         let instance_map_clone = instance_map.clone();
         // Change instances to be offline
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, OFFLINE).unwrap();
+        let mut tasks = Vec::new();
         tokio::spawn(async move {
+            let device_plugin_temp_dir =
+                Builder::new().prefix("device-plugins-").tempdir().unwrap();
+            let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
             let discovery_operator = DiscoveryOperator::new(
                 discovery_handler_map,
                 &config.metadata.name,
@@ -661,20 +633,13 @@ mod config_action_tests {
                 &config.spec.protocol.name,
                 config.spec.protocol.discovery_details.clone(),
                 instance_map,
+                device_plugin_temp_dir_path.to_string(),
             );
-            let device_plugin_temp_dir =
-                Builder::new().prefix("device-plugins-").tempdir().unwrap();
-            let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
             discovery_operator
-                .start_discovery(
-                    &mut new_discovery_handler_receiver,
-                    &mut stop_all_discovery_receiver,
-                    &mut finished_all_discovery_sender,
-                )
+                .do_discover(Arc::new(mock))
                 .await
                 .unwrap();
         });
-        let mut tasks = Vec::new();
         for mut receiver in list_and_watch_message_receivers {
             tasks.push(tokio::spawn(async move {
                 assert_eq!(
@@ -691,14 +656,10 @@ mod config_action_tests {
         // Assert that instance count metric is reporting no instances
         assert_eq!(
             INSTANCE_COUNT_METRIC
-                .with_label_values(&[&config_name, "false"])
+                .with_label_values(&[&config_name, "true"])
                 .get(),
             0
         );
-
-        stop_all_discovery_sender.send(()).unwrap();
-        // Assert that replies saying finished watching
-        assert!(finished_discovery_receiver.recv().await.is_ok());
 
         // Reset file to be online
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "ONLINE").unwrap();

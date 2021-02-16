@@ -5,14 +5,16 @@ metadata:
   name: {{ .Values.debugEcho.name }}
 spec:
   protocol: 
-    debugEcho:
-      {{- if .Values.debugEcho.descriptions}}
-      descriptions:
-      {{- toYaml .Values.debugEcho.descriptions | nindent 6 }}
-      {{- else }}
-      descriptions: []
-      {{- end }}
-      shared: {{ .Values.debugEcho.shared }}
+    name: debugEcho
+    discoveryDetails:
+      protocolHandler: |+
+        debugEcho:
+          {{- if .Values.debugEcho.descriptions}}
+          descriptions:
+          {{- toYaml .Values.debugEcho.descriptions | nindent 10 }}
+          {{- else }}
+          descriptions: []
+          {{- end }}
   brokerPodSpec:
     containers:
     - name: {{ .Values.debugEcho.name }}-broker
