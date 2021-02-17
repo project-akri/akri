@@ -87,3 +87,64 @@ spec:
   {{- end }}
   capacity: {{ .Values.onvif.capacity }}
 {{- end }}
+---
+{{- if .Values.agent.modular}}
+{{- if .Values.onvif.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-onvif-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-onvif-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-onvif-discovery
+    spec:
+      containers:
+      - name: akri-onvif-discovery
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest-dev" .Values.onvif.discovery.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.onvif.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:latest" .Values.onvif.discovery.image.repository | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.onvif.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.onvif.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        {{- if .Values.onvif.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.onvif.discovery.port }}
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
+        volumeMounts:
+        - name: agent-registration
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.onvif.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.onvif.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: agent-registration
+        hostPath:
+          path: /var/lib/akri
+{{- end }}
+{{- end }}

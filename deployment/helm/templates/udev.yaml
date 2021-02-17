@@ -87,10 +87,6 @@ spec:
       labels:
         name: akri-udev-discovery
     spec:
-      {{- if .Values.udev.discovery.linuxOnly }}
-      nodeSelector:
-        "kubernetes.io/os": linux
-      {{- end }}
       containers:
       - name: akri-udev-discovery
         {{- if .Values.useDevelopmentContainers }}
@@ -125,6 +121,10 @@ spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.udev.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.udev.discovery.nodeSelectors | nindent 8 }}
       {{- end }}
       volumes:
       - name: agent-registration

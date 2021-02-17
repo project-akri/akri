@@ -154,6 +154,9 @@ debugEcho:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set debugEcho.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
 
 
 onvif:
@@ -233,6 +236,9 @@ onvif:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set onvif.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
 
 opcua:
   # enabled defines whether to load an OPC UA configuration
@@ -311,6 +317,9 @@ opcua:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set opcua.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
 
 
 udev:
@@ -379,6 +388,9 @@ udev:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set udev.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
 
 # Admission Controllers (Webhooks)
 webhookConfiguration:
