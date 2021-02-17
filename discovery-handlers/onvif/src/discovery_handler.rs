@@ -1,15 +1,13 @@
 use super::discovery_impl::util;
+use super::discovery_utils::{
+    OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
+    ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
+};
 use akri_discovery_utils::discovery::{
     v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
 };
-use akri_shared::{
-    akri::configuration::{FilterList, FilterType},
-    onvif::device_info::{
-        OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
-        ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
-    },
-};
+use akri_shared::akri::configuration::{FilterList, FilterType};
 use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};
@@ -19,6 +17,7 @@ use tonic::{Response, Status};
 
 /// Protocol name that onvif discovery handlers use when registering with the Agent
 pub const PROTOCOL_NAME: &str = "onvif";
+/// Endpoint for the onvif discovery services if not using UDS
 pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
@@ -75,7 +74,7 @@ impl Discovery for DiscoveryHandler {
         let shutdown_sender = self.shutdown_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = get_configuration(&discover_request.discovery_details)
+        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
             .map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
@@ -237,7 +236,10 @@ async fn apply_filters(
     Ok(result)
 }
 
-fn get_configuration(
+/// This obtains the `OnvifDiscoveryHandlerConfig` from a discovery details map.
+/// It expects the `OnvifDiscoveryHandlerConfig` to be serialized yaml stored in the map as
+/// the String value associated with the key `protocolHandler`.
+fn deserialize_discovery_details(
     discovery_details: &HashMap<String, String>,
 ) -> Result<OnvifDiscoveryHandlerConfig, Error> {
     trace!(
@@ -269,13 +271,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_configuration() {
+    fn test_deserialize_discovery_details() {
         let onvif_yaml = r#"
           protocolHandler: |+
             onvif: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();
-        let serialized = serde_json::to_string(&get_configuration(&deserialized).unwrap()).unwrap();
+        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"discoveryTimeoutSeconds":1}"#;
         assert_eq!(expected_deserialized, serialized);
     }

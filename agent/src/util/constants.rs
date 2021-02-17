@@ -24,5 +24,5 @@ pub const SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
 /// Length of time to sleep between slot reconciliation checks
 pub const SLOT_RECONCILIATION_CHECK_DELAY_SECS: u64 = 10;
 
-/// Length of time a slot can be unused before slot reconciliation relaims it
+/// Length of time a slot can be unused before slot reconciliation reclaims it
 pub const SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS: u64 = 300;

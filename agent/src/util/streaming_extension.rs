@@ -3,6 +3,8 @@ use async_trait::async_trait;
 use tokio::sync::mpsc;
 use tonic::{Code, Status};
 
+/// An extension trait that is used to get the latest message from both embedded and
+/// external Discovery Handlers' streams.
 #[async_trait]
 pub trait StreamingExt {
     async fn get_message(&mut self) -> Result<Option<DiscoverResponse>, Status>;

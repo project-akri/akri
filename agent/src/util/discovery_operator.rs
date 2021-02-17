@@ -1,13 +1,14 @@
-use super::super::{protocols::get_discovery_handler, INSTANCE_COUNT_METRIC};
+use super::super::INSTANCE_COUNT_METRIC;
 use super::{
     constants::SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
     device_plugin_service,
     device_plugin_service::{
-        get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
+        get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
     },
+    embedded_discovery_handlers::get_discovery_handler,
     registration::{
         DiscoveryHandlerConnectivityStatus, DiscoveryHandlerDetails, RegisteredDiscoveryHandlerMap,
-        DH_OFFLINE_GRACE_PERIOD, EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
+        DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS, EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
     },
     streaming_extension::StreamingExt,
 };
@@ -33,12 +34,18 @@ use tonic::{
     Status,
 };
 
+/// StreamType provides a wrapper around the two different types of streams returned from embedded
+/// or internal discovery handlers and ones running externally.
 enum StreamType {
     Internal(mpsc::Receiver<std::result::Result<DiscoverResponse, Status>>),
     External(tonic::Streaming<DiscoverResponse>),
 }
 
-/// Information required for periodic discovery
+/// A DiscoveryOperator is created for each Configuration that is applied to the cluster.
+/// It handles discovery of the devices specified in a Configuration by calling `Discover` on
+/// all registered discovery handlers that are using the same protocol as specified in `Configuration.protocol.name.`
+/// For each device discovered by the discovery handlers, it creates a device plugin.
+/// If a device disappears, it deletes the associated instance after a grace period (for non-local devices).
 #[derive(Clone)]
 pub struct DiscoveryOperator {
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
@@ -77,12 +84,17 @@ impl DiscoveryOperator {
         }
     }
 
-    /// This is spawned as a task for each Configuration and continues to periodically run
-    /// until the Config is deleted, at which point, this function is signaled to stop.
-    /// Looks up which instances are currently visible to the node. Passes this list to a function that
-    /// updates the ConnectivityStatus of the Configuration's Instances or deletes Instance CRDs if needed.
-    /// If a new instance becomes visible that isn't in the Configuration's InstanceMap,
+    /// This is spawned as a task for each Configuration and continues to run
+    /// until the Configuration is deleted, at which point, this function is signaled to stop.
+    /// In a separate task, it calls connects to each discovery handler in the RegisteredDiscoveryHandlerMap
+    /// with the same protocol name as the Configuration (Configuration.protocol.name). Then, it listens for
+    /// updates from the discovery handler on what devices are currently visible to the node.
+    /// Passes this list to a function that updates the InstanceConnectivityStatus of the Configuration's Instances
+    /// or deletes Instance CRs if needed. If a new instance becomes visible that isn't in the Configuration's InstanceMap,
     /// a DevicePluginService and Instance CRD are created for it, and it is added to the InstanceMap.
+    ///
+    /// It also spawns a task to check whether Offline Instances have exceeded their grace period, in which case it
+    /// deletes the Instance.
     pub async fn start_discovery(
         self,
         new_discovery_handler_sender: broadcast::Sender<String>,
@@ -93,19 +105,17 @@ impl DiscoveryOperator {
         let config_name = self.config_name.clone();
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(self.clone());
-        let discovery_operator2 = discovery_operator.clone();
-        let already_reg_discovery_operator = discovery_operator.clone();
-        // Call discover on already registered Discovery Handlers for this protocol
+        let task1_discovery_operator = discovery_operator.clone();
+        // Call discover on already registered Discovery Handlers for this Configuration's protocol
         tasks.push(tokio::spawn(async move {
-            already_reg_discovery_operator
+            task1_discovery_operator
                 .do_discover(Arc::new(k8s::create_kube_interface()))
                 .await
                 .unwrap();
         }));
-        // let (stop_offline_checks_sender, mut stop_offline_checks_receiver) = tokio::sync::oneshot::channel();
         let mut stop_all_discovery_receiver = stop_all_discovery_sender.subscribe();
-        let mut stop_all_discovery_receiver2 = stop_all_discovery_sender.subscribe();
         let mut new_discovery_handler_receiver = new_discovery_handler_sender.subscribe();
+        let task2_discovery_operator = discovery_operator.clone();
         tasks.push(tokio::spawn(async move {
             let mut inner_tasks = Vec::new();
             loop {
@@ -121,7 +131,7 @@ impl DiscoveryOperator {
                         if let Ok(protocol) = result {
                             if protocol == self.protocol {
                                 trace!("start_discovery - received new registered discovery handler for configuration {}", self.config_name);
-                                let new_discovery_operator = discovery_operator.clone();
+                                let new_discovery_operator = task2_discovery_operator.clone();
                                 inner_tasks.push(tokio::spawn(async move {
                                     new_discovery_operator.do_discover(Arc::new(k8s::create_kube_interface())).await.unwrap();
                                 }));
@@ -133,16 +143,19 @@ impl DiscoveryOperator {
             futures::future::try_join_all(inner_tasks).await.unwrap();
         }));
         let kube_interface = Arc::new(k8s::create_kube_interface());
-        // Shared devices are only allowed to be offline for 5 minutes before being removed. This periodically checks if the devices are still offline.
+        let mut stop_all_discovery_receiver = stop_all_discovery_sender.subscribe();
+        let task3_discovery_operator = discovery_operator.clone();
+        // Non-local devices are only allowed to be offline for `SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS` minutes before being removed.
+        // This task periodically checks if devices have been offline for too long.
         tasks.push(tokio::spawn(async move {
             loop {
-                discovery_operator2
+                task3_discovery_operator
                     .check_offline_status(kube_interface.clone())
                     .await
                     .unwrap();
                 if tokio::time::timeout(
                     Duration::from_secs(30),
-                    stop_all_discovery_receiver2.recv(),
+                    stop_all_discovery_receiver.recv(),
                 )
                 .await.is_ok()
                 {
@@ -370,7 +383,7 @@ impl DiscoveryOperator {
                 if let DiscoveryHandlerConnectivityStatus::Offline(instant) =
                     dh_details.connectivity_status
                 {
-                    if instant.elapsed().as_secs() > DH_OFFLINE_GRACE_PERIOD {
+                    if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
                         trace!("mark_offline_or_deregister - de-registering discovery handler for protocol {} at endpoint {} since been offline for longer than 5 minutes", self.protocol, endpoint);
                         // Remove discovery handler from map if timed out
                         registered_dh_map.remove(endpoint);
@@ -390,6 +403,9 @@ impl DiscoveryOperator {
         Ok(deregistered)
     }
 
+    /// Checks if any of this DiscoveryOperator's Configuration's Instances have been offline for too long.
+    /// If a non-local device has not come back online before `SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS`,
+    /// the associated device plugin and instance are terminated and deleted.
     pub async fn check_offline_status(
         &self,
         kube_interface: Arc<impl k8s::KubeInterface + 'static>,
@@ -404,8 +420,8 @@ impl DiscoveryOperator {
         for (instance, instance_info) in instance_map.clone() {
             trace!("loop for instance {}", instance);
             match instance_info.connectivity_status {
-                ConnectivityStatus::Online => {}
-                ConnectivityStatus::Offline(instant) => {
+                InstanceConnectivityStatus::Online => {}
+                InstanceConnectivityStatus::Offline(instant) => {
                     let time_offline = instant.elapsed().as_secs();
                     // If instance has been offline for longer than the grace period or it is unshared, terminate the associated device plugin
                     // TODO: make grace period configurable
@@ -430,6 +446,10 @@ impl DiscoveryOperator {
         Ok(())
     }
 
+    /// Takes in a list of discovered devices and determines if there are any new devices or no longer visible devices.
+    /// For each new device, it creates a DevicePluginService.
+    /// For each previously visible device that was no longer discovered, it calls a function that updates the InstanceConnectivityStatus
+    /// of the instance or deletes it if it is a local device.
     async fn handle_discovery_results(
         &self,
         kube_interface: Arc<impl k8s::KubeInterface + 'static>,
@@ -494,12 +514,12 @@ impl DiscoveryOperator {
         Ok(())
     }
 
-    /// Takes in a list of currently visible instances and either updates an Instance's ConnectivityStatus or deletes an Instance.
-    /// If an instance is no longer visible then it's ConnectivityStatus is changed to Offline(time now).
-    /// The associated DevicePluginService checks its ConnectivityStatus before sending a response back to kubelet
+    /// Takes in a list of currently visible instances and either updates an Instance's InstanceConnectivityStatus or deletes an Instance.
+    /// If a non-local/network based device is not longer visible it's InstanceConnectivityStatus is changed to Offline(time now).
+    /// The associated DevicePluginService checks its InstanceConnectivityStatus before sending a response back to kubelet
     /// and will send all unhealthy devices if its status is Offline, preventing kubelet from allocating any more pods to it.
     /// An Instance CRD is deleted and it's DevicePluginService shutdown if its:
-    /// (A) shared instance is still not visible after 5 minutes or (B) unshared instance is still not visible on the next visibility check.
+    /// (A) non-local Instance is still not visible after 5 minutes or (B) local instance is still not visible.
     pub async fn update_connectivity_status(
         &self,
         kube_interface: Arc<impl k8s::KubeInterface + 'static>,
@@ -512,24 +532,24 @@ impl DiscoveryOperator {
                 "update_connectivity_status - checking connectivity status of instance {}",
                 instance
             );
-            let currently_visible_instances = currently_visible_instances.clone();
             if currently_visible_instances.contains_key(&instance) {
                 let connectivity_status = instance_info.connectivity_status;
                 // If instance is visible, make sure connectivity status is (updated to be) Online
-                if let ConnectivityStatus::Offline(_instant) = connectivity_status {
+                if let InstanceConnectivityStatus::Offline(_instant) = connectivity_status {
                     trace!(
                         "update_connectivity_status - instance {} that was temporarily offline is back online",
                         instance
                     );
                     let list_and_watch_message_sender = instance_info.list_and_watch_message_sender;
                     let updated_instance_info = InstanceInfo {
-                        connectivity_status: ConnectivityStatus::Online,
+                        connectivity_status: InstanceConnectivityStatus::Online,
                         list_and_watch_message_sender: list_and_watch_message_sender.clone(),
                     };
                     self.instance_map
                         .lock()
                         .await
                         .insert(instance.clone(), updated_instance_info);
+                    // Signal list_and_watch to update kubelet that the devices are healthy.
                     list_and_watch_message_sender
                         .send(device_plugin_service::ListAndWatchMessageKind::Continue)
                         .unwrap();
@@ -548,13 +568,15 @@ impl DiscoveryOperator {
                 // // // remove instance from map if grace period has elapsed without the instance coming back online
                 let mut remove_instance = false;
                 match instance_info.connectivity_status {
-                    ConnectivityStatus::Online => {
+                    InstanceConnectivityStatus::Online => {
                         if is_local {
                             remove_instance = true;
                         } else {
                             let sender = instance_info.list_and_watch_message_sender.clone();
                             let updated_instance_info = InstanceInfo {
-                                connectivity_status: ConnectivityStatus::Offline(Instant::now()),
+                                connectivity_status: InstanceConnectivityStatus::Offline(
+                                    Instant::now(),
+                                ),
                                 list_and_watch_message_sender: instance_info
                                     .list_and_watch_message_sender
                                     .clone(),
@@ -572,7 +594,7 @@ impl DiscoveryOperator {
                                 .unwrap();
                         }
                     }
-                    ConnectivityStatus::Offline(instant) => {
+                    InstanceConnectivityStatus::Offline(instant) => {
                         let time_offline = instant.elapsed().as_secs();
                         println!("time elapsed {}", time_offline);
                         // If instance has been offline for longer than the grace period, terminate the associated device plugin
@@ -612,9 +634,14 @@ where
     receiver.recv().await
 }
 
+/// Generates an digest of an Instance's id. There should be a unique digest and Instance for each discovered device.
+/// This means that the id of non-local devices that could be visible to multiple nodes should always resolve
+/// to the same instance name (which is suffixed with this digest).
+/// However, local devices' Instances should have unique hashes even if they have the same id.
+/// To ensure this, the node's name is added to the id before it is hashed.
 pub fn generate_instance_digest(id_to_digest: &str, shared: bool) -> String {
     let mut id_to_digest = id_to_digest.to_string();
-    // For unshared devices, include node hostname in id_to_digest so instances have unique names
+    // For local devices, include node hostname in id_to_digest so instances have unique names
     if !shared {
         id_to_digest = format!(
             "{}{}",

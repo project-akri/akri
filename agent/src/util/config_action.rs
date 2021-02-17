@@ -221,7 +221,7 @@ async fn handle_config_add(
     Ok(())
 }
 
-/// This handles a deleted Congfiguration. First, it ceases to discover instances associated with the Configuration.
+/// This handles a deleted Configuration. First, it ceases to discover instances associated with the Configuration.
 /// Then, for each of the Configuration's Instances, it signals the DevicePluginService to shutdown,
 /// and deletes the Instance CRD.
 pub async fn handle_config_delete(
@@ -298,13 +298,14 @@ pub async fn handle_config_delete(
 
 #[cfg(test)]
 mod config_action_tests {
-    use super::super::super::{protocols, INSTANCE_COUNT_METRIC};
+    use super::super::super::INSTANCE_COUNT_METRIC;
     use super::super::{
         device_plugin_service,
         device_plugin_service::{
-            get_device_instance_name, ConnectivityStatus, InstanceInfo, InstanceMap,
+            get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
         },
         discovery_operator::DiscoveryOperator,
+        embedded_discovery_handlers,
         registration::{register_embedded_discovery_handlers, RegisteredDiscoveryHandlerMap},
     };
     use super::*;
@@ -326,7 +327,7 @@ mod config_action_tests {
         list_and_watch_message_receivers: &mut Vec<
             broadcast::Receiver<device_plugin_service::ListAndWatchMessageKind>,
         >,
-        connectivity_status: ConnectivityStatus,
+        connectivity_status: InstanceConnectivityStatus,
     ) -> InstanceMap {
         // Set env vars for getting instances
         env::set_var("AGENT_NODE_NAME", "node-a");
@@ -334,7 +335,8 @@ mod config_action_tests {
         let protocol_handler = config.spec.protocol.clone();
         let discovery_details = protocol_handler.discovery_details;
 
-        let discovery_handler = protocols::get_discovery_handler(&discovery_details).unwrap();
+        let discovery_handler =
+            embedded_discovery_handlers::get_discovery_handler(&discovery_details).unwrap();
         let discover_request = tonic::Request::new(DiscoverRequest {
             discovery_details: discovery_details.clone(),
         });
@@ -384,7 +386,7 @@ mod config_action_tests {
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Online,
+            InstanceConnectivityStatus::Online,
         )
         .await;
         let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
@@ -432,9 +434,9 @@ mod config_action_tests {
         assert_eq!(instance_map.lock().await.len(), 0);
     }
 
-    // 1: ConnectivityStatus of all instances that go offline is changed from Online to Offline
-    // 2: ConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
-    // 3: ConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
+    // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
+    // 2: InstanceConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
+    // 3: InstanceConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
     #[tokio::test(core_threads = 2)]
     async fn test_update_connectivity_status_factory() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -450,13 +452,13 @@ mod config_action_tests {
         register_embedded_discovery_handlers(discovery_handler_map_clone).unwrap();
 
         //
-        // 1: Assert that ConnectivityStatus of non local instances that are no longer visible is changed to Offline
+        // 1: Assert that InstanceConnectivityStatus of non local instances that are no longer visible is changed to Offline
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Online,
+            InstanceConnectivityStatus::Online,
         )
         .await;
         let is_local = false;
@@ -475,18 +477,18 @@ mod config_action_tests {
         for (_, instance_info) in unwrapped_instance_map {
             assert_ne!(
                 instance_info.connectivity_status,
-                ConnectivityStatus::Online
+                InstanceConnectivityStatus::Online
             );
         }
 
         //
-        // 2: Assert that ConnectivityStatus of non local instances that come back online in <5 mins is changed to Online
+        // 2: Assert that InstanceConnectivityStatus of non local instances that come back online in <5 mins is changed to Online
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Offline(Instant::now()),
+            InstanceConnectivityStatus::Offline(Instant::now()),
         )
         .await;
         let currently_visible_instances: HashMap<String, Device> = visible_discovery_results
@@ -512,7 +514,7 @@ mod config_action_tests {
         for (_, instance_info) in unwrapped_instance_map {
             assert_eq!(
                 instance_info.connectivity_status,
-                ConnectivityStatus::Online
+                InstanceConnectivityStatus::Online
             );
         }
 
@@ -528,7 +530,7 @@ mod config_action_tests {
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Online,
+            InstanceConnectivityStatus::Online,
         )
         .await;
         let is_local = true;
@@ -603,12 +605,12 @@ mod config_action_tests {
             .with_label_values(&[&config_name, "true"])
             .set(2);
 
-        // Set ConnectivityStatus of all instances in InstanceMap initially to Offline
+        // Set InstanceConnectivityStatus of all instances in InstanceMap initially to Offline
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            ConnectivityStatus::Offline(Instant::now()),
+            InstanceConnectivityStatus::Offline(Instant::now()),
         )
         .await;
 

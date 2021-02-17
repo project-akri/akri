@@ -12,18 +12,24 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
-pub const DH_OFFLINE_GRACE_PERIOD: u64 = 300;
+
+/// Maximum amount of time allowed to pass without being able to connect to a discovery handler
+/// without it being removed from the map of registered Discovery Handlers.
+pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
+
+/// Fake endpoint that signals a DiscoveryOperator to use an embedded
+/// discovery handler.
 pub const EMBEDDED_DISCOVERY_HANDLER_ENDPOINT: &str = "embedded";
 
 // Map of RegisterRequests for a specific protocol where key is the endpoint of the Discovery Handler
-// and value is whether or not the discovered devices are local
-pub type ProtcolDiscoveryHandlerMap = HashMap<String, DiscoveryHandlerDetails>;
+// and value is whether or not the discovered devices are local.
+pub type ProtocolDiscoveryHandlerMap = HashMap<String, DiscoveryHandlerDetails>;
 
 /// Map of all registered Discovery Handlers where key is protocol
-/// and value is a map of all Discovery Handlers for that protocol
-pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, ProtcolDiscoveryHandlerMap>>>;
+/// and value is a map of all Discovery Handlers for that protocol.
+pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, ProtocolDiscoveryHandlerMap>>>;
 
-/// Describes the discoverability of an instance for this node
+/// Describes the connectivity status of a Discovery Handler.
 #[derive(PartialEq, Debug, Clone)]
 pub enum DiscoveryHandlerConnectivityStatus {
     /// Has a client successfully using it
@@ -41,6 +47,10 @@ pub struct DiscoveryHandlerDetails {
     pub connectivity_status: DiscoveryHandlerConnectivityStatus,
 }
 
+/// Hosts a register service that external Discovery Handlers can call in order to be added to
+/// the RegisteredDiscoveryHandlerMap that is shared with DiscoveryOperators.
+/// When a new Discovery Handler is registered, a message is broadcast to inform any running DiscoveryOperators
+/// in case they should use the new Discovery Handler.
 pub struct AgentRegistration {
     new_discovery_handler_sender: broadcast::Sender<String>,
     registered_discovery_handlers: RegisteredDiscoveryHandlerMap,
@@ -60,6 +70,11 @@ impl AgentRegistration {
 
 #[tonic::async_trait]
 impl Registration for AgentRegistration {
+    /// Adds new Discovery Handlers to the RegisteredDiscoveryHandlerMap and broadcasts a message to
+    /// any running DiscoveryOperators that a new Discovery Handler exists.
+    /// If the discovery handler is already registered at an endpoint and the register request has changed,
+    /// the previously registered DH is told to stop discovery and is removed from the map. Then, the updated
+    /// DH is registered.
     async fn register(&self, request: Request<RegisterRequest>) -> Result<Response<Empty>, Status> {
         let req = request.into_inner();
         let protocol = req.protocol.clone();
@@ -107,12 +122,13 @@ impl Registration for AgentRegistration {
     }
 }
 
+/// Serves the Agent registration service over UDS.
 pub async fn run_registration_server(
-    discovery_hndlr_map: RegisteredDiscoveryHandlerMap,
+    discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("run_registration_server - entered");
-    let registration = AgentRegistration::new(new_discovery_handler_sender, discovery_hndlr_map);
+    let registration = AgentRegistration::new(new_discovery_handler_sender, discovery_handler_map);
     let socket_path = AGENT_REGISTRATION_SOCKET.to_string();
     trace!(
         "run_registration_server - registration server listening on socket {}",
@@ -130,14 +146,15 @@ pub async fn run_registration_server(
         "serve - gracefully shutdown ... deleting socket {}",
         socket_path
     );
-    // Socket may already be deleted in the case of kubelet restart
     std::fs::remove_file(socket_path).unwrap_or(());
     Ok(())
 }
 
+/// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap,
+/// specifying an endpoint of "embedded" to signal that it is an embedded Discovery Handler.
 #[cfg(any(test, feature = "agent-all-in-one"))]
 pub fn register_embedded_discovery_handlers(
-    discovery_hndlr_map: RegisteredDiscoveryHandlerMap,
+    discovery_handler_map: RegisteredDiscoveryHandlerMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("register_embedded_discovery_handlers - entered");
     let mut register_requests: Vec<RegisterRequest> = Vec::new();
@@ -166,7 +183,7 @@ pub fn register_embedded_discovery_handlers(
         };
         let mut register_request_map = HashMap::new();
         register_request_map.insert(request.endpoint, discovery_handler_details);
-        discovery_hndlr_map
+        discovery_handler_map
             .lock()
             .unwrap()
             .insert(request.protocol, register_request_map);

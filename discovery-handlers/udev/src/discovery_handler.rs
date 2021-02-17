@@ -12,8 +12,9 @@ use tokio::sync::mpsc;
 use tokio::time::delay_for;
 use tonic::{Response, Status};
 
-/// Protocol name that onvif discovery handlers use when registering with the Agent
+/// Protocol name that udev discovery handlers use when registering with the Agent
 pub const PROTOCOL_NAME: &str = "udev";
+/// Endpoint for the udev discovery services if not using UDS
 pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
@@ -25,7 +26,7 @@ pub enum DiscoveryHandlerType {
 }
 
 /// This defines the udev data stored in the Configuration
-/// CRD
+/// CRD DiscoveryDetails
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UdevDiscoveryHandlerConfig {
@@ -33,7 +34,6 @@ pub struct UdevDiscoveryHandlerConfig {
 }
 
 /// `DiscoveryHandler` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
-/// The instances it discovers are always unshared.
 pub struct DiscoveryHandler {
     shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
@@ -55,7 +55,7 @@ impl Discovery for DiscoveryHandler {
         let shutdown_sender = self.shutdown_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = get_configuration(&discover_request.discovery_details)
+        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
             .map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
@@ -135,7 +135,10 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-fn get_configuration(
+/// This obtains the `UdevDiscoveryHandlerConfig` from a discovery details map.
+/// It expects the `UdevDiscoveryHandlerConfig` to be serialized yaml stored in the map as
+/// the String value associated with the key `protocolHandler`.
+fn deserialize_discovery_details(
     discovery_details: &HashMap<String, String>,
 ) -> Result<UdevDiscoveryHandlerConfig, Error> {
     info!(
@@ -167,14 +170,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_configuration_empty() {
+    fn test_deserialize_discovery_details_empty() {
         // Check that udev errors if no udev rules passed in
         let yaml = r#"
           protocolHandler: |+
             udev: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        assert!(get_configuration(&deserialized).is_err());
+        assert!(deserialize_discovery_details(&deserialized).is_err());
 
         let yaml = r#"
         protocolHandler: |+
@@ -182,7 +185,7 @@ mod tests {
             udevRules: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = get_configuration(&deserialized).unwrap();
+        let udev_dh_config = deserialize_discovery_details(&deserialized).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
         let expected_deserialized = r#"{"udevRules":[]}"#;
@@ -190,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_configuration_detailed() {
+    fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
         protocolHandler: |+
           udev:
@@ -198,7 +201,7 @@ mod tests {
             -  'KERNEL=="video[0-9]*"'
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = get_configuration(&deserialized).unwrap();
+        let udev_dh_config = deserialize_discovery_details(&deserialized).unwrap();
         assert_eq!(udev_dh_config.udev_rules.len(), 1);
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
     }

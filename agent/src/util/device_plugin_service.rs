@@ -52,9 +52,9 @@ pub enum ListAndWatchMessageKind {
     End,
 }
 
-/// Describes the discoverability of an instance for this node
+/// Describes whether an instance was discovered or the time at which it was no longer discovered.
 #[derive(PartialEq, Debug, Clone)]
-pub enum ConnectivityStatus {
+pub enum InstanceConnectivityStatus {
     /// Was discovered
     Online,
     /// Could not be discovered. Instant contains time at which it was no longer discovered.
@@ -66,8 +66,8 @@ pub enum ConnectivityStatus {
 pub struct InstanceInfo {
     /// Sender to tell `list_and_watch` to either prematurely continue looping or end
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
-    /// Instance's `ConnectivityStatus`
-    pub connectivity_status: ConnectivityStatus,
+    /// Instance's `InstanceConnectivityStatus`
+    pub connectivity_status: InstanceConnectivityStatus,
 }
 
 pub type InstanceMap = Arc<Mutex<HashMap<String, InstanceInfo>>>;
@@ -589,7 +589,7 @@ async fn try_create_instance(
         dps.instance_name.clone(),
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
-            connectivity_status: ConnectivityStatus::Online,
+            connectivity_status: InstanceConnectivityStatus::Online,
         },
     );
 
@@ -628,7 +628,7 @@ async fn build_list_and_watch_response(
         .get(&dps.instance_name)
         .unwrap()
         .connectivity_status
-        != ConnectivityStatus::Online
+        != InstanceConnectivityStatus::Online
     {
         trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
@@ -965,7 +965,7 @@ mod device_plugin_service_tests {
     }
 
     fn create_device_plugin_service(
-        connectivity_status: ConnectivityStatus,
+        connectivity_status: InstanceConnectivityStatus,
         add_to_instance_map: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
         let path_to_config = "../test/yaml/config-a.yaml";
@@ -1077,7 +1077,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1125,7 +1125,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_already_created() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1168,7 +1168,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_already_created_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1199,7 +1199,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_no_config() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let config_name = device_plugin_service.config_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1224,7 +1224,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_error() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1270,7 +1270,7 @@ mod device_plugin_service_tests {
     async fn test_list_and_watch() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
         let socket_path: String = device_plugin_temp_dir
             .path()
@@ -1369,12 +1369,12 @@ mod device_plugin_service_tests {
         assert!(result.is_err());
     }
 
-    // Tests when ConnectivityStatus is offline and unhealthy devices are returned
+    // Tests when InstanceConnectivityStatus is offline and unhealthy devices are returned
     #[tokio::test]
     async fn test_build_list_and_watch_response_offline() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Offline(Instant::now()), true);
+            create_device_plugin_service(InstanceConnectivityStatus::Offline(Instant::now()), true);
         let mock = MockKubeInterface::new();
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
@@ -1390,7 +1390,7 @@ mod device_plugin_service_tests {
     async fn test_build_list_and_watch_response_no_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1417,7 +1417,7 @@ mod device_plugin_service_tests {
     async fn test_build_list_and_watch_response_no_instance_update() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1442,7 +1442,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_success() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let node_name = device_plugin_service.node_name.clone();
@@ -1484,7 +1484,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_deallocate() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let mut mock = MockKubeInterface::new();
@@ -1537,7 +1537,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_taken() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let mut mock = MockKubeInterface::new();
         configure_find_instance(
@@ -1576,7 +1576,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_no_id() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-100", device_plugin_service.instance_name);
         let mut mock = MockKubeInterface::new();
         configure_find_instance(

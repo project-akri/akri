@@ -6,7 +6,6 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 extern crate tokio_core;
-mod protocols;
 mod util;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
@@ -31,6 +30,7 @@ lazy_static! {
     // Reports the time to get discovery results, grouped by Configuration
     pub static ref DISCOVERY_RESPONSE_TIME_METRIC: HistogramVec = prometheus::register_histogram_vec!("akri_discovery_response_time", "Akri Discovery Response Time", &["configuration"]).unwrap();
 }
+
 /// This is the entry point for the Akri Agent.
 /// It must be built on unix systems, since the underlying libraries for the `DevicePluginService` unix socket connection are unix only.
 #[cfg(unix)]

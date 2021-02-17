@@ -1,17 +1,17 @@
-use akri_discovery_utils::discovery::{v0::discovery_server::Discovery, DiscoverStream};
-use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
-use anyhow::Error;
-use log::trace;
-use std::collections::HashMap;
-// TODO: decide where to put discover stream
 use akri_debug_echo::discovery_handler::DebugEchoDiscoveryHandlerConfig;
+use akri_discovery_utils::discovery::{v0::discovery_server::Discovery, DiscoverStream};
 #[cfg(feature = "onvif-feat")]
 use akri_onvif::discovery_handler::OnvifDiscoveryHandlerConfig;
 #[cfg(feature = "opcua-feat")]
 use akri_opcua::discovery_handler::OpcuaDiscoveryHandlerConfig;
+use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 #[cfg(feature = "udev-feat")]
 use akri_udev::discovery_handler::UdevDiscoveryHandlerConfig;
+use anyhow::Error;
+use log::trace;
+use std::collections::HashMap;
 
+/// Defines the supported embedded Discovery Handlers
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum DiscoveryHandlerType {
@@ -23,6 +23,9 @@ pub enum DiscoveryHandlerType {
     Opcua(OpcuaDiscoveryHandlerConfig),
     DebugEcho(DebugEchoDiscoveryHandlerConfig),
 }
+
+/// Returns the appropriate embedded Discovery Handler as determined by the deserialized contents
+/// of the value of the discovery_details map at key "protocolHandler".
 pub fn get_discovery_handler(
     discovery_details: &HashMap<String, String>,
 ) -> Result<Box<dyn Discovery<DiscoverStream = DiscoverStream>>, Error> {

@@ -1,5 +1,6 @@
 pub mod discovery_handler;
 mod discovery_impl;
+mod discovery_utils;
 
 #[macro_use]
 extern crate serde_derive;

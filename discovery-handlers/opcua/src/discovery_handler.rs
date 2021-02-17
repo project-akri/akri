@@ -12,9 +12,10 @@ use tokio::sync::mpsc;
 use tokio::time::delay_for;
 use tonic::{Response, Status};
 
-/// Protocol name that onvif discovery handlers use when registering with the Agent
+/// Protocol name that opcua discovery handlers use when registering with the Agent
 pub const PROTOCOL_NAME: &str = "opcua";
-pub const DISCOVERY_PORT: &str = "[::1]:10000";
+/// Endpoint for the opcua discovery services if not using UDS
+pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 
@@ -84,7 +85,7 @@ impl Discovery for DiscoveryHandler {
         let shutdown_sender = self.shutdown_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = get_configuration(&discover_request.discovery_details)
+        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
             .map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
@@ -161,7 +162,10 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-fn get_configuration(
+/// This obtains the `OpcuaDiscoveryHandlerConfig` from a discovery details map.
+/// It expects the `OpcuaDiscoveryHandlerConfig` to be serialized yaml stored in the map as
+/// the String value associated with the key `protocolHandler`.
+fn deserialize_discovery_details(
     discovery_details: &HashMap<String, String>,
 ) -> Result<OpcuaDiscoveryHandlerConfig, Error> {
     info!(
@@ -192,7 +196,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_configuration_empty() {
+    fn test_deserialize_discovery_details_empty() {
         // Check that if no DiscoveryUrls are provided, the default LDS url is used.
         let yaml = r#"
           protocolHandler: |+
@@ -201,13 +205,13 @@ mod tests {
                 standard: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized = serde_json::to_string(&get_configuration(&deserialized).unwrap()).unwrap();
+        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
     #[test]
-    fn test_get_configuration_detailed() {
+    fn test_deserialize_discovery_details_detailed() {
         // Test standard discovery
         let yaml = r#"
           protocolHandler: |+
@@ -222,7 +226,7 @@ mod tests {
                 - "Some application name" 
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized = serde_json::to_string(&get_configuration(&deserialized).unwrap()).unwrap();
+        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
         assert_eq!(expected_deserialized, serialized);
     }

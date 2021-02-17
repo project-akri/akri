@@ -11,6 +11,8 @@ use log::{info, trace};
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     env_logger::try_init()?;
     info!("main - onvif discovery handler started");
+    // Determine whether to serve discovery handler over UDS or IP based on existence
+    // of the environment variable POD_IP.
     let mut use_uds = true;
     let mut endpoint: String = match std::env::var("POD_IP") {
         Ok(pod_ip) => {
