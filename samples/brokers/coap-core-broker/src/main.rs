@@ -1,29 +1,36 @@
-use actix_web::http::{Method, StatusCode};
-use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use coap::CoAPClient;
 use coap_lite::{MessageClass, ResponseType};
 use log::{debug, info};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::convert::Infallible;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use warp::hyper::{Response, StatusCode};
+use warp::path::FullPath;
+use warp::{Filter, Reply};
 
 pub const COAP_RESOURCE_TYPES_LABEL_ID: &str = "COAP_RESOURCE_TYPES";
 pub const COAP_IP_LABEL_ID: &str = "COAP_IP";
 
-async fn health() -> impl Responder {
-    HttpResponse::Ok().body("Healthy")
+async fn handle_health() -> Result<impl Reply, Infallible> {
+    Ok(String::from("Healthy"))
 }
 
-async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
-    let path = req.path();
+async fn proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply, Infallible> {
+    let path = req.as_str();
     let ip_address = state.ip_address.clone();
+    let resource_uris = state.resource_uris.clone();
     let endpoint = format!("coap://{}:5683{}", ip_address, path);
     info!("Proxing request to {}", endpoint);
 
-    if req.method() != &Method::GET {
-        return HttpResponse::NotImplemented().body("Only GET requests are supported for now");
+    if !resource_uris.contains(&path.to_string()) {
+        let response = Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(vec![])
+            .unwrap();
+
+        return Ok(response);
     }
 
     // TODO: should some HTTP headers to set or copied to the CoAP request? E.g. 'Forwarded'
@@ -45,11 +52,14 @@ async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
             // Convert the response to HTTP
             let http_status_code = coap_code_to_http_code(coap_status_code);
             let http_status = StatusCode::from_u16(http_status_code).unwrap();
-            let mut proxy_res = HttpResponse::build(http_status);
+            let proxy_res = Response::builder()
+                .status(http_status)
+                .body(response.message.payload)
+                .unwrap();
 
             // TODO: Convert and copy over headers from CoAP to HTTP
 
-            proxy_res.body(response.message.payload)
+            Ok(proxy_res)
         }
         Err(e) => {
             info!("Error while trying to request the device {}", e);
@@ -60,10 +70,18 @@ async fn proxy(req: HttpRequest, state: web::Data<AppState>) -> impl Responder {
             match cached_value {
                 Some(payload) => {
                     debug!("Found response in the cache");
+                    let response = Response::builder().body(payload.clone()).unwrap();
 
-                    HttpResponse::Ok().body(payload.clone())
+                    Ok(response)
                 }
-                None => HttpResponse::ServiceUnavailable().body(e.to_string()),
+                None => {
+                    let response = Response::builder()
+                        .status(StatusCode::SERVICE_UNAVAILABLE)
+                        .body(e.to_string().into_bytes())
+                        .unwrap();
+
+                    Ok(response)
+                }
             }
         }
     }
@@ -87,11 +105,12 @@ fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {
 
 struct AppState {
     ip_address: String,
+    resource_uris: Vec<String>,
     cache: Mutex<HashMap<String, Vec<u8>>>,
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() {
     env_logger::init();
 
     let env_var_query = ActualEnvVarQuery {};
@@ -107,26 +126,23 @@ async fn main() -> std::io::Result<()> {
         device_ip, resource_types
     );
 
-    let state = web::Data::new(AppState {
+    let state = Arc::new(AppState {
         ip_address: device_ip,
+        resource_uris,
         cache: Mutex::new(HashMap::new()),
     });
+    let with_state = warp::any().map(move || state.clone());
 
-    HttpServer::new(move || {
-        let mut app = App::new()
-            .wrap(Logger::default())
-            .app_data(state.clone())
-            .service(web::resource("/healthz").route(web::get().to(health)));
+    let health = warp::get()
+        .and(warp::path("healthz"))
+        .and_then(handle_health);
+    let resource = warp::get()
+        .and(warp::path::full())
+        .and(with_state)
+        .and_then(proxy);
+    let routes = health.or(resource).with(warp::log("api"));
 
-        for uri in resource_uris.iter() {
-            app = app.service(web::resource(uri.as_str()).route(web::get().to(proxy)));
-        }
-
-        app
-    })
-    .bind("0.0.0.0:8083")?
-    .run()
-    .await
+    warp::serve(routes).run(([0, 0, 0, 0], 8083)).await;
 }
 
 fn get_device_ip(env_var_query: &impl EnvVarQuery) -> String {
