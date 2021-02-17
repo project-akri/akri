@@ -140,17 +140,14 @@ impl DiscoveryOperator {
                     .check_offline_status(kube_interface.clone())
                     .await
                     .unwrap();
-                match tokio::time::timeout(
+                if tokio::time::timeout(
                     Duration::from_secs(30),
                     stop_all_discovery_receiver2.recv(),
                 )
-                .await
+                .await.is_ok()
                 {
-                    Ok(_) => {
-                        trace!("start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
-                        break;
-                    }
-                    Err(_) => {}
+                    trace!("start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
+                    break;
                 }
             }
         }));

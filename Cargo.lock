@@ -385,14 +385,12 @@ name = "akri-debug-echo"
 version = "0.1.0"
 dependencies = [
  "akri-discovery-utils",
- "akri-shared",
  "anyhow",
  "async-trait",
  "env_logger",
  "futures-core",
  "futures-util",
  "log",
- "prost",
  "serde",
  "serde_derive",
  "serde_json",

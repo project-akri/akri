@@ -76,7 +76,7 @@ pub mod tcp_stream_wrapper {
     impl TcpStream for TcpStreamImpl {
         fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
             // Do not need to return the stream since it is not used, so map success to Ok(())
-            StdTcpStream::connect_timeout(addr, timeout).and_then(|_| Ok(()))
+            StdTcpStream::connect_timeout(addr, timeout).map(|_| ())
         }
     }
 }

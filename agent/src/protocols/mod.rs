@@ -1,10 +1,10 @@
-use akri_discovery_utils::discovery::v0::discovery_server::Discovery;
+use akri_discovery_utils::discovery::{v0::discovery_server::Discovery, DiscoverStream};
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use anyhow::Error;
 use log::trace;
 use std::collections::HashMap;
 // TODO: decide where to put discover stream
-use akri_debug_echo::discovery_handler::{DebugEchoDiscoveryHandlerConfig, DiscoverStream};
+use akri_debug_echo::discovery_handler::DebugEchoDiscoveryHandlerConfig;
 #[cfg(feature = "onvif-feat")]
 use akri_onvif::discovery_handler::OnvifDiscoveryHandlerConfig;
 #[cfg(feature = "opcua-feat")]
@@ -17,7 +17,9 @@ use akri_udev::discovery_handler::UdevDiscoveryHandlerConfig;
 pub enum DiscoveryHandlerType {
     #[cfg(feature = "onvif-feat")]
     Onvif(OnvifDiscoveryHandlerConfig),
+    #[cfg(feature = "udev-feat")]
     Udev(UdevDiscoveryHandlerConfig),
+    #[cfg(feature = "opcua-feat")]
     Opcua(OpcuaDiscoveryHandlerConfig),
     DebugEcho(DebugEchoDiscoveryHandlerConfig),
 }

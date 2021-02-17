@@ -6,6 +6,9 @@ pub const AGENT_REGISTRATION_SOCKET: &str = "/var/lib/akri/agent-registration.so
 /// Folder in which the Agent expects to find discovery handler sockets.
 pub const DISCOVERY_HANDLER_PATH: &str = "/var/lib/akri";
 
+/// Definition of the DiscoverStream type expected for supported embedded Akri DiscoveryHandlers
+pub type DiscoverStream = tokio::sync::mpsc::Receiver<Result<v0::DiscoverResponse, tonic::Status>>;
+
 pub mod server {
     use super::v0::discovery_server::{Discovery, DiscoveryServer};
     use akri_shared::uds::unix_stream;
@@ -28,8 +31,8 @@ pub mod server {
                 .expect("Failed to create dir at socket path");
             // Delete socket if it already exists
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
-            let mut uds = UnixListener::bind(discovery_endpoint.clone())
-                .expect("Failed to bind to socket path");
+            let mut uds =
+                UnixListener::bind(discovery_endpoint).expect("Failed to bind to socket path");
             Server::builder()
                 .add_service(DiscoveryServer::new(discovery_handler))
                 .serve_with_incoming_shutdown(

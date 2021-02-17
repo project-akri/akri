@@ -1,7 +1,7 @@
-use akri_discovery_utils::discovery::v0::{
-    discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse,
+use akri_discovery_utils::discovery::{
+    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+    DiscoverStream,
 };
-use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::time::Duration;
@@ -18,14 +18,13 @@ pub const DISCOVERY_PORT: &str = "10001";
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 
 /// File acting as an environment variable for testing discovery.
-/// To mimic an instance going offline, kubectl exec into one of the akri-agent-daemonset pods
-/// and echo "OFFLINE" > /tmp/debug-echo-availability.txt
+/// To mimic an instance going offline, kubectl exec into the pod running this discovery handler
+/// and echo "OFFLINE" > /tmp/debug-echo-availability.txt.
 /// To mimic a device coming back online, remove the word "OFFLINE" from the file
-/// ie: echo "" > /tmp/debug-echo-availability.txt
+/// ie: echo "" > /tmp/debug-echo-availability.txt.
 pub const DEBUG_ECHO_AVAILABILITY_CHECK_PATH: &str = "/tmp/debug-echo-availability.txt";
 /// String to write into DEBUG_ECHO_AVAILABILITY_CHECK_PATH to make Other devices undiscoverable
 pub const OFFLINE: &str = "OFFLINE";
-pub type DiscoverStream = mpsc::Receiver<Result<DiscoverResponse, Status>>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -33,24 +32,22 @@ pub enum DiscoveryHandlerType {
     DebugEcho(DebugEchoDiscoveryHandlerConfig),
 }
 
+/// DebugEchoDiscoveryHandlerConfig describes the necessary information needed to discover and filter debug echo devices.
+/// Specifically, it contains a list (`descriptions`) of fake devices to be discovered.
+/// This information is expected to be serialized in the discovery details map sent during Discover requests.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugEchoDiscoveryHandlerConfig {
     pub descriptions: Vec<String>,
 }
 
-/// This defines the DebugEcho data stored in the Configuration
-/// CRD
-///
-/// DebugEcho is used for testing Akri.
+/// The DiscoveryHandler discovers a list of devices, named in its `descriptions`.
+/// It mocks discovering the devices by inspecting the contents of the file at `DEBUG_ECHO_AVAILABILITY_CHECK_PATH`.
+/// If the file contains "OFFLINE", it won't discover any of the devices, else it discovers them all.
 pub struct DiscoveryHandler {
     shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
-/// `DiscoveryHandler` contains a `DebugEchoDiscoveryHandlerConfig` which has a
-/// list of mock instances (`discovery_handler_config.descriptions`) and their sharability.
-/// It mocks discovering the instances by inspecting the contents of the file at `DEBUG_ECHO_AVAILABILITY_CHECK_PATH`.
-/// If the file contains "OFFLINE", it won't discover any of the instances, else it discovers them all.
 impl DiscoveryHandler {
     pub fn new(shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
         DiscoveryHandler { shutdown_sender }
@@ -68,8 +65,8 @@ impl Discovery for DiscoveryHandler {
         let shutdown_sender = self.shutdown_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = get_configuration(&discover_request.discovery_details)
-            .map_err(|e| {
+        let discovery_handler_config =
+            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
                     format!("Invalid debugEcho discovery handler configuration: {}", e),
@@ -101,8 +98,8 @@ impl Discovery for DiscoveryHandler {
                         .await
                     {
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if shutdown_sender.is_some() {
-                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        if let Some(mut sender) = shutdown_sender {
+                            sender.send(()).await.unwrap();
                         }
                         break;
                     }
@@ -123,8 +120,8 @@ impl Discovery for DiscoveryHandler {
                     if let Err(e) = tx.send(Ok(DiscoverResponse { devices })).await {
                         // TODO: consider re-registering here
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if shutdown_sender.is_some() {
-                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        if let Some(mut sender) = shutdown_sender {
+                            sender.send(()).await.unwrap();
                         }
                         break;
                     }
@@ -137,9 +134,12 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-fn get_configuration(
+/// deserialize_discovery_details obtains the `DebugEchoDiscoveryHandlerConfig` from a discovery details map.
+/// It expects the `DebugEchoDiscoveryHandlerConfig` to be serialized yaml stored in the map as
+/// the String value associated with the key `protocolHandler`.
+fn deserialize_discovery_details(
     discovery_details: &HashMap<String, String>,
-) -> Result<DebugEchoDiscoveryHandlerConfig, Error> {
+) -> Result<DebugEchoDiscoveryHandlerConfig, anyhow::Error> {
     trace!(
         "inner_get_discovery_handler - for discovery details {:?}",
         discovery_details
@@ -169,14 +169,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_configuration_empty() {
-        // Check that udev errors if no udev rules passed in
+    fn test_deserialize_discovery_details_empty() {
         let yaml = r#"
           protocolHandler: |+
             debugEcho: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        assert!(get_configuration(&deserialized).is_err());
+        assert!(deserialize_discovery_details(&deserialized).is_err());
 
         let yaml = r#"
         protocolHandler: |+
@@ -184,15 +183,15 @@ mod tests {
             descriptions: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = get_configuration(&deserialized).unwrap();
-        assert!(udev_dh_config.descriptions.is_empty());
-        let serialized = serde_json::to_string(&udev_dh_config).unwrap();
+        let dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        assert!(dh_config.descriptions.is_empty());
+        let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"descriptions":[]}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
     #[test]
-    fn test_get_configuration_detailed() {
+    fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
         protocolHandler: |+
           debugEcho:
@@ -200,8 +199,8 @@ mod tests {
               - "foo1"
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = get_configuration(&deserialized).unwrap();
-        assert_eq!(udev_dh_config.descriptions.len(), 1);
-        assert_eq!(&udev_dh_config.descriptions[0], "foo1");
+        let dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        assert_eq!(dh_config.descriptions.len(), 1);
+        assert_eq!(&dh_config.descriptions[0], "foo1");
     }
 }

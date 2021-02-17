@@ -1,6 +1,7 @@
 use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
-use akri_discovery_utils::discovery::v0::{
-    discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse,
+use akri_discovery_utils::discovery::{
+    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+    DiscoverStream,
 };
 use akri_shared::akri::configuration::FilterList;
 use anyhow::Error;
@@ -16,8 +17,6 @@ pub const PROTOCOL_NAME: &str = "opcua";
 pub const DISCOVERY_PORT: &str = "[::1]:10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-
-pub type DiscoverStream = mpsc::Receiver<Result<DiscoverResponse, Status>>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -103,8 +102,7 @@ impl Discovery for DiscoveryHandler {
                             standard_opcua_discovery.discovery_urls.clone(),
                             application_names.clone(),
                         )
-                    }
-                    // No other discovery methods implemented yet
+                    } // No other discovery methods implemented yet
                 };
 
                 // Build DiscoveryResult for each server discovered
@@ -150,8 +148,8 @@ impl Discovery for DiscoveryHandler {
                             "discover - for OPC UA failed to send discovery response with error {}",
                             e
                         );
-                        if shutdown_sender.is_some() {
-                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        if let Some(mut sender) = shutdown_sender {
+                            sender.send(()).await.unwrap();
                         }
                         break;
                     }

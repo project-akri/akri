@@ -1,6 +1,7 @@
 use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
-use akri_discovery_utils::discovery::v0::{
-    discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse, Mount,
+use akri_discovery_utils::discovery::{
+    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse, Mount},
+    DiscoverStream,
 };
 use anyhow::Error;
 use async_trait::async_trait;
@@ -16,8 +17,6 @@ pub const PROTOCOL_NAME: &str = "udev";
 pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-
-pub type DiscoverStream = mpsc::Receiver<Result<DiscoverResponse, Status>>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -69,18 +68,13 @@ impl Discovery for DiscoveryHandler {
             loop {
                 trace!("discover - for udev rules {:?}", udev_rules);
                 let mut devpaths: HashSet<String> = HashSet::new();
-                udev_rules
-                    .iter()
-                    .map(|rule| {
-                        let enumerator = udev_enumerator::create_enumerator();
-                        let paths = do_parse_and_find(enumerator, &rule)?;
-                        paths.into_iter().for_each(|path| {
-                            devpaths.insert(path);
-                        });
-                        Ok(())
-                    })
-                    .collect::<Result<(), Error>>()
-                    .unwrap();
+                udev_rules.iter().for_each(|rule| {
+                    let enumerator = udev_enumerator::create_enumerator();
+                    let paths = do_parse_and_find(enumerator, &rule).unwrap();
+                    paths.into_iter().for_each(|path| {
+                        devpaths.insert(path);
+                    });
+                });
                 trace!(
                     "discover - mapping and returning devices at devpaths {:?}",
                     devpaths
@@ -128,8 +122,8 @@ impl Discovery for DiscoveryHandler {
                             "discover - for udev failed to send discovery response with error {}",
                             e
                         );
-                        if shutdown_sender.is_some() {
-                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        if let Some(mut sender) = shutdown_sender {
+                            sender.send(()).await.unwrap();
                         }
                         break;
                     }

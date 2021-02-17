@@ -356,7 +356,7 @@ fn get_slot_value(
     instance: &Instance,
 ) -> Result<String, Status> {
     if let Some(allocated_node) = instance.device_usage.get(device_usage_id) {
-        if allocated_node == "" {
+        if allocated_node.is_empty() {
             Ok(node_name.to_string())
         } else if allocated_node == node_name {
             Ok("".to_string())
@@ -476,7 +476,6 @@ fn build_container_allocate_response(
         mounts,
         devices: device_specs,
         envs: device.properties.clone(),
-        ..Default::default()
     }
 }
 
@@ -691,12 +690,12 @@ fn build_virtual_devices(
     let mut devices: Vec<v1beta1::Device> = Vec::new();
     for (device_name, allocated_node) in device_usage {
         // Throw error if unshared resource is reserved by another node
-        if !shared && allocated_node != "" && allocated_node != node_name {
+        if !shared && !allocated_node.is_empty() && allocated_node != node_name {
             panic!("build_virtual_devices - unshared device reserved by a different node");
         }
         // Advertise the device as Unhealthy if it is
         // USED by !this_node && SHARED
-        let unhealthy = shared && allocated_node != "" && allocated_node != node_name;
+        let unhealthy = shared && !allocated_node.is_empty() && allocated_node != node_name;
         let health = if unhealthy {
             UNHEALTHY.to_string()
         } else {
@@ -777,7 +776,7 @@ pub async fn build_device_plugin(
         config_namespace,
         shared,
         node_name: env::var("AGENT_NODE_NAME")?,
-        instance_map: instance_map,
+        instance_map,
         list_and_watch_message_sender,
         server_ender_sender: server_ender_sender.clone(),
         device,

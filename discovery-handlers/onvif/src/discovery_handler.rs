@@ -1,6 +1,7 @@
 use super::discovery_impl::util;
-use akri_discovery_utils::discovery::v0::{
-    discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse,
+use akri_discovery_utils::discovery::{
+    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+    DiscoverStream,
 };
 use akri_shared::{
     akri::configuration::{FilterList, FilterType},
@@ -21,7 +22,6 @@ pub const PROTOCOL_NAME: &str = "onvif";
 pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-pub type DiscoverStream = mpsc::Receiver<Result<DiscoverResponse, Status>>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -125,8 +125,8 @@ impl Discovery for DiscoveryHandler {
                             "discover - for ONVIF failed to send discovery response with error {}",
                             e
                         );
-                        if shutdown_sender.is_some() {
-                            shutdown_sender.unwrap().send(()).await.unwrap();
+                        if let Some(mut sender) = shutdown_sender {
+                            sender.send(()).await.unwrap();
                         }
                         break;
                     }
