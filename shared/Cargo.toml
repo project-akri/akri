@@ -27,8 +27,6 @@ serde_yaml = "0.8"
 tokio = { version = "0.2", features = ["full"] }
 tokio-core = "0.1"
 tokio-signal = "0.2"
-# for uds
 tonic = "0.1"
-# for uds
 tower = "0.3" 
 warp = "0.2"

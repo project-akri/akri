@@ -3,11 +3,13 @@ use super::discovery_utils::{
     OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
     ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
 };
-use akri_discovery_utils::discovery::{
+use akri_discovery_utils::{
+    discovery::{
     v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
+},
+filtering::{FilterList, FilterType}
 };
-use akri_shared::akri::configuration::{FilterList, FilterType};
 use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};

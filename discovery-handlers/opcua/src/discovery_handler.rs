@@ -1,9 +1,11 @@
 use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
-use akri_discovery_utils::discovery::{
+use akri_discovery_utils::{
+    discovery::{
     v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
-    DiscoverStream,
+    DiscoverStream
+    },
+    filtering::FilterList,
 };
-use akri_shared::akri::configuration::FilterList;
 use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};

@@ -3,7 +3,7 @@ use super::wrappers::{
     tcp_stream_wrapper::{TcpStream, TcpStreamImpl},
 };
 use ::url::Url;
-use akri_shared::akri::configuration::{should_include, FilterList};
+use akri_discovery_utils::filtering::{should_include, FilterList};
 use log::{error, info, trace};
 use opcua_client::prelude::*;
 use std::{
