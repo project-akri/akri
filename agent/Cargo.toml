@@ -12,8 +12,8 @@ async-trait = "0.1.0"
 blake2 = "0.8.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
-coap = { git = "https://github.com/jiayihu/coap-rs", branch = "receive_from", optional = true }
-coap-lite = { version = "0.3.4", optional = true }
+coap = { git = "https://github.com/jiayihu/coap-rs", branch = "observe-timeout", optional = true }
+coap-lite = { version = "0.4", optional = true }
 env_logger = "0.6.1"
 anyhow = "1.0.38"
 futures = { version = "0.3.1", package = "futures" }

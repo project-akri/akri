@@ -8,9 +8,12 @@ edition = "2018"
 
 [dependencies]
 akri-shared = { path = "../../../shared" }
-coap = "0.9"
-coap-lite = "0.3"
+coap = { git = "https://github.com/jiayihu/coap-rs", branch = "observe-timeout" }
+coap-lite = "0.4"
 env_logger = "0.8.2"
 log = "0.4.13"
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1.3"
 warp = "0.3"
+futures = "0.3"
+anyhow = "1.0.38"

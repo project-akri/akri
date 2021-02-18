@@ -1,14 +1,24 @@
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use coap::CoAPClient;
 use coap_lite::{MessageClass, ResponseType};
+use futures::{FutureExt, SinkExt, StreamExt};
 use log::{debug, info};
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::hyper::{Response, StatusCode};
 use warp::path::FullPath;
+use warp::ws::Message;
 use warp::{Filter, Reply};
+
+static CLIENT_COUNTER: AtomicU16 = AtomicU16::new(0);
+
+fn get_client_id() -> u16 {
+    CLIENT_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
 
 pub const COAP_RESOURCE_TYPES_LABEL_ID: &str = "COAP_RESOURCE_TYPES";
 pub const COAP_IP_LABEL_ID: &str = "COAP_IP";
@@ -17,7 +27,7 @@ async fn handle_health() -> Result<impl Reply, Infallible> {
     Ok(String::from("Healthy"))
 }
 
-async fn proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply, Infallible> {
+async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply, Infallible> {
     let path = req.as_str();
     let ip_address = state.ip_address.clone();
     let resource_uris = state.resource_uris.clone();
@@ -87,6 +97,93 @@ async fn proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply, Infall
     }
 }
 
+async fn handle_stream(
+    req: FullPath,
+    state: Arc<AppState>,
+    websocket: warp::ws::WebSocket,
+) -> anyhow::Result<()> {
+    let path = req.as_str().to_string();
+    let ip_address = state.ip_address.clone();
+    let addr = format!("{}:5683", ip_address);
+    let resource_uris = state.resource_uris.clone();
+    info!("Streaming from {}", addr);
+
+    let mut client = CoAPClient::new(addr)
+        .map_err(|e| anyhow::anyhow!("Invalid client address while creating the client: {}", e))?;
+    let client_id = get_client_id();
+
+    let (mut socket_tx, mut socket_rx) = websocket.split();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let rx_stream = UnboundedReceiverStream::new(rx);
+
+    if !resource_uris.contains(&path) {
+        let message = Message::close_with(StatusCode::NOT_FOUND, "Not found");
+        socket_tx
+            .send(message)
+            .await
+            .map_err(|e| anyhow::anyhow!("Error sending the close message: {}", e))?;
+        socket_tx
+            .close()
+            .await
+            .map_err(|e| anyhow::anyhow!("Error closing the websocket connection: {}", e))?;
+        return Ok(());
+    }
+
+    tokio::task::spawn(rx_stream.forward(socket_tx).map(|result| {
+        if let Err(e) = result {
+            log::error!("websocket send error: {}", e);
+        }
+    }));
+
+    let tx_clone = tx.clone();
+    tokio::task::spawn(async move {
+        while let Some(message) = socket_rx.next().await {
+            match message {
+                Ok(msg) => {
+                    if msg.is_close() {
+                        tx_clone.send(Ok(Message::close())).unwrap();
+                    }
+                }
+                Err(e) => {
+                    log::error!("Websocket received an error: {}", e);
+                    break;
+                }
+            }
+        }
+    });
+
+    let observe_state = state.clone();
+
+    client
+        .observe_with_timeout(
+            path.as_str(),
+            move |packet| {
+                let message = Message::binary(packet.payload);
+
+                match tx.send(Ok(message)) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        log::error!("Error sending the device message: {}", e);
+
+                        let state_clone = observe_state.clone();
+
+                        std::thread::spawn(move || {
+                            let mut clients = state_clone.clients.lock().unwrap();
+                            clients.remove(&client_id);
+                        });
+                    }
+                }
+            },
+            Duration::from_secs(5),
+        )
+        .map_err(|e| anyhow::anyhow!("Error observing the request: {}", e))?;
+
+    let mut clients = state.clients.lock().unwrap();
+    clients.insert(client_id, client);
+
+    Ok(())
+}
+
 /// Converts a CoAP status code to HTTP status code. The CoAP status code field is described in
 /// RFC 7252 Section 3.
 ///
@@ -107,6 +204,7 @@ struct AppState {
     ip_address: String,
     resource_uris: Vec<String>,
     cache: Mutex<HashMap<String, Vec<u8>>>,
+    clients: Mutex<HashMap<u16, CoAPClient>>,
 }
 
 #[tokio::main]
@@ -130,19 +228,40 @@ async fn main() {
         ip_address: device_ip,
         resource_uris,
         cache: Mutex::new(HashMap::new()),
+        clients: Mutex::new(HashMap::new()),
     });
-    let with_state = warp::any().map(move || state.clone());
 
     let health = warp::get()
         .and(warp::path("healthz"))
         .and_then(handle_health);
-    let resource = warp::get()
+    let proxy = warp::get()
         .and(warp::path::full())
-        .and(with_state)
-        .and_then(proxy);
-    let routes = health.or(resource).with(warp::log("api"));
+        .and(with_state(state.clone()))
+        .and_then(handle_proxy);
+    let stream = warp::get()
+        .and(warp::path::full())
+        .and(with_state(state.clone()))
+        .and(warp::ws())
+        .map(|path: FullPath, state: Arc<AppState>, ws: warp::ws::Ws| {
+            ws.on_upgrade(move |websocket| async {
+                match handle_stream(path, state, websocket).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        log::error!("Error handling the websocket stream: {}", e);
+                    }
+                }
+            })
+        });
+
+    let routes = health.or(stream).or(proxy).with(warp::log("api"));
 
     warp::serve(routes).run(([0, 0, 0, 0], 8083)).await;
+}
+
+fn with_state(
+    state: Arc<AppState>,
+) -> impl warp::Filter<Extract = (Arc<AppState>,), Error = Infallible> + Clone {
+    warp::any().map(move || state.clone())
 }
 
 fn get_device_ip(env_var_query: &impl EnvVarQuery) -> String {
