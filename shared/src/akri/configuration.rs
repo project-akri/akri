@@ -91,9 +91,6 @@ pub struct Configuration {
     /// any given capability that is found
     #[serde(default = "default_capacity")]
     pub capacity: i32,
-    /// This defines the units that the capacity is measured by
-    #[serde(default = "default_units")]
-    pub units: String,
 
     /// This defines a workload that should be scheduled to any
     /// node that can access any capability described by this
@@ -228,9 +225,6 @@ pub async fn find_configuration(
 fn default_capacity() -> i32 {
     1
 }
-fn default_units() -> String {
-    "pod".to_string()
-}
 
 #[cfg(test)]
 mod crd_serialization_tests {
@@ -269,7 +263,6 @@ mod crd_serialization_tests {
         let json = r#"{"protocol":{"name":"onvif", "discoveryDetails":{"protocolHandler":"{\"onvif\":{}}"}}}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
-        assert_eq!(default_units(), deserialized.units);
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
@@ -280,17 +273,16 @@ mod crd_serialization_tests {
     fn test_config_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"protocol":{"name":"random", "discoveryDetails":{}}, "capacity":4, "units":"slaphappies"}"#;
+        let json = r#"{"protocol":{"name":"random", "discoveryDetails":{}}, "capacity":4}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
-        assert_eq!("slaphappies".to_string(), deserialized.units);
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.properties.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"protocol":{"name":"random","discoveryDetails":{}},"capacity":4,"units":"slaphappies"}"#;
+        let expected_deserialized = r#"{"protocol":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -368,15 +360,13 @@ mod crd_serialization_tests {
                 "properties": {
                     "resolution-height": "600",
                     "resolution-width": "800"
-                },
-                "units": "cameras"
+                }
             }
         "#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(deserialized.protocol.name, "random".to_string());
         assert!(deserialized.protocol.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);
-        assert_eq!("cameras".to_string(), deserialized.units);
         assert_ne!(None, deserialized.broker_pod_spec);
         assert_ne!(None, deserialized.instance_service_spec);
         assert_ne!(None, deserialized.configuration_service_spec);

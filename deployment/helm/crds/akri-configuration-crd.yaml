@@ -26,8 +26,6 @@ spec:
                       type: object
                 capacity:
                   type: integer
-                units:
-                  type: string
                 brokerPodSpec: # {{PodSpec}}
                   x-kubernetes-preserve-unknown-fields: true
                   type: object

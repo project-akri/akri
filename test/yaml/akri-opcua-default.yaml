@@ -11,4 +11,3 @@ spec:
           opcuaDiscoveryMethod: 
             standard: {}
   capacity: 5
-  units: slaphappies
