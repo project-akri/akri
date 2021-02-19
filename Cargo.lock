@@ -8,7 +8,7 @@ checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
 name = "agent"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -74,7 +74,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -525,7 +525,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "controller"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -3401,7 +3401,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "akri-shared",
  "env_logger",
