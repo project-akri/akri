@@ -55,18 +55,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         run_metrics_server().await.unwrap();
     }));
 
-    let discovery_hndlr_map = Arc::new(Mutex::new(HashMap::new()));
-    let discovery_hndlr_map_clone = discovery_hndlr_map.clone();
+    let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+    let discovery_handler_map_clone = discovery_handler_map.clone();
     let (new_discovery_handler_sender, _): (
         broadcast::Sender<String>,
         broadcast::Receiver<String>,
     ) = broadcast::channel(4);
     let new_discovery_handler_sender_clone = new_discovery_handler_sender.clone();
     #[cfg(feature = "agent-all-in-one")]
-    register_embedded_discovery_handlers(discovery_hndlr_map_clone.clone())?;
+    register_embedded_discovery_handlers(discovery_handler_map_clone.clone())?;
     // Start registration service for registering `DiscoveryHandler` Pods
     tasks.push(tokio::spawn(async move {
-        run_registration_server(discovery_hndlr_map_clone, new_discovery_handler_sender)
+        run_registration_server(discovery_handler_map_clone, new_discovery_handler_sender)
             .await
             .unwrap();
     }));
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     }));
 
     tasks.push(tokio::spawn(async move {
-        config_action::do_config_watch(discovery_hndlr_map, new_discovery_handler_sender_clone)
+        config_action::do_config_watch(discovery_handler_map, new_discovery_handler_sender_clone)
             .await
             .unwrap()
     }));

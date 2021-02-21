@@ -167,6 +167,8 @@ fn deserialize_discovery_details(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use akri_discovery_utils::discovery::v0::DiscoverRequest;
+    use akri_shared::akri::configuration::ProtocolHandler;
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
@@ -202,5 +204,43 @@ mod tests {
         let dh_config = deserialize_discovery_details(&deserialized).unwrap();
         assert_eq!(dh_config.descriptions.len(), 1);
         assert_eq!(&dh_config.descriptions[0], "foo1");
+    }
+
+    #[tokio::test]
+    async fn test_discover_online_devices() {
+        // Make devices "online" 
+        fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "").unwrap();
+        let debug_echo_yaml = r#"
+        protocol: 
+        name: debugEcho
+        discoveryDetails:
+          protocolHandler: |+
+            debugEcho:
+              descriptions:
+              - "foo1"
+        "#;
+        let deserialized: ProtocolHandler = serde_yaml::from_str(&debug_echo_yaml).unwrap();
+        let discovery_handler = DiscoveryHandler::new(None);
+        let device = akri_discovery_utils::discovery::v0::Device {
+            id: "foo1".to_string(),
+            properties: HashMap::new(),
+            mounts: Vec::default(),
+            device_specs: Vec::default(),
+        };
+        let discover_request = tonic::Request::new(DiscoverRequest {
+            discovery_details: deserialized.discovery_details.clone(),
+        });
+        let mut stream = discovery_handler
+            .discover(discover_request)
+            .await
+            .unwrap()
+            .into_inner();
+        let devices = stream.recv()
+            .await
+            .unwrap()
+            .unwrap()
+            .devices;
+        assert_eq!(1, devices.len());
+        assert_eq!(devices[0], device);
     }
 }

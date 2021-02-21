@@ -654,12 +654,12 @@ pub async fn try_delete_instance(
 }
 
 pub async fn try_delete_instance_arc(
-    kube_interface: std::sync::Arc<impl KubeInterface>,
-    instance_name: &str,
-    instance_namespace: &str,
+    kube_interface: std::sync::Arc<Box<dyn KubeInterface>>,
+    instance_name: String,
+    instance_namespace: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     match kube_interface
-        .delete_instance(instance_name, &instance_namespace)
+        .delete_instance(&instance_name, &instance_namespace)
         .await
     {
         Ok(()) => {

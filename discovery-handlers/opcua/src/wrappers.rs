@@ -1,10 +1,10 @@
 /// Wrapper to enable mocking of OPC UA Client
 pub mod opcua_client_wrapper {
-    use mockall::predicate::*;
-    use mockall::*;
+    #[cfg(test)]
+    use mockall::{automock, predicate::*};
     use opcua_client::prelude::*;
 
-    #[automock]
+    #[cfg_attr(test, automock)]
     pub trait OpcuaClient {
         fn find_servers(
             &mut self,
@@ -58,15 +58,15 @@ pub mod opcua_client_wrapper {
     }
 }
 pub mod tcp_stream_wrapper {
-    use mockall::predicate::*;
-    use mockall::*;
+    #[cfg(test)]
+    use mockall::{automock, predicate::*};
     use std::{
         io,
         net::{SocketAddr, TcpStream as StdTcpStream},
         time::Duration,
     };
 
-    #[automock]
+    #[cfg_attr(test, automock)]
     pub trait TcpStream {
         fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()>;
     }

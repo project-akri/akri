@@ -346,6 +346,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mockall",
+ "mockall_double",
  "prometheus",
  "prost",
  "rand 0.8.3",
@@ -385,6 +386,7 @@ name = "akri-debug-echo"
 version = "0.1.0"
 dependencies = [
  "akri-discovery-utils",
+ "akri-shared",
  "anyhow",
  "async-trait",
  "env_logger",
@@ -403,11 +405,13 @@ name = "akri-discovery-utils"
 version = "0.1.0"
 dependencies = [
  "akri-shared",
+ "async-trait",
  "futures 0.3.13",
  "log",
  "prost",
  "serde",
  "serde_derive",
+ "tempfile",
  "tokio 0.2.25",
  "tonic",
  "tonic-build",
@@ -2281,6 +2285,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dd4234635bca06fc96c7368d038061e0aae1b00a764dc817e900dc974e3deea"
 dependencies = [
  "cfg-if 1.0.0",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "mockall_double"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eacc2558c7ab425550913e9ba69077513922396bc4a1338301e3a0d244d2555"
+dependencies = [
+ "cfg-if 0.1.10",
  "proc-macro2",
  "quote",
  "syn",

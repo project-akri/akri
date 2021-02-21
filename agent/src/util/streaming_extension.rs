@@ -6,7 +6,7 @@ use tonic::{Code, Status};
 /// An extension trait that is used to get the latest message from both embedded and
 /// external Discovery Handlers' streams.
 #[async_trait]
-pub trait StreamingExt {
+pub trait StreamingExt: Send {
     async fn get_message(&mut self) -> Result<Option<DiscoverResponse>, Status>;
 }
 

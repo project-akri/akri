@@ -19,11 +19,3 @@ pub fn get_register_request(endpoint: &str) -> RegisterRequest {
         is_local: true,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

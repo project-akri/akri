@@ -97,7 +97,6 @@ fn inner_get_discovery_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use akri_discovery_utils::discovery::v0::DiscoverRequest;
     use akri_shared::{akri::configuration::ProtocolHandler, os::env_var::MockEnvVarQuery};
     use std::env::VarError;
 
@@ -162,42 +161,20 @@ mod tests {
         mock_query_without_var_set
             .expect_get_env_var()
             .returning(|_| Err(VarError::NotPresent));
-        if inner_get_discovery_handler(
+        assert!(inner_get_discovery_handler(
             &deserialized.discovery_details.clone(),
             &mock_query_without_var_set,
         )
-        .is_ok()
-        {
-            panic!("protocol configuration as debugEcho should return error when 'ENABLE_DEBUG_ECHO' env var is not set")
-        }
+        .is_err());
 
         let mut mock_query_with_var_set = MockEnvVarQuery::new();
         mock_query_with_var_set
             .expect_get_env_var()
             .returning(|_| Ok("1".to_string()));
-        let device = akri_discovery_utils::discovery::v0::Device {
-            id: "foo1".to_string(),
-            properties: HashMap::new(),
-            mounts: Vec::default(),
-            device_specs: Vec::default(),
-        };
-        let discovery_handler =
-            inner_get_discovery_handler(&deserialized.discovery_details, &mock_query_with_var_set)
-                .unwrap();
-        let discover_request = tonic::Request::new(DiscoverRequest {
-            discovery_details: deserialized.discovery_details.clone(),
-        });
-        let devices = discovery_handler
-            .discover(discover_request)
-            .await
-            .unwrap()
-            .into_inner()
-            .recv()
-            .await
-            .unwrap()
-            .unwrap()
-            .devices;
-        assert_eq!(1, devices.len());
-        assert_eq!(devices[0], device);
+        assert!(inner_get_discovery_handler(
+            &deserialized.discovery_details,
+            &mock_query_with_var_set
+        )
+        .is_ok());
     }
 }

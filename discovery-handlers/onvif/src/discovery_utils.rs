@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use futures_util::stream::TryStreamExt;
 use hyper::Request;
 use log::trace;
+#[cfg(test)]
 use mockall::{automock, predicate::*};
 use std::io::{Error, ErrorKind};
 use sxd_document::{parser, Package};
@@ -16,7 +17,7 @@ pub const DEVICE_WSDL: &str = "http://www.onvif.org/ver10/device/wsdl";
 /// OnvifQuery can access ONVIF properties given an ONVIF camera's device service url.
 ///
 /// An implementation of an onvif query can retrieve the camera's ip/mac address, scopes, profiles and streaming uri.
-#[automock]
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait OnvifQuery {
     async fn get_device_ip_and_mac_address(
@@ -86,7 +87,7 @@ impl OnvifQuery for OnvifQueryImpl {
 /// Http can send an HTTP::Post.
 ///
 /// An implementation of http can send an HTTP::Post.
-#[automock]
+#[cfg_attr(test, automock)]
 #[async_trait]
 trait Http {
     async fn post(

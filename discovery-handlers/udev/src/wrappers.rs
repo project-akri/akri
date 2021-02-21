@@ -84,11 +84,11 @@ pub mod udev_device {
 
 pub mod udev_enumerator {
     extern crate udev;
-    use mockall::predicate::*;
-    use mockall::*;
+    #[cfg(test)]
+    use mockall::{automock, predicate::*};
 
     /// Wrap udev::Enumerator functions in a trait to enable mocking for testing.
-    #[automock]
+    #[cfg_attr(test, automock)]
     pub trait Enumerator {
         fn match_subsystem(&mut self, value: &str) -> std::io::Result<()>;
         fn nomatch_subsystem(&mut self, value: &str) -> std::io::Result<()>;
