@@ -1385,7 +1385,7 @@ pub mod tests {
             .await
             .is_none());
         // Start mock DH
-        let (_shutdown_dh_sender, _dh_server_thread_handle) =
+        let _dh_server_thread_handle =
             mock_discovery_handler::run_mock_discovery_handler(&mock_dh_dir, &endpoint).await;
         if let Some(StreamType::External(_)) =
             discovery_operator.get_stream(&endpoint, &mock_dh_dir).await

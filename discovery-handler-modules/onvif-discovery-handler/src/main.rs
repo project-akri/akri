@@ -1,6 +1,6 @@
 use akri_discovery_utils::{
     discovery::{server::run_discovery_server, DISCOVERY_HANDLER_PATH},
-    registration_client::register,
+    registration_client::{register, register_again},
 };
 use akri_onvif::{
     discovery_handler::{DiscoveryHandler, DISCOVERY_PORT},
@@ -25,13 +25,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
             format!("{}/onvif.sock", DISCOVERY_HANDLER_PATH)
         }
     };
-    let (shutdown_sender, shutdown_receiver) = tokio::sync::mpsc::channel(2);
+    let (register_sender, register_receiver) = tokio::sync::mpsc::channel(2);
     let endpoint_clone = endpoint.clone();
-    let handle = tokio::spawn(async move {
+    let discovery_handle = tokio::spawn(async move {
         run_discovery_server(
-            DiscoveryHandler::new(Some(shutdown_sender)),
+            DiscoveryHandler::new(Some(register_sender)),
             &endpoint_clone,
-            shutdown_receiver,
         )
         .await
         .unwrap();
@@ -39,8 +38,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     if !use_uds {
         endpoint.insert_str(0, "http://");
     }
-    register(get_register_request(&format!("http://{}", endpoint))).await?;
-    handle.await?;
+    let register_request = get_register_request(&endpoint);
+    register(&register_request).await?;
+    let registration_handle = tokio::spawn(async move {
+        register_again(register_receiver, &register_request).await;
+    });
+    tokio::try_join!(discovery_handle, registration_handle)?;
     info!("main - onvif discovery handler ended");
     Ok(())
 }

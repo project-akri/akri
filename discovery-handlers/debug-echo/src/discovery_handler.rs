@@ -45,12 +45,12 @@ pub struct DebugEchoDiscoveryHandlerConfig {
 /// It mocks discovering the devices by inspecting the contents of the file at `DEBUG_ECHO_AVAILABILITY_CHECK_PATH`.
 /// If the file contains "OFFLINE", it won't discover any of the devices, else it discovers them all.
 pub struct DiscoveryHandler {
-    shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>,
+    register_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
 impl DiscoveryHandler {
-    pub fn new(shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
-        DiscoveryHandler { shutdown_sender }
+    pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+        DiscoveryHandler { register_sender }
     }
 }
 
@@ -62,7 +62,7 @@ impl Discovery for DiscoveryHandler {
         request: tonic::Request<DiscoverRequest>,
     ) -> Result<Response<Self::DiscoverStream>, Status> {
         info!("discover - called for debug echo protocol");
-        let shutdown_sender = self.shutdown_sender.clone();
+        let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
         let discovery_handler_config =
@@ -98,7 +98,7 @@ impl Discovery for DiscoveryHandler {
                         .await
                     {
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if let Some(mut sender) = shutdown_sender {
+                        if let Some(mut sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
@@ -120,7 +120,7 @@ impl Discovery for DiscoveryHandler {
                     if let Err(e) = tx.send(Ok(DiscoverResponse { devices })).await {
                         // TODO: consider re-registering here
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if let Some(mut sender) = shutdown_sender {
+                        if let Some(mut sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;

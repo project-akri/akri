@@ -56,12 +56,12 @@ fn default_discovery_timeout_seconds() -> i32 {
 /// `discover_handler_config.mac_addresses`, and `discover_handler_config.scopes`.
 /// The instances it discovers are always shared.
 pub struct DiscoveryHandler {
-    shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>,
+    register_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
 impl DiscoveryHandler {
-    pub fn new(shutdown_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
-        DiscoveryHandler { shutdown_sender }
+    pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+        DiscoveryHandler { register_sender }
     }
 }
 
@@ -73,7 +73,7 @@ impl Discovery for DiscoveryHandler {
         request: tonic::Request<DiscoverRequest>,
     ) -> Result<Response<Self::DiscoverStream>, Status> {
         info!("discover - called for ONVIF protocol");
-        let shutdown_sender = self.shutdown_sender.clone();
+        let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
         let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
@@ -126,7 +126,7 @@ impl Discovery for DiscoveryHandler {
                             "discover - for ONVIF failed to send discovery response with error {}",
                             e
                         );
-                        if let Some(mut sender) = shutdown_sender {
+                        if let Some(mut sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
