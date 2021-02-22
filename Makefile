@@ -9,8 +9,12 @@ INTERMEDIATE_DOCKERFILE_DIR ?= build/containers/intermediate
 DOCKERFILE_DIR ?= build/containers
 
 PREFIX ?= $(REGISTRY)/$(UNIQUE_ID)
-VERSION=$(shell cat version.txt)
-TIMESTAMP=$(shell date +"%Y%m%d_%H%M%S")
+
+# Evaluate VERSION and TIMESTAMP immediately to avoid
+# any lazy evaluation change in the values
+VERSION := $(shell cat version.txt)
+TIMESTAMP := $(shell date +"%Y%m%d_%H%M%S")
+
 VERSION_LABEL=v$(VERSION)-$(TIMESTAMP)
 LABEL_PREFIX ?= $(VERSION_LABEL)
 

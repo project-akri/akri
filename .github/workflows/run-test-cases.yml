@@ -99,36 +99,51 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          # - runtime: MicroK8s-1.16
-          #   version: 1.16/stable
-          # - runtime: MicroK8s-1.17
-          #   version: 1.17/stable
+          - runtime: MicroK8s-1.16
+            version: 1.16/stable
+            crictl: v1.16.0
+          - runtime: MicroK8s-1.17
+            version: 1.17/stable
+            crictl: v1.16.0
           - runtime: MicroK8s-1.18
             version: 1.18/stable
+            crictl: v1.17.0
           - runtime: MicroK8s-1.19
             version: 1.19/stable
+            crictl: v1.17.0
           - runtime: MicroK8s-1.20
             version: 1.20/stable
-          # - runtime: K3s-1.16
-          #   version: v1.16.14+k3s1
-          # - runtime: K3s-1.17
-          #   version: v1.17.17+k3s1
+            crictl: v1.17.0
+          - runtime: K3s-1.16
+            version: v1.16.14+k3s1
+            crictl: v1.16.0
+          - runtime: K3s-1.17
+            version: v1.17.17+k3s1
+            crictl: v1.16.0
           - runtime: K3s-1.18
             version: v1.18.9+k3s1
+            crictl: v1.17.0
           - runtime: K3s-1.19
             version: v1.19.4+k3s1
+            crictl: v1.17.0
           - runtime: K3s-1.20
             version: v1.20.0+k3s2
+            crictl: v1.17.0
           - runtime: Kubernetes-1.16
             version: 1.16.15-00
+            crictl: UNUSED
           - runtime: Kubernetes-1.17
             version: 1.17.14-00
+            crictl: UNUSED
           - runtime: Kubernetes-1.18
             version: 1.18.12-00
+            crictl: UNUSED
           - runtime: Kubernetes-1.19
             version: 1.19.4-00
+            crictl: UNUSED
           - runtime: Kubernetes-1.20
             version: 1.20.1-00
+            crictl: UNUSED
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
@@ -177,16 +192,22 @@ jobs:
           sudo usermod -a -G k3s-admin $USER
           sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
           sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-          sudo chmod 666 /etc/rancher/k3s/* 
+          sudo chmod 666 /etc/rancher/k3s/*
           mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-          VERSION="v1.17.0"
-          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-          sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C $(pwd)
-          rm -f crictl-$VERSION-linux-amd64.tar.gz
-          echo '--set agent.host.crictl=$(pwd)/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock' > /tmp/cri_args_to_test.txt
+          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.kube.crictl }}/crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz --output crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
+          sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C /usr/local/bin
+          rm -f crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
+          echo "--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock" > /tmp/cri_args_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
+          if [ "${{ matrix.kube.runtime }}" == "K3s-1.16" ]; then
+            mkdir -p /var/lib/kubelet
+            if [ -d /var/lib/kubelet/device-plugins ]; then
+              sudo rm -rf /var/lib/kubelet/device-plugins
+            fi
+            sudo ln -s /var/lib/rancher/k3s/agent/kubelet/device-plugins /var/lib/kubelet/device-plugins
+          fi
 
       - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'K3s'))
         name: Import local agent and controller to K3s
@@ -199,7 +220,7 @@ jobs:
         name: Install Kubernetes
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
+          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
@@ -232,14 +253,12 @@ jobs:
           sudo chown -f -R $USER $HOME/.kube --verbose
           sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
           sudo cat ~/.kube/config
-          sudo microk8s.enable helm3
           sudo microk8s.enable rbac
           sudo microk8s.enable dns
-          sudo microk8s.status --wait-ready
-          VERSION="v1.17.0"
-          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-          sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-          rm -f crictl-$VERSION-linux-amd64.tar.gz
+          until sudo microk8s.status --wait-ready; do sleep 5s; echo "Try again"; done
+          curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.kube.crictl }}/crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz --output crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
+          sudo tar zxvf crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz -C /usr/local/bin
+          rm -f crictl-${{ matrix.kube.crictl }}-linux-amd64.tar.gz
           echo '--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock' > /tmp/cri_args_to_test.txt
           echo 'microk8s kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
