@@ -208,7 +208,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_discover_online_devices() {
-        // Make devices "online" 
+        // Make devices "online"
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "").unwrap();
         let debug_echo_yaml = r#"
         protocol: 
@@ -235,11 +235,7 @@ mod tests {
             .await
             .unwrap()
             .into_inner();
-        let devices = stream.recv()
-            .await
-            .unwrap()
-            .unwrap()
-            .devices;
+        let devices = stream.recv().await.unwrap().unwrap().devices;
         assert_eq!(1, devices.len());
         assert_eq!(devices[0], device);
     }

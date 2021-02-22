@@ -1,8 +1,8 @@
 use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
 use akri_discovery_utils::{
     discovery::{
-    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
-    DiscoverStream
+        v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+        DiscoverStream,
     },
     filtering::FilterList,
 };
@@ -87,8 +87,8 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
-            .map_err(|e| {
+        let discovery_handler_config =
+            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
                     format!("Invalid OPC UA discovery handler configuration: {}", e),
@@ -207,7 +207,8 @@ mod tests {
                 standard: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
+        let serialized =
+            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
@@ -228,7 +229,8 @@ mod tests {
                 - "Some application name" 
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
+        let serialized =
+            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
         assert_eq!(expected_deserialized, serialized);
     }

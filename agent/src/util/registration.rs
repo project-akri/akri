@@ -149,7 +149,7 @@ pub async fn internal_run_registration_server(
     // Delete socket in case previously created/used
     std::fs::remove_file(&socket_path).unwrap_or(());
     let mut uds =
-        tokio::net::UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
+        tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
     Server::builder()
         .add_service(RegistrationServer::new(registration))
         .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))

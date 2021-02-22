@@ -6,7 +6,7 @@ use super::{
 };
 use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
-    akri::{configuration::Configuration, AKRI_PREFIX},
+    akri::{configuration::KubeAkriConfig, AKRI_PREFIX},
     uds::unix_stream,
 };
 use async_trait::async_trait;
@@ -30,10 +30,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
     async fn build_device_plugin(
         &self,
         instance_name: String,
-        config_name: String,
-        config_uid: String,
-        config_namespace: String,
-        config: Configuration,
+        config: &KubeAkriConfig,
         shared: bool,
         instance_map: InstanceMap,
         device_plugin_path: &str,
@@ -50,10 +47,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
     async fn build_device_plugin(
         &self,
         instance_name: String,
-        config_name: String,
-        config_uid: String,
-        config_namespace: String,
-        config: Configuration,
+        config: &KubeAkriConfig,
         shared: bool,
         instance_map: InstanceMap,
         device_plugin_path: &str,
@@ -76,10 +70,10 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         let device_plugin_service = DevicePluginService {
             instance_name: instance_name.clone(),
             endpoint: device_endpoint.clone(),
-            config,
-            config_name,
-            config_uid,
-            config_namespace,
+            config: config.spec.clone(),
+            config_name: config.metadata.name.clone(),
+            config_uid: config.metadata.uid.as_ref().unwrap().clone(),
+            config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
             shared,
             node_name: env::var("AGENT_NODE_NAME")?,
             instance_map,

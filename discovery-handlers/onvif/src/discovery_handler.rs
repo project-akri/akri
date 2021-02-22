@@ -5,10 +5,10 @@ use super::discovery_utils::{
 };
 use akri_discovery_utils::{
     discovery::{
-    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
-    DiscoverStream,
-},
-filtering::{FilterList, FilterType}
+        v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+        DiscoverStream,
+    },
+    filtering::{FilterList, FilterType},
 };
 use anyhow::Error;
 use async_trait::async_trait;
@@ -76,8 +76,8 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
-            .map_err(|e| {
+        let discovery_handler_config =
+            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
                     format!("Invalid ONVIF discovery handler configuration: {}", e),
@@ -270,8 +270,8 @@ fn deserialize_discovery_details(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::discovery_utils::MockOnvifQuery;
+    use super::*;
 
     struct IpAndMac {
         mock_uri: &'static str,
@@ -332,7 +332,8 @@ mod tests {
             onvif: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();
-        let serialized = serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
+        let serialized =
+            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
         let expected_deserialized = r#"{"discoveryTimeoutSeconds":1}"#;
         assert_eq!(expected_deserialized, serialized);
     }

@@ -235,7 +235,8 @@ mod crd_serialization_tests {
         assert_eq!(0, deserialized.properties.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"protocol":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
+        let expected_deserialized =
+            r#"{"protocol":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 

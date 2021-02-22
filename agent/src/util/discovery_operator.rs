@@ -234,7 +234,7 @@ impl DiscoveryOperator {
         &self,
         endpoint: &str,
         connectivity_status: DiscoveryHandlerConnectivityStatus,
-    ) -> () {
+    ) {
         trace!("set_discovery_handler_connectivity_status - discovery handler at endpoint {} and protocol {} is offline", endpoint, self.config.spec.protocol.name);
         if let Some(registered_dh_map) = self
             .discovery_handler_map
@@ -377,15 +377,11 @@ impl DiscoveryOperator {
                     "handle_discovery_results - new instance {} came online",
                     instance_name
                 );
-                let config_spec = self.config.spec.clone();
                 let instance_map = self.instance_map.clone();
                 if let Err(e) = device_plugin_builder
                     .build_device_plugin(
                         instance_name,
-                        self.config.metadata.name.clone(),
-                        self.config.metadata.uid.as_ref().unwrap().clone(),
-                        self.config.metadata.namespace.as_ref().unwrap().clone(),
-                        config_spec,
+                        &self.config,
                         !is_local,
                         instance_map,
                         &self.device_plugin_path,
@@ -1041,7 +1037,7 @@ pub mod tests {
         mock_device_plugin_builder
             .expect_build_device_plugin()
             .times(2)
-            .returning(move |_, _, _, _, _, _, _, _, _| Ok(()));
+            .returning(move |_, _, _, _, _, _| Ok(()));
         discovery_operator
             .handle_discovery_results(
                 mock_kube_interface,

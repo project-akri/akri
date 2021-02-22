@@ -55,8 +55,8 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config = deserialize_discovery_details(&discover_request.discovery_details)
-            .map_err(|e| {
+        let discovery_handler_config =
+            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::InvalidArgument,
                     format!("Invalid udev discovery handler configuration: {}", e),

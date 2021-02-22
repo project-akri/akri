@@ -1,4 +1,3 @@
-
 /// This defines the types of supported filters
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum FilterType {
@@ -61,7 +60,7 @@ mod tests {
         assert_eq!(should_include(exclude_filter_list.as_ref(), "beep"), false);
         assert_eq!(should_include(exclude_filter_list.as_ref(), "bop"), false);
         assert_eq!(should_include(exclude_filter_list.as_ref(), "boop"), true);
-    
+
         // Test when FilterType::Exclude and FilterList.items is empty
         let empty_exclude_items = Vec::new();
         let empty_exclude_filter_list = Some(FilterList {
@@ -72,7 +71,7 @@ mod tests {
             should_include(empty_exclude_filter_list.as_ref(), "beep"),
             true
         );
-    
+
         // Test when FilterType::Include
         let include_items = vec!["beep".to_string(), "bop".to_string()];
         let include_filter_list = Some(FilterList {
@@ -82,7 +81,7 @@ mod tests {
         assert_eq!(should_include(include_filter_list.as_ref(), "beep"), true);
         assert_eq!(should_include(include_filter_list.as_ref(), "bop"), true);
         assert_eq!(should_include(include_filter_list.as_ref(), "boop"), false);
-    
+
         // Test when FilterType::Include and FilterList.items is empty
         let empty_include_items = Vec::new();
         let empty_include_filter_list = Some(FilterList {
@@ -93,7 +92,7 @@ mod tests {
             should_include(empty_include_filter_list.as_ref(), "beep"),
             false
         );
-    
+
         // Test when None
         assert_eq!(should_include(None, "beep"), true);
     }

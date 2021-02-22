@@ -90,12 +90,8 @@ impl OnvifQuery for OnvifQueryImpl {
 #[cfg_attr(test, automock)]
 #[async_trait]
 trait Http {
-    async fn post(
-        &self,
-        url: &str,
-        mime_action: &str,
-        msg: &str,
-    ) -> Result<Package, anyhow::Error>;
+    async fn post(&self, url: &str, mime_action: &str, msg: &str)
+        -> Result<Package, anyhow::Error>;
 }
 
 struct HttpRequest {}

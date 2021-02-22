@@ -33,15 +33,16 @@ pub async fn register(
 }
 
 /// Continually waits for message to re-register with an Agent
-pub async fn register_again(mut register_receiver: tokio::sync::mpsc::Receiver<()>, register_request: &RegisterRequest) {
+pub async fn register_again(
+    mut register_receiver: tokio::sync::mpsc::Receiver<()>,
+    register_request: &RegisterRequest,
+) {
     loop {
         match register_receiver.recv().await {
             Some(_) => {
-                info!(
-                "register_again - received signal ... registering with Agent again"
-            );
-            register(register_request).await.unwrap();
-            },
+                info!("register_again - received signal ... registering with Agent again");
+                register(register_request).await.unwrap();
+            }
             None => {
                 info!("register_again - connection to register_again_sender closed ... error")
             }
