@@ -48,9 +48,10 @@ uuid = { version = "0.8.1", features = ["v4"] }
 tonic-build = "0.1.1"
 
 [dev-dependencies]
+# for testing using a simple discovery handler
+akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
 mockall = "0.9.0"
 tempfile = "3.1.0"
-akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
 
 [features]
 default = ["onvif-feat", "opcua-feat", "udev-feat", "agent-modular"]

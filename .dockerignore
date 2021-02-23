@@ -25,7 +25,7 @@
 # The streaming app is built using a `docker build` command, so
 # the source code needs to be available to the container
 # build
-!discovery-handler-modules/udev-discovery-handler
+!discovery-handler-modules/*
 
 # The Rust binaries are not built with a `docker build`
 # command (they are built using Cargo Cross, which I think
@@ -47,6 +47,9 @@
 !target/x86_64-unknown-linux-gnu/debug/webhook-configuration
 !target/x86_64-unknown-linux-gnu/release/webhook-configuration
 !target/x86_64-unknown-linux-gnu/release/udev-discovery-handler
+!target/x86_64-unknown-linux-gnu/release/debug-echo-discovery-handler
+!target/x86_64-unknown-linux-gnu/release/onvif-discovery-handler
+!target/x86_64-unknown-linux-gnu/release/opcua-discovery-handler
 !target/aarch64-unknown-linux-gnu/debug/controller
 !target/aarch64-unknown-linux-gnu/release/controller
 !target/aarch64-unknown-linux-gnu/debug/agent
@@ -56,6 +59,9 @@
 !target/aarch64-unknown-linux-gnu/debug/webhook-configuration
 !target/aarch64-unknown-linux-gnu/release/webhook-configuration
 !target/aarch64-unknown-linux-gnu/release/udev-discovery-handler
+!target/aarch64-unknown-linux-gnu/release/debug-echo-discovery-handler
+!target/aarch64-unknown-linux-gnu/release/onvif-discovery-handler
+!target/aarch64-unknown-linux-gnu/release/opcua-discovery-handler
 !target/armv7-unknown-linux-gnueabihf/debug/controller
 !target/armv7-unknown-linux-gnueabihf/release/controller
 !target/armv7-unknown-linux-gnueabihf/debug/agent
@@ -65,6 +71,9 @@
 !target/armv7-unknown-linux-gnueabihf/debug/webhook-configuration
 !target/armv7-unknown-linux-gnueabihf/release/webhook-configuration
 !target/armv7-unknown-linux-gnueabihf/release/udev-discovery-handler
+!target/armv7-unknown-linux-gnueabihf/release/debug-echo-discovery-handler
+!target/armv7-unknown-linux-gnueabihf/release/onvif-discovery-handler
+!target/armv7-unknown-linux-gnueabihf/release/opcua-discovery-handler
 
 # Cross toml file needs to be available for making the cross build containers
 !Cross.toml
