@@ -90,6 +90,72 @@ agent:
   registrationPortName: registration
   registrationPort: 10000
 
+customDiscovery:
+  # enabled defines whether to load a customDiscovery configuration
+  enabled: false
+  # name is the Kubernetes resource name that will be created for this
+  # customDiscovery configuration
+  name: akri-custom-discovery
+  # protocolName is the name of the protocol the Discovery Handler registers under
+  protocolName: 
+  # properties is a map of properties that will be passed to any instances
+  # created as a result of applying this customDiscovery configuration
+  properties:
+  # capacity is the capacity for any instances created as a result of
+  # applying this customDiscovery configuration
+  capacity: 1
+  # discoveryDetails is the map of discovery details that is 
+  # passed to the custom Discovery Handler
+  discoveryDetails:
+  # shared defines whether instances created as a result of
+  # applying this customDiscovery configuration as shared
+  shared: true
+  brokerPod:
+    # container used by customDiscovery
+    image:
+    # pullPolicy is the customDiscovery pull policy
+    pullPolicy: ""
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
+  instanceService:
+    # name is the description of the instance service
+    name: akri-custom-discovery-instance-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 6052
+    # targetPort is the service targetPort of the instance service
+    targetPort: 6052
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
+  configurationService:
+    # name is the description of the configuration service
+    name: akri-custom-discovery-configuration-service
+    # type is the service type of the instance service
+    type: ClusterIP
+    # port is the service port of the instance service
+    port: 6052
+    # targetPort is the service targetPort of the instance service
+    targetPort: 6052
+    # protocol is the service protocol of the instance service
+    protocol: TCP
+  # discovery defines a set of values for a customDiscovery discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: 
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set customDiscovery.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+
 debugEcho:
   # enabled defines whether to load a debugEcho configuration
   enabled: false
