@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-shared",
  "async-trait",
@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -1217,7 +1217,7 @@ dependencies = [
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -2423,7 +2423,7 @@ checksum = "10acf907b94fc1b1a152d08ef97e7759650268cf986bf127f387e602b02c7e5a"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2489,7 +2489,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -4561,7 +4561,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
