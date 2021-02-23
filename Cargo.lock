@@ -3274,6 +3274,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rscam"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89056084211cd54924fedf2e2199b906409d1f795cfd8e7e3271061742457018"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "rust-argon2"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4568,6 +4577,23 @@ dependencies = [
  "env_logger",
  "log",
  "tokio 0.2.25",
+]
+
+[[package]]
+name = "udev-video-broker"
+version = "0.2.0"
+dependencies = [
+ "akri-shared",
+ "env_logger",
+ "futures 0.1.31",
+ "lazy_static",
+ "log",
+ "prometheus",
+ "prost",
+ "rscam",
+ "tokio 0.2.25",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]

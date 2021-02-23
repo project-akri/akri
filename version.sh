@@ -124,7 +124,7 @@ if [ "$CHECK" == "1" ]; then
     echo "    Verified format: $BASEDIR/version.txt"
     fi
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/webhooks/validating/configuration/Cargo.toml $BASEDIR/discovery-utils/Cargo.toml $BASEDIR/discovery-handlers/debug-echo/Cargo.toml $BASEDIR/discovery-handlers/onvif/Cargo.toml $BASEDIR/discovery-handlers/opcua/Cargo.toml $BASEDIR/discovery-handlers/udev/Cargo.toml $BASEDIR/discovery-handler-modules/debug-echo-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/onvif-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/opcua-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/udev-discovery-handler/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml $BASEDIR/webhooks/validating/configuration/Cargo.toml $BASEDIR/discovery-utils/Cargo.toml $BASEDIR/discovery-handlers/debug-echo/Cargo.toml $BASEDIR/discovery-handlers/onvif/Cargo.toml $BASEDIR/discovery-handlers/opcua/Cargo.toml $BASEDIR/discovery-handlers/udev/Cargo.toml $BASEDIR/discovery-handler-modules/debug-echo-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/onvif-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/opcua-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/udev-discovery-handler/Cargo.toml"
     TOML_VERSION_PATTERN="^version"
     TOML_VERSION="\"$(echo $VERSION)\""
     for CARGO_FILE in $CARGO_FILES
@@ -187,7 +187,7 @@ then
     fi
     echo "Updating to version: $NEW_VERSION"
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/controller/Cargo.toml  $BASEDIR/webhooks/validating/configuration/Cargo.toml $BASEDIR/discovery-utils/Cargo.toml $BASEDIR/discovery-handlers/debug-echo/Cargo.toml $BASEDIR/discovery-handlers/onvif/Cargo.toml $BASEDIR/discovery-handlers/opcua/Cargo.toml $BASEDIR/discovery-handlers/udev/Cargo.toml $BASEDIR/discovery-handler-modules/debug-echo-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/onvif-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/opcua-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/udev-discovery-handler/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml $BASEDIR/webhooks/validating/configuration/Cargo.toml $BASEDIR/discovery-utils/Cargo.toml $BASEDIR/discovery-handlers/debug-echo/Cargo.toml $BASEDIR/discovery-handlers/onvif/Cargo.toml $BASEDIR/discovery-handlers/opcua/Cargo.toml $BASEDIR/discovery-handlers/udev/Cargo.toml $BASEDIR/discovery-handler-modules/debug-echo-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/onvif-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/opcua-discovery-handler/Cargo.toml $BASEDIR/discovery-handler-modules/udev-discovery-handler/Cargo.toml"
     TOML_VERSION_PATTERN="^version = .*"
     TOML_VERSION_LINE="version = \"$NEW_VERSION\""
     for CARGO_FILE in $CARGO_FILES
