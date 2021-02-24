@@ -260,15 +260,15 @@ endif
 webhook-configuration-docker-per-arch: webhook-configuration-docker-per-arch-amd64 webhook-configuration-docker-per-arch-arm32 webhook-configuration-docker-per-arch-arm64
 webhook-configuration-docker-per-arch-amd64:
 ifeq (1, ${BUILD_AMD64})
-  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+	docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX)
 endif
 webhook-configuration-docker-per-arch-arm32:
 ifeq (1, ${BUILD_ARM32})
-  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+	docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
 endif
 webhook-configuration-docker-per-arch-arm64:
 ifeq (1, ${BUILD_ARM64})
-  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+	docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
 endif
 
 streaming-docker-per-arch: streaming-docker-per-arch-amd64 streaming-docker-per-arch-arm32 streaming-docker-per-arch-arm64
