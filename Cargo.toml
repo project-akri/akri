@@ -4,4 +4,19 @@
 h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master" }
 
 [workspace]
-members = ["shared", "agent", "controller", "webhooks/validating/configuration", "samples/brokers/udev-video-broker", "discovery-utils", "discovery-handlers/debug-echo", "discovery-handlers/onvif", "discovery-handlers/opcua", "discovery-handlers/udev", "discovery-handler-modules/debug-echo-discovery-handler", "discovery-handler-modules/onvif-discovery-handler", "discovery-handler-modules/opcua-discovery-handler", "discovery-handler-modules/udev-discovery-handler"]
+members = [
+    "shared", 
+    "agent", 
+    "controller", 
+    "samples/brokers/udev-video-broker", 
+    "webhooks/validating/configuration",
+    "discovery-utils", 
+    "discovery-handlers/debug-echo", 
+    "discovery-handlers/onvif", 
+    "discovery-handlers/opcua", 
+    "discovery-handlers/udev", 
+    "discovery-handler-modules/debug-echo-discovery-handler", 
+    "discovery-handler-modules/onvif-discovery-handler", 
+    "discovery-handler-modules/opcua-discovery-handler", 
+    "discovery-handler-modules/udev-discovery-handler",
+]
