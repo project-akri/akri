@@ -22,11 +22,6 @@
 # build
 !samples/apps/video-streaming-app
 
-# The streaming app is built using a `docker build` command, so
-# the source code needs to be available to the container
-# build
-!discovery-handler-modules/*
-
 # The Rust binaries are not built with a `docker build`
 # command (they are built using Cargo Cross, which I think
 # uses a docker run).  Because of this, the Rust src and 
