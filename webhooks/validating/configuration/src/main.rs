@@ -97,13 +97,13 @@ fn check(
 }
 
 fn filter_configuration(mut v: Value) -> Value {
-    let metadata = v["metadata"].as_object_mut().expect("Object");
+    let metadata = v["metadata"].as_object_mut().unwrap();
     metadata.remove("creationTimestamp");
     metadata.remove("deletionTimestamp");
     metadata.remove("managedFields");
 
-    let generation = metadata.get_mut("generation").expect(".generation");
-    *generation = json!(generation.as_f64().expect("integer"));
+    let generation = metadata.get_mut("generation").unwrap();
+    *generation = json!(generation.as_f64().unwrap());
 
     v
 }
@@ -111,10 +111,12 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
     println!("Validating Configuration");
     match &rqst.object {
         Some(raw) => {
-            let x: RawExtension = serde_json::from_value(raw.clone()).expect("RawExtension");
-            let y = serde_json::to_string(&x).expect("success");
-            let c: KubeAkriConfig = serde_json::from_str(y.as_str()).expect("success");
-            let reserialized = serde_json::to_string(&c).expect("bytes");
+            let x: RawExtension = serde_json::from_value(raw.clone())
+                .expect("Could not parse as Kubernetes RawExtension");
+            let y = serde_json::to_string(&x).unwrap();
+            let c: KubeAkriConfig =
+                serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
+            let reserialized = serde_json::to_string(&c).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
 
             let v: Value = filter_configuration(raw.clone());
