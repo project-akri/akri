@@ -88,7 +88,7 @@ spec:
   capacity: {{ .Values.onvif.capacity }}
 {{- end }}
 ---
-{{- if .Values.agent.modular}}
+{{- if .Values.agent.slim}}
 {{- if .Values.onvif.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet

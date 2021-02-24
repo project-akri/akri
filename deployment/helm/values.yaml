@@ -62,8 +62,8 @@ controller:
 agent:
   # enabled defines whether to apply the Akri Agent
   enabled: true
-  # modular specifies that discovery handlers will be run outside of the Agent
-  modular: false
+  # slim specifies that discovery handlers will be run outside of the Agent
+  slim: false
   image:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
@@ -145,7 +145,7 @@ customDiscovery:
     protocol: TCP
   # discovery defines a set of values for a customDiscovery discovery handler DaemonSet
   discovery: 
-    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
       # repository is the container reference
@@ -205,7 +205,7 @@ debugEcho:
     protocol: TCP
   # discovery defines a set of values for a debugEcho discovery handler DaemonSet
   discovery: 
-    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
       # repository is the container reference
@@ -287,7 +287,7 @@ onvif:
     protocol: TCP
   # discovery defines a set of values for a onvif discovery handler DaemonSet
   discovery: 
-    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
       # repository is the container reference
@@ -368,7 +368,7 @@ opcua:
     protocol: TCP
   # discovery defines a set of values for a opcua discovery handler DaemonSet
   discovery: 
-    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
       # repository is the container reference
@@ -439,7 +439,7 @@ udev:
     protocol: TCP
   # discovery defines a set of values for a udev discovery handler DaemonSet
   discovery: 
-    # enabled defines whether discovery handler pods will be deployed in a modular Agent scenario
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
       # repository is the container reference

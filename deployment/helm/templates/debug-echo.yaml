@@ -52,7 +52,7 @@ spec:
   capacity: {{ .Values.debugEcho.capacity }}
 {{- end }}
 ---
-{{- if .Values.agent.modular}}
+{{- if .Values.agent.slim}}
 {{- if .Values.debugEcho.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet

@@ -97,7 +97,7 @@ spec:
   capacity: {{ .Values.opcua.capacity }}
 {{- end }}
 ---
-{{- if .Values.agent.modular}}
+{{- if .Values.agent.slim}}
 {{- if .Values.opcua.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet

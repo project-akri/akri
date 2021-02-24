@@ -72,7 +72,7 @@ spec:
   capacity: {{ .Values.udev.capacity }}
 {{- end }}
 ---
-{{- if .Values.agent.modular}}
+{{- if .Values.agent.slim}}
 {{- if .Values.udev.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet
