@@ -1,5 +1,5 @@
 {{- if .Values.debugEcho.enabled }}
-apiVersion: akri.sh/v0
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
   name: {{ .Values.debugEcho.name }}
@@ -17,7 +17,9 @@ spec:
     containers:
     - name: {{ .Values.debugEcho.name }}-broker
       image: {{ .Values.debugEcho.brokerPod.image | quote }}
-      imagePullPolicy: {{ .Values.debugEcho.pullPolicy }}
+      {{- with .Values.debugEcho.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       resources:
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"

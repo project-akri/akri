@@ -31,7 +31,9 @@ spec:
         image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
         {{- end }}
         {{- end }}
-        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        {{- with .Values.controller.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         {{- if .Values.prometheus.enabled }}
         ports:
           - name: {{ .Values.prometheus.portName | quote }}

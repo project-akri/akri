@@ -18,8 +18,8 @@ install-cross:
 #
 #    To make all platforms: `make akri`
 #    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri`
-#    To make single component: `make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection]`
-#    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection]`
+#    To make single component: `make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration]`
+#    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration]`
 #
 #
 .PHONY: akri
@@ -31,6 +31,7 @@ akri-onvif: akri-build akri-docker-onvif
 akri-streaming: akri-build akri-docker-streaming
 akri-opcua-monitoring: akri-docker-opcua-monitoring
 akri-anomaly-detection: akri-docker-anomaly-detection
+akri-webhook-configuration: akri-build akri-docker-webhook-configuration
 
 akri-build: install-cross akri-cross-build
 akri-docker: akri-docker-build akri-docker-push-per-arch akri-docker-push-multi-arch-create akri-docker-push-multi-arch-push
@@ -41,6 +42,7 @@ akri-docker-onvif: onvif-build onvif-docker-per-arch onvif-docker-multi-arch-cre
 akri-docker-streaming: streaming-build streaming-docker-per-arch streaming-docker-multi-arch-create streaming-docker-multi-arch-push
 akri-docker-opcua-monitoring: opcua-monitoring-build  opcua-monitoring-docker-per-arch opcua-monitoring-docker-multi-arch-create opcua-monitoring-docker-multi-arch-push
 akri-docker-anomaly-detection: anomaly-detection-build anomaly-detection-docker-per-arch anomaly-detection-docker-multi-arch-create anomaly-detection-docker-multi-arch-push
+akri-docker-webhook-configuration: webhook-configuration-build webhook-configuration-docker-per-arch webhook-configuration-docker-multi-arch-create webhook-configuration-docker-multi-arch-push
 
 akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
 akri-cross-build-amd64:
@@ -56,7 +58,7 @@ ifeq (1, ${BUILD_ARM64})
 	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM64V8_TARGET)
 endif
 
-akri-docker-build: controller-build agent-build udev-build onvif-build streaming-build opcua-monitoring-build anomaly-detection-build
+akri-docker-build: controller-build agent-build udev-build onvif-build streaming-build opcua-monitoring-build anomaly-detection-build webhook-configuration-build
 controller-build: controller-build-amd64 controller-build-arm32 controller-build-arm64
 controller-build-amd64:
 ifeq (1, ${BUILD_AMD64})
@@ -141,6 +143,20 @@ ifeq (1, ${BUILD_ARM64})
 	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.anomaly-detection-app . -t $(PREFIX)/anomaly-detection-app:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX)
 endif
 
+webhook-configuration-build: webhook-configuration-build-amd64 webhook-configuration-build-arm32 webhook-configuration-build-arm64
+webhook-configuration-build-amd64:
+ifeq (1, ${BUILD_AMD64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg PLATFORM=$(AMD64_SUFFIX)  --build-arg CROSS_BUILD_TARGET=$(AMD64_TARGET)
+endif
+webhook-configuration-build-arm32:
+ifeq (1, ${BUILD_ARM32})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM32V7_TARGET)
+endif
+webhook-configuration-build-arm64:
+ifeq (1, ${BUILD_ARM64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.webhook-configuration . -t $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM64V8_TARGET)
+endif
+
 streaming-build: streaming-build-amd64 streaming-build-arm32 streaming-build-arm64
 streaming-build-amd64:
 ifeq (1, ${BUILD_AMD64})
@@ -155,7 +171,7 @@ ifeq (1, ${BUILD_ARM64})
 	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.video-streaming-app . -t $(PREFIX)/video-streaming-app:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX)
 endif
 
-akri-docker-push-per-arch: controller-docker-per-arch agent-docker-per-arch udev-docker-per-arch onvif-docker-per-arch streaming-docker-per-arch opcua-monitoring-docker-per-arch anomaly-detection-docker-per-arch
+akri-docker-push-per-arch: controller-docker-per-arch agent-docker-per-arch udev-docker-per-arch onvif-docker-per-arch streaming-docker-per-arch opcua-monitoring-docker-per-arch anomaly-detection-docker-per-arch webhook-configuration-docker-per-arch
 
 controller-docker-per-arch: controller-docker-per-arch-amd64 controller-docker-per-arch-arm32 controller-docker-per-arch-arm64
 controller-docker-per-arch-amd64:
@@ -241,6 +257,20 @@ ifeq (1, ${BUILD_ARM64})
 	docker push $(PREFIX)/anomaly-detection-app:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
 endif
 
+webhook-configuration-docker-per-arch: webhook-configuration-docker-per-arch-amd64 webhook-configuration-docker-per-arch-arm32 webhook-configuration-docker-per-arch-arm64
+webhook-configuration-docker-per-arch-amd64:
+ifeq (1, ${BUILD_AMD64})
+  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+endif
+webhook-configuration-docker-per-arch-arm32:
+ifeq (1, ${BUILD_ARM32})
+  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+endif
+webhook-configuration-docker-per-arch-arm64:
+ifeq (1, ${BUILD_ARM64})
+  docker push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+endif
+
 streaming-docker-per-arch: streaming-docker-per-arch-amd64 streaming-docker-per-arch-arm32 streaming-docker-per-arch-arm64
 streaming-docker-per-arch-amd64:
 ifeq (1, ${BUILD_AMD64})
@@ -323,6 +353,17 @@ ifeq (1, ${BUILD_ARM64})
 	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/anomaly-detection-app:$(LABEL_PREFIX) $(PREFIX)/anomaly-detection-app:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
 endif
 
+webhook-configuration-docker-multi-arch-create:
+ifeq (1, ${BUILD_AMD64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/webhook-configuration:$(LABEL_PREFIX) $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+endif
+ifeq (1, ${BUILD_ARM32})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/webhook-configuration:$(LABEL_PREFIX) $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+endif
+ifeq (1, ${BUILD_ARM64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/webhook-configuration:$(LABEL_PREFIX) $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+endif
+
 streaming-docker-multi-arch-create:
 ifeq (1, ${BUILD_AMD64})
 	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/video-streaming-app:$(LABEL_PREFIX) $(PREFIX)/video-streaming-app:$(LABEL_PREFIX)-$(AMD64_SUFFIX)
@@ -334,7 +375,7 @@ ifeq (1, ${BUILD_ARM64})
 	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/video-streaming-app:$(LABEL_PREFIX) $(PREFIX)/video-streaming-app:$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
 endif
 
-akri-docker-push-multi-arch-push: controller-docker-multi-arch-push agent-docker-multi-arch-push udev-docker-multi-arch-push onvif-docker-multi-arch-push streaming-docker-multi-arch-push opcua-monitoring-docker-multi-arch-push anomaly-detection-docker-multi-arch-push
+akri-docker-push-multi-arch-push: controller-docker-multi-arch-push agent-docker-multi-arch-push udev-docker-multi-arch-push onvif-docker-multi-arch-push streaming-docker-multi-arch-push opcua-monitoring-docker-multi-arch-push anomaly-detection-docker-multi-arch-push webhook-configuration-docker-multi-arch-push
 
 controller-docker-multi-arch-push:
 	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/controller:$(LABEL_PREFIX)
@@ -348,6 +389,8 @@ opcua-monitoring-docker-multi-arch-push:
 	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/opcua-monitoring-broker:$(LABEL_PREFIX)
 anomaly-detection-docker-multi-arch-push:
 	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/anomaly-detection-app:$(LABEL_PREFIX)
+webhook-configuration-docker-multi-arch-push:
+	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/webhook-configuration:$(LABEL_PREFIX)
 streaming-docker-multi-arch-push:
 	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/video-streaming-app:$(LABEL_PREFIX)
 

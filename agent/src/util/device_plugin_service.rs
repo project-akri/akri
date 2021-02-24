@@ -995,7 +995,7 @@ mod device_plugin_service_tests {
     use akri_shared::akri::configuration::KubeAkriConfig;
     use akri_shared::{
         akri::instance::{Instance, KubeAkriInstance},
-        k8s::test_kube::MockKubeImpl,
+        k8s::MockKubeInterface,
     };
     use mockall::predicate::*;
     use std::{
@@ -1016,7 +1016,7 @@ mod device_plugin_service_tests {
     }
 
     fn configure_find_instance(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         result_file: &'static str,
         instance_name: String,
         instance_namespace: String,
@@ -1129,7 +1129,7 @@ mod device_plugin_service_tests {
     }
 
     fn configure_find_configuration(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         config_name: String,
         config_namespace: String,
     ) {
@@ -1154,7 +1154,7 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
             device_plugin_service.config_name.clone(),
@@ -1202,7 +1202,7 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
             device_plugin_service.config_name.clone(),
@@ -1245,7 +1245,7 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
             device_plugin_service.config_name.clone(),
@@ -1278,7 +1278,7 @@ mod device_plugin_service_tests {
             create_device_plugin_service(ConnectivityStatus::Online, false);
         let config_name = device_plugin_service.config_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         mock.expect_find_configuration()
             .times(1)
             .withf(move |name: &str, namespace: &str| {
@@ -1301,7 +1301,7 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, false);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
             device_plugin_service.config_name.clone(),
@@ -1451,7 +1451,7 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Offline(Instant::now()), true);
-        let mock = MockKubeImpl::new();
+        let mock = MockKubeInterface::new();
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
                 .await
@@ -1469,7 +1469,7 @@ mod device_plugin_service_tests {
             create_device_plugin_service(ConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         mock.expect_find_instance()
             .times(1)
             .withf(move |name: &str, namespace: &str| {
@@ -1496,7 +1496,7 @@ mod device_plugin_service_tests {
             create_device_plugin_service(ConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_instance(
             &mut mock,
             "../test/json/local-instance.json",
@@ -1522,7 +1522,7 @@ mod device_plugin_service_tests {
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let node_name = device_plugin_service.node_name.clone();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_instance(
             &mut mock,
             "../test/json/local-instance.json",
@@ -1563,7 +1563,7 @@ mod device_plugin_service_tests {
             create_device_plugin_service(ConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_instance(
             &mut mock,
             "../test/json/local-instance.json",
@@ -1615,7 +1615,7 @@ mod device_plugin_service_tests {
         let (device_plugin_service, mut device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_instance(
             &mut mock,
             "../test/json/local-instance.json",
@@ -1654,7 +1654,7 @@ mod device_plugin_service_tests {
         let (device_plugin_service, mut device_plugin_service_receivers) =
             create_device_plugin_service(ConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-100", device_plugin_service.instance_name);
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_find_instance(
             &mut mock,
             "../test/json/local-instance.json",

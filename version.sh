@@ -124,7 +124,7 @@ if [ "$CHECK" == "1" ]; then
     echo "    Verified format: $BASEDIR/version.txt"
     fi
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml $BASEDIR/webhooks/validating/configuration/Cargo.toml"
     TOML_VERSION_PATTERN="^version"
     TOML_VERSION="\"$(echo $VERSION)\""
     for CARGO_FILE in $CARGO_FILES
@@ -156,13 +156,9 @@ if [ "$CHECK" == "1" ]; then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml $BASEDIR/deployment/helm/templates/opcua.yaml"
-    YAML_VERSION_PATTERN="^apiVersion: akri.sh/"
-    for YAML_FILE in $YAML_FILES
-    do
-        check_file_version "$YAML_FILE" "$YAML_VERSION_PATTERN" "$CRD_VERSION"
-        if [ "$?" -eq "1" ]; then exit 1; fi
-    done
+    HELM_VALUES="$BASEDIR/deployment/helm/values.yaml"
+    check_twoline_version "$HELM_VALUES" "group: akri.sh" "version: $CRD_VERSION"
+    if [ "$?" -eq "1" ]; then exit 1; fi
 
     HELM_FILES="$BASEDIR/deployment/helm/Chart.yaml"
     for HELM_FILE in $HELM_FILES
@@ -191,7 +187,7 @@ then
     fi
     echo "Updating to version: $NEW_VERSION"
 
-    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml"
+    CARGO_FILES="$BASEDIR/shared/Cargo.toml $BASEDIR/controller/Cargo.toml $BASEDIR/agent/Cargo.toml $BASEDIR/samples/brokers/udev-video-broker/Cargo.toml  $BASEDIR/webhooks/validating/configuration/Cargo.toml"
     TOML_VERSION_PATTERN="^version = .*"
     TOML_VERSION_LINE="version = \"$NEW_VERSION\""
     for CARGO_FILE in $CARGO_FILES
@@ -230,14 +226,11 @@ then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    YAML_FILES="$BASEDIR/deployment/helm/templates/debug-echo.yaml $BASEDIR/deployment/helm/templates/onvif.yaml $BASEDIR/deployment/helm/templates/udev.yaml $BASEDIR/deployment/helm/templates/opcua.yaml"
-    YAML_VERSION_PATTERN="^apiVersion: akri.sh\/.*"
-    YAML_VERSION_LINE="apiVersion: akri.sh\/$CRD_VERSION"
-    for YAML_FILE in $YAML_FILES
-    do
-        update_file_version "$YAML_FILE" "$YAML_VERSION_PATTERN" "$YAML_VERSION_LINE"
-        if [ "$?" -eq "1" ]; then exit 1; fi
-    done
+    HELM_VALUES="$BASEDIR/deployment/helm/values.yaml"
+    HELM_VERSION_PATTERN="^  version: .*"
+    HELM_VERSION_LINE="  version: $CRD_VERSION"
+    update_twoline_version "$HELM_VALUES" "group: akri.sh" "$HELM_VERSION_PATTERN" "group: akri.sh" "$HELM_VERSION_LINE"
+    if [ "$?" -eq "1" ]; then exit 1; fi
 
     HELM_FILES="$BASEDIR/deployment/helm/Chart.yaml"
     for HELM_FILE in $HELM_FILES

@@ -1,5 +1,5 @@
 {{- if .Values.udev.enabled }}
-apiVersion: akri.sh/v0
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
   name: {{ .Values.udev.name }}
@@ -14,7 +14,9 @@ spec:
     containers:
     - name: {{ .Values.udev.name }}-broker
       image: {{ .Values.udev.brokerPod.image.repository | quote }}
-      imagePullPolicy: {{ .Values.udev.brokerPod.image.pullPolicy }}
+      {{- with .Values.udev.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
       {{- if .Values.udev.brokerPod.env }}
       env:
         {{- range $key, $val := .Values.udev.brokerPod.env }}

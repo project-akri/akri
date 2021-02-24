@@ -300,7 +300,7 @@ async fn handle_deletion_work(
 #[cfg(test)]
 mod handle_deletion_work_tests {
     use super::*;
-    use akri_shared::k8s::test_kube::MockKubeImpl;
+    use akri_shared::k8s::MockKubeInterface;
 
     #[tokio::test]
     async fn test_handle_deletion_work_with_no_node_name() {
@@ -318,7 +318,7 @@ mod handle_deletion_work_tests {
             true,
             "node_to_delete_pod",
             &context,
-            &MockKubeImpl::new(),
+            &MockKubeInterface::new(),
         )
         .await
         .is_err());
@@ -340,7 +340,7 @@ mod handle_deletion_work_tests {
             true,
             "node_to_delete_pod",
             &context,
-            &MockKubeImpl::new(),
+            &MockKubeInterface::new(),
         )
         .await
         .is_err());
@@ -553,7 +553,7 @@ mod handle_instance_tests {
     use super::*;
     use akri_shared::{
         akri::instance::KubeAkriInstance,
-        k8s::{pod::AKRI_INSTANCE_LABEL_NAME, test_kube::MockKubeImpl},
+        k8s::{pod::AKRI_INSTANCE_LABEL_NAME, MockKubeInterface},
         os::file,
     };
     use chrono::prelude::*;
@@ -561,7 +561,7 @@ mod handle_instance_tests {
     use mockall::predicate::*;
 
     fn configure_find_pods_with_phase(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_selector: &'static str,
         result_file: &'static str,
         specified_phase: &'static str,
@@ -585,7 +585,7 @@ mod handle_instance_tests {
     }
 
     fn configure_find_pods_with_phase_and_start_time(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_selector: &'static str,
         result_file: &'static str,
         specified_phase: &'static str,
@@ -617,7 +617,7 @@ mod handle_instance_tests {
     }
 
     fn configure_find_pods_with_phase_and_no_start_time(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_selector: &'static str,
         result_file: &'static str,
         specified_phase: &'static str,
@@ -653,7 +653,10 @@ mod handle_instance_tests {
         addition_work: Option<HandleAdditionWork>,
     }
 
-    fn configure_for_handle_instance_change(mock: &mut MockKubeImpl, work: &HandleInstanceWork) {
+    fn configure_for_handle_instance_change(
+        mock: &mut MockKubeInterface,
+        work: &HandleInstanceWork,
+    ) {
         if let Some(phase) = work.find_pods_phase {
             if let Some(start_time) = work.find_pods_start_time {
                 configure_find_pods_with_phase_and_start_time(
@@ -726,7 +729,7 @@ mod handle_instance_tests {
         }
     }
 
-    fn configure_for_handle_deletion_work(mock: &mut MockKubeImpl, work: &HandleDeletionWork) {
+    fn configure_for_handle_deletion_work(mock: &mut MockKubeInterface, work: &HandleDeletionWork) {
         for i in 0..work.broker_pod_names.len() {
             let broker_pod_name = work.broker_pod_names[i];
             let cleanup_namespace = work.cleanup_namespaces[i];
@@ -767,7 +770,7 @@ mod handle_instance_tests {
         }
     }
 
-    fn configure_for_handle_addition_work(mock: &mut MockKubeImpl, work: &HandleAdditionWork) {
+    fn configure_for_handle_addition_work(mock: &mut MockKubeInterface, work: &HandleAdditionWork) {
         for i in 0..work.new_pod_names.len() {
             config_for_tests::configure_add_pod(
                 mock,
@@ -780,7 +783,7 @@ mod handle_instance_tests {
     }
 
     async fn run_handle_instance_change_test(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         instance_file: &'static str,
         action: &'static InstanceAction,
     ) {
@@ -804,7 +807,7 @@ mod handle_instance_tests {
     async fn test_internal_handle_existing_instances_no_instances() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         config_for_tests::configure_get_instances(&mut mock, "../test/json/empty-list.json", false);
         internal_handle_existing_instances(&mock).await.unwrap();
     }
@@ -813,7 +816,7 @@ mod handle_instance_tests {
     async fn test_handle_instance_change_for_add_new_local_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -838,7 +841,7 @@ mod handle_instance_tests {
     async fn test_handle_instance_change_for_remove_running_local_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -863,7 +866,7 @@ mod handle_instance_tests {
     async fn test_handle_instance_change_for_add_new_shared_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -890,7 +893,7 @@ mod handle_instance_tests {
     async fn test_handle_instance_change_for_remove_running_shared_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -915,7 +918,7 @@ mod handle_instance_tests {
     async fn test_handle_instance_change_for_update_active_shared_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -970,7 +973,7 @@ mod handle_instance_tests {
             })
             .collect::<HashMap<String, String>>();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {
@@ -1002,7 +1005,7 @@ mod handle_instance_tests {
             .with_label_values(&["config-a", "node-a"])
             .set(0);
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_instance_change(
             &mut mock,
             &HandleInstanceWork {

@@ -5,11 +5,13 @@
   <body>
     <div style="max-width: 800px;  margin: auto;text-align:center">
       <h1>Akri Demo</h1>
+      {%if camera_count > 0 %}
       <div style="display: inline-block;clear:both;margin-bottom:30px">
         <img src="{{ url_for('camera_frame_feed', camera_id = 0) }}" style="width:480px">
       </div>
+      {%endif%}
       <ul style="display: block;list-style-type: none;padding:0;">
-        {%for camera_id in range(1, camera_count + 1)%}
+        {%for camera_id in range(1, camera_count)%}
         <li style="display: inline-block; padding: 0 25">
           <img src="{{ url_for('camera_frame_feed', camera_id = camera_id) }}" style="width:200px">
         </li>
@@ -17,10 +19,10 @@
       </ul>
     </div>
     <script>
-    var last_camera_list = ""
+    var last_camera_list = "{{ camera_list }}"
     function refresh_on_device_change() {
       fetch('/camera_list').then(resp => resp.text()).then(new_camera_list => {
-        if (new_camera_list != last_camera_list && last_camera_list != "") {
+        if (new_camera_list != last_camera_list) {
           window.location.reload(false);
         } else {
           last_camera_list = new_camera_list;

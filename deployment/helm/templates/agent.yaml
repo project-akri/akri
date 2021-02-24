@@ -36,7 +36,9 @@ spec:
         image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- end }}
-        imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+        {{- with .Values.agent.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         {{- if .Values.agent.securityContext }}
         securityContext:
         {{- toYaml .Values.agent.securityContext | nindent 10 }}
