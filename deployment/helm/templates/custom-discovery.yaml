@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.customDiscovery.name }}
 spec:
   protocol: 
-    name: {{ .Values.customDiscovery.protocolName }}
+    name: {{ required "A customDiscovery.protocolName is required." .Values.customDiscovery.protocolName }}
     discoveryDetails:
       {{- range $key, $val := .Values.customDiscovery.discoveryDetails }}
       {{ $key }}: {{ $val }}
@@ -59,19 +59,18 @@ spec:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: akri-custom-discovery-discovery-daemonset
-spec:
+  name: {{ printf "%s-discovery-daemonset" .Values.customDiscovery.name | quote }}
   selector:
     matchLabels:
-      name: akri-custom-discovery-discovery
+      name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
   template:
     metadata:
       labels:
-        name: akri-custom-discovery-discovery
+        name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
     spec:
       containers:
-      - name: akri-custom-discovery-discovery
-        image: {{ .Values.customDiscovery.discovery.image.repository | quote }}
+      - name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+        image: {{ required "A customDiscovery.discovery.image is required." .Values.customDiscovery.discovery.image.repository | quote }}
         {{- with .Values.customDiscovery.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
