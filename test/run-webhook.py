@@ -271,7 +271,8 @@ def do_test() -> bool:
                                             plural="configurations",
                                             body=body)
     except ApiException as e:
-        print("As expected, Invalid Akr Configuration generates API Exception")
+        print(
+            "As expected, Invalid Akri Configuration generates API Exception")
         print("Status Code: {} [{}]", e.status, e.reason)
         print("Response: {}".format(e.body))
         res = True
