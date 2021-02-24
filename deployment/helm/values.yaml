@@ -304,3 +304,29 @@ udev:
     targetPort: 8083
     # protocol is the service protocol of the instance service
     protocol: TCP
+
+# Admission Controllers (Webhooks)
+webhookConfiguration:
+  # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
+  enabled: false
+  # name of the webhook
+  name: akri-webhook-configuration
+  # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate
+  caBundle: null
+  image:
+    # repository is the Akri Webhook for Configurations image reference
+    repository: ghcr.io/deislabs/akri/webhook-configuration
+    tag:
+    # pullPolicy is the Akri Controller pull policy
+    pullPolicy: Always
+  # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
+  # the label with (key, value) of ("node-role.kubernetes.io/master", "")
+  onlyOnControlPlane: false
+  # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Controller 
+  # to run on the control plane node
+  allowOnControlPlane: true
+  # linuxOnly dictates whether the Akri Controller will only run on a linux node
+  linuxOnly: true
+  # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
+  # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
+  nodeSelectors: {}

@@ -9,6 +9,7 @@ on:
       - test/run-end-to-end.py
       - test/run-conservation-of-broker-pod.py
       - test/run-helm-install-delete.py
+      - test/run-webhook.py
       - test/shared_test_code.py
       - .github/workflows/run-test-cases.yml
       - build/containers/Dockerfile.agent
@@ -26,6 +27,7 @@ on:
       - test/run-end-to-end.py
       - test/run-conservation-of-broker-pod.py
       - test/run-helm-install-delete.py
+      - test/run-webhook.py
       - test/shared_test_code.py
       - .github/workflows/run-test-cases.yml
       - build/containers/Dockerfile.agent
@@ -64,8 +66,10 @@ jobs:
           make akri-build
           make controller-build-amd64
           make agent-build-amd64
+          make webhook-configuration-build-amd64
           docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
+          docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX}-amd64 > webhook-configuration.tar
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
@@ -79,6 +83,12 @@ jobs:
         with:
           name: controller.tar
           path: controller.tar
+      - name: Upload Webhook-Configuration container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v2
+        with:
+          name: webhook-configuration.tar
+          path: webhook-configuration.tar
 
   test-cases:
     needs: build-containers
@@ -137,6 +147,8 @@ jobs:
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
+          - case: webhook
+            file: test/run-webhook.py
 
     steps:
       - name: Checkout the head commit of the branch
@@ -163,6 +175,11 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: controller.tar
+      - name: Download Webhook-Configuration container artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/download-artifact@v2
+        with:
+          name: webhook-configuration.tar
 
       - if: startsWith(matrix.kube.runtime, 'K3s')
         name: Install K3s
@@ -197,6 +214,7 @@ jobs:
         run: |
           sudo k3s ctr image import agent.tar
           sudo k3s ctr image import controller.tar
+          sudo k3s ctr image import webhook-configuration.tar
 
       - if: startsWith(matrix.kube.runtime, 'Kubernetes')
         name: Install Kubernetes
@@ -222,6 +240,7 @@ jobs:
         run: |
           sudo docker load --input agent.tar
           sudo docker load --input controller.tar
+          sudo docker load --input webhook-configuration.tar
 
       - if: startsWith(matrix.kube.runtime, 'MicroK8s')
         name: Install MicroK8s
@@ -234,7 +253,6 @@ jobs:
           sudo chown -f -R $USER $HOME/.kube --verbose
           sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
           sudo cat ~/.kube/config
-          # sudo microk8s.enable helm3
           sudo microk8s.enable rbac
           sudo microk8s.enable dns
           until sudo microk8s.status --wait-ready; do sleep 5s; echo "Try again"; done
@@ -253,6 +271,7 @@ jobs:
           sudo microk8s ctr images ls
           sudo microk8s ctr --debug --timeout 10s images import agent.tar
           sudo microk8s ctr --debug --timeout 10s images import controller.tar
+          sudo microk8s ctr --debug --timeout 10s images import webhook-configuration.tar
           sudo microk8s ctr images ls
 
       - name: Add Akri Helm Chart
@@ -270,7 +289,7 @@ jobs:
         run: |
           git fetch origin main
           git show origin/main:version.txt > /tmp/version_to_test.txt
-          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
+          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64,webhookConfiguration.image.pullPolicy=Never,webhookConfiguration.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
       # For non-PR (i.e. push, release, manual), version.txt is corresponds
       # to an existing Helm chart.
       - if: (!(startsWith(github.event_name, 'pull_request')))
@@ -311,3 +330,9 @@ jobs:
         with:
           name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-controller-log
           path: /tmp/controller_log.txt
+      - name: Upload webhook log as artifact
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-webhook-log
+          path: /tmp/webhook_log.txt
