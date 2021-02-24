@@ -1,5 +1,4 @@
 use super::{
-    constants::DEVICE_PLUGIN_PATH,
     device_plugin_service,
     device_plugin_service::InstanceMap,
     discovery_operator::start_discovery::{start_discovery, DiscoveryOperator},
@@ -196,12 +195,8 @@ async fn handle_config_add(
     let config = config.clone();
     // Keep discovering instances until the config is deleted, signaled by a message from handle_config_delete
     tokio::spawn(async move {
-        let discovery_operator = DiscoveryOperator::new(
-            discovery_handler_map,
-            config,
-            instance_map,
-            DEVICE_PLUGIN_PATH.to_string(),
-        );
+        let discovery_operator =
+            DiscoveryOperator::new(discovery_handler_map, config, instance_map);
         start_discovery(
             discovery_operator,
             new_discovery_handler_sender,

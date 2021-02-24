@@ -1,5 +1,5 @@
 use super::{
-    constants::{K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET},
+    constants::{DEVICE_PLUGIN_PATH, K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET},
     device_plugin_service::{DevicePluginService, InstanceMap},
     v1beta1,
     v1beta1::{device_plugin_server::DevicePluginServer, registration_client, DevicePluginOptions},
@@ -33,7 +33,6 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         config: &KubeAkriConfig,
         shared: bool,
         instance_map: InstanceMap,
-        device_plugin_path: &str,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 }
@@ -50,14 +49,13 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         config: &KubeAkriConfig,
         shared: bool,
         instance_map: InstanceMap,
-        device_plugin_path: &str,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!("build_device_plugin - entered for device {}", instance_name);
         let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
         let device_endpoint: String = format!("{}-{}.sock", instance_name, unique_time.as_secs());
-        let socket_path: String = Path::new(device_plugin_path)
+        let socket_path: String = Path::new(DEVICE_PLUGIN_PATH)
             .join(device_endpoint.clone())
             .to_str()
             .unwrap()

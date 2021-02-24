@@ -52,10 +52,13 @@ pub enum StreamType {
 /// tested on a DiscoveryOperator.
 #[derive(Clone)]
 pub struct DiscoveryOperator {
+    /// Map of registered discovery handlers
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    /// The Akri Configuration associated with this `DiscoveryOperator`.
+    /// The Configuration tells the `DiscoveryOperator` what to look for.
     config: KubeAkriConfig,
+    /// Map of Akri Instances discovered by this `DiscoveryOperator`
     instance_map: InstanceMap,
-    device_plugin_path: String,
 }
 
 #[cfg_attr(test, automock)]
@@ -64,13 +67,11 @@ impl DiscoveryOperator {
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         config: KubeAkriConfig,
         instance_map: InstanceMap,
-        device_plugin_path: String,
     ) -> Self {
         DiscoveryOperator {
             discovery_handler_map,
             config,
             instance_map,
-            device_plugin_path,
         }
     }
     /// Returns discovery_handler_map field. Allows the struct to be mocked.
@@ -87,11 +88,6 @@ impl DiscoveryOperator {
     #[allow(dead_code)]
     pub fn get_instance_map(&self) -> InstanceMap {
         self.instance_map.clone()
-    }
-    /// Returns device_plugin_path field. Allows the struct to be mocked.
-    #[allow(dead_code)]
-    pub fn get_device_plugin_path(&self) -> String {
-        self.device_plugin_path.clone()
     }
     #[allow(dead_code)]
     pub async fn stop_all_discovery(&self) {
@@ -384,7 +380,6 @@ impl DiscoveryOperator {
                         &self.config,
                         !is_local,
                         instance_map,
-                        &self.device_plugin_path,
                         discovery_result.clone(),
                     )
                     .await
@@ -789,7 +784,6 @@ pub mod tests {
     };
     use mockall::Sequence;
     use std::time::Duration;
-    use tempfile::Builder;
 
     pub async fn build_instance_map(
         config: &KubeAkriConfig,
@@ -853,15 +847,12 @@ pub mod tests {
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         config: KubeAkriConfig,
         instance_map: InstanceMap,
-        device_plugin_path: &str,
-        // stream_type: Option<StreamType>
     ) -> MockDiscoveryOperator {
         let ctx = MockDiscoveryOperator::new_context();
         let discovery_handler_map_clone = discovery_handler_map.clone();
         let config_clone = config.clone();
         let instance_map_clone = instance_map.clone();
-        let device_plugin_path_clone = device_plugin_path.to_string();
-        ctx.expect().return_once(move |_, _, _, _| {
+        ctx.expect().return_once(move |_, _, _| {
             // let mut discovery_handler_status_seq = Sequence::new();
             let mut mock = MockDiscoveryOperator::default();
             mock.expect_get_discovery_handler_map()
@@ -869,16 +860,9 @@ pub mod tests {
             mock.expect_get_config().return_once(move || config_clone);
             mock.expect_get_instance_map()
                 .return_once(move || instance_map_clone);
-            mock.expect_get_device_plugin_path()
-                .return_once(move || device_plugin_path_clone);
             mock
         });
-        let mock = MockDiscoveryOperator::new(
-            discovery_handler_map,
-            config,
-            instance_map,
-            device_plugin_path.to_string(),
-        );
+        let mock = MockDiscoveryOperator::new(discovery_handler_map, config, instance_map);
         mock
     }
 
@@ -924,7 +908,6 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random",
         )
     }
 
@@ -1048,13 +1031,12 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random_path".to_string(),
         ));
         let mut mock_device_plugin_builder = MockDevicePluginBuilderInterface::new();
         mock_device_plugin_builder
             .expect_build_device_plugin()
             .times(2)
-            .returning(move |_, _, _, _, _, _| Ok(()));
+            .returning(move |_, _, _, _, _| Ok(()));
         discovery_operator
             .handle_discovery_results(
                 mock_kube_interface,
@@ -1196,13 +1178,10 @@ pub mod tests {
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         mock: MockKubeInterface,
     ) {
-        let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
-        let device_plugin_temp_dir_path = device_plugin_temp_dir.path().to_str().unwrap();
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
             instance_map.clone(),
-            device_plugin_temp_dir_path.to_string(),
         ));
         discovery_operator
             .update_connectivity_status(
@@ -1227,7 +1206,6 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random".to_string(),
         );
         // Test that an online discovery handler is marked HasClient
         discovery_operator.set_discovery_handler_connectivity_status(
@@ -1282,7 +1260,6 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random".to_string(),
         );
         // Test that an online discovery handler is marked offline
         assert_eq!(
@@ -1345,7 +1322,6 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random".to_string(),
         );
         // test embedded debugEcho socket
         if let Some(StreamType::Internal(_)) =
@@ -1390,7 +1366,6 @@ pub mod tests {
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            "random".to_string(),
         );
         // Should not be able to get stream if DH is not running
         assert!(discovery_operator
