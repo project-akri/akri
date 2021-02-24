@@ -9,8 +9,6 @@ edition = "2018"
 [dependencies]
 prost = "0.6"
 tonic = { version = "0.1.0", features = ["tls"] }
-
-# for run_discovery_server
 akri-shared = { path = "../shared" }
 async-trait = { version = "0.1.0", optional = true }
 futures = { version = "0.3.1", package = "futures" }

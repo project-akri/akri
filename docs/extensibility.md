@@ -21,7 +21,7 @@ cargo install cargo-generate
 cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-http-discovery-handler
 ```
 ### Specify the protocol name and locality of the devices it discovers
-Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to register our DiscoveryHandler with the Akri Agent. We only need to specify the protocol name and locality of our Discovery Handler. Set the protocol name to `http` and `is_local` to false, as out HTTP Discovery Handler will discover devices that can be shared between nodes. Note how the protocol name also resolves to the name of the socket the Discovery Handler will run on.
+Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to register our DiscoveryHandler with the Akri Agent. We only need to specify the protocol name and locality of our Discovery Handler. Set the protocol name to `http` and `is_local` to false, as out HTTP Discovery Handler will discover devices that can be shared between nodes. The protocol name also resolves to the name of the socket the Discovery Handler will run on.
 
 ### Decide what information is passed via an Akri Configuration
 Akri's Configuration CRD takes in a [`ProtocolHandler`](../shared/src/akri/configuration.rs), which is defined structurally as follows:

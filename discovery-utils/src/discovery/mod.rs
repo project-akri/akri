@@ -9,6 +9,57 @@ pub const DISCOVERY_HANDLER_PATH: &str = "/var/lib/akri";
 /// Definition of the DiscoverStream type expected for supported embedded Akri DiscoveryHandlers
 pub type DiscoverStream = tokio::sync::mpsc::Receiver<Result<v0::DiscoverResponse, tonic::Status>>;
 
+pub mod discovery_handler {
+    use super::super::registration_client::{register, register_again};
+    use super::{
+        server::run_discovery_server,
+        v0::{discovery_server::Discovery, RegisterRequest},
+        DISCOVERY_HANDLER_PATH,
+    };
+    use log::trace;
+    use tokio::sync::mpsc;
+    const DISCOVERY_PORT: i16 = 10000;
+    pub async fn run_discovery_handler(
+        discovery_handler: impl Discovery,
+        register_receiver: mpsc::Receiver<()>,
+        protocol_name: &str,
+        is_local: bool,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let mut use_uds = true;
+        let mut endpoint: String = match std::env::var("POD_IP") {
+            Ok(pod_ip) => {
+                trace!("main - registering with Agent with IP endpoint");
+                use_uds = false;
+                format!("{}:{}", pod_ip, DISCOVERY_PORT)
+            }
+            Err(_) => {
+                trace!("main - registering with Agent with uds endpoint");
+                format!("{}/{}.sock", DISCOVERY_HANDLER_PATH, protocol_name)
+            }
+        };
+        let endpoint_clone = endpoint.clone();
+        let discovery_handle = tokio::spawn(async move {
+            run_discovery_server(discovery_handler, &endpoint_clone)
+                .await
+                .unwrap();
+        });
+        if !use_uds {
+            endpoint.insert_str(0, "http://");
+        }
+        let register_request = RegisterRequest {
+            protocol: protocol_name.to_string(),
+            endpoint,
+            is_local,
+        };
+        register(&register_request).await?;
+        let registration_handle = tokio::spawn(async move {
+            register_again(register_receiver, &register_request).await;
+        });
+        tokio::try_join!(discovery_handle, registration_handle)?;
+        Ok(())
+    }
+}
+
 #[cfg(any(feature = "mock-discovery-handler", test))]
 pub mod mock_discovery_handler {
     use super::v0::{discovery_server::Discovery, DiscoverRequest, DiscoverResponse};
