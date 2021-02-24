@@ -31,6 +31,16 @@ To ensure that all product versioning is consistent, our CI builds will execute 
 
 > Note for MacOS users: `version.sh` uses the GNU `sed` command under-the-hood, but MacOS has built-in its own version. We recommend installing the GNU version via `brew install gnu-sed`. Then follow the brew instructions on how to use the installed GNU `sed` instead of the MacOS one.
 
+## Logging
+Akri follows similar logging conventions as defined by the [Tracing crate](https://docs.rs/tracing/0.1.22/tracing/struct.Level.html). When adding logging to new code, follow the verbosity guidelines. 
+| verbosity |  when to use?  |
+|---|---|
+| error | Unrecoverable fatal errors |
+| warn  | Unexpected errors that may/may not lead to serious problems |
+| info  | Useful information that provides an overview of the current state of things (ex: config values, state change) |
+| debug | Verbose information for high-level debugging and diagnoses of issues |
+| trace | Extremely verbose information for developers of akri |
+
 ## PR title flags
 Akri's workflows check for three flags in the titles of PRs in order to decide whether to execute certain checks. 
 
