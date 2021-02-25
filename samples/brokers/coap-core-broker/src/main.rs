@@ -1,7 +1,10 @@
+mod http_coap;
+
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use coap::CoAPClient;
-use coap_lite::{MessageClass, ResponseType};
+use coap_lite::{ContentFormat, MessageClass, Packet, ResponseType};
 use futures::{FutureExt, SinkExt, StreamExt};
+use http_coap::coap_to_http;
 use log::{debug, info};
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -48,7 +51,8 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
 
     match response {
         Ok(response) => {
-            let coap_status_code = response.message.header.code;
+            let coap_status_code = response.message.header.code.clone();
+            let proxy_res = coap_to_http(response.message.clone());
 
             // Save the response to the cache only if the response is 205 Content
             // See RFC 7252 Ch. 5.9 for cachable responses.
@@ -56,18 +60,8 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
                 debug!("Saving response of {} to cache", path.clone());
 
                 let mut cache = state.cache.lock().unwrap();
-                cache.insert(path.to_string(), response.message.payload.clone());
+                cache.insert(path.to_string(), response.message.clone());
             }
-
-            // Convert the response to HTTP
-            let http_status_code = coap_code_to_http_code(coap_status_code);
-            let http_status = StatusCode::from_u16(http_status_code).unwrap();
-            let proxy_res = Response::builder()
-                .status(http_status)
-                .body(response.message.payload)
-                .unwrap();
-
-            // TODO: Convert and copy over headers from CoAP to HTTP
 
             Ok(proxy_res)
         }
@@ -75,12 +69,12 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
             info!("Error while trying to request the device {}", e);
 
             let cache = state.cache.lock().unwrap();
-            let cached_value = cache.get(&path.to_string());
+            let cached_packet = cache.get(&path.to_string());
 
-            match cached_value {
-                Some(payload) => {
+            match cached_packet {
+                Some(packet) => {
                     debug!("Found response in the cache");
-                    let response = Response::builder().body(payload.clone()).unwrap();
+                    let response = coap_to_http(packet.clone());
 
                     Ok(response)
                 }
@@ -158,7 +152,17 @@ async fn handle_stream(
         .observe_with_timeout(
             path.as_str(),
             move |packet| {
-                let message = Message::binary(packet.payload);
+                let content_format = match packet.get_content_format() {
+                    Some(c) => c,
+                    None => ContentFormat::ApplicationOctetStream,
+                };
+                let message = match content_format {
+                    ContentFormat::TextPlain | ContentFormat::ApplicationJSON => {
+                        let content = String::from_utf8_lossy(&packet.payload[..]);
+                        Message::text(content)
+                    }
+                    _ => Message::binary(packet.payload),
+                };
 
                 match tx.send(Ok(message)) {
                     Ok(()) => {}
@@ -184,26 +188,12 @@ async fn handle_stream(
     Ok(())
 }
 
-/// Converts a CoAP status code to HTTP status code. The CoAP status code field is described in
-/// RFC 7252 Section 3.
-///
-/// Put simply, a CoAP status code is 8bits, where the first 3 bits indicate the class and the
-/// remaining 5 bits the type. For instance a status code 0x84 is 0b100_01000, which is 4_04 aka
-/// NotFound in HTTP :)
-fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {
-    let binary_code = u8::from(coap_code);
-    let class = binary_code >> 5;
-    let class_type = binary_code & 0b00011111;
-
-    let http_code = (class as u16) * 100 + (class_type as u16);
-
-    http_code
-}
-
 struct AppState {
     ip_address: String,
     resource_uris: Vec<String>,
-    cache: Mutex<HashMap<String, Vec<u8>>>,
+    // The CoAP packet is saved instead of the HTTP response because the latter doesn't implement
+    // Clone and cannot thus returned multiple times
+    cache: Mutex<HashMap<String, Packet>>,
     clients: Mutex<HashMap<u16, CoAPClient>>,
 }
 
@@ -291,18 +281,4 @@ fn get_resource_uri(env_var_query: &impl EnvVarQuery, resource_type: &str) -> St
     );
 
     value
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use coap_lite::{MessageClass, ResponseType};
-
-    #[test]
-    fn test_status_code_conversion() {
-        let coap_status = MessageClass::Response(ResponseType::NotFound);
-        let http_status = coap_code_to_http_code(coap_status);
-
-        assert_eq!(http_status, 404);
-    }
 }
