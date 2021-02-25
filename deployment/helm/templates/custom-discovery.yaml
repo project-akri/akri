@@ -6,10 +6,15 @@ metadata:
 spec:
   protocol: 
     name: {{ required "A customDiscovery.protocolName is required." .Values.customDiscovery.protocolName }}
+    {{- /* Check if the map is empty */}}
+    {{- if .Values.customDiscovery.discoveryDetails }}
     discoveryDetails:
       {{- range $key, $val := .Values.customDiscovery.discoveryDetails }}
       {{ $key }}: {{ $val }}
       {{- end }}
+    {{- else }}
+    discoveryDetails: {}
+    {{- end }}
   {{- if .Values.customDiscovery.brokerPod.image }}
   brokerPodSpec:
     containers:
@@ -60,6 +65,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ printf "%s-discovery-daemonset" .Values.customDiscovery.name | quote }}
+spec:
   selector:
     matchLabels:
       name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}

@@ -106,7 +106,7 @@ customDiscovery:
   capacity: 1
   # discoveryDetails is the map of discovery details that is 
   # passed to the custom Discovery Handler
-  discoveryDetails:
+  discoveryDetails: {}
   # shared defines whether instances created as a result of
   # applying this customDiscovery configuration as shared
   shared: true
