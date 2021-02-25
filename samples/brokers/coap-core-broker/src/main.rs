@@ -106,36 +106,36 @@ async fn handle_stream(
         .map_err(|e| anyhow::anyhow!("Invalid client address while creating the client: {}", e))?;
     let client_id = get_client_id();
 
-    let (mut socket_tx, mut socket_rx) = websocket.split();
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let rx_stream = UnboundedReceiverStream::new(rx);
+    let (mut ws_tx, mut ws_rx) = websocket.split();
+    let (coap_tx, coap_rx) = tokio::sync::mpsc::unbounded_channel();
+    let coap_rx_stream = UnboundedReceiverStream::new(coap_rx);
 
     if !resource_uris.contains(&path) {
         let message = Message::close_with(StatusCode::NOT_FOUND, "Not found");
-        socket_tx
+        ws_tx
             .send(message)
             .await
             .map_err(|e| anyhow::anyhow!("Error sending the close message: {}", e))?;
-        socket_tx
+        ws_tx
             .close()
             .await
             .map_err(|e| anyhow::anyhow!("Error closing the websocket connection: {}", e))?;
         return Ok(());
     }
 
-    tokio::task::spawn(rx_stream.forward(socket_tx).map(|result| {
+    tokio::task::spawn(coap_rx_stream.forward(ws_tx).map(|result| {
         if let Err(e) = result {
             log::error!("websocket send error: {}", e);
         }
     }));
 
-    let tx_clone = tx.clone();
+    let coap_tx_clone = coap_tx.clone();
     tokio::task::spawn(async move {
-        while let Some(message) = socket_rx.next().await {
+        while let Some(message) = ws_rx.next().await {
             match message {
                 Ok(msg) => {
                     if msg.is_close() {
-                        tx_clone.send(Ok(Message::close())).unwrap();
+                        coap_tx_clone.send(Ok(Message::close())).unwrap();
                     }
                 }
                 Err(e) => {
@@ -164,7 +164,7 @@ async fn handle_stream(
                     _ => Message::binary(packet.payload),
                 };
 
-                match tx.send(Ok(message)) {
+                match coap_tx.send(Ok(message)) {
                     Ok(()) => {}
                     Err(e) => {
                         log::error!("Error sending the device message: {}", e);

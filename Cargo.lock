@@ -548,9 +548,9 @@ dependencies = [
 
 [[package]]
 name = "coap-lite"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb7dd966f9579b41001c690b6d919adb95ee23f358f2159285140fcb0144ec3"
+checksum = "d15e8642b7913b70e905e3d9bc1e01ff25ddcb650344d83e90ebbba9d2a4e03b"
 
 [[package]]
 name = "concurrent-queue"
