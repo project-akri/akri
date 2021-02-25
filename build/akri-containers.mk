@@ -48,15 +48,15 @@ endif
 
 # Rust targets
 $(eval $(call add_rust_targets,controller,controller))
-#$(info $(call add_rust_targets,agent,agent))
-#$(info $(call add_rust_targets,udev,udev-video-broker))
-#$(info $(call add_rust_targets,webhook-configuration,webhook-configuration))
+$(eval $(call add_rust_targets,agent,agent))
+$(eval $(call add_rust_targets,udev,udev-video-broker))
+$(eval $(call add_rust_targets,webhook-configuration,webhook-configuration))
 
 # .NET targets
-#$(info $(call add_onvif_target,onvif,onvif-video-broker))
-#$(info $(call add_opcua_target,opcua-monitoring,opcua-monitoring-broker))
+$(eval $(call add_onvif_target,onvif,onvif-video-broker))
+$(eval $(call add_opcua_target,opcua-monitoring,opcua-monitoring-broker))
 
 # Python targets
-#$(info $(call add_python_target,anomaly-detection,anomaly-detection-app))
-#$(info $(call add_python_target,streaming,video-streaming-app))
+$(eval $(call add_python_target,anomaly-detection,anomaly-detection-app))
+$(eval $(call add_python_target,streaming,video-streaming-app))
 
