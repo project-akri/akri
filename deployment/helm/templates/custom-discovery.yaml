@@ -70,7 +70,7 @@ metadata:
     spec:
       containers:
       - name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
-        image: {{ required "A customDiscovery.discovery.image is required." .Values.customDiscovery.discovery.image.repository | quote }}
+        image: {{ required "A customDiscovery.discovery.image.repository is required." .Values.customDiscovery.discovery.image.repository | quote }}
         {{- with .Values.customDiscovery.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}

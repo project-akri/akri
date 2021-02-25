@@ -90,32 +90,32 @@ impl Registration for AgentRegistration {
         // Check if the server is among the already registered servers for the protocol
         if let Some(register_request_map) = registered_discovery_handlers.get_mut(&protocol) {
             if let Some(dh_details) = register_request_map.get(&endpoint) {
-                // check if DH at that endpoint is already registered but changed request
+                // Check if DH at that endpoint is already registered but changed request
                 if dh_details.register_request != req {
-                    // stop current discovery
-                    if dh_details.stop_discovery.send(()).is_err() {
-                        error!(
-                            "register - receiver for protocol {} and endpoint {} dropped",
-                            protocol, endpoint
-                        );
-                    }
+                    // Stop current discovery with this DH if any. A receiver may not exist if
+                    // 1) no configuration has been applied that uses this DH or
+                    // 2) a connection cannot be made with the DH's endpoint
+                    dh_details.stop_discovery.send(()).unwrap_or_default();
                 } else {
                     // Already registered. Return early.
                     return Ok(Response::new(Empty {}));
                 }
             }
+            // New or updated Discovery Handler for this protocol
             register_request_map.insert(endpoint, discovery_handler_details);
         } else {
+            // First Discovery Handler registered for this protocol
             let mut register_request_map = HashMap::new();
             register_request_map.insert(endpoint, discovery_handler_details);
             registered_discovery_handlers.insert(protocol.clone(), register_request_map);
         }
-        // If no configurations have been applied, no receivers can nor need to be updated about the new discovery handler
+        // Notify of new Discovery Handler
         if self
             .new_discovery_handler_sender
             .send(protocol.clone())
             .is_err()
         {
+            // If no configurations have been applied, no receivers can nor need to be updated about the new discovery handler
             trace!("register - new discovery handler registered for protocol {} but no active discovery operators to receive the message", protocol);
         }
         Ok(Response::new(Empty {}))

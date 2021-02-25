@@ -231,54 +231,49 @@ impl DiscoveryOperator {
         endpoint: &str,
         connectivity_status: DiscoveryHandlerConnectivityStatus,
     ) {
-        trace!("set_discovery_handler_connectivity_status - discovery handler at endpoint {} and protocol {} is offline", endpoint, self.config.spec.protocol.name);
-        if let Some(registered_dh_map) = self
-            .discovery_handler_map
-            .lock()
-            .unwrap()
+        trace!("set_discovery_handler_connectivity_status - set status of {:?} for discovery handler at endpoint {} and protocol {}", connectivity_status, endpoint, self.config.spec.protocol.name);
+        let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
+        let protocol_map = registered_dh_map
             .get_mut(&self.config.spec.protocol.name)
-        {
-            if let Some(dh_details) = registered_dh_map.get(endpoint) {
-                let mut dh_details = dh_details.clone();
-                dh_details.connectivity_status = connectivity_status;
-                registered_dh_map.insert(endpoint.to_string(), dh_details);
-            }
-        }
+            .unwrap();
+        let dh_details = protocol_map.get_mut(endpoint).unwrap();
+        dh_details.connectivity_status = connectivity_status;
     }
 
-    /// This is called when no connection can be made with a discovery handler at its endpoint. The discovery handler should be marked offline or removed
-    /// from the RegisteredDiscoveryHandlersMap if it has timed out or its grace period has passed. Will never be
+    /// This is called when no connection can be made with a discovery handler at its endpoint.
+    /// It takes action based on a Discovery Handler's (DH's) current `DiscoveryHandlerConnectivityStatus`.
+    /// If `DiscoveryHandlerConnectivityStatus::Online`, connectivity status changed to Offline.
+    /// If `DiscoveryHandlerConnectivityStatus::Offline`, DH is removed from the `RegisteredDiscoveryHandlersMap`
+    /// if it have been offline for longer than the grace period.
+    /// If `DiscoveryHandlerConnectivityStatus::HasClient`, this should not happen, Error is returned.
     pub async fn mark_offline_or_deregister_discovery_handler(
         &self,
         endpoint: &str,
-    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<bool, anyhow::Error> {
         trace!("mark_offline_or_deregister_discovery_handler - discovery handler at endpoint {} and protocol {} is offline", endpoint, self.config.spec.protocol.name);
         let mut deregistered = false;
-        if let Some(registered_dh_map) = self
-            .discovery_handler_map
-            .lock()
-            .unwrap()
+        let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
+        let protocol_map = registered_dh_map
             .get_mut(&self.config.spec.protocol.name)
-        {
-            if let Some(dh_details) = registered_dh_map.get(endpoint) {
-                match dh_details.connectivity_status {
-                    DiscoveryHandlerConnectivityStatus::Offline(instant) => {
-                        if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS
-                        {
-                            trace!("mark_offline_or_deregister_discovery_handler - de-registering discovery handler for protocol {} at endpoint {} since been offline for longer than 5 minutes", self.config.spec.protocol.name, endpoint);
-                            // Remove discovery handler from map if timed out
-                            registered_dh_map.remove(endpoint);
-                            deregistered = true;
-                        }
-                    }
-                    DiscoveryHandlerConnectivityStatus::Online => {
-                        let mut dh_details = dh_details.clone();
-                        dh_details.connectivity_status =
-                            DiscoveryHandlerConnectivityStatus::Offline(Instant::now());
-                        registered_dh_map.insert(endpoint.to_string(), dh_details);
-                    }
-                    DiscoveryHandlerConnectivityStatus::HasClient => {}
+            .unwrap();
+        let dh_details = protocol_map.get_mut(endpoint).unwrap();
+        match dh_details.connectivity_status {
+            DiscoveryHandlerConnectivityStatus::Offline(instant) => {
+                if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
+                    trace!("mark_offline_or_deregister_discovery_handler - de-registering discovery handler for protocol {} at endpoint {} since been offline for longer than 5 minutes", self.config.spec.protocol.name, endpoint);
+                    // Remove discovery handler from map if timed out
+                    protocol_map.remove(endpoint).unwrap();
+                    deregistered = true;
                 }
+            }
+            DiscoveryHandlerConnectivityStatus::Online => {
+                dh_details.connectivity_status =
+                    DiscoveryHandlerConnectivityStatus::Offline(Instant::now());
+            }
+            DiscoveryHandlerConnectivityStatus::HasClient => {
+                return Err(anyhow::format_err!(
+                    "Discovery Handler with a client should not be marked Offline"
+                ));
             }
         }
         Ok(deregistered)
@@ -286,14 +281,14 @@ impl DiscoveryOperator {
 
     /// Checks if any of this DiscoveryOperator's Configuration's Instances have been offline for too long.
     /// If a non-local device has not come back online before `SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS`,
-    /// the associated device plugin and instance are terminated and deleted.
+    /// the associated Device Plugin and Instance are terminated and deleted, respectively.
     #[allow(dead_code)]
-    pub async fn check_offline_status(
+    pub async fn delete_offline_instances(
         &self,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
-            "check_offline_status - entered for configuration {}",
+            "delete_offline_instances - entered for configuration {}",
             self.config.metadata.name
         );
         let kube_interface_clone = kube_interface.clone();
@@ -306,7 +301,7 @@ impl DiscoveryOperator {
                     // If instance has been offline for longer than the grace period or it is unshared, terminate the associated device plugin
                     // TODO: make grace period configurable
                     if time_offline >= SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS {
-                        trace!("check_offline_status - instance {} has been offline too long ... terminating device plugin", instance);
+                        trace!("delete_offline_instances - instance {} has been offline too long ... terminating device plugin", instance);
                         device_plugin_service::terminate_device_plugin_service(
                             &instance,
                             self.instance_map.clone(),
@@ -568,7 +563,7 @@ pub mod start_discovery {
             let kube_interface: Arc<Box<dyn k8s::KubeInterface>> = Arc::new(Box::new(k8s::create_kube_interface()));
             loop {
                 task3_discovery_operator
-                    .check_offline_status(kube_interface.clone())
+                    .delete_offline_instances(kube_interface.clone())
                     .await
                     .unwrap();
                 if tokio::time::timeout(
@@ -875,9 +870,9 @@ pub mod tests {
         // Add discovery handler to registered discovery handler map
         let mut protocol_dh_map = HashMap::new();
         protocol_dh_map.insert(endpoint.to_string(), discovery_handler_details);
-        let mut inner_dh_map = HashMap::new();
-        inner_dh_map.insert(protocol_name.to_string(), protocol_dh_map);
-        Arc::new(std::sync::Mutex::new(inner_dh_map))
+        let mut dh_map = HashMap::new();
+        dh_map.insert(protocol_name.to_string(), protocol_dh_map);
+        Arc::new(std::sync::Mutex::new(dh_map))
     }
 
     fn create_discovery_handler_details(
@@ -1211,25 +1206,6 @@ pub mod tests {
         discovery_operator.set_discovery_handler_connectivity_status(
             endpoint,
             DiscoveryHandlerConnectivityStatus::HasClient,
-        );
-        assert_eq!(
-            discovery_operator
-                .discovery_handler_map
-                .lock()
-                .unwrap()
-                .get_mut(protocol)
-                .unwrap()
-                .clone()
-                .get(endpoint)
-                .unwrap()
-                .clone()
-                .connectivity_status,
-            DiscoveryHandlerConnectivityStatus::HasClient
-        );
-        // Test that no change happens when random endpoint passed
-        discovery_operator.set_discovery_handler_connectivity_status(
-            "random",
-            DiscoveryHandlerConnectivityStatus::Online,
         );
         assert_eq!(
             discovery_operator
