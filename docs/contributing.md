@@ -39,7 +39,7 @@ Akri follows similar logging conventions as defined by the [Tracing crate](https
 | warn  | Unexpected errors that may/may not lead to serious problems |
 | info  | Useful information that provides an overview of the current state of things (ex: config values, state change) |
 | debug | Verbose information for high-level debugging and diagnoses of issues |
-| trace | Extremely verbose information for developers of akri |
+| trace | Extremely verbose information for developers of Akri |
 
 ## PR title flags
 Akri's workflows check for three flags in the titles of PRs in order to decide whether to execute certain checks. 
