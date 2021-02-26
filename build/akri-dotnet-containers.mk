@@ -32,13 +32,13 @@ define add_onvif_target
 
   $(1)-docker-multi-arch-create:
   ifeq (1, ${BUILD_AMD64})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
   endif
   ifeq (1, ${BUILD_ARM32})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
   endif
   ifeq (1, ${BUILD_ARM64})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
   endif
 
   $(1)-docker-multi-arch-push:
