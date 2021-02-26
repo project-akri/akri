@@ -30,7 +30,7 @@ install-cross:
 .PHONY: akri
 akri: akri-build akri-docker-all
 akri-build: install-cross akri-cross-build
-akri-docker-all: akri-controller akri-agent akri-udev akri-onvif akri-streaming akri-opcua-monitoring akri-anomaly-detection akri-webhook-configuration
+akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-docker-onvif akri-docker-streaming akri-docker-opcua-monitoring akri-docker-anomaly-detection akri-docker-webhook-configuration
 
 akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
 akri-cross-build-amd64:
