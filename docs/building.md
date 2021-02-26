@@ -1,17 +1,17 @@
 # Akri Build
 Building Akri, whether locally or in the automated CI builds, leverages the same set of `make` commands.
 
-In essence, there are 3 types of builds for Akri:
-1. Core components 
+In essence, Akri components can be thought of as:
+1. Runtime components
     1. Rust code: containers based on Rust code are built using `Cargo cross` and subsequent `docker build` commands include the cross-built binaries.
         > Note: For Rust code, build/Dockerfile.* does NOT run `cargo build`, instead they simply copy cross-built binaries into the container
     2. Other code: these containers can be .NET or python or whatever else ... the build/Dockerfile.* must do whatever building is required.
-2. Intermediate builds: these containers are used as part of the build process and are not used in production explicitly
+2. Intermediate components: these containers are used as part of the build process and are not used in production explicitly
 
-## Core components
-The core Akri components are the containers that are downloaded at runtime to provide Akri's functionality.  They include the agent, the controller, the webhook,  the brokers, and the applications.  The majority of Akri component code is written in Rust, but there are several components that are written in .NET or python.
+## Runtime components
+The Akri runtime components are the containers that provide Akri's functionality.  They include the agent, the controller, the webhook,  the brokers, and the applications.  The majority of Akri runtime components are written in Rust, but there are several components that are written in .NET or python.
 
-All of the core components are built with a `make` command.  These are the supporting makefiles:
+All of the runtime components are built with a `make` command.  These are the supporting makefiles:
 * `Makefile`: this provides a single point of entry to build any Akri component
 * `build/akri-containers.mk`: this provides the build and push functionality for Akri containers
 * `build/akri-rust-containers.mk`: this provides a simple definition to build and push Akri components written in Rust
@@ -27,10 +27,10 @@ The makefiles allow for several configurations:
 * UNIQUE_ID: allows configuration of container registry account (defaults to $USER)
 * PREFIX: allows configuration of container registry path for containers
 * LABEL_PREFIX: allows configuration of container labels
-* CACHE_OPTION: allows `docker build` options to be passed into build
+* CACHE_OPTION: when `CACHE_OPTION=--no-cache`, the `docker build` commands will not use local caches
 
 ### Local development usage
-For a local build, some typical patters are:
+For a local build, some typical patterns are:
 * `make akri-build`: run Rust cross-build for all platforms
 * `BUILD_AMD64=0 BUILD_ARM32=0 BUILD_ARM64=1 make akri-build`: run Rust cross-build for ARM64
 * `PREFIX=ghcr.io/myaccount make akri`: builds all of the Akri containers and stores them in a container registry, `ghcr.io/myaccount`.
@@ -55,7 +55,7 @@ For each component, there will be a common set of targets:
 * `<component>-docker-multi-arch-push`: this target will push a multi-arch manifest for this component
 
 ### Adding a new component
-To add a new Rust-based component, follow these steps (substituting the new component name for <new-component>):
+To add a new Rust-based component, follow these steps (substituting the new component name for `<new-component>`):
 1. Add `$(eval $(call add_rust_targets,<new-component>,<new-component>))` to `build/akri-containers.mk`
 1. Create `build/Dockerfile.<new-component>`
     > A simple way to do this is to copy `build/Dockerfile.agent` and replace `agent` with whatever `<new-component>` is.
@@ -63,8 +63,8 @@ To add a new Rust-based component, follow these steps (substituting the new comp
     > A simple way to do this is to copy `.github/workflows/build-agent-container.yml` and replace `agent` with whatever `<new-component>` is.
 
 
-## Intermediate builds
-There are the intermediate containers:
+## Intermediate components
+These are the intermediate components:
 * [rust-crossbuild](https://github.com/orgs/deislabs/packages/container/package/akri%2Frust-crossbuild)
 * [opencvsharp-build](https://github.com/orgs/deislabs/packages/container/package/akri%2Fopencvsharp-build)
 
@@ -90,7 +90,7 @@ If a change needs to be made to this container, 2 pull requests are needed.
 
 
 ## Automated builds usage
-The automated CI builds essentially run these commands, where `<comopnent>` is one of () and `<platform>` is one of (amd64|arm32|arm64):
+The automated CI builds essentially run these commands, where `<component>` is one of (`controller`|`agent`|`udev`|`webhook-configuration`|`onvif`|`opcua-monitoring`|`anomaly-detection`|`streaming`) and `<platform>` is one of (`amd64`|`arm32`|`arm64`):
 ```bash
 # Install the Rust cross building tools
 make install-cross
