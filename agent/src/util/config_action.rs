@@ -263,8 +263,16 @@ pub async fn handle_config_delete(
             .clone();
         config_map_locked.remove(&config.metadata.name);
     }
+    delete_all_instances_in_map(kube_interface, instance_map, config).await?;
+    Ok(())
+}
 
-    // Shutdown Instances' DevicePluginServices and delete the Instances
+/// This shuts down all a Configuration's Instances and terminates the associated Device Plugins
+pub async fn delete_all_instances_in_map(
+    kube_interface: &impl k8s::KubeInterface,
+    instance_map: InstanceMap,
+    config: &KubeAkriConfig,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut instance_map_locked = instance_map.lock().await;
     let instances_to_delete_map = instance_map_locked.clone();
     let namespace = config.metadata.namespace.as_ref().unwrap();
@@ -281,7 +289,6 @@ pub async fn handle_config_delete(
         instance_map_locked.remove(&instance_name);
         try_delete_instance(kube_interface, &instance_name, &namespace).await?;
     }
-
     Ok(())
 }
 

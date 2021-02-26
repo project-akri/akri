@@ -523,7 +523,7 @@ Once the http project has been created, it can be added to the greater Akri proj
 to the **members** in `./Cargo.toml`.
 
 To access the HTTP-based Device data, we first need to retrieve the discovery information.  Any information stored in
-the DiscoveryResult properties map will be transferred into the broker container's environment variables.  Retrieving
+the `Device` properties map will be transferred into the broker container's environment variables.  Retrieving
 them is simply a matter of querying environment variables like this:
 
 ```rust
