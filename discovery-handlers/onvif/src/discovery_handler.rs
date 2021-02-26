@@ -17,10 +17,6 @@ use std::{collections::HashMap, time::Duration};
 use tokio::{sync::mpsc, time::delay_for};
 use tonic::{Response, Status};
 
-/// Protocol name that onvif discovery handlers use when registering with the Agent
-pub const PROTOCOL_NAME: &str = "onvif";
-/// Endpoint for the onvif discovery services if not using UDS
-pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 

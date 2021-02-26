@@ -3,11 +3,7 @@ pub mod discovery_handler;
 #[macro_use]
 extern crate serde_derive;
 
-use akri_discovery_utils::discovery::v0::RegisterRequest;
-pub fn get_register_request(endpoint: &str) -> RegisterRequest {
-    RegisterRequest {
-        protocol: discovery_handler::PROTOCOL_NAME.to_string(),
-        endpoint: endpoint.to_string(),
-        is_local: true,
-    }
-}
+/// Protocol name that debugEcho discovery handlers use when registering with the Agent
+pub const PROTOCOL_NAME: &str = "debugEcho";
+/// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
+pub const IS_LOCAL: bool = true;

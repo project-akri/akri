@@ -360,6 +360,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tower",
+ "url 2.2.1",
  "uuid 0.8.2",
 ]
 

@@ -14,10 +14,6 @@ use tokio::sync::mpsc;
 use tokio::time::delay_for;
 use tonic::{Response, Status};
 
-/// Protocol name that opcua discovery handlers use when registering with the Agent
-pub const PROTOCOL_NAME: &str = "opcua";
-/// Endpoint for the opcua discovery services if not using UDS
-pub const DISCOVERY_PORT: &str = "10000";
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 

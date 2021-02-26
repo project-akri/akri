@@ -42,6 +42,7 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-core = "0.1"
 tonic = "0.1"
 tower = "0.3" 
+url = "2.2.0"
 uuid = { version = "0.8.1", features = ["v4"] }
 
 [build-dependencies]

@@ -9,13 +9,10 @@ pub mod discovery_handler;
 mod discovery_impl;
 mod wrappers;
 
+/// Name of environment variable that is set in udev brokers. Contains devnode for udev device
+/// the broker should connect to.
 pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
-
-use akri_discovery_utils::discovery::v0::RegisterRequest;
-pub fn get_register_request(endpoint: &str) -> RegisterRequest {
-    RegisterRequest {
-        protocol: discovery_handler::PROTOCOL_NAME.to_string(),
-        endpoint: endpoint.to_string(),
-        is_local: true,
-    }
-}
+/// Protocol name that udev discovery handlers use when registering with the Agent
+pub const PROTOCOL_NAME: &str = "udev";
+/// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
+pub const IS_LOCAL: bool = true;
