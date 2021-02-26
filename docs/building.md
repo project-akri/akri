@@ -122,4 +122,36 @@ LABEL_PREFIX=`latest-dev` make <component>-docker-multi-arch-push
 
 ```
 
+## Build and run Akri without a Container Registry
+For development and/or testing, it can be convenient to run Akri without a Container Registry.  For example, the Akri CI tests that validate pull requests build Akri components locally, store the containers only in local docker, and configure Helm to only use the local docker containers.
+
+There are two steps to this.  For the sake of this demonstration, only the amd64 version of the agent and controller will be built, but this method can be extended to any and all components:
+1. Build:
+    ```bash
+    # Only build AMD64
+    BUILD_AMD64: 1
+    # PREFIX can be anything, as long as it matches what is specified in the Helm command
+    PREFIX: no-container-registry
+    # LABEL_PREFIX can be anything, as long as it matches what is specified in the Helm command
+    LABEL_PREFIX: dev
+    # Build the Rust code
+    make akri-build
+    # Build the controller container locally for amd64
+    make controller-build-amd64
+    # Build the agent container locally for amd64
+    make agent-build-amd64
+    ```
+2. Runtime
+    ```bash
+    # Specify pullPolicy as Never
+    # Specify repository as $PREFIX/<component>
+    # Specify tag as $LABEL_PREFIX-amd64
+    helm install akri ./deployment/helm \
+        --set agent.image.pullPolicy=Never \
+        --set agent.image.repository="$PREFIX/agent" \
+        --set agent,agent.image.tag="$LABEL_PREFIX-amd64" \
+        --set controller.image.pullPolicy=Never \
+        --set controller.image.repository="$PREFIX/controller" \
+        --set controller.image.tag="$LABEL_PREFIX-amd64"
+    ```
 
