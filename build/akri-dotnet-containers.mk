@@ -1,7 +1,4 @@
 define add_onvif_target
-  $(info compiling akri-$(1)) # logged when doing $(call ...)
-  $$(info evaluating akri-$(1)) # logged when doing $(eval $(call ...))
-
   akri-$(1): akri-build akri-docker-$(1)
   akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
   $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
@@ -50,9 +47,6 @@ define add_onvif_target
 endef
 
 define add_opcua_target
-  $(info compiling akri-$(1)) # logged when doing $(call ...)
-  $$(info evaluating akri-$(1)) # logged when doing $(eval $(call ...))
-
   akri-$(1): akri-build akri-docker-$(1)
   akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
   $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
@@ -86,13 +80,13 @@ define add_opcua_target
 
   $(1)-docker-multi-arch-create:
   ifeq (1, ${BUILD_AMD64})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
   endif
   ifeq (1, ${BUILD_ARM32})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
   endif
   ifeq (1, ${BUILD_ARM64})
-	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(1):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
   endif
 
   $(1)-docker-multi-arch-push:
