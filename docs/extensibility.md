@@ -2,7 +2,7 @@
 
 Akri has [implemented several discovery protocols](./roadmap.md#currently-supported-protocols) with sample brokers and
 applications. However, there may be protocols you would like to use to discover resources that have not been implemented
-yet.  To enable the discovery of resources via a new protocol, you much implement a Discovery Handler (DH), which does
+yet.  To enable the discovery of resources via a new protocol, you will implement a Discovery Handler (DH), which does
 discovery on behalf of the Agent. A Discovery Handler is anything that implements the `Discovery` service and
 `Registration` client defined in the [Akri's discovery gRPC proto file](../discovery-utils/proto/discovery.proto). These
 DHs run as their own Pods and are expected to register with the Agent, which hosts the `Registration` service defined in
