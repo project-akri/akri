@@ -103,8 +103,8 @@ const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
 
 Fill in your `discover` function so as to match the following. Note, `discover` creates a streamed connection with the
 Agent, where the Agent gets the receiving end of the channel and the Discovery Handler sends device updates via the
-sending end of the channel. If the Agent drops it's end, the Discovery Handler will stop discovery and attempt to
-re-register with the Agent. The Agent may drop it's end due to an error or a deleted Configuration.
+sending end of the channel. If the Agent drops its end, the Discovery Handler will stop discovery and attempt to
+re-register with the Agent. The Agent may drop its end due to an error or a deleted Configuration.
 
 ```rust
 #[async_trait]
