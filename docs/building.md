@@ -129,11 +129,11 @@ There are two steps to this.  For the sake of this demonstration, only the amd64
 1. Build:
     ```bash
     # Only build AMD64
-    BUILD_AMD64: 1
+    BUILD_AMD64=1
     # PREFIX can be anything, as long as it matches what is specified in the Helm command
-    PREFIX: no-container-registry
+    PREFIX=no-container-registry
     # LABEL_PREFIX can be anything, as long as it matches what is specified in the Helm command
-    LABEL_PREFIX: dev
+    LABEL_PREFIX=dev
     # Build the Rust code
     make akri-build
     # Build the controller container locally for amd64
@@ -149,7 +149,7 @@ There are two steps to this.  For the sake of this demonstration, only the amd64
     helm install akri ./deployment/helm \
         --set agent.image.pullPolicy=Never \
         --set agent.image.repository="$PREFIX/agent" \
-        --set agent,agent.image.tag="$LABEL_PREFIX-amd64" \
+        --set agent.image.tag="$LABEL_PREFIX-amd64" \
         --set controller.image.pullPolicy=Never \
         --set controller.image.repository="$PREFIX/controller" \
         --set controller.image.tag="$LABEL_PREFIX-amd64"
