@@ -156,6 +156,7 @@ impl Discovery for DiscoveryHandler {
         // Send the agent one end of the channel to receive device updates
         Ok(Response::new(stream_receiver))
     }
+}
 ```
 ### Build the DiscoveryHandler container
 Now you are ready to build your HTTP discovery handler and push it to your container registry. To do so, we simply need
