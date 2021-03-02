@@ -832,6 +832,7 @@ pub mod tests {
     };
     use mockall::Sequence;
     use std::time::Duration;
+    use tokio::sync::broadcast;
 
     pub async fn build_instance_map(
         config: &KubeAkriConfig,
