@@ -237,7 +237,7 @@ pub mod server {
                 get_mock_discovery_handler_dir_and_endpoint("protocol.sock");
             let _handle: tokio::task::JoinHandle<()> =
                 run_mock_discovery_handler(&discovery_handler_dir, &discovery_handler_socket).await;
-            let channel = Endpoint::try_from("lttp://[::]:50051")
+            let channel = Endpoint::try_from("dummy://[::]:50051")
                 .unwrap()
                 .connect_with_connector(tower::service_fn(move |_: Uri| {
                     UnixStream::connect(discovery_handler_socket.clone())

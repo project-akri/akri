@@ -14,8 +14,8 @@ pub async fn register(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("register - entered");
     loop {
-        // lttp://... is a fake uri that is unused (in service_fn) but necessary for uds connection
-        if let Ok(channel) = Endpoint::try_from("lttp://[::]:50051")?
+        // We will ignore this dummy uri because UDS does not use it.
+        if let Ok(channel) = Endpoint::try_from("dummy://[::]:50051")?
             .connect_with_connector(tower::service_fn(|_: Uri| {
                 tokio::net::UnixStream::connect(AGENT_REGISTRATION_SOCKET)
             }))

@@ -156,8 +156,8 @@ pub async fn register(
         pre_start_required: false,
     };
 
-    // lttp://... is a fake uri that is unused (in service_fn) but necessary for uds connection
-    let channel = Endpoint::try_from("lttp://[::]:50051")?
+    // We will ignore this dummy uri because UDS does not use it.
+    let channel = Endpoint::try_from("dummy://[::]:50051")?
         .connect_with_connector(service_fn(|_: Uri| UnixStream::connect(KUBELET_SOCKET)))
         .await?;
     let mut registration_client = registration_client::RegistrationClient::new(channel);

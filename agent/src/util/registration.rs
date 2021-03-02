@@ -314,7 +314,7 @@ mod tests {
             .await
             .is_ok());
         // Connect to registration service
-        let channel = Endpoint::try_from("lttp://[::]:50051")
+        let channel = Endpoint::try_from("dummy://[::]:50051")
             .unwrap()
             .connect_with_connector(tower::service_fn(move |_: Uri| {
                 UnixStream::connect(registration_socket_path_string.clone())

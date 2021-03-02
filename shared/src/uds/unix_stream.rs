@@ -61,7 +61,8 @@ pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
         && !connected
     {
         let path = socket_path.to_string();
-        if let Ok(_v) = tonic::transport::Endpoint::try_from("lttp://[::]:50051")
+        // We will ignore this dummy uri because UDS does not use it.
+        if let Ok(_v) = tonic::transport::Endpoint::try_from("dummy://[::]:50051")
             .map_err(|e| anyhow::format_err!("{}", e))?
             .connect_with_connector(tower::service_fn(move |_: tonic::transport::Uri| {
                 tokio::net::UnixStream::connect(path.clone())
