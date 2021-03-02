@@ -86,9 +86,6 @@ agent:
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node
   linuxOnly: true
-  # registrationPortName is the name of the of the port the registration service is on
-  registrationPortName: registration
-  registrationPort: 10000
 
 customDiscovery:
   # enabled defines whether to load a customDiscovery configuration
