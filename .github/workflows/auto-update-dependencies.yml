@@ -1,6 +1,7 @@
 name: Dependencies autoupdate
 
 on:
+  workflow_dispatch:    # can be manually run if needed
   schedule:
     - cron: '0 0 1 * *' # run on first day of each month at 12:00 am UTC time
 
