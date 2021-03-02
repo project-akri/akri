@@ -129,13 +129,17 @@ async fn handle_stream(
         }
     }));
 
+    let state_clone = state.clone();
     let coap_tx_clone = coap_tx.clone();
+
     tokio::task::spawn(async move {
         while let Some(message) = ws_rx.next().await {
             match message {
                 Ok(msg) => {
                     if msg.is_close() {
                         coap_tx_clone.send(Ok(Message::close())).unwrap();
+
+                        unobserve(state_clone.clone(), client_id);
                     }
                 }
                 Err(e) => {
@@ -159,6 +163,7 @@ async fn handle_stream(
                 let message = match content_format {
                     ContentFormat::TextPlain | ContentFormat::ApplicationJSON => {
                         let content = String::from_utf8_lossy(&packet.payload[..]);
+
                         Message::text(content)
                     }
                     _ => Message::binary(packet.payload),
@@ -167,14 +172,8 @@ async fn handle_stream(
                 match coap_tx.send(Ok(message)) {
                     Ok(()) => {}
                     Err(e) => {
-                        log::error!("Error sending the device message: {}", e);
-
-                        let state_clone = observe_state.clone();
-
-                        std::thread::spawn(move || {
-                            let mut clients = state_clone.clients.lock().unwrap();
-                            clients.remove(&client_id);
-                        });
+                        log::error!("Error sending the CoAP message: {}", e);
+                        unobserve(observe_state.clone(), client_id);
                     }
                 }
             },
@@ -186,6 +185,19 @@ async fn handle_stream(
     clients.insert(client_id, client);
 
     Ok(())
+}
+
+fn unobserve(state: Arc<AppState>, client_id: u16) {
+    // Unsubscription must be done in a new OS thread because it internally joins on the thread handle,
+    // which would throw if `unsubscribe` is called within the `observe_with_timeout` closure
+    std::thread::spawn(move || {
+        let mut clients = state.clients.lock().unwrap();
+        let client = clients.remove(&client_id);
+
+        if let Some(mut client) = client {
+            client.unobserve();
+        }
+    });
 }
 
 struct AppState {
