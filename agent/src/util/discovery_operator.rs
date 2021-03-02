@@ -29,7 +29,7 @@ use log::{error, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 use std::{collections::HashMap, convert::TryFrom, sync::Arc, time::Instant};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tonic::{
     transport::{Endpoint, Uri},
     Status,
@@ -496,7 +496,7 @@ pub mod start_discovery {
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     #[double]
     pub use super::DiscoveryOperator;
-    use super::{try_receive, StreamType};
+    use super::StreamType;
     use akri_shared::k8s;
     use mockall_double::double;
     use std::{sync::Arc, time::Duration};
@@ -587,12 +587,12 @@ pub mod start_discovery {
         let mut discovery_tasks = Vec::new();
         loop {
             tokio::select! {
-                _ = try_receive(stop_all_discovery_receiver) => {
+                _ = stop_all_discovery_receiver.recv() => {
                     trace!("listen_for_new_discovery_handlers - received message to stop discovery for configuration {}", discovery_operator.get_config().metadata.name);
                     discovery_operator.stop_all_discovery().await;
                     break;
                 },
-                result = try_receive(new_discovery_handler_receiver) => {
+                result = new_discovery_handler_receiver.recv() => {
                     // Check if it is this protocol
                     if let Ok(protocol) = result {
                         if protocol == discovery_operator.get_config().spec.protocol.name {
@@ -656,7 +656,7 @@ pub mod start_discovery {
                     let mut stop_discovery_receiver = dh_details.stop_discovery.subscribe();
                     loop {
                         tokio::select! {
-                            _ = try_receive(&mut stop_discovery_receiver) => {
+                            _ = stop_discovery_receiver.recv() => {
                                 trace!("do_discover - received message to stop discovery for discovery handler at endpoint {:?} for configuration {}", endpoint, discovery_operator.get_config().metadata.name);
                                 break;
                             },
@@ -777,15 +777,6 @@ pub mod start_discovery {
         }
         Ok(())
     }
-}
-
-async fn try_receive<T>(
-    receiver: &mut broadcast::Receiver<T>,
-) -> Result<T, tokio::sync::broadcast::RecvError>
-where
-    T: std::clone::Clone,
-{
-    receiver.recv().await
 }
 
 /// Generates an digest of an Instance's id. There should be a unique digest and Instance for each discovered device.
