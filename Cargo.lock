@@ -406,12 +406,14 @@ name = "akri-discovery-utils"
 version = "0.3.0"
 dependencies = [
  "akri-shared",
+ "anyhow",
  "async-trait",
  "futures 0.3.13",
  "log",
  "prost",
  "serde",
  "serde_derive",
+ "serde_yaml",
  "tempfile",
  "tokio 0.2.25",
  "tonic",

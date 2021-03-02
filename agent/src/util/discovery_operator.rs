@@ -112,7 +112,7 @@ impl DiscoveryOperator {
         trace!("get_stream - endpoint is {:?}", endpoint);
         match endpoint {
             DiscoveryHandlerEndpoint::Embedded => {
-                match get_discovery_handler(&self.config.spec.protocol.discovery_details) {
+                match get_discovery_handler(&self.config.spec.protocol) {
                     Ok(discovery_handler) => {
                         trace!(
                             "get_stream - using embedded discovery handler for protocol {}",
@@ -351,8 +351,12 @@ impl DiscoveryOperator {
             .filter(|(name, _)| !instance_map.contains_key(*name))
             .map(|(_, p)| p.clone())
             .collect();
-        self.update_instance_connectivity_status(kube_interface, currently_visible_instances, is_local)
-            .await?;
+        self.update_instance_connectivity_status(
+            kube_interface,
+            currently_visible_instances,
+            is_local,
+        )
+        .await?;
 
         // If there are newly visible instances associated with a Config, make a device plugin and Instance CR for them
         if !new_discovery_results.is_empty() {

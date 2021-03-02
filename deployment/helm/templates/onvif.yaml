@@ -8,32 +8,31 @@ spec:
     name: onvif
     discoveryDetails:
       protocolHandler: |+
-        onvif:
-          ipAddresses: 
-            action: {{ .Values.onvif.ipAddresses.action }}
-            {{- if .Values.onvif.ipAddresses.items}}
-            items:
-            {{- toYaml .Values.onvif.ipAddresses.items | nindent 12 }}
-            {{- else }}
-            items: []
-            {{- end }}
-          macAddresses:
-            action: {{ .Values.onvif.macAddresses.action }}
-            {{- if .Values.onvif.macAddresses.items}}
-            items:
-            {{- toYaml .Values.onvif.macAddresses.items | nindent 12 }}
-            {{- else }}
-            items: []
-            {{- end }}
-          scopes:
-            action: {{ .Values.onvif.scopes.action }}
-            {{- if .Values.onvif.scopes.items}}
-            items:
-            {{- toYaml .Values.onvif.scopes.items | nindent 12 }}
-            {{- else }}
-            items: []
-            {{- end }}
-          discoveryTimeoutSeconds: {{ .Values.onvif.discoveryTimeoutSeconds }}
+        ipAddresses: 
+          action: {{ .Values.onvif.ipAddresses.action }}
+          {{- if .Values.onvif.ipAddresses.items}}
+          items:
+          {{- toYaml .Values.onvif.ipAddresses.items | nindent 12 }}
+          {{- else }}
+          items: []
+          {{- end }}
+        macAddresses:
+          action: {{ .Values.onvif.macAddresses.action }}
+          {{- if .Values.onvif.macAddresses.items}}
+          items:
+          {{- toYaml .Values.onvif.macAddresses.items | nindent 12 }}
+          {{- else }}
+          items: []
+          {{- end }}
+        scopes:
+          action: {{ .Values.onvif.scopes.action }}
+          {{- if .Values.onvif.scopes.items}}
+          items:
+          {{- toYaml .Values.onvif.scopes.items | nindent 12 }}
+          {{- else }}
+          items: []
+          {{- end }}
+        discoveryTimeoutSeconds: {{ .Values.onvif.discoveryTimeoutSeconds }}
   {{- if .Values.onvif.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:

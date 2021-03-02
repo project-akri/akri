@@ -1,4 +1,5 @@
 use akri_discovery_utils::discovery::{
+    discovery_handler::deserialize_discovery_details,
     v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
 };
@@ -21,12 +22,6 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 pub const DEBUG_ECHO_AVAILABILITY_CHECK_PATH: &str = "/tmp/debug-echo-availability.txt";
 /// String to write into DEBUG_ECHO_AVAILABILITY_CHECK_PATH to make Other devices undiscoverable
 pub const OFFLINE: &str = "OFFLINE";
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum DiscoveryHandlerType {
-    DebugEcho(DebugEchoDiscoveryHandlerConfig),
-}
 
 /// DebugEchoDiscoveryHandlerConfig describes the necessary information needed to discover and filter debug echo devices.
 /// Specifically, it contains a list (`descriptions`) of fake devices to be discovered.
@@ -61,13 +56,9 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config =
-            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Invalid debugEcho discovery handler configuration: {}", e),
-                )
-            })?;
+        let discovery_handler_config: DebugEchoDiscoveryHandlerConfig =
+            deserialize_discovery_details(&discover_request.discovery_details)
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let descriptions = discovery_handler_config.descriptions;
         let mut offline = fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH)
             .unwrap_or_default()
@@ -130,36 +121,6 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-/// deserialize_discovery_details obtains the `DebugEchoDiscoveryHandlerConfig` from a discovery details map.
-/// It expects the `DebugEchoDiscoveryHandlerConfig` to be serialized yaml stored in the map as
-/// the String value associated with the key `protocolHandler`.
-fn deserialize_discovery_details(
-    discovery_details: &HashMap<String, String>,
-) -> Result<DebugEchoDiscoveryHandlerConfig, anyhow::Error> {
-    trace!(
-        "inner_get_discovery_handler - for discovery details {:?}",
-        discovery_details
-    );
-    // Determine whether it is an embedded protocol
-    if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
-        trace!("protocol handler {:?}", discovery_handler_str);
-        if let Ok(discovery_handler) = serde_yaml::from_str(discovery_handler_str) {
-            match discovery_handler {
-                DiscoveryHandlerType::DebugEcho(debug_echo_discovery_handler_config) => {
-                    Ok(debug_echo_discovery_handler_config)
-                }
-            }
-        } else {
-            Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_details))
-        }
-    } else {
-        Err(anyhow::format_err!(
-            "Generic discovery handlers not supported. Discovery details: {:?}",
-            discovery_details
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,18 +131,20 @@ mod tests {
     fn test_deserialize_discovery_details_empty() {
         let yaml = r#"
           protocolHandler: |+
-            debugEcho: {}
+            {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        assert!(deserialize_discovery_details(&deserialized).is_err());
+        let dh_config: Result<DebugEchoDiscoveryHandlerConfig, anyhow::Error> =
+            deserialize_discovery_details(&deserialized);
+        assert!(dh_config.is_err());
 
         let yaml = r#"
         protocolHandler: |+
-          debugEcho:
             descriptions: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        let dh_config: DebugEchoDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
         assert!(dh_config.descriptions.is_empty());
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"descriptions":[]}"#;
@@ -192,12 +155,12 @@ mod tests {
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
         protocolHandler: |+
-          debugEcho:
             descriptions:
               - "foo1"
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        let dh_config: DebugEchoDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
         assert_eq!(dh_config.descriptions.len(), 1);
         assert_eq!(&dh_config.descriptions[0], "foo1");
     }
@@ -211,7 +174,6 @@ mod tests {
         name: debugEcho
         discoveryDetails:
           protocolHandler: |+
-            debugEcho:
               descriptions:
               - "foo1"
         "#;

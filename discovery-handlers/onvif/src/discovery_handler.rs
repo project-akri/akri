@@ -5,12 +5,12 @@ use super::discovery_utils::{
 };
 use akri_discovery_utils::{
     discovery::{
+        discovery_handler::deserialize_discovery_details,
         v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
         DiscoverStream,
     },
     filtering::{FilterList, FilterType},
 };
-use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::{collections::HashMap, time::Duration};
@@ -19,12 +19,6 @@ use tonic::{Response, Status};
 
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum DiscoveryHandlerType {
-    Onvif(OnvifDiscoveryHandlerConfig),
-}
 
 /// This defines the ONVIF data stored in the Configuration
 /// CRD
@@ -72,13 +66,9 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config =
-            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Invalid ONVIF discovery handler configuration: {}", e),
-                )
-            })?;
+        let discovery_handler_config: OnvifDiscoveryHandlerConfig =
+            deserialize_discovery_details(&discover_request.discovery_details)
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let mut cameras: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             loop {
@@ -234,36 +224,6 @@ async fn apply_filters(
     Ok(result)
 }
 
-/// This obtains the `OnvifDiscoveryHandlerConfig` from a discovery details map.
-/// It expects the `OnvifDiscoveryHandlerConfig` to be serialized yaml stored in the map as
-/// the String value associated with the key `protocolHandler`.
-fn deserialize_discovery_details(
-    discovery_details: &HashMap<String, String>,
-) -> Result<OnvifDiscoveryHandlerConfig, Error> {
-    trace!(
-        "inner_get_discovery_handler - for discovery details {:?}",
-        discovery_details
-    );
-    // Determine whether it is an embedded protocol
-    if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
-        trace!("protocol handler {:?}", discovery_handler_str);
-        if let Ok(discovery_handler) = serde_yaml::from_str(discovery_handler_str) {
-            match discovery_handler {
-                DiscoveryHandlerType::Onvif(discovery_handler_config) => {
-                    Ok(discovery_handler_config)
-                }
-            }
-        } else {
-            Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_details))
-        }
-    } else {
-        Err(anyhow::format_err!(
-            "Generic discovery handlers not supported. Discovery details: {:?}",
-            discovery_details
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::discovery_utils::MockOnvifQuery;
@@ -325,11 +285,12 @@ mod tests {
     fn test_deserialize_discovery_details() {
         let onvif_yaml = r#"
           protocolHandler: |+
-            onvif: {}
+            {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();
-        let serialized =
-            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
+        let dh_config: OnvifDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
+        let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"discoveryTimeoutSeconds":1}"#;
         assert_eq!(expected_deserialized, serialized);
     }

@@ -8,13 +8,12 @@ spec:
     name: debugEcho
     discoveryDetails:
       protocolHandler: |+
-        debugEcho:
-          {{- if .Values.debugEcho.descriptions}}
-          descriptions:
-          {{- toYaml .Values.debugEcho.descriptions | nindent 10 }}
-          {{- else }}
-          descriptions: []
-          {{- end }}
+        {{- if .Values.debugEcho.descriptions}}
+        descriptions:
+        {{- toYaml .Values.debugEcho.descriptions | nindent 10 }}
+        {{- else }}
+        descriptions: []
+        {{- end }}
   brokerPodSpec:
     containers:
     - name: {{ .Values.debugEcho.name }}-broker

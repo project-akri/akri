@@ -7,10 +7,9 @@ spec:
     name: debugEcho
     discoveryDetails:
       protocolHandler: |+
-        debugEcho:
-          descriptions:
-          - "foo0"
-          - "foo1"
+        descriptions:
+        - "foo0"
+        - "foo1"
   brokerPodSpec:
     containers:
     - name: akri-debug-echo-foo-broker

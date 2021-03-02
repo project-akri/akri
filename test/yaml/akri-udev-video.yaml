@@ -7,9 +7,8 @@ spec:
     name: udev
     discoveryDetails:
       protocolHandler: |+
-        udev:
-          udevRules:
-          -  'KERNEL=="video[0-9]*"'
+        udevRules:
+        -  'KERNEL=="video[0-9]*"'
   brokerPodSpec:
     containers:
     - name: akri-udev-video-broker

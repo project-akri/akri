@@ -1,25 +1,19 @@
 use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
 use akri_discovery_utils::discovery::{
+    discovery_handler::deserialize_discovery_details,
     v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse, Mount},
     DiscoverStream,
 };
-use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::collections::HashSet;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::delay_for;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum DiscoveryHandlerType {
-    Udev(UdevDiscoveryHandlerConfig),
-}
 
 /// This defines the udev data stored in the Configuration
 /// CRD DiscoveryDetails
@@ -51,13 +45,9 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config =
-            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Invalid udev discovery handler configuration: {}", e),
-                )
-            })?;
+        let discovery_handler_config: UdevDiscoveryHandlerConfig =
+            deserialize_discovery_details(&discover_request.discovery_details)
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let udev_rules = discovery_handler_config.udev_rules.clone();
@@ -131,57 +121,30 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-/// This obtains the `UdevDiscoveryHandlerConfig` from a discovery details map.
-/// It expects the `UdevDiscoveryHandlerConfig` to be serialized yaml stored in the map as
-/// the String value associated with the key `protocolHandler`.
-fn deserialize_discovery_details(
-    discovery_details: &HashMap<String, String>,
-) -> Result<UdevDiscoveryHandlerConfig, Error> {
-    info!(
-        "inner_get_discovery_handler - for discovery details {:?}",
-        discovery_details
-    );
-    // Determine whether it is an embedded protocol
-    if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
-        info!("protocol handler {:?}", discovery_handler_str);
-        if let Ok(discovery_handler) = serde_yaml::from_str(discovery_handler_str) {
-            match discovery_handler {
-                DiscoveryHandlerType::Udev(discovery_handler_config) => {
-                    Ok(discovery_handler_config)
-                }
-            }
-        } else {
-            Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_details))
-        }
-    } else {
-        Err(anyhow::format_err!(
-            "Generic discovery handlers not supported. Discovery details: {:?}",
-            discovery_details
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
         // Check that udev errors if no udev rules passed in
         let yaml = r#"
           protocolHandler: |+
-            udev: {}
+            {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        assert!(deserialize_discovery_details(&deserialized).is_err());
+        let udev_dh_config: Result<UdevDiscoveryHandlerConfig, anyhow::Error> =
+            deserialize_discovery_details(&deserialized);
+        assert!(udev_dh_config.is_err());
 
         let yaml = r#"
         protocolHandler: |+
-          udev: 
-            udevRules: []
+          udevRules: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        let udev_dh_config: UdevDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
         let expected_deserialized = r#"{"udevRules":[]}"#;
@@ -192,12 +155,12 @@ mod tests {
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
         protocolHandler: |+
-          udev:
-            udevRules:
-            -  'KERNEL=="video[0-9]*"'
+          udevRules:
+          - 'KERNEL=="video[0-9]*"'
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config = deserialize_discovery_details(&deserialized).unwrap();
+        let udev_dh_config: UdevDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
         assert_eq!(udev_dh_config.udev_rules.len(), 1);
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
     }

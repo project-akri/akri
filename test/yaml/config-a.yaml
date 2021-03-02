@@ -9,10 +9,9 @@ spec:
     name: debugEcho
     discoveryDetails:
       protocolHandler: |+
-        debugEcho:
-          descriptions:
-          - "filter1"
-          - "filter2"
+        descriptions:
+        - "filter1"
+        - "filter2"
   brokerPodSpec:
     containers:
     - name: broker

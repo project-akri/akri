@@ -7,14 +7,13 @@ spec:
     name: opcua
     discoveryDetails:
       protocolHandler: |+
-        opcua:
-          opcuaDiscoveryMethod: 
-            standard:
-              discoveryUrls:
-              - opc.tcp://localhost:4840/
-          applicationNames:
-            action: Include
-            items: []
+        opcuaDiscoveryMethod: 
+          standard:
+            discoveryUrls:
+            - opc.tcp://localhost:4840/
+        applicationNames:
+          action: Include
+          items: []
   brokerPodSpec:
     containers:
     - name: akri-opcua-broker

@@ -1,27 +1,21 @@
 use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
 use akri_discovery_utils::{
     discovery::{
+        discovery_handler::deserialize_discovery_details,
         v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
         DiscoverStream,
     },
     filtering::FilterList,
 };
-use anyhow::Error;
 use async_trait::async_trait;
 use log::{error, info, trace};
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::delay_for;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum DiscoveryHandlerType {
-    Opcua(OpcuaDiscoveryHandlerConfig),
-}
 
 /// Methods for discovering OPC UA Servers
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -46,6 +40,7 @@ pub struct StandardOpcuaDiscovery {
 fn lds_discovery_url() -> Vec<String> {
     vec!["opc.tcp://localhost:4840/".to_string()]
 }
+
 /// This defines the OPC UA data stored in the Configuration
 /// CRD
 ///
@@ -83,13 +78,9 @@ impl Discovery for DiscoveryHandler {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config =
-            deserialize_discovery_details(&discover_request.discovery_details).map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::InvalidArgument,
-                    format!("Invalid OPC UA discovery handler configuration: {}", e),
-                )
-            })?;
+        let discovery_handler_config: OpcuaDiscoveryHandlerConfig =
+            deserialize_discovery_details(&discover_request.discovery_details)
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let discovery_method = discovery_handler_config.opcua_discovery_method.clone();
@@ -160,51 +151,23 @@ impl Discovery for DiscoveryHandler {
     }
 }
 
-/// This obtains the `OpcuaDiscoveryHandlerConfig` from a discovery details map.
-/// It expects the `OpcuaDiscoveryHandlerConfig` to be serialized yaml stored in the map as
-/// the String value associated with the key `protocolHandler`.
-fn deserialize_discovery_details(
-    discovery_details: &HashMap<String, String>,
-) -> Result<OpcuaDiscoveryHandlerConfig, Error> {
-    info!(
-        "inner_get_discovery_handler - for discovery details {:?}",
-        discovery_details
-    );
-    // Determine whether it is an embedded protocol
-    if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
-        if let Ok(discovery_handler) = serde_yaml::from_str(discovery_handler_str) {
-            match discovery_handler {
-                DiscoveryHandlerType::Opcua(discovery_handler_config) => {
-                    Ok(discovery_handler_config)
-                }
-            }
-        } else {
-            Err(anyhow::format_err!("Discovery details had protocol handler but does not have embedded support. Discovery details: {:?}", discovery_details))
-        }
-    } else {
-        Err(anyhow::format_err!(
-            "Generic discovery handlers not supported. Discovery details: {:?}",
-            discovery_details
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
         // Check that if no DiscoveryUrls are provided, the default LDS url is used.
         let yaml = r#"
           protocolHandler: |+
-            opcua:
-              opcuaDiscoveryMethod: 
-                standard: {}
+            opcuaDiscoveryMethod: 
+              standard: {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized =
-            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
+        let dh_config: OpcuaDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
+        let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
@@ -214,20 +177,20 @@ mod tests {
         // Test standard discovery
         let yaml = r#"
           protocolHandler: |+
-            opcua:
-              opcuaDiscoveryMethod: 
-                standard:
-                  discoveryUrls:
-                  - opc.tcp://127.0.0.1:4855/
-              applicationNames:
-                action: Include
-                items: 
-                - "Some application name" 
+            opcuaDiscoveryMethod: 
+              standard:
+                discoveryUrls:
+                - opc.tcp://127.0.0.1:4855/
+            applicationNames:
+              action: Include
+              items: 
+              - "Some application name" 
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let serialized =
-            serde_json::to_string(&deserialize_discovery_details(&deserialized).unwrap()).unwrap();
-        let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
-        assert_eq!(expected_deserialized, serialized);
+        let dh_config: OpcuaDiscoveryHandlerConfig =
+            deserialize_discovery_details(&deserialized).unwrap();
+        let serialized = serde_json::to_string(&dh_config).unwrap();
+        let expected_serialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
+        assert_eq!(expected_serialized, serialized);
     }
 }

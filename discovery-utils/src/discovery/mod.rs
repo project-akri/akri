@@ -58,6 +58,33 @@ pub mod discovery_handler {
         tokio::try_join!(discovery_handle, registration_handle)?;
         Ok(())
     }
+
+    /// This obtains the expected type `T` from a discovery details map
+    /// by running it through function `f` which will attempt to deserialize the String.
+    /// It expects `T` to be serialized yaml stored in the map as
+    /// the String value associated with the key `protocolHandler`.
+    pub fn deserialize_discovery_details<T>(
+        discovery_details: &std::collections::HashMap<String, String>,
+    ) -> Result<T, anyhow::Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
+            let discovery_handler_config: T =
+                serde_yaml::from_str(discovery_handler_str).map_err(|e| {
+                    anyhow::format_err!(
+                        "Configuration discovery details improperly configured with error {:?}",
+                        e
+                    )
+                })?;
+            Ok(discovery_handler_config)
+        } else {
+            Err(anyhow::format_err!(
+                "Expected discovery information to be stored under key 'protocolHandler' in Config discovery details: {:?}",
+                discovery_details
+            ))
+        }
+    }
 }
 
 #[cfg(any(feature = "mock-discovery-handler", test))]
