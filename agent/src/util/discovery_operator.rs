@@ -304,10 +304,10 @@ impl DiscoveryOperator {
                         )
                         .await
                         .unwrap();
-                        k8s::try_delete_instance_arc(
-                            kube_interface_clone.clone(),
-                            instance.clone(),
-                            self.config.metadata.namespace.as_ref().unwrap().clone(),
+                        k8s::try_delete_instance(
+                            (*kube_interface_clone).as_ref(),
+                            &instance,
+                            self.config.metadata.namespace.as_ref().unwrap(),
                         )
                         .await?;
                     }
@@ -482,10 +482,10 @@ impl DiscoveryOperator {
                     )
                     .await
                     .unwrap();
-                    k8s::try_delete_instance_arc(
-                        kube_interface.clone(),
-                        instance.clone(),
-                        self.config.metadata.namespace.as_ref().unwrap().clone(),
+                    k8s::try_delete_instance(
+                        (*kube_interface).as_ref(),
+                        &instance,
+                        self.config.metadata.namespace.as_ref().unwrap(),
                     )
                     .await
                     .unwrap();

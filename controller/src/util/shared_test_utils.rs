@@ -30,7 +30,13 @@ pub mod config_for_tests {
             .withf(move |name, namespace| name == instance_name && namespace == instance_namespace)
             .returning(move |_, _| {
                 if result_error {
-                    Err(None.ok_or("failure")?)
+                    // Return error that instance could not be found
+                    Err(kube::Error::Api(kube::ErrorResponse {
+                        status: "Failure".to_string(),
+                        message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
+                        reason: "NotFound".to_string(),
+                        code: akri_shared::k8s::ERROR_NOT_FOUND,
+                    }))
                 } else {
                     let dci_json = file::read_file_to_string(result_file);
                     let dci: KubeAkriInstance = serde_json::from_str(&dci_json).unwrap();

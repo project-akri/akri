@@ -870,6 +870,16 @@ mod device_plugin_service_tests {
         }
     }
 
+    fn get_kube_not_found_error() -> kube::Error {
+        // Mock error thrown when instance not found
+        kube::Error::Api(kube::ErrorResponse {
+            status: "Failure".to_string(),
+            message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
+            reason: "NotFound".to_string(),
+            code: k8s::ERROR_NOT_FOUND,
+        })
+    }
+
     // Tests that instance names are formatted correctly
     #[test]
     fn test_get_device_instance_name() {
@@ -926,10 +936,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| {
-                let error = Error::new(ErrorKind::InvalidInput, "Configuration doesn't exist");
-                Err(Box::new(error))
-            });
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1073,7 +1080,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| Err(None.ok_or("failure")?));
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1232,10 +1239,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == instance_namespace && name == instance_name
             })
-            .returning(move |_, _| {
-                let error = Error::new(ErrorKind::InvalidInput, "Instance doesn't exist");
-                Err(Box::new(error))
-            });
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
                 .await

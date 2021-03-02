@@ -121,7 +121,7 @@ pub async fn find_instance(
     name: &str,
     namespace: &str,
     kube_client: &APIClient,
-) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<KubeAkriInstance, kube::Error> {
     log::trace!("find_instance enter");
     let akri_instance_type = RawApi::customResource(API_INSTANCES)
         .group(API_NAMESPACE)
@@ -140,17 +140,19 @@ pub async fn find_instance(
             log::trace!("find_instance return");
             Ok(config_retrieved)
         }
-        Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
-            Err(ae.into())
-        }
-        Err(e) => {
-            log::trace!("find_instance kube_client.request error: {:?}", e);
-            Err(e.into())
-        }
+        Err(e) => match e {
+            kube::Error::Api(ae) => {
+                log::trace!(
+                    "find_instance kube_client.request returned kube error: {:?}",
+                    ae
+                );
+                Err(kube::Error::Api(ae))
+            }
+            _ => {
+                log::trace!("find_instance kube_client.request error: {:?}", e);
+                Err(e)
+            }
+        },
     }
 }
 
