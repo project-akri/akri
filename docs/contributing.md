@@ -7,6 +7,7 @@ Akri utilizes a variety of technologies, and different background knowledge is m
 - The Akri Controller and Agent are written in the [Rust programming language](https://www.rust-lang.org/learn). 
 - All of Akri's components run on Linux, so you will need to set up an Ubuntu VM if you do not already have a Linux environment. 
 - Sample brokers and end applications can be written in any language and are individually containerized.
+- [Discovery handlers](./agent-in-depth#resource-discovery) can be written in any language and can be deployed in their own Pods. However, if you would like your discovery handler to be embedded in the Akri Agent Pods, it must be written in Rust. 
 - We use Docker to build our [containers](https://www.docker.com/resources/what-container).
 
 ## How do I get started developing?

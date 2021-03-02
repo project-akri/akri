@@ -11,7 +11,7 @@ template for accelerating creating a discovery handler in Rust.
 
 This document will walk you through the development steps to implement a Discovery Handler and sample broker that
 utilizes exposed devices. This document will also cover the steps to get your Discovery Handler and broker added to
-Akri, should you wish to contribute them back.
+Akri, should you wish to [contribute them back](./contributing.md).
 
 Before continuing, please read the [Akri architecture](./architecture.md), [Akri agent](./agent-in-depth.md), and
 [development](./development.md) documentation pages.  They will provide a good understanding of Akri, how it works, what
@@ -21,7 +21,7 @@ components it is composed of, and how to build it.
 
 Here, we will create a Discovery Handler to discover **HTTP-based devices** that publish random sensor data.
 
-Any Docker-compatible container registry will work for hosting the containers being used in this example (dockerhub,
+Any Docker-compatible container registry will work for hosting the containers being used in this example (Docker Hub,
 Github Container Registry, Azure Container Registry, etc).  Here, we are using the [GitHub Container
 Registry](https://github.blog/2020-09-01-introducing-github-container-registry/). You can follow the [getting started
 guide here to enable it for
@@ -42,7 +42,7 @@ cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-t
 ### Specify the protocol name and locality of the devices it discovers
 Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to
 register our DiscoveryHandler with the Akri Agent. We only need to specify the protocol name and locality of our
-Discovery Handler. Set the protocol name to `http` and `is_local` to false, as out HTTP Discovery Handler will discover
+Discovery Handler. Set the protocol name to `http` and `is_local` to false, as our HTTP Discovery Handler will discover
 devices that can be shared between nodes. The protocol name also resolves to the name of the socket the Discovery
 Handler will run on.
 

@@ -263,10 +263,7 @@ impl DiscoveryOperator {
                     deregistered = true;
                 }
             }
-            DiscoveryHandlerStatus::Waiting => {
-                dh_details.connectivity_status = DiscoveryHandlerStatus::Offline(Instant::now());
-            }
-            DiscoveryHandlerStatus::Active => {
+            DiscoveryHandlerStatus::Waiting | DiscoveryHandlerStatus::Active => {
                 dh_details.connectivity_status = DiscoveryHandlerStatus::Offline(Instant::now());
             }
         }
@@ -288,27 +285,25 @@ impl DiscoveryOperator {
         let kube_interface_clone = kube_interface.clone();
         let instance_map = self.instance_map.lock().await.clone();
         for (instance, instance_info) in instance_map.clone() {
-            match instance_info.connectivity_status {
-                InstanceConnectivityStatus::Online => {}
-                InstanceConnectivityStatus::Offline(instant) => {
-                    let time_offline = instant.elapsed().as_secs();
-                    // If instance has been offline for longer than the grace period or it is unshared, terminate the associated device plugin
-                    // TODO: make grace period configurable
-                    if time_offline >= SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS {
-                        trace!("delete_offline_instances - instance {} has been offline too long ... terminating device plugin", instance);
-                        device_plugin_service::terminate_device_plugin_service(
-                            &instance,
-                            self.instance_map.clone(),
-                        )
-                        .await
-                        .unwrap();
-                        k8s::try_delete_instance(
-                            (*kube_interface_clone).as_ref(),
-                            &instance,
-                            self.config.metadata.namespace.as_ref().unwrap(),
-                        )
-                        .await?;
-                    }
+            if let InstanceConnectivityStatus::Offline(instant) = instance_info.connectivity_status
+            {
+                let time_offline = instant.elapsed().as_secs();
+                // If instance has been offline for longer than the grace period or it is unshared, terminate the associated device plugin
+                // TODO: make grace period configurable
+                if time_offline >= SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS {
+                    trace!("delete_offline_instances - instance {} has been offline too long ... terminating device plugin", instance);
+                    device_plugin_service::terminate_device_plugin_service(
+                        &instance,
+                        self.instance_map.clone(),
+                    )
+                    .await
+                    .unwrap();
+                    k8s::try_delete_instance(
+                        (*kube_interface_clone).as_ref(),
+                        &instance,
+                        self.config.metadata.namespace.as_ref().unwrap(),
+                    )
+                    .await?;
                 }
             }
         }
@@ -531,10 +526,10 @@ pub mod start_discovery {
         let discovery_operator = Arc::new(discovery_operator);
 
         // Call discover on already registered Discovery Handlers for this Configuration's protocol
-        let task1_discovery_operator = discovery_operator.clone();
+        let known_dh_discovery_operator = discovery_operator.clone();
         tasks.push(tokio::spawn(async move {
             do_discover(
-                task1_discovery_operator,
+                known_dh_discovery_operator,
                 Arc::new(Box::new(k8s::create_kube_interface())),
             )
             .await
@@ -544,10 +539,10 @@ pub mod start_discovery {
         // Listen for new discovery handlers to call discover on
         let mut stop_all_discovery_receiver = stop_all_discovery_sender.subscribe();
         let mut new_discovery_handler_receiver = new_discovery_handler_sender.subscribe();
-        let task2_discovery_operator = discovery_operator.clone();
+        let new_dh_discovery_operator = discovery_operator.clone();
         tasks.push(tokio::spawn(async move {
             listen_for_new_discovery_handlers(
-                task2_discovery_operator,
+                new_dh_discovery_operator,
                 &mut new_discovery_handler_receiver,
                 &mut stop_all_discovery_receiver,
             )
@@ -558,11 +553,11 @@ pub mod start_discovery {
         // Non-local devices are only allowed to be offline for `SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS` minutes before being removed.
         // This task periodically checks if devices have been offline for too long.
         let mut stop_all_discovery_receiver = stop_all_discovery_sender.subscribe();
-        let task3_discovery_operator = discovery_operator.clone();
+        let offline_dh_discovery_operator = discovery_operator.clone();
         tasks.push(tokio::spawn(async move {
             let kube_interface: Arc<Box<dyn k8s::KubeInterface>> = Arc::new(Box::new(k8s::create_kube_interface()));
             loop {
-                task3_discovery_operator
+                offline_dh_discovery_operator
                     .delete_offline_instances(kube_interface.clone())
                     .await
                     .unwrap();
