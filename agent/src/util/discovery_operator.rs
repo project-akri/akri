@@ -8,7 +8,7 @@ use super::{
     },
     embedded_discovery_handlers::get_discovery_handler,
     registration::{
-        DiscoveryHandlerConnectivityStatus, DiscoveryHandlerDetails, DiscoveryHandlerEndpoint,
+        DiscoveryHandlerDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
         RegisteredDiscoveryHandlerMap, DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS,
     },
     streaming_extension::StreamingExt,
@@ -226,7 +226,7 @@ impl DiscoveryOperator {
     pub fn set_discovery_handler_connectivity_status(
         &self,
         endpoint: &DiscoveryHandlerEndpoint,
-        connectivity_status: DiscoveryHandlerConnectivityStatus,
+        connectivity_status: DiscoveryHandlerStatus,
     ) {
         trace!("set_discovery_handler_connectivity_status - set status of {:?} for discovery handler at endpoint {:?} and protocol {}", connectivity_status, endpoint, self.config.spec.protocol.name);
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
@@ -238,11 +238,11 @@ impl DiscoveryOperator {
     }
 
     /// This is called when no connection can be made with a discovery handler at its endpoint.
-    /// It takes action based on a Discovery Handler's (DH's) current `DiscoveryHandlerConnectivityStatus`.
-    /// If `DiscoveryHandlerConnectivityStatus::Online`, connectivity status changed to Offline.
-    /// If `DiscoveryHandlerConnectivityStatus::Offline`, DH is removed from the `RegisteredDiscoveryHandlersMap`
+    /// It takes action based on a Discovery Handler's (DH's) current `DiscoveryHandlerStatus`.
+    /// If `DiscoveryHandlerStatus::Waiting`, connectivity status changed to Offline.
+    /// If `DiscoveryHandlerStatus::Offline`, DH is removed from the `RegisteredDiscoveryHandlersMap`
     /// if it have been offline for longer than the grace period.
-    /// If `DiscoveryHandlerConnectivityStatus::HasClient`, this should not happen, Error is returned.
+    /// If `DiscoveryHandlerStatus::Active`, this should not happen, Error is returned.
     pub async fn mark_offline_or_deregister_discovery_handler(
         &self,
         endpoint: &DiscoveryHandlerEndpoint,
@@ -255,7 +255,7 @@ impl DiscoveryOperator {
             .unwrap();
         let dh_details = protocol_map.get_mut(endpoint).unwrap();
         match dh_details.connectivity_status {
-            DiscoveryHandlerConnectivityStatus::Offline(instant) => {
+            DiscoveryHandlerStatus::Offline(instant) => {
                 if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
                     trace!("mark_offline_or_deregister_discovery_handler - de-registering discovery handler for protocol {} at endpoint {:?} since been offline for longer than 5 minutes", self.config.spec.protocol.name, endpoint);
                     // Remove discovery handler from map if timed out
@@ -263,13 +263,11 @@ impl DiscoveryOperator {
                     deregistered = true;
                 }
             }
-            DiscoveryHandlerConnectivityStatus::Online => {
-                dh_details.connectivity_status =
-                    DiscoveryHandlerConnectivityStatus::Offline(Instant::now());
+            DiscoveryHandlerStatus::Waiting => {
+                dh_details.connectivity_status = DiscoveryHandlerStatus::Offline(Instant::now());
             }
-            DiscoveryHandlerConnectivityStatus::HasClient => {
-                dh_details.connectivity_status =
-                    DiscoveryHandlerConnectivityStatus::Offline(Instant::now());
+            DiscoveryHandlerStatus::Active => {
+                dh_details.connectivity_status = DiscoveryHandlerStatus::Offline(Instant::now());
             }
         }
         Ok(deregistered)
@@ -498,7 +496,7 @@ impl DiscoveryOperator {
 
 pub mod start_discovery {
     use super::super::registration::{
-        DiscoveryHandlerConnectivityStatus, DiscoveryHandlerDetails, DiscoveryHandlerEndpoint,
+        DiscoveryHandlerDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
     };
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     #[double]
@@ -620,11 +618,11 @@ pub mod start_discovery {
 
     /// For each Discovery Handler registered for this DiscoveryOperator's protocol,
     /// tries to establish connection with the DiscoveryHandler and spawns a discovery thread for each connection.
-    /// This function also manages the DiscoveryHandlerConnectivityStatus of each Discovery Handler as follows:
-    /// /// DiscoveryHandlerConnectivityStatus::HasClient if a connection is established via a call to get_stream
-    /// /// DiscoveryHandlerConnectivityStatus::Online after a connection has finished due to either being signaled to stop connecting
+    /// This function also manages the DiscoveryHandlerStatus of each Discovery Handler as follows:
+    /// /// DiscoveryHandlerStatus::Active if a connection is established via a call to get_stream
+    /// /// DiscoveryHandlerStatus::Waiting after a connection has finished due to either being signaled to stop connecting
     /// /// or an error being returned from the discovery handler (that is not a broken pipe)
-    /// /// DiscoveryHandlerConnectivityStatus::Offline if a connection cannot be established via a call to get_stream
+    /// /// DiscoveryHandlerStatus::Offline if a connection cannot be established via a call to get_stream
     /// If a connection cannot be established, continues to try, sleeping between iteration.
     /// Removes the discovery handler from the RegisteredDiscoveryHandlerMap if it has been offline for longer than the grace period.
     pub async fn do_discover(
@@ -654,7 +652,7 @@ pub mod start_discovery {
                     endpoint
                 );
                 // Only use Discovery Handler if it doesn't have a client yet
-                if dh_details.connectivity_status != DiscoveryHandlerConnectivityStatus::HasClient {
+                if dh_details.connectivity_status != DiscoveryHandlerStatus::Active {
                     trace!(
                         "do_discover - endpoint {:?} for protocol {} doesn't have client",
                         endpoint,
@@ -693,7 +691,7 @@ pub mod start_discovery {
                     // Since connection was established, be sure that the Discovery Handler is marked as having a client
                     discovery_operator.set_discovery_handler_connectivity_status(
                         &endpoint,
-                        DiscoveryHandlerConnectivityStatus::HasClient,
+                        DiscoveryHandlerStatus::Active,
                     );
                     match stream_type {
                         StreamType::External(mut stream) => {
@@ -708,7 +706,7 @@ pub mod start_discovery {
                                 Ok(_) => {
                                     discovery_operator.set_discovery_handler_connectivity_status(
                                         &endpoint,
-                                        DiscoveryHandlerConnectivityStatus::Online,
+                                        DiscoveryHandlerStatus::Waiting,
                                     );
                                     break;
                                 }
@@ -741,7 +739,7 @@ pub mod start_discovery {
                                         discovery_operator
                                             .set_discovery_handler_connectivity_status(
                                                 &endpoint,
-                                                DiscoveryHandlerConnectivityStatus::Online,
+                                                DiscoveryHandlerStatus::Waiting,
                                             );
                                         break;
                                     }
@@ -759,7 +757,7 @@ pub mod start_discovery {
                                 .unwrap();
                             discovery_operator.set_discovery_handler_connectivity_status(
                                 &endpoint,
-                                DiscoveryHandlerConnectivityStatus::Online,
+                                DiscoveryHandlerStatus::Waiting,
                             );
                             break;
                         }
@@ -837,8 +835,8 @@ pub mod tests {
     use super::super::{
         device_plugin_builder::MockDevicePluginBuilderInterface,
         registration::{
-            register_embedded_discovery_handlers, DiscoveryHandlerConnectivityStatus,
-            DiscoveryHandlerDetails, EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
+            register_embedded_discovery_handlers, DiscoveryHandlerDetails, DiscoveryHandlerStatus,
+            EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
         },
     };
     use super::*;
@@ -960,7 +958,7 @@ pub mod tests {
         DiscoveryHandlerDetails {
             register_request,
             stop_discovery: stop_discovery.clone(),
-            connectivity_status: DiscoveryHandlerConnectivityStatus::Online,
+            connectivity_status: DiscoveryHandlerStatus::Waiting,
         }
     }
 
@@ -1071,7 +1069,7 @@ pub mod tests {
     }
 
     // Test that DH is connected to on second try getting stream and
-    // that connectivity status is changed from Online -> HasClient -> Online again
+    // that connectivity status is changed from Waiting -> Active -> Waiting again
     // when a successful connection is made and completed.
     #[tokio::test]
     async fn test_do_discover_completed_internal_connection() {
@@ -1099,15 +1097,15 @@ pub mod tests {
             .times(1)
             .return_once(move |_| stream_type)
             .in_sequence(&mut get_stream_seq);
-        // Make sure discovery handler is marked as HasClient
+        // Make sure discovery handler is marked as Active
         let mut discovery_handler_status_seq = Sequence::new();
         mock_discovery_operator
             .expect_set_discovery_handler_connectivity_status()
             .withf(
                 move |endpoint: &DiscoveryHandlerEndpoint,
-                      connectivity_status: &DiscoveryHandlerConnectivityStatus| {
+                      connectivity_status: &DiscoveryHandlerStatus| {
                     endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-                        && connectivity_status == &DiscoveryHandlerConnectivityStatus::HasClient
+                        && connectivity_status == &DiscoveryHandlerStatus::Active
                 },
             )
             .times(1)
@@ -1123,9 +1121,9 @@ pub mod tests {
             .expect_set_discovery_handler_connectivity_status()
             .withf(
                 move |endpoint: &DiscoveryHandlerEndpoint,
-                      connectivity_status: &DiscoveryHandlerConnectivityStatus| {
+                      connectivity_status: &DiscoveryHandlerStatus| {
                     endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-                        && connectivity_status == &DiscoveryHandlerConnectivityStatus::Online
+                        && connectivity_status == &DiscoveryHandlerStatus::Waiting
                 },
             )
             .times(1)
@@ -1355,11 +1353,9 @@ pub mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let protocol = "debugEcho";
         let (discovery_operator, endpoint) = setup_non_mocked_dh(protocol);
-        // Test that an online discovery handler is marked HasClient
-        discovery_operator.set_discovery_handler_connectivity_status(
-            &endpoint,
-            DiscoveryHandlerConnectivityStatus::HasClient,
-        );
+        // Test that an online discovery handler is marked Active
+        discovery_operator
+            .set_discovery_handler_connectivity_status(&endpoint, DiscoveryHandlerStatus::Active);
         assert_eq!(
             discovery_operator
                 .discovery_handler_map
@@ -1372,7 +1368,7 @@ pub mod tests {
                 .unwrap()
                 .clone()
                 .connectivity_status,
-            DiscoveryHandlerConnectivityStatus::HasClient
+            DiscoveryHandlerStatus::Active
         );
     }
 
@@ -1389,7 +1385,7 @@ pub mod tests {
                 .unwrap(),
             false
         );
-        if let DiscoveryHandlerConnectivityStatus::Offline(_) = discovery_operator
+        if let DiscoveryHandlerStatus::Offline(_) = discovery_operator
             .discovery_handler_map
             .lock()
             .unwrap()
@@ -1403,7 +1399,7 @@ pub mod tests {
         {
             // expected
         } else {
-            panic!("DiscoveryHandlerConnectivityStatus should be changed to offline");
+            panic!("DiscoveryHandlerStatus should be changed to offline");
         }
         // Test that an offline discovery handler is not deregistered if the time has not passed
         assert_eq!(
@@ -1433,7 +1429,7 @@ pub mod tests {
         let discovery_handler_details = DiscoveryHandlerDetails {
             register_request: debug_echo_reg_req.clone(),
             stop_discovery: tx,
-            connectivity_status: DiscoveryHandlerConnectivityStatus::Online,
+            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
         register_request_map.insert(
@@ -1482,7 +1478,7 @@ pub mod tests {
         let discovery_handler_details = DiscoveryHandlerDetails {
             register_request,
             stop_discovery: tx,
-            connectivity_status: DiscoveryHandlerConnectivityStatus::Online,
+            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
         register_request_map.insert(dh_endpoint.clone(), discovery_handler_details);

@@ -623,7 +623,7 @@ impl KubeInterface for KubeImpl {
 }
 
 /// This deletes an Instance unless it has already been deleted by another node
-/// or fails after multiple retries
+/// or fails after multiple retries.
 pub async fn try_delete_instance(
     kube_interface: &dyn KubeInterface,
     instance_name: &str,

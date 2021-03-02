@@ -43,11 +43,11 @@ pub enum DiscoveryHandlerEndpoint {
 
 /// Describes the connectivity status of a Discovery Handler.
 #[derive(PartialEq, Debug, Clone)]
-pub enum DiscoveryHandlerConnectivityStatus {
-    /// Has a client successfully using it
-    HasClient,
-    /// Registered but does not have a client
-    Online,
+pub enum DiscoveryHandlerStatus {
+    /// This discovery handler is currently doing discovery on behalf of the Agent
+    Active,
+    /// This discovery handler is available and waiting for a discover call from the Agent
+    Waiting,
     /// Not returning discovery results
     Offline(Instant),
 }
@@ -56,7 +56,7 @@ pub enum DiscoveryHandlerConnectivityStatus {
 pub struct DiscoveryHandlerDetails {
     pub register_request: RegisterRequest,
     pub stop_discovery: broadcast::Sender<()>,
-    pub connectivity_status: DiscoveryHandlerConnectivityStatus,
+    pub connectivity_status: DiscoveryHandlerStatus,
 }
 
 pub fn get_external_endpoint_type(
@@ -118,7 +118,7 @@ impl Registration for AgentRegistration {
         let discovery_handler_details = DiscoveryHandlerDetails {
             register_request: req.clone(),
             stop_discovery: tx,
-            connectivity_status: DiscoveryHandlerConnectivityStatus::Online,
+            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
         // Check if the server is among the already registered servers for the protocol
@@ -233,7 +233,7 @@ pub fn register_embedded_discovery_handlers(
         let discovery_handler_details = DiscoveryHandlerDetails {
             register_request: request.clone(),
             stop_discovery: tx,
-            connectivity_status: DiscoveryHandlerConnectivityStatus::Online,
+            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
         register_request_map.insert(
