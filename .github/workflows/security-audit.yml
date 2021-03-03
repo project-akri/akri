@@ -1,0 +1,42 @@
+# This is a security audit workflow that runs security audit checks and send an email in case any vulnerabilities are detected.
+
+name: Security Audit
+on:
+  schedule:
+  - cron: '0 0 * * *' #runs daily at 12:00 am UTC
+    
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Run security audit check
+        id: cargo-audit
+        continue-on-error: true
+        uses: actions-rs/audit-check@v1
+        with:
+          # token is only used for creating the audit report and does not impact the 
+          # functionality or success/failure of the job in case the token is unavailable 
+          token: ${{ secrets.GITHUB_TOKEN }}
+  
+      # sends an email if security audit failed 
+      - name: Send mail
+        if: steps.cargo-audit.outcome != 'success'
+        uses: dawidd6/action-send-mail@v2
+        with:
+          server_address: smtp-mail.outlook.com
+          server_port: 587
+          username: ${{secrets.AKRI_BOT_EMAIL}}
+          password: ${{secrets.AKRI_BOT_PASSWORD}}
+          subject: "Security vulnerability detected in ${{github.repository}}"
+          body: |-
+            A security vulnerability was detected in one or more of Akri's. For more details, check the output of the [security audit workflow](https://github.com/${{github.repository}}/runs/actions)
+
+            Hint: In most cases, running the [auto-update dependencies](https://github.com/deislabs/akri/actions/workflows/auto-update-dependencies.yml) workflow will fix the issue.
+
+            -Your friendly Akri bot 🤖
+          to: ${{secrets.AKRI_TEAM_EMAIL}}
+          from: ${{secrets.AKRI_BOT_EMAIL}}
+          content_type: text/html
+          convert_markdown: true
+      

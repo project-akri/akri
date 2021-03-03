@@ -24,11 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/audit-check@v1
-        with:
-          # token is only used for creating the audit report and does not impact the 
-          # functionality or success/failure of the job in case the token is unavailable 
-          token: ${{ secrets.GITHUB_TOKEN }}
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
