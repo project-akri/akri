@@ -288,10 +288,8 @@ mod tests {
                 },
                 "spec": {
                     "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                        "name": "debugEcho",
+                        "discoveryDetails": {"protocolHandler": "{\"descriptions\": [\"foo\",\"bar\"]}"}
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -378,10 +376,8 @@ mod tests {
                 },
                 "spec": {
                     "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                        "name": "debugEcho",
+                        "discoveryDetails": {"protocolHandler": "{\"descriptions\": [\"foo\",\"bar\"]}"}
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -464,10 +460,8 @@ mod tests {
                 },
                 "spec": {
                     "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                        "name": "debugEcho",
+                        "discoveryDetails": {"protocolHandler": "{\"descriptions\": [\"foo\",\"bar\"]}"}
                     },
                     "brokerPodSpec": {
                         "containers": [

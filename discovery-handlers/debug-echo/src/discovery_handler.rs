@@ -170,10 +170,9 @@ mod tests {
         // Make devices "online"
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "").unwrap();
         let debug_echo_yaml = r#"
-        protocol: 
-        name: debugEcho
-        discoveryDetails:
-          protocolHandler: |+
+          name: debugEcho
+          discoveryDetails:
+            protocolHandler: |+
               descriptions:
               - "foo1"
         "#;
