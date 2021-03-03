@@ -20,10 +20,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  rust_checks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
