@@ -6,7 +6,10 @@ use akri_discovery_utils::discovery::{
     },
     AGENT_REGISTRATION_SOCKET, DISCOVERY_HANDLER_PATH,
 };
-use akri_shared::uds::unix_stream;
+use akri_shared::{
+    os::env_var::{ActualEnvVarQuery, EnvVarQuery},
+    uds::unix_stream,
+};
 use futures::TryStreamExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -196,18 +199,33 @@ pub async fn internal_run_registration_server(
     Ok(())
 }
 
-/// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap,
-/// specifying an endpoint of Endpoint::Embedded to signal that it is an embedded Discovery Handler.
 #[cfg(any(test, feature = "agent-all-in-one"))]
 pub fn register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("register_embedded_discovery_handlers - entered");
+    let env_var_query = ActualEnvVarQuery {};
+    inner_register_embedded_discovery_handlers(discovery_handler_map, &env_var_query)?;
+    Ok(())
+}
+
+/// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap,
+/// specifying an endpoint of Endpoint::Embedded to signal that it is an embedded Discovery Handler.
+#[cfg(any(test, feature = "agent-all-in-one"))]
+pub fn inner_register_embedded_discovery_handlers(
+    discovery_handler_map: RegisteredDiscoveryHandlerMap,
+    query: &impl EnvVarQuery,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut register_requests: Vec<RegisterRequest> = Vec::new();
+    let is_local: bool = query
+        .get_env_var(akri_debug_echo::INSTANCES_ARE_LOCAL_LABEL)
+        .unwrap()
+        .parse()
+        .unwrap();
     register_requests.push(create_register_request(
         akri_debug_echo::PROTOCOL_NAME,
         EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
-        akri_debug_echo::IS_LOCAL,
+        is_local,
     ));
     #[cfg(feature = "onvif-feat")]
     register_requests.push(create_register_request(
@@ -260,6 +278,7 @@ fn create_register_request(protocol: &str, endpoint: &str, is_local: bool) -> Re
 mod tests {
     use super::*;
     use akri_discovery_utils::discovery::v0::registration_client::RegistrationClient;
+    use akri_shared::os::env_var::MockEnvVarQuery;
     use std::convert::TryFrom;
     use tempfile::Builder;
     use tokio::net::UnixStream;
@@ -267,8 +286,17 @@ mod tests {
 
     #[test]
     fn test_register_embedded_discovery_handlers() {
+        // set environment variable for debugEcho instances locality
+        let mut mock_env_var_local = MockEnvVarQuery::new();
+        mock_env_var_local
+            .expect_get_env_var()
+            .returning(|_| Ok("true".to_string()));
         let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
-        register_embedded_discovery_handlers(discovery_handler_map.clone()).unwrap();
+        inner_register_embedded_discovery_handlers(
+            discovery_handler_map.clone(),
+            &mock_env_var_local,
+        )
+        .unwrap();
         assert_eq!(discovery_handler_map.lock().unwrap().len(), 4);
         assert!(discovery_handler_map
             .lock()

@@ -1410,7 +1410,7 @@ pub mod tests {
         let debug_echo_reg_req = RegisterRequest {
             protocol: akri_debug_echo::PROTOCOL_NAME.to_string(),
             endpoint: EMBEDDED_DISCOVERY_HANDLER_ENDPOINT.to_string(),
-            is_local: akri_debug_echo::IS_LOCAL,
+            is_local: true,
         };
         let (tx, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryHandlerDetails {

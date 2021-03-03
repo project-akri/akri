@@ -88,12 +88,16 @@ spec:
         ports:
         - name: discovery
           containerPort: {{ .Values.debugEcho.discovery.port }}
+        {{- end }}
         env:
+        {{- if .Values.debugEcho.discovery.useNetworkConnection }}
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
         {{- end }}
+        - name: INSTANCES_ARE_LOCAL
+          value: {{ .Values.debugEcho.localInstances }}
         volumeMounts:
         - name: agent-registration
           mountPath: /var/lib/akri
