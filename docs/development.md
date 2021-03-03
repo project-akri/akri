@@ -137,6 +137,9 @@ source /home/$SUDO_USER/.cargo/env
 exit
 ```
 
+#### More information about Akri build
+For more detailed information about the Akri build infrastructure, review the [Akri build infrastructure document](./building.md)
+
 ## Install Akri with newly built containers
 When installing Akri using helm, you can set the `imagePullSecrets`, `image.repository` and `image.tag` [Helm values](../deployment/helm/values.yaml) to point to your newly created containers. For example, to install Akri with with custom Controller and Agent containers, run the following, specifying the `image.tag` version to reflect [version.txt](../version.txt):
 ```bash

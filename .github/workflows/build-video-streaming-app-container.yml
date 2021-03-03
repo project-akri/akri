@@ -11,6 +11,7 @@ on:
     - samples/apps/video-streaming-app/**
     - version.txt
     - build/akri-containers.mk
+    - build/akri-python-containers.mk
     - Makefile
   pull_request:
     branches: [ main ]
@@ -22,6 +23,7 @@ on:
     - samples/apps/video-streaming-app/**
     - version.txt
     - build/akri-containers.mk
+    - build/akri-python-containers.mk
     - Makefile
   release:
     types:
