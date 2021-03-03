@@ -30,7 +30,7 @@ jobs:
           password: ${{secrets.AKRI_BOT_PASSWORD}}
           subject: "Security vulnerability detected in ${{github.repository}}"
           body: |-
-            A security vulnerability was detected in one or more of Akri's. For more details, check the output of the [security audit workflow](https://github.com/${{github.repository}}/runs/actions)
+            A security vulnerability was detected in one or more of Akri's dependencies. For more details, check the output of the [security audit workflow](https://github.com/${{github.repository}}/runs/actions)
 
             Hint: In most cases, running the [auto-update dependencies](https://github.com/deislabs/akri/actions/workflows/auto-update-dependencies.yml) workflow will fix the issue.
 
