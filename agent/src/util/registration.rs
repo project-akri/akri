@@ -95,8 +95,8 @@ impl AgentRegistration {
 
 #[tonic::async_trait]
 impl Registration for AgentRegistration {
-    /// Adds new Discovery Handlers to the RegisteredDiscoveryHandlerMap and broadcasts a message to
-    /// any running DiscoveryOperators that a new Discovery Handler exists.
+    /// Adds new `DiscoveryHandler`s to the RegisteredDiscoveryHandlerMap and broadcasts a message to
+    /// any running DiscoveryOperators that a new `DiscoveryHandler` exists.
     /// If the discovery handler is already registered at an endpoint and the register request has changed,
     /// the previously registered DH is told to stop discovery and is removed from the map. Then, the updated
     /// DH is registered.
