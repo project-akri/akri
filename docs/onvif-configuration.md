@@ -92,7 +92,7 @@ document](./customizing-akri-installation.md).
 ## Implementation details
 The ONVIF implementation can be understood by looking at several things:
 
-1. [OnvifDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties
+1. [OnvifDiscoveryDetails](../shared/src/akri/configuration.rs) defines the required properties
 1. [The onvif property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates
    the CRD input
 1. [OnvifDiscoveryHandler](../agent/src/protocols/onvif/discovery_handler.rs) defines ONVIF camera discovery

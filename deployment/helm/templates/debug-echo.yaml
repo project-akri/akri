@@ -6,8 +6,7 @@ metadata:
 spec:
   discoveryHandler: 
     name: debugEcho
-    discoveryDetails:
-      discoveryHandlerConfig: |+
+    discoveryDetails: |+
         {{- if .Values.debugEcho.descriptions}}
         descriptions:
         {{- toYaml .Values.debugEcho.descriptions | nindent 10 }}

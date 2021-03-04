@@ -50,20 +50,20 @@ Handler will run on.
 Akri's Configuration CRD takes in a [`DiscoveryHandlerInfo`](../shared/src/akri/configuration.rs), which is defined
 structurally as follows:
 ```rust
-/// This defines a protocol
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryHandlerInfo {
     pub name: String,
     #[serde(default)]
-    pub discovery_details: HashMap<String, String>,
+    pub discovery_details: String,
 }
 ```
 When creating a Discovery Handler, you must decide what name or label to give it and add any details you would like your
-discovery handler to receive in the `discovery_details` HashMap. The Agent passes this map to Discovery Handlers as part
-of a `DiscoverRequest`. A discovery handler must then parse this map to determine what to discover, filter out of
-discovery, and so on. In our case, we will require that a URL is passed as a discovery endpoint in the map under the key
-`discoveryEndpoint`. Our implementation will ping the discovery service at that URL to see if there are any devices.
+Discovery Handler to receive in the `discovery_details` string. The Agent passes this string to Discovery Handlers as
+part of a `DiscoverRequest`. A discovery handler must then parse this string -- Akri's built in Discovery Handlers store
+an expected structure in it as serialized YAML -- to determine what to discover, filter out of discovery, and so on. In
+our case, no parsing is required, as it will simply put our discovery endpoint. Our implementation will ping the
+discovery service at that URL to see if there are any devices.
 
 Ultimately, the protocol section of our HTTP Configuration will look like the following.
 ```yaml
@@ -74,8 +74,7 @@ metadata:
 spec:
   discoveryHandler:
     name: http
-    discoveryDetails:
-      discoveryEndpoint: http://discovery:9999/discovery
+    discoveryDetails: http://discovery:9999/discovery
 ```
 Now that we know what will be passed to our Discovery Handler, let's implement the discovery functionality.
 
@@ -114,15 +113,8 @@ impl Discovery for DiscoveryHandler {
         &self,
         request: tonic::Request<DiscoverRequest>,
     ) -> Result<Response<Self::DiscoverStream>, Status> {
-        // Get the discovery url from the `DiscoverRequest` else return an error signifying 
-        // an improper HTTP Configuration
-        let url = match request.get_ref().discovery_details.get("discoveryEndpoint") {
-            Some(url) => url.clone(),
-            None => { return Err(tonic::Status::new(
-                tonic::Code::InvalidArgument,
-                format!("Invalid HTTP discovery handler ... discovery_details [{:?}] do not contain a url at key 'discoveryEndpoint'", request.get_ref().discovery_details),
-            )); }
-        };
+        // Get the discovery url from the `DiscoverRequest`
+        let url = request.get_ref().discovery_details;
         // Create a channel for sending and receiving device updates
         let (mut stream_sender, stream_receiver) = mpsc::channel(4);
         let mut register_sender = self.register_sender.clone();
@@ -447,11 +439,11 @@ you want to deploy a custom Discovery Handler as a Daemonset by setting `customD
 Specify the container for that DaemonSet as the HTTP discovery handler that you built
 [above](###build-the-discoveryhandler-container) by setting `customDiscovery.discovery.image.repository=$DH_IMAGE`. To
 automatically deploy a custom Configuration, set `customDiscovery.enabled=true`. We will customize this Configuration to
-contain the discovery endpoint needed by our HTTP Discovery Handler by including it in the `discovery_details` map of
-the Configuration, like so: `customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery`. We
-also need to set the protocol name the Discovery Handler will register under (`customDiscovery.discoveryHandlerName`) and a name
-for the Discovery Handler and Configuration (`customDiscovery.name`). All these settings come together as the following
-Akri installation command:
+contain the discovery endpoint needed by our HTTP Discovery Handler by setting it in the `discovery_details` string of
+the Configuration, like so: `customDiscovery.discoveryDetails=http://discovery:9999/discovery`. We also need to set the
+protocol name the Discovery Handler will register under (`customDiscovery.discoveryHandlerName`) and a name for the
+Discovery Handler and Configuration (`customDiscovery.name`). All these settings come together as the following Akri
+installation command:
 > Note: Be sure to consult the [user guide](./user-guide.md) to see whether your Kubernetes distribution needs any
 > additional configuration.
 ```bash
@@ -463,7 +455,7 @@ Akri installation command:
   --set customDiscovery.enabled=true  \
   --set customDiscovery.name=akri-http  \
   --set customDiscovery.discoveryHandlerName=http \
-  --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery
+  --set customDiscovery.discoveryDetails=http://discovery:9999/discovery
   ```
 
 Watch as the Agent, Controller, and Discovery Handler Pods are spun up and as Instances are created for each of the
@@ -482,7 +474,7 @@ resources, by updating our Configuration to include a broker PodSpec.
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \
-    --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery \
+    --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
     --set customDiscovery.brokerPod.image=nginx:latest
   watch kubectl get pods,akrii
 ```
@@ -524,8 +516,8 @@ Once the http project has been created, it can be added to the greater Akri proj
 to the **members** in `./Cargo.toml`.
 
 To access the HTTP-based Device data, we first need to retrieve the discovery information.  Any information stored in
-the `Device` properties map will be transferred into the broker container's environment variables.  Retrieving
-them is simply a matter of querying environment variables like this:
+the `Device` properties map will be transferred into the broker container's environment variables.  Retrieving them is
+simply a matter of querying environment variables like this:
 
 ```rust
 let device_url = env::var("AKRI_HTTP_DEVICE_ENDPOINT")?;
@@ -664,7 +656,7 @@ used in our installation command.
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \
-    --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery \
+    --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
     --set customDiscovery.brokerPod.image=$BROKER_IMAGE
   watch kubectl get pods,akrii
 ```

@@ -34,8 +34,7 @@ metadata:
 spec:
   discoveryHandler:
     name: onvif
-    discoveryDetails:
-      discoveryHandlerConfig: |+
+    discoveryDetails: |+
         ipAddresses: 
           action: Exclude
           items: []

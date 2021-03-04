@@ -5,8 +5,7 @@ metadata:
 spec:
   discoveryHandler:
     name: udev
-    discoveryDetails:
-      discoveryHandlerConfig: |+
+    discoveryDetails: |+
         udevRules:
         -  'KERNEL=="video[0-9]*"'
   brokerPodSpec:

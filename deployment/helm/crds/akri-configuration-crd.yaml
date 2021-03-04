@@ -20,10 +20,8 @@ spec:
                   properties:
                     name:
                       type: string
-                    discoveryDetails: # map<string, string>
-                      additionalProperties:
-                        type: string
-                      type: object
+                    discoveryDetails:
+                      type: string
                 capacity:
                   type: integer
                 brokerPodSpec: # {{PodSpec}}

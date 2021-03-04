@@ -22,7 +22,7 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 /// CRD DiscoveryDetails
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct UdevDiscoveryHandlerConfig {
+pub struct UdevDiscoveryDetails {
     pub udev_rules: Vec<String>,
 }
 
@@ -48,7 +48,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config: UdevDiscoveryHandlerConfig =
+        let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
@@ -127,27 +127,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
         // Check that udev errors if no udev rules passed in
-        let yaml = r#"
-          discoveryHandlerConfig: |+
-            {}
-        "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config: Result<UdevDiscoveryHandlerConfig, anyhow::Error> =
-            deserialize_discovery_details(&deserialized);
+        let udev_dh_config: Result<UdevDiscoveryDetails, anyhow::Error> =
+            deserialize_discovery_details("");
         assert!(udev_dh_config.is_err());
 
         let yaml = r#"
-        discoveryHandlerConfig: |+
           udevRules: []
         "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config: UdevDiscoveryHandlerConfig =
-            deserialize_discovery_details(&deserialized).unwrap();
+        let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
         let expected_deserialized = r#"{"udevRules":[]}"#;
@@ -157,13 +148,10 @@ mod tests {
     #[test]
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
-        discoveryHandlerConfig: |+
           udevRules:
           - 'KERNEL=="video[0-9]*"'
         "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let udev_dh_config: UdevDiscoveryHandlerConfig =
-            deserialize_discovery_details(&deserialized).unwrap();
+        let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert_eq!(udev_dh_config.udev_rules.len(), 1);
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
     }

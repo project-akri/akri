@@ -8,7 +8,7 @@ use super::{
     },
     embedded_discovery_handlers::get_discovery_handler,
     registration::{
-        DiscoveryHandlerDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
+        DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
         RegisteredDiscoveryHandlerMap, DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS,
     },
     streaming_extension::StreamingExt,
@@ -193,7 +193,7 @@ impl DiscoveryOperator {
     pub async fn internal_do_discover<'a>(
         &'a self,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
-        dh_details: &'a DiscoveryHandlerDetails,
+        dh_details: &'a DiscoveryDetails,
         stream: &'a mut dyn StreamingExt,
     ) -> Result<(), Status> {
         loop {
@@ -491,7 +491,7 @@ impl DiscoveryOperator {
 
 pub mod start_discovery {
     use super::super::registration::{
-        DiscoveryHandlerDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
+        DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
     };
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     #[double]
@@ -680,7 +680,7 @@ pub mod start_discovery {
         discovery_operator: Arc<DiscoveryOperator>,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
         endpoint: &'a DiscoveryHandlerEndpoint,
-        dh_details: &'a DiscoveryHandlerDetails,
+        dh_details: &'a DiscoveryDetails,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         loop {
             let deregistered;
@@ -824,8 +824,7 @@ pub mod tests {
     use super::super::{
         device_plugin_builder::MockDevicePluginBuilderInterface,
         registration::{
-            inner_register_embedded_discovery_handlers, DiscoveryHandlerDetails,
-            DiscoveryHandlerStatus,
+            inner_register_embedded_discovery_handlers, DiscoveryDetails, DiscoveryHandlerStatus,
         },
     };
     use super::*;
@@ -938,9 +937,9 @@ pub mod tests {
         name: &str,
         endpoint: DiscoveryHandlerEndpoint,
         shared: bool,
-    ) -> DiscoveryHandlerDetails {
+    ) -> DiscoveryDetails {
         let (stop_discovery, _) = broadcast::channel(2);
-        DiscoveryHandlerDetails {
+        DiscoveryDetails {
             name: name.to_string(),
             endpoint,
             shared,
@@ -1418,7 +1417,7 @@ pub mod tests {
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();
         let (tx, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryHandlerDetails {
+        let discovery_handler_details = DiscoveryDetails {
             name: dh_name.clone(),
             endpoint: endpoint.clone(),
             shared: false,
@@ -1460,7 +1459,7 @@ pub mod tests {
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let (tx, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryHandlerDetails {
+        let discovery_handler_details = DiscoveryDetails {
             name: dh_name.to_string(),
             endpoint: dh_endpoint.clone(),
             shared: false,

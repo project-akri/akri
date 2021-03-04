@@ -5,8 +5,7 @@ metadata:
 spec:
   discoveryHandler: 
     name: debugEcho
-    discoveryDetails:
-      discoveryHandlerConfig: |+
+    discoveryDetails: |+
         descriptions:
         - "foo0"
         - "foo1"

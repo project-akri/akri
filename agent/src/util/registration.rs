@@ -23,8 +23,8 @@ use tonic::{transport::Server, Request, Response, Status};
 pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
 
 /// Map of `DiscoveryHandlers` of the same type (registered with the same name) where key is
-/// the endpoint of the Discovery Handler and value is `DiscoveryHandlerDetails`.
-pub type SubsetDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryHandlerDetails>;
+/// the endpoint of the Discovery Handler and value is `DiscoveryDetails`.
+pub type SubsetDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryDetails>;
 
 /// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name
 /// and value is a map of all `DiscoveryHandlers` with that name.
@@ -53,7 +53,7 @@ pub enum DiscoveryHandlerStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct DiscoveryHandlerDetails {
+pub struct DiscoveryDetails {
     pub name: String,
     pub endpoint: DiscoveryHandlerEndpoint,
     pub shared: bool,
@@ -114,7 +114,7 @@ impl Registration for AgentRegistration {
         );
         info!("register - called with register request {:?}", req);
         let (tx, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryHandlerDetails {
+        let discovery_handler_details = DiscoveryDetails {
             name: dh_name.clone(),
             endpoint: dh_endpoint.clone(),
             shared: req.shared,
@@ -244,7 +244,7 @@ pub fn inner_register_embedded_discovery_handlers(
     embedded_discovery_handlers.into_iter().for_each(|dh| {
         let (name, shared) = dh;
         let (tx, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryHandlerDetails {
+        let discovery_handler_details = DiscoveryDetails {
             name: name.clone(),
             endpoint: DiscoveryHandlerEndpoint::Embedded,
             shared,

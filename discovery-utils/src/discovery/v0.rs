@@ -30,10 +30,10 @@ pub mod register_discovery_handler_request {
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverRequest {
-    /// Map containing all the details (such as filtering options)
+    /// String containing all the details (such as filtering options)
     /// the `DiscoveryHandler` needs to find a set of devices.
-    #[prost(map = "string, string", tag = "1")]
-    pub discovery_details: ::std::collections::HashMap<std::string::String, std::string::String>,
+    #[prost(string, tag = "1")]
+    pub discovery_details: std::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverResponse {

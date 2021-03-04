@@ -40,9 +40,7 @@
         },
         "discoveryHandler": {
             "name": "debugEcho",
-            "discoveryDetails": {
-                "discoveryHandlerConfig": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
-            }
+            "discoveryDetails": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
         },
         "properties": {}
     }

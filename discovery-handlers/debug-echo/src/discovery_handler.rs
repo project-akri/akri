@@ -23,12 +23,12 @@ pub const DEBUG_ECHO_AVAILABILITY_CHECK_PATH: &str = "/tmp/debug-echo-availabili
 /// String to write into DEBUG_ECHO_AVAILABILITY_CHECK_PATH to make Other devices undiscoverable
 pub const OFFLINE: &str = "OFFLINE";
 
-/// DebugEchoDiscoveryHandlerConfig describes the necessary information needed to discover and filter debug echo devices.
+/// DebugEchoDiscoveryDetails describes the necessary information needed to discover and filter debug echo devices.
 /// Specifically, it contains a list (`descriptions`) of fake devices to be discovered.
 /// This information is expected to be serialized in the discovery details map sent during Discover requests.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct DebugEchoDiscoveryHandlerConfig {
+pub struct DebugEchoDiscoveryDetails {
     pub descriptions: Vec<String>,
 }
 
@@ -56,7 +56,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config: DebugEchoDiscoveryHandlerConfig =
+        let discovery_handler_config: DebugEchoDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let descriptions = discovery_handler_config.descriptions;
@@ -129,22 +129,12 @@ mod tests {
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
-        let yaml = r#"
-          discoveryHandlerConfig: |+
-            {}
-        "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let dh_config: Result<DebugEchoDiscoveryHandlerConfig, anyhow::Error> =
-            deserialize_discovery_details(&deserialized);
+        let dh_config: Result<DebugEchoDiscoveryDetails, anyhow::Error> =
+            deserialize_discovery_details("");
         assert!(dh_config.is_err());
 
-        let yaml = r#"
-        discoveryHandlerConfig: |+
-            descriptions: []
-        "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let dh_config: DebugEchoDiscoveryHandlerConfig =
-            deserialize_discovery_details(&deserialized).unwrap();
+        let dh_config: DebugEchoDiscoveryDetails =
+            deserialize_discovery_details("descriptions: []").unwrap();
         assert!(dh_config.descriptions.is_empty());
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"descriptions":[]}"#;
@@ -154,13 +144,10 @@ mod tests {
     #[test]
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
-        discoveryHandlerConfig: |+
             descriptions:
               - "foo1"
         "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
-        let dh_config: DebugEchoDiscoveryHandlerConfig =
-            deserialize_discovery_details(&deserialized).unwrap();
+        let dh_config: DebugEchoDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert_eq!(dh_config.descriptions.len(), 1);
         assert_eq!(&dh_config.descriptions[0], "foo1");
     }
@@ -171,8 +158,7 @@ mod tests {
         fs::write(DEBUG_ECHO_AVAILABILITY_CHECK_PATH, "").unwrap();
         let debug_echo_yaml = r#"
           name: debugEcho
-          discoveryDetails:
-            discoveryHandlerConfig: |+
+          discoveryDetails: |+
               descriptions:
               - "foo1"
         "#;

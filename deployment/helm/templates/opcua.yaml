@@ -6,8 +6,7 @@ metadata:
 spec:
   discoveryHandler:
     name: opcua
-    discoveryDetails:
-      discoveryHandlerConfig: |+
+    discoveryDetails: |+
         opcuaDiscoveryMethod: 
           standard:
             discoveryUrls: 

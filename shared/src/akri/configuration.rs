@@ -25,8 +25,9 @@ pub type KubeAkriConfigList = ObjectList<Object<Configuration, Void>>;
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryHandlerInfo {
     pub name: String,
+    /// A string that a Discovery Handler knows how to parse to obtain necessary discovery details
     #[serde(default)]
-    pub discovery_details: HashMap<String, String>,
+    pub discovery_details: String,
 }
 
 /// Defines the information in the Akri Configuration CRD
@@ -205,7 +206,7 @@ mod crd_serialization_tests {
         }
 
         serde_json::from_str::<Configuration>(
-            r#"{"discoveryHandler":{"name":"random", "discoveryDetails":{"key":"random protocol"}}}"#,
+            r#"{"discoveryHandler":{"name":"random", "discoveryDetails":"serialized details"}}"#,
         )
         .unwrap();
         if serde_json::from_str::<Configuration>(r#"{"discoveryHandler":{"name":"random"}}"#)
@@ -217,7 +218,7 @@ mod crd_serialization_tests {
             panic!("discovery handler name is required");
         }
 
-        let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":{"discoveryHandlerConfig":"{\"onvif\":{}}"}}}"#;
+        let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":"{\"onvif\":{}}"}}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
@@ -230,7 +231,7 @@ mod crd_serialization_tests {
     fn test_config_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":{}}, "capacity":4}"#;
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "capacity":4}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
@@ -240,7 +241,7 @@ mod crd_serialization_tests {
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
         let expected_deserialized =
-            r#"{"discoveryHandler":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -313,7 +314,7 @@ mod crd_serialization_tests {
                 },
                 "discoveryHandler": {
                     "name": "random",
-                    "discoveryDetails": {}
+                    "discoveryDetails": ""
                 },
                 "properties": {
                     "resolution-height": "600",

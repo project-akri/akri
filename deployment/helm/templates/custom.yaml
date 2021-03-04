@@ -6,15 +6,7 @@ metadata:
 spec:
   discoveryHandler: 
     name: {{ required "A customDiscovery.discoveryHandlerName is required." .Values.customDiscovery.discoveryHandlerName }}
-    {{- /* Check if the map is empty */}}
-    {{- if .Values.customDiscovery.discoveryDetails }}
-    discoveryDetails:
-      {{- range $key, $val := .Values.customDiscovery.discoveryDetails }}
-      {{ $key }}: {{ $val }}
-      {{- end }}
-    {{- else }}
-    discoveryDetails: {}
-    {{- end }}
+    discoveryDetails: {{ .Values.customDiscovery.discoveryDetails }}
   {{- if .Values.customDiscovery.brokerPod.image }}
   brokerPodSpec:
     containers:

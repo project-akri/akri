@@ -101,9 +101,9 @@ customDiscovery:
   # capacity is the capacity for any instances created as a result of
   # applying this customDiscovery configuration
   capacity: 1
-  # discoveryDetails is the map of discovery details that is 
-  # passed to the custom Discovery Handler
-  discoveryDetails: {}
+  # discoveryDetails is the string of discovery details that is 
+  # passed to a Discovery Handler which can parse it into an expected format.
+  discoveryDetails: ""
   # shared defines whether instances created as a result of
   # applying this customDiscovery configuration as shared
   shared: true

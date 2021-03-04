@@ -29,7 +29,7 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 /// ip addresses, mac addresses, and ONVIF scopes.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnvifDiscoveryHandlerConfig {
+pub struct OnvifDiscoveryDetails {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip_addresses: Option<FilterList>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -68,7 +68,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut tx, rx) = mpsc::channel(4);
-        let discovery_handler_config: OnvifDiscoveryHandlerConfig =
+        let discovery_handler_config: OnvifDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         let mut cameras: Vec<Device> = Vec::new();
@@ -153,7 +153,7 @@ fn execute_filter(filter_list: Option<&FilterList>, filter_against: &[String]) -
 }
 
 async fn apply_filters(
-    discovery_handler_config: &OnvifDiscoveryHandlerConfig,
+    discovery_handler_config: &OnvifDiscoveryDetails,
     device_service_uris: Vec<String>,
     onvif_query: &impl OnvifQuery,
 ) -> Result<Vec<Device>, anyhow::Error> {
@@ -285,13 +285,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_discovery_details() {
-        let onvif_yaml = r#"
-          discoveryHandlerConfig: |+
-            {}
-        "#;
-        let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();
-        let dh_config: OnvifDiscoveryHandlerConfig =
-            deserialize_discovery_details(&deserialized).unwrap();
+        let dh_config: OnvifDiscoveryDetails = deserialize_discovery_details("{}").unwrap();
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"discoveryTimeoutSeconds":1}"#;
         assert_eq!(expected_deserialized, serialized);
@@ -315,7 +309,7 @@ mod tests {
             }),
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: None,
             mac_addresses: None,
             scopes: None,
@@ -347,7 +341,7 @@ mod tests {
             }),
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: Some(FilterList {
                 action: FilterType::Include,
                 items: vec![mock_ip.to_string()],
@@ -378,7 +372,7 @@ mod tests {
             None,
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: Some(FilterList {
                 action: FilterType::Include,
                 items: vec!["nonexist.ip".to_string()],
@@ -412,7 +406,7 @@ mod tests {
             }),
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: Some(FilterList {
                 action: FilterType::Exclude,
                 items: vec!["nonexist.ip".to_string()],
@@ -444,7 +438,7 @@ mod tests {
             None,
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: Some(FilterList {
                 action: FilterType::Exclude,
                 items: vec![mock_ip.to_string()],
@@ -479,7 +473,7 @@ mod tests {
             }),
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: None,
             mac_addresses: Some(FilterList {
                 action: FilterType::Include,
@@ -510,7 +504,7 @@ mod tests {
             None,
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: None,
             mac_addresses: Some(FilterList {
                 action: FilterType::Include,
@@ -544,7 +538,7 @@ mod tests {
             }),
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: None,
             mac_addresses: Some(FilterList {
                 action: FilterType::Exclude,
@@ -576,7 +570,7 @@ mod tests {
             None,
         );
 
-        let onvif_config = OnvifDiscoveryHandlerConfig {
+        let onvif_config = OnvifDiscoveryDetails {
             ip_addresses: None,
             mac_addresses: Some(FilterList {
                 action: FilterType::Exclude,

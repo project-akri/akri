@@ -155,7 +155,7 @@ More information about how to modify an installed Configuration, add additional 
 
 ## Implementation details
 The udev implementation can be understood by looking at several things:
-1. [UdevDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties
+1. [UdevDiscoveryDetails](../shared/src/akri/configuration.rs) defines the required properties
 1. [The udev property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates the
    CRD input
 1. [UdevDiscoveryHandler](../agent/src/protocols/udev/discovery_handler.rs) defines udev camera discovery

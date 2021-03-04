@@ -289,7 +289,7 @@ mod tests {
                 "spec": {
                     "discoveryHandler": {
                         "name": "debugEcho",
-                        "discoveryDetails": {"discoveryHandlerConfig": "{\"descriptions\": [\"foo\",\"bar\"]}"}
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -377,7 +377,7 @@ mod tests {
                 "spec": {
                     "discoveryHandler": {
                         "name": "debugEcho",
-                        "discoveryDetails": {"discoveryHandlerConfig": "{\"descriptions\": [\"foo\",\"bar\"]}"}
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -461,7 +461,7 @@ mod tests {
                 "spec": {
                     "discoveryHandler": {
                         "name": "debugEcho",
-                        "discoveryDetails": {"discoveryHandlerConfig": "{\"descriptions\": [\"foo\",\"bar\"]}"}
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [

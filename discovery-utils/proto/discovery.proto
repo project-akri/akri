@@ -34,9 +34,9 @@ service DiscoveryHandler {
 }
 
 message DiscoverRequest {
-    // Map containing all the details (such as filtering options) 
+    // String containing all the details (such as filtering options) 
     // the `DiscoveryHandler` needs to find a set of devices.
-    map<string, string> discovery_details = 1;
+    string discovery_details = 1;
 }
 
 message DiscoverResponse {
