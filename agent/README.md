@@ -12,7 +12,7 @@ This is the Akri Agent project.  It is an implementation of a [Kubernetes device
 pub trait DiscoveryHandler {
     async fn discover(
             &self,
-            request: tonic::Request< akri_discovery_utils::discovery::v0::DiscoverRequest>,
+            request: tonic::Request<akri_discovery_utils::discovery::v0::DiscoverRequest>,
         ) -> Result<tonic::Response<akri_discovery_utils::discovery::v0::DiscoverStream>, tonic::Status>;
 }
 ```

@@ -65,10 +65,8 @@ TEMPLATE = {
     },
     "spec": {
         "discoveryHandler": {
-            "debugEcho": {
-                "descriptions": ["foo", "bar"],
-                "shared": True
-            }
+            "name": "debugEcho",
+            "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
         },
         "brokerPodSpec": {
             "containers": [{
