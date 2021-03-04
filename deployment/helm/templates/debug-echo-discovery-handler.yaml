@@ -43,8 +43,8 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         {{- end }}
-        - name: INSTANCES_ARE_LOCAL
-          value: {{ .Values.debugEcho.localInstances }}
+        - name: INSTANCES_ARE_SHARED
+          value: {{ .Values.debugEcho.shared }}
         volumeMounts:
         - name: agent-registration
           mountPath: /var/lib/akri

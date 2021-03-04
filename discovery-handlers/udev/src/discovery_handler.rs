@@ -1,7 +1,10 @@
 use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
 use akri_discovery_utils::discovery::{
     discovery_handler::deserialize_discovery_details,
-    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse, Mount},
+    v0::{
+        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
+        Mount,
+    },
     DiscoverStream,
 };
 use async_trait::async_trait;
@@ -23,19 +26,19 @@ pub struct UdevDiscoveryHandlerConfig {
     pub udev_rules: Vec<String>,
 }
 
-/// `DiscoveryHandler` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
-pub struct DiscoveryHandler {
+/// `DiscoveryHandlerImpl` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
+pub struct DiscoveryHandlerImpl {
     register_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
-impl DiscoveryHandler {
+impl DiscoveryHandlerImpl {
     pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
-        DiscoveryHandler { register_sender }
+        DiscoveryHandlerImpl { register_sender }
     }
 }
 
 #[async_trait]
-impl Discovery for DiscoveryHandler {
+impl DiscoveryHandler for DiscoveryHandlerImpl {
     type DiscoverStream = DiscoverStream;
     async fn discover(
         &self,

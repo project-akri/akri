@@ -42,7 +42,7 @@ cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-t
 ### Specify the protocol name and locality of the devices it discovers
 Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to
 register our DiscoveryHandler with the Akri Agent. We only need to specify the protocol name and locality of our
-Discovery Handler. Set the protocol name to `http` and `is_local` to false, as our HTTP Discovery Handler will discover
+Discovery Handler. Set the protocol name to `http` and `shared` to true, as our HTTP Discovery Handler will discover
 devices that can be shared between nodes. The protocol name also resolves to the name of the socket the Discovery
 Handler will run on.
 

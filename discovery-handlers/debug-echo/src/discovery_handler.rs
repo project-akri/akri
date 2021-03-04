@@ -1,6 +1,6 @@
 use akri_discovery_utils::discovery::{
     discovery_handler::deserialize_discovery_details,
-    v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+    v0::{discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
 };
 use async_trait::async_trait;
@@ -32,21 +32,21 @@ pub struct DebugEchoDiscoveryHandlerConfig {
     pub descriptions: Vec<String>,
 }
 
-/// The DiscoveryHandler discovers a list of devices, named in its `descriptions`.
+/// The DiscoveryHandlerImpl discovers a list of devices, named in its `descriptions`.
 /// It mocks discovering the devices by inspecting the contents of the file at `DEBUG_ECHO_AVAILABILITY_CHECK_PATH`.
 /// If the file contains "OFFLINE", it won't discover any of the devices, else it discovers them all.
-pub struct DiscoveryHandler {
+pub struct DiscoveryHandlerImpl {
     register_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
-impl DiscoveryHandler {
+impl DiscoveryHandlerImpl {
     pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
-        DiscoveryHandler { register_sender }
+        DiscoveryHandlerImpl { register_sender }
     }
 }
 
 #[async_trait]
-impl Discovery for DiscoveryHandler {
+impl DiscoveryHandler for DiscoveryHandlerImpl {
     type DiscoverStream = DiscoverStream;
     async fn discover(
         &self,
@@ -177,7 +177,7 @@ mod tests {
               - "foo1"
         "#;
         let deserialized: ProtocolHandler = serde_yaml::from_str(&debug_echo_yaml).unwrap();
-        let discovery_handler = DiscoveryHandler::new(None);
+        let discovery_handler = DiscoveryHandlerImpl::new(None);
         let device = akri_discovery_utils::discovery::v0::Device {
             id: "foo1".to_string(),
             properties: HashMap::new(),

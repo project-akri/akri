@@ -50,8 +50,8 @@ pub mod opcua_client_wrapper {
         // Do not try to create a session again
         let session_retry_limit = 0;
         OpcuaClientImpl::new(
-            "DiscoveryClient",
-            "urn:DiscoveryClient",
+            "DiscoveryHandlerClient",
+            "urn:DiscoveryHandlerClient",
             create_sample_keypair,
             session_retry_limit,
         )

@@ -11,20 +11,25 @@ pub const DISCOVERY_HANDLER_PATH: &str = "/var/lib/akri";
 pub type DiscoverStream = tokio::sync::mpsc::Receiver<Result<v0::DiscoverResponse, tonic::Status>>;
 
 pub mod discovery_handler {
-    use super::super::registration_client::{register, register_again};
+    use super::super::registration_client::{
+        register_discovery_handler, register_discovery_handler_again,
+    };
     use super::{
         server::run_discovery_server,
-        v0::{discovery_server::Discovery, RegisterRequest},
+        v0::{
+            discovery_handler_server::DiscoveryHandler,
+            register_discovery_handler_request::EndpointType, RegisterDiscoveryHandlerRequest,
+        },
         DISCOVERY_HANDLER_PATH,
     };
     use log::trace;
     use tokio::sync::mpsc;
     const DISCOVERY_PORT: i16 = 10000;
     pub async fn run_discovery_handler(
-        discovery_handler: impl Discovery,
+        discovery_handler: impl DiscoveryHandler,
         register_receiver: mpsc::Receiver<()>,
         protocol_name: &str,
-        is_local: bool,
+        shared: bool,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut use_uds = true;
         let mut endpoint: String = match std::env::var("POD_IP") {
@@ -44,17 +49,21 @@ pub mod discovery_handler {
                 .await
                 .unwrap();
         });
-        if !use_uds {
+        let endpoint_type = if !use_uds {
             endpoint.insert_str(0, "http://");
-        }
-        let register_request = RegisterRequest {
-            protocol: protocol_name.to_string(),
-            endpoint,
-            is_local,
+            EndpointType::Network
+        } else {
+            EndpointType::Uds
         };
-        register(&register_request).await?;
+        let register_request = RegisterDiscoveryHandlerRequest {
+            name: protocol_name.to_string(),
+            endpoint,
+            endpoint_type: endpoint_type as i32,
+            shared,
+        };
+        register_discovery_handler(&register_request).await?;
         let registration_handle = tokio::spawn(async move {
-            register_again(register_receiver, &register_request).await;
+            register_discovery_handler_again(register_receiver, &register_request).await;
         });
         tokio::try_join!(discovery_handle, registration_handle)?;
         Ok(())
@@ -90,7 +99,9 @@ pub mod discovery_handler {
 
 #[cfg(any(feature = "mock-discovery-handler", test))]
 pub mod mock_discovery_handler {
-    use super::v0::{discovery_server::Discovery, DiscoverRequest, DiscoverResponse};
+    use super::v0::{
+        discovery_handler_server::DiscoveryHandler, DiscoverRequest, DiscoverResponse,
+    };
     use akri_shared::uds::unix_stream;
     use async_trait::async_trait;
     use tempfile::Builder;
@@ -100,7 +111,7 @@ pub mod mock_discovery_handler {
     pub struct MockDiscoveryHandler {}
 
     #[async_trait]
-    impl Discovery for MockDiscoveryHandler {
+    impl DiscoveryHandler for MockDiscoveryHandler {
         type DiscoverStream = super::DiscoverStream;
         async fn discover(
             &self,
@@ -163,7 +174,7 @@ pub mod mock_discovery_handler {
 }
 
 pub mod server {
-    use super::v0::discovery_server::{Discovery, DiscoveryServer};
+    use super::v0::discovery_handler_server::{DiscoveryHandler, DiscoveryHandlerServer};
     use akri_shared::uds::unix_stream;
     use futures::stream::TryStreamExt;
     use log::info;
@@ -172,7 +183,7 @@ pub mod server {
     use tonic::transport::Server;
 
     pub async fn run_discovery_server(
-        discovery_handler: impl Discovery,
+        discovery_handler: impl DiscoveryHandler,
         discovery_endpoint: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         internal_run_discovery_server(
@@ -183,11 +194,11 @@ pub mod server {
         .await
     }
 
-    /// Creates a DiscoveryServer for the given Discovery Handler at the specified endpoint
+    /// Creates a DiscoveryHandlerServer for the given Discovery Handler at the specified endpoint
     /// Verifies the endpoint by checking that it is in the discovery handler directory if it is
     /// UDS or that it is a valid IP address and port.
     pub async fn internal_run_discovery_server(
-        discovery_handler: impl Discovery,
+        discovery_handler: impl DiscoveryHandler,
         discovery_endpoint: &str,
         discovery_handler_directory: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -199,14 +210,14 @@ pub mod server {
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
             let mut uds = UnixListener::bind(discovery_endpoint)?;
             Server::builder()
-                .add_service(DiscoveryServer::new(discovery_handler))
+                .add_service(DiscoveryHandlerServer::new(discovery_handler))
                 .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
                 .await?;
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
         } else {
             let addr = discovery_endpoint.parse()?;
             Server::builder()
-                .add_service(DiscoveryServer::new(discovery_handler))
+                .add_service(DiscoveryHandlerServer::new(discovery_handler))
                 .serve(addr)
                 .await?;
         }
@@ -221,7 +232,7 @@ pub mod server {
                 get_mock_discovery_handler_dir_and_endpoint, run_mock_discovery_handler,
                 MockDiscoveryHandler,
             },
-            v0::{discovery_client::DiscoveryClient, DiscoverRequest},
+            v0::{discovery_handler_client::DiscoveryHandlerClient, DiscoverRequest},
         };
         use super::*;
         use std::convert::TryFrom;
@@ -245,8 +256,8 @@ pub mod server {
                 }))
                 .await
                 .unwrap();
-            let mut discovery_client = DiscoveryClient::new(channel);
-            let mut stream = discovery_client
+            let mut discovery_handler_client = DiscoveryHandlerClient::new(channel);
+            let mut stream = discovery_handler_client
                 .discover(Request::new(DiscoverRequest {
                     discovery_details: std::collections::HashMap::new(),
                 }))

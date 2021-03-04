@@ -13,6 +13,6 @@ mod wrappers;
 /// the broker should connect to.
 pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 /// Protocol name that udev discovery handlers use when registering with the Agent
-pub const PROTOCOL_NAME: &str = "udev";
+pub const DISCOVERY_HANDLER_NAME: &str = "udev";
 /// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
-pub const IS_LOCAL: bool = true;
+pub const SHARED: bool = true;

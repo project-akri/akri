@@ -33,10 +33,10 @@ pub fn do_standard_discovery(
         "do_standard_discovery - for DiscoveryUrls {:?}",
         discovery_urls
     );
-    let mut discovery_client = create_opcua_discovery_client();
+    let mut discovery_handler_client = create_opcua_discovery_client();
     let tcp_stream = TcpStreamImpl {};
     get_discovery_urls(
-        &mut discovery_client,
+        &mut discovery_handler_client,
         discovery_urls,
         filter_list,
         tcp_stream,
@@ -48,7 +48,7 @@ pub fn do_standard_discovery(
 /// (2) discover other servers registered with a Local Discovery Server in the case that the DiscoveryURL is for an LDS
 /// (3) determine whether the application at that URL should be included according to `ApplicationType` and the `application_names` filter
 fn get_discovery_urls(
-    discovery_client: &mut impl OpcuaClient,
+    discovery_handler_client: &mut impl OpcuaClient,
     lds_urls: Vec<String>,
     filter_list: Option<FilterList>,
     tcp_stream: impl TcpStream,
@@ -61,7 +61,7 @@ fn get_discovery_urls(
                 url, e
             );
         } else {
-            match discovery_client.find_servers(url) {
+            match discovery_handler_client.find_servers(url) {
                 Ok(applications) => {
                     trace!(
                         "get_discovery_urls - Server at {} responded with {} Applications",

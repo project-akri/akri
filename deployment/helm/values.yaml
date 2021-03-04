@@ -170,10 +170,9 @@ debugEcho:
   descriptions:
   - "foo0"
   - "foo1"
-  # localInstances defines whether instances created as a result of
-  # applying this debugEcho configuration are local to a node
-  # rather than being visible to multiple nodes
-  localInstances: true
+  # shared defines whether instances created as a result of
+  # applying this debugEcho configuration are shared
+  shared: true
   brokerPod:
     # container used by debugEcho
     image: nginx:latest

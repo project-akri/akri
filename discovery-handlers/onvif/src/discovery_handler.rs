@@ -6,7 +6,9 @@ use super::discovery_utils::{
 use akri_discovery_utils::{
     discovery::{
         discovery_handler::deserialize_discovery_details,
-        v0::{discovery_server::Discovery, Device, DiscoverRequest, DiscoverResponse},
+        v0::{
+            discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
+        },
         DiscoverStream,
     },
     filtering::{FilterList, FilterType},
@@ -42,21 +44,21 @@ fn default_discovery_timeout_seconds() -> i32 {
     1
 }
 
-/// `DiscoveryHandler` discovers the onvif instances as described by the filters `discover_handler_config.ip_addresses`,
+/// `DiscoveryHandlerImpl` discovers the onvif instances as described by the filters `discover_handler_config.ip_addresses`,
 /// `discover_handler_config.mac_addresses`, and `discover_handler_config.scopes`.
 /// The instances it discovers are always shared.
-pub struct DiscoveryHandler {
+pub struct DiscoveryHandlerImpl {
     register_sender: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
-impl DiscoveryHandler {
+impl DiscoveryHandlerImpl {
     pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
-        DiscoveryHandler { register_sender }
+        DiscoveryHandlerImpl { register_sender }
     }
 }
 
 #[async_trait]
-impl Discovery for DiscoveryHandler {
+impl DiscoveryHandler for DiscoveryHandlerImpl {
     type DiscoverStream = DiscoverStream;
     async fn discover(
         &self,

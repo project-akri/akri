@@ -3,34 +3,39 @@ syntax = "proto3";
 package v0;
 
 // Registration is the service advertised by the Akri Agent.
-// Any `DiscoveryHandler` can register with Akri under a specified
-// protocol.
+// Any `DiscoveryHandler` can register with the Akri Agent.
 service Registration {
-    rpc Register(RegisterRequest) returns (Empty) {}
+    rpc RegisterDiscoveryHandler(RegisterDiscoveryHandlerRequest) returns (Empty) {}
 }
 
 
-message RegisterRequest {
-    // Name of the protocol that the client uses for discovery
-    string protocol = 1;
-    // Name of the endpoint that is hosting the discovery service
-    // for the protocol
+message RegisterDiscoveryHandlerRequest {
+    // Name of the `DiscoveryHandler`. This name is specified in an
+    // Akri Configuration, to request devices discovered by this `DiscoveryHandler`.
+    string name = 1;
+    // Endpoint for the registering `DiscoveryHandler`
     string endpoint = 2;
-    // Specifies whether this device can only be ever seen by this node (e.g. a local USB device) 
-    // rather than being visible to multiple nodes (e.g. an IP camera) 
-    bool is_local = 3;
+    // Specifies the type of endpoint.
+    enum EndpointType {
+        UDS = 0;
+        NETWORK = 1;
+    }
+    EndpointType endpoint_type = 3;
+    // Specifies whether this device could be used by multiple nodes (e.g. an IP camera)
+    // or can only be ever be discovered by a single node (e.g. a local USB device) 
+    bool shared = 4;
 }
 
 message Empty {
 }
 
-service Discovery {
+service DiscoveryHandler {
   rpc Discover (DiscoverRequest) returns (stream DiscoverResponse);
 }
 
 message DiscoverRequest {
     // Map containing all the details (such as filtering options) 
-    // the discovery handler needs to find a set of devices.
+    // the `DiscoveryHandler` needs to find a set of devices.
     map<string, string> discovery_details = 1;
 }
 

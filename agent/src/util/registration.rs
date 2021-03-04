@@ -1,10 +1,10 @@
-use ::url::Url;
 use akri_discovery_utils::discovery::{
     v0::{
+        register_discovery_handler_request::EndpointType,
         registration_server::{Registration, RegistrationServer},
-        Empty, RegisterRequest,
+        Empty, RegisterDiscoveryHandlerRequest,
     },
-    AGENT_REGISTRATION_SOCKET, DISCOVERY_HANDLER_PATH,
+    AGENT_REGISTRATION_SOCKET,
 };
 use akri_shared::{
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
@@ -21,11 +21,7 @@ use tonic::{transport::Server, Request, Response, Status};
 /// without it being removed from the map of registered Discovery Handlers.
 pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
 
-/// Fake endpoint that signals a DiscoveryOperator to use an embedded
-/// discovery handler.
-pub const EMBEDDED_DISCOVERY_HANDLER_ENDPOINT: &str = "embedded";
-
-// Map of RegisterRequests for a specific protocol where key is the endpoint of the Discovery Handler
+// Map of RegisterDiscoveryHandlerRequests for a specific protocol where key is the endpoint of the Discovery Handler
 // and value is whether or not the discovered devices are local.
 pub type ProtocolDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryHandlerDetails>;
 
@@ -57,21 +53,22 @@ pub enum DiscoveryHandlerStatus {
 
 #[derive(Debug, Clone)]
 pub struct DiscoveryHandlerDetails {
-    pub register_request: RegisterRequest,
+    pub name: String,
+    pub endpoint: DiscoveryHandlerEndpoint,
+    pub shared: bool,
     pub stop_discovery: broadcast::Sender<()>,
     pub connectivity_status: DiscoveryHandlerStatus,
 }
 
-pub fn get_external_endpoint_type(
+/// This maps the endpoint string and endpoint type of a `RegisterDiscoveryHandlerRequest`
+/// into a `DiscoveryHandlerEndpoint` so as to support embedded `DiscoveryHandlers`.
+pub fn create_discovery_handler_endpoint(
     endpoint: &str,
-) -> Result<DiscoveryHandlerEndpoint, url::ParseError> {
-    if endpoint.starts_with(DISCOVERY_HANDLER_PATH) {
-        Ok(DiscoveryHandlerEndpoint::Uds(endpoint.to_string()))
-    } else {
-        match Url::parse(endpoint) {
-            Ok(_) => Ok(DiscoveryHandlerEndpoint::Network(endpoint.to_string())),
-            Err(e) => Err(e),
-        }
+    endpoint_type: EndpointType,
+) -> DiscoveryHandlerEndpoint {
+    match endpoint_type {
+        EndpointType::Network => DiscoveryHandlerEndpoint::Network(endpoint.to_string()),
+        EndpointType::Uds => DiscoveryHandlerEndpoint::Uds(endpoint.to_string()),
     }
 }
 
@@ -103,32 +100,32 @@ impl Registration for AgentRegistration {
     /// If the discovery handler is already registered at an endpoint and the register request has changed,
     /// the previously registered DH is told to stop discovery and is removed from the map. Then, the updated
     /// DH is registered.
-    async fn register(&self, request: Request<RegisterRequest>) -> Result<Response<Empty>, Status> {
+    async fn register_discovery_handler(
+        &self,
+        request: Request<RegisterDiscoveryHandlerRequest>,
+    ) -> Result<Response<Empty>, Status> {
         let req = request.into_inner();
-        let protocol = req.protocol.clone();
+        let dh_name = req.name.clone();
         let endpoint = req.endpoint.clone();
-        let dh_endpoint = get_external_endpoint_type(&endpoint).map_err(|e| {
-            Status::new(
-                tonic::Code::InvalidArgument,
-                format!(
-                    "Discovery Handler registered with invalid endpoint {} with parse error: {:?}",
-                    endpoint, e
-                ),
-            )
-        })?;
+        let dh_endpoint = create_discovery_handler_endpoint(
+            &endpoint,
+            EndpointType::from_i32(req.endpoint_type).unwrap(),
+        );
         info!("register - called with register request {:?}", req);
         let (tx, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryHandlerDetails {
-            register_request: req.clone(),
+            name: dh_name.clone(),
+            endpoint: dh_endpoint.clone(),
+            shared: req.shared,
             stop_discovery: tx,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
-        // Check if the server is among the already registered servers for the protocol
-        if let Some(register_request_map) = registered_discovery_handlers.get_mut(&protocol) {
+        // Check if any DiscoveryHandlers have been registered under this name
+        if let Some(register_request_map) = registered_discovery_handlers.get_mut(&dh_name) {
             if let Some(dh_details) = register_request_map.get(&dh_endpoint) {
                 // Check if DH at that endpoint is already registered but changed request
-                if dh_details.register_request != req {
+                if dh_details.shared != req.shared || dh_details.endpoint != dh_endpoint {
                     // Stop current discovery with this DH if any. A receiver may not exist if
                     // 1) no configuration has been applied that uses this DH or
                     // 2) a connection cannot be made with the DH's endpoint
@@ -138,22 +135,22 @@ impl Registration for AgentRegistration {
                     return Ok(Response::new(Empty {}));
                 }
             }
-            // New or updated Discovery Handler for this protocol
+            // New or updated Discovery Handler
             register_request_map.insert(dh_endpoint, discovery_handler_details);
         } else {
-            // First Discovery Handler registered for this protocol
+            // First Discovery Handler registered under this name
             let mut register_request_map = HashMap::new();
             register_request_map.insert(dh_endpoint, discovery_handler_details);
-            registered_discovery_handlers.insert(protocol.clone(), register_request_map);
+            registered_discovery_handlers.insert(dh_name.clone(), register_request_map);
         }
         // Notify of new Discovery Handler
         if self
             .new_discovery_handler_sender
-            .send(protocol.clone())
+            .send(dh_name.clone())
             .is_err()
         {
             // If no configurations have been applied, no receivers can nor need to be updated about the new discovery handler
-            trace!("register - new discovery handler registered for protocol {} but no active discovery operators to receive the message", protocol);
+            trace!("register - new discovery handler registered for protocol {} but no active discovery operators to receive the message", dh_name);
         }
         Ok(Response::new(Empty {}))
     }
@@ -216,40 +213,37 @@ pub fn inner_register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     query: &impl EnvVarQuery,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut register_requests: Vec<RegisterRequest> = Vec::new();
-    let is_local: bool = query
-        .get_env_var(akri_debug_echo::INSTANCES_ARE_LOCAL_LABEL)
+    type Details = (String, bool);
+    let mut embedded_discovery_handlers: Vec<Details> = Vec::new();
+    let shared: bool = query
+        .get_env_var(akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
         .unwrap()
         .parse()
         .unwrap();
-    register_requests.push(create_register_request(
-        akri_debug_echo::PROTOCOL_NAME,
-        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
-        is_local,
-    ));
+    embedded_discovery_handlers.push((akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string(), shared));
     #[cfg(feature = "onvif-feat")]
-    register_requests.push(create_register_request(
-        akri_onvif::PROTOCOL_NAME,
-        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
-        akri_onvif::IS_LOCAL,
+    embedded_discovery_handlers.push((
+        akri_onvif::DISCOVERY_HANDLER_NAME.to_string(),
+        akri_onvif::SHARED,
     ));
     #[cfg(feature = "udev-feat")]
-    register_requests.push(create_register_request(
-        akri_udev::PROTOCOL_NAME,
-        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
-        akri_udev::IS_LOCAL,
+    embedded_discovery_handlers.push((
+        akri_udev::DISCOVERY_HANDLER_NAME.to_string(),
+        akri_udev::SHARED,
     ));
     #[cfg(feature = "opcua-feat")]
-    register_requests.push(create_register_request(
-        akri_opcua::PROTOCOL_NAME,
-        EMBEDDED_DISCOVERY_HANDLER_ENDPOINT,
-        akri_opcua::IS_LOCAL,
+    embedded_discovery_handlers.push((
+        akri_opcua::DISCOVERY_HANDLER_NAME.to_string(),
+        akri_opcua::SHARED,
     ));
 
-    register_requests.into_iter().for_each(|request| {
+    embedded_discovery_handlers.into_iter().for_each(|dh| {
+        let (name, shared) = dh;
         let (tx, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryHandlerDetails {
-            register_request: request.clone(),
+            name: name.clone(),
+            endpoint: DiscoveryHandlerEndpoint::Embedded,
+            shared,
             stop_discovery: tx,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
@@ -261,17 +255,9 @@ pub fn inner_register_embedded_discovery_handlers(
         discovery_handler_map
             .lock()
             .unwrap()
-            .insert(request.protocol, register_request_map);
+            .insert(name, register_request_map);
     });
     Ok(())
-}
-
-fn create_register_request(protocol: &str, endpoint: &str, is_local: bool) -> RegisterRequest {
-    RegisterRequest {
-        protocol: protocol.to_string(),
-        endpoint: endpoint.to_string(),
-        is_local,
-    }
 }
 
 #[cfg(test)]
@@ -286,15 +272,15 @@ mod tests {
 
     #[test]
     fn test_register_embedded_discovery_handlers() {
-        // set environment variable for debugEcho instances locality
-        let mut mock_env_var_local = MockEnvVarQuery::new();
-        mock_env_var_local
+        // set environment variable to set whether debug echo instances are shared
+        let mut mock_env_var_shared = MockEnvVarQuery::new();
+        mock_env_var_shared
             .expect_get_env_var()
-            .returning(|_| Ok("true".to_string()));
+            .returning(|_| Ok("false".to_string()));
         let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
         inner_register_embedded_discovery_handlers(
             discovery_handler_map.clone(),
-            &mock_env_var_local,
+            &mock_env_var_shared,
         )
         .unwrap();
         assert_eq!(discovery_handler_map.lock().unwrap().len(), 4);
@@ -312,7 +298,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_run_registration_server_reregister() {
+    async fn test_run_registration_server_reregister_discovery_handler() {
         let registration_socket_dir = Builder::new().tempdir().unwrap();
         let registration_socket_path = registration_socket_dir
             .path()
@@ -352,135 +338,84 @@ mod tests {
         // Create registration client
         let mut registration_client = RegistrationClient::new(channel);
 
-        // Test registering a discovery handler with appropriate UDS endpoint
-        // Registration expects uds endpoint to begin with DISCOVERY_HANDLER_PATH
-        let endpoint_string = format!("{}/protocol.sock", DISCOVERY_HANDLER_PATH);
+        // Test registering a discovery handler with UDS endpoint
+        let endpoint_string = "/path/to/socket/name.sock".to_string();
         let discovery_handler_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint_string.clone());
-        let request = RegisterRequest {
-            protocol: "protocol".to_string(),
+        let request = RegisterDiscoveryHandlerRequest {
+            name: "name".to_string(),
             endpoint: endpoint_string.clone(),
-            is_local: false,
+            endpoint_type: EndpointType::Uds as i32,
+            shared: true,
         };
-        assert!(registration_client.register(request.clone()).await.is_ok());
-        assert_eq!(
-            new_discovery_handler_receiver.recv().await.unwrap(),
-            "protocol"
-        );
+        assert!(registration_client
+            .register_discovery_handler(request.clone())
+            .await
+            .is_ok());
+        assert_eq!(new_discovery_handler_receiver.recv().await.unwrap(), "name");
         let discovery_handler_details = discovery_handler_map
             .lock()
             .unwrap()
-            .get("protocol")
+            .get("name")
             .unwrap()
             .get(&discovery_handler_endpoint)
             .unwrap()
             .clone();
-        assert_eq!(discovery_handler_details.register_request, request);
+        assert_eq!(
+            discovery_handler_details.endpoint,
+            DiscoveryHandlerEndpoint::Uds(request.endpoint.clone())
+        );
+        assert_eq!(discovery_handler_details.shared, request.shared);
 
         // When a discovery handler is re-registered with the same register request, no message should be
         // sent to terminate any existing discovery clients.
         let mut stop_discovery_receiver = discovery_handler_details.stop_discovery.subscribe();
-        assert!(registration_client.register(request).await.is_ok());
+        assert!(registration_client
+            .register_discovery_handler(request)
+            .await
+            .is_ok());
         assert!(stop_discovery_receiver.try_recv().is_err());
 
         // When a discovery handler at a specified endpoint re-registers at the same endpoint but with a different locality
         // current discovery handler clients should be notified to terminate and the entry in the
         // RegisteredDiscoveryHandlersMap should be replaced.
-        let local_request = RegisterRequest {
-            protocol: "protocol".to_string(),
+        let local_request = RegisterDiscoveryHandlerRequest {
+            name: "name".to_string(),
             endpoint: endpoint_string,
-            is_local: true,
+            endpoint_type: EndpointType::Uds as i32,
+            shared: false,
         };
         assert!(registration_client
-            .register(local_request.clone())
+            .register_discovery_handler(local_request.clone())
             .await
             .is_ok());
         assert!(stop_discovery_receiver.try_recv().is_ok());
         let discovery_handler_details = discovery_handler_map
             .lock()
             .unwrap()
-            .get("protocol")
+            .get("name")
             .unwrap()
             .get(&discovery_handler_endpoint)
             .unwrap()
             .clone();
-        assert_eq!(discovery_handler_details.register_request, local_request);
-    }
-
-    async fn assert_registration_of_valid_endpoint(
-        endpoint_str: &str,
-        endpoint_dh: DiscoveryHandlerEndpoint,
-    ) {
-        let (new_discovery_handler_sender, mut new_discovery_handler_receiver) =
-            broadcast::channel(2);
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
-        let registration_server =
-            AgentRegistration::new(new_discovery_handler_sender, discovery_handler_map.clone());
-        let request = RegisterRequest {
-            protocol: "protocol".to_string(),
-            endpoint: endpoint_str.to_string(),
-            is_local: false,
-        };
-        let tonic_request = tonic::Request::new(request.clone());
-        assert!(registration_server.register(tonic_request).await.is_ok());
         assert_eq!(
-            new_discovery_handler_receiver.recv().await.unwrap(),
-            "protocol"
+            discovery_handler_details.endpoint,
+            DiscoveryHandlerEndpoint::Uds(local_request.endpoint)
         );
-        let discovery_handler_details = discovery_handler_map
-            .lock()
-            .unwrap()
-            .get("protocol")
-            .unwrap()
-            .get(&endpoint_dh)
-            .unwrap()
-            .clone();
-        assert_eq!(discovery_handler_details.register_request, request);
+        assert_eq!(discovery_handler_details.shared, local_request.shared);
     }
 
-    // Test register for all the proper and improper endpoint types
-    #[tokio::test]
-    async fn test_register_factory() {
-        // Test that a network endpoint is successfully registered
-        let endpoint = "http://10.1.2.3:1000";
-        let discovery_handler_endpoint = DiscoveryHandlerEndpoint::Network(endpoint.to_string());
-        assert_registration_of_valid_endpoint(endpoint, discovery_handler_endpoint).await;
+    #[test]
+    fn test_create_discovery_handler_endpoint() {
+        // Assert the endpoint with EndpointType::Uds in converted to DiscoveryHandlerEndpoint::Uds(endpoint)
+        assert_eq!(
+            create_discovery_handler_endpoint("/path/to/socket.sock", EndpointType::Uds),
+            DiscoveryHandlerEndpoint::Uds("/path/to/socket.sock".to_string())
+        );
 
-        // Test that a UDS endpoint with proper path is successfully registered
-        let endpoint = format!("{}/socket.sock", DISCOVERY_HANDLER_PATH);
-        let discovery_handler_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.clone());
-        assert_registration_of_valid_endpoint(&endpoint, discovery_handler_endpoint).await;
-
-        // Test registering a discovery handler with IMPROPER UDS endpoint
-        // Registration expects uds endpoint to begin with DISCOVERY_HANDLER_PATH
-        let (new_discovery_handler_sender, _) = broadcast::channel(2);
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
-        let registration_server =
-            AgentRegistration::new(new_discovery_handler_sender, discovery_handler_map.clone());
-        let endpoint = "/improper/socket/path/protocol.sock";
-        let request = tonic::Request::new(RegisterRequest {
-            protocol: "protocol".to_string(),
-            endpoint: endpoint.to_string(),
-            is_local: false,
-        });
-        match registration_server.register(request).await {
-            Ok(_) => panic!("register should panic if given unexpected uds"),
-            Err(e) => assert_eq!(e.code(), tonic::Code::InvalidArgument),
-        }
-
-        // Test registering a discovery handler with IMPROPER network address
-        let (new_discovery_handler_sender, _) = broadcast::channel(2);
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
-        let registration_server =
-            AgentRegistration::new(new_discovery_handler_sender, discovery_handler_map.clone());
-        let endpoint = "10.1.2.3:1000";
-        let request = tonic::Request::new(RegisterRequest {
-            protocol: "protocol".to_string(),
-            endpoint: endpoint.to_string(),
-            is_local: false,
-        });
-        match registration_server.register(request).await {
-            Ok(_) => panic!("register should panic if given unexpected uds"),
-            Err(e) => assert_eq!(e.code(), tonic::Code::InvalidArgument),
-        }
+        // Assert the endpoint with EndpointType::Network in converted to DiscoveryHandlerEndpoint::Network(endpoint)
+        assert_eq!(
+            create_discovery_handler_endpoint("http://10.1.2.3:1000", EndpointType::Network),
+            DiscoveryHandlerEndpoint::Network("http://10.1.2.3:1000".to_string())
+        );
     }
 }

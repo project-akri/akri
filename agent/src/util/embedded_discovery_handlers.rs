@@ -1,5 +1,7 @@
 use akri_debug_echo::discovery_handler::DebugEchoDiscoveryHandlerConfig;
-use akri_discovery_utils::discovery::{v0::discovery_server::Discovery, DiscoverStream};
+use akri_discovery_utils::discovery::{
+    v0::discovery_handler_server::DiscoveryHandler, DiscoverStream,
+};
 #[cfg(feature = "onvif-feat")]
 use akri_onvif::discovery_handler::OnvifDiscoveryHandlerConfig;
 #[cfg(feature = "opcua-feat")]
@@ -13,11 +15,11 @@ use akri_udev::discovery_handler::UdevDiscoveryHandlerConfig;
 use anyhow::Error;
 use log::trace;
 
-/// Returns the appropriate embedded Discovery Handler as determined by the deserialized contents
+/// Returns the appropriate embedded DiscoveryHandler as determined by the deserialized contents
 /// of the value of the discovery_details map at key "protocolHandler".
 pub fn get_discovery_handler(
     protocol_handler: &ProtocolHandler,
-) -> Result<Box<dyn Discovery<DiscoverStream = DiscoverStream>>, Error> {
+) -> Result<Box<dyn DiscoveryHandler<DiscoverStream = DiscoverStream>>, Error> {
     let query_var_set = ActualEnvVarQuery {};
     inner_get_discovery_handler(protocol_handler, &query_var_set)
 }
@@ -25,7 +27,7 @@ pub fn get_discovery_handler(
 fn inner_get_discovery_handler(
     protocol_handler: &ProtocolHandler,
     query: &impl EnvVarQuery,
-) -> Result<Box<dyn Discovery<DiscoverStream = DiscoverStream>>, Error> {
+) -> Result<Box<dyn DiscoveryHandler<DiscoverStream = DiscoverStream>>, Error> {
     trace!(
         "inner_get_discovery_handler - for ProtocolHandler {:?}",
         protocol_handler
@@ -34,31 +36,31 @@ fn inner_get_discovery_handler(
     if let Some(discovery_handler_str) = protocol_handler.discovery_details.get("protocolHandler") {
         match protocol_handler.name.as_str() {
             #[cfg(feature = "onvif-feat")]
-            akri_onvif::PROTOCOL_NAME => {
+            akri_onvif::DISCOVERY_HANDLER_NAME => {
                 let _discovery_handler_config: OnvifDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("ONVIF Configuration discovery details improperly configured with error {:?}", e))?;
                 Ok(Box::new(
-                    akri_onvif::discovery_handler::DiscoveryHandler::new(None),
+                    akri_onvif::discovery_handler::DiscoveryHandlerImpl::new(None),
                 ))
             }
             #[cfg(feature = "udev-feat")]
-            akri_udev::PROTOCOL_NAME => {
+            akri_udev::DISCOVERY_HANDLER_NAME => {
                 let _discovery_handler_config: UdevDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("udev Configuration discovery details improperly configured with error {:?}", e))?;
                 Ok(Box::new(
-                    akri_udev::discovery_handler::DiscoveryHandler::new(None),
+                    akri_udev::discovery_handler::DiscoveryHandlerImpl::new(None),
                 ))
             }
             #[cfg(feature = "opcua-feat")]
-            akri_opcua::PROTOCOL_NAME => {
+            akri_opcua::DISCOVERY_HANDLER_NAME => {
                 let _discovery_handler_config: OpcuaDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("OPC UA Configuration discovery details improperly configured with error {:?}", e))?;
                 Ok(Box::new(
-                    akri_opcua::discovery_handler::DiscoveryHandler::new(None),
+                    akri_opcua::discovery_handler::DiscoveryHandlerImpl::new(None),
                 ))
             }
-            akri_debug_echo::PROTOCOL_NAME => {
+            akri_debug_echo::DISCOVERY_HANDLER_NAME => {
                 let _discovery_handler_config: DebugEchoDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("debug echo Configuration discovery details improperly configured with error {:?}", e))?;
                 match query.get_env_var("ENABLE_DEBUG_ECHO") {
                     Ok(_) => Ok(Box::new(
-                        akri_debug_echo::discovery_handler::DiscoveryHandler::new(None),
+                        akri_debug_echo::discovery_handler::DiscoveryHandlerImpl::new(None),
                     )),
                     _ => Err(anyhow::format_err!("Debug echo protocol not configured")),
                 }

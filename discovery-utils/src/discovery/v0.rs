@@ -1,23 +1,37 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegisterRequest {
-    /// Name of the protocol that the client uses for discovery
+pub struct RegisterDiscoveryHandlerRequest {
+    /// Name of the `DiscoveryHandler`. This name is specified in an
+    /// Akri Configuration, to request devices discovered by this `DiscoveryHandler`.
     #[prost(string, tag = "1")]
-    pub protocol: std::string::String,
-    /// Name of the endpoint that is hosting the discovery service
-    /// for the protocol
+    pub name: std::string::String,
+    /// Endpoint for the registering `DiscoveryHandler`
     #[prost(string, tag = "2")]
     pub endpoint: std::string::String,
-    /// Specifies whether this device can only be ever seen by this node (e.g. a local USB device)
-    /// rather than being visible to multiple nodes (e.g. an IP camera)
-    #[prost(bool, tag = "3")]
-    pub is_local: bool,
+    #[prost(
+        enumeration = "register_discovery_handler_request::EndpointType",
+        tag = "3"
+    )]
+    pub endpoint_type: i32,
+    /// Specifies whether this device could be used by multiple nodes (e.g. an IP camera)
+    /// or can only be ever be discovered by a single node (e.g. a local USB device)
+    #[prost(bool, tag = "4")]
+    pub shared: bool,
+}
+pub mod register_discovery_handler_request {
+    /// Specifies the type of endpoint.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[repr(i32)]
+    pub enum EndpointType {
+        Uds = 0,
+        Network = 1,
+    }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverRequest {
     /// Map containing all the details (such as filtering options)
-    /// the discovery handler needs to find a set of devices.
+    /// the `DiscoveryHandler` needs to find a set of devices.
     #[prost(map = "string, string", tag = "1")]
     pub discovery_details: ::std::collections::HashMap<std::string::String, std::string::String>,
 }
@@ -81,8 +95,7 @@ pub mod registration_client {
     #![allow(unused_variables, dead_code, missing_docs)]
     use tonic::codegen::*;
     #[doc = " Registration is the service advertised by the Akri Agent."]
-    #[doc = " Any `DiscoveryHandler` can register with Akri under a specified"]
-    #[doc = " protocol."]
+    #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
     pub struct RegistrationClient<T> {
         inner: tonic::client::Grpc<T>,
     }
@@ -112,9 +125,9 @@ pub mod registration_client {
             let inner = tonic::client::Grpc::with_interceptor(inner, interceptor);
             Self { inner }
         }
-        pub async fn register(
+        pub async fn register_discovery_handler(
             &mut self,
-            request: impl tonic::IntoRequest<super::RegisterRequest>,
+            request: impl tonic::IntoRequest<super::RegisterDiscoveryHandlerRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
@@ -123,7 +136,8 @@ pub mod registration_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v0.Registration/Register");
+            let path =
+                http::uri::PathAndQuery::from_static("/v0.Registration/RegisterDiscoveryHandler");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -136,13 +150,13 @@ pub mod registration_client {
     }
 }
 #[doc = r" Generated client implementations."]
-pub mod discovery_client {
+pub mod discovery_handler_client {
     #![allow(unused_variables, dead_code, missing_docs)]
     use tonic::codegen::*;
-    pub struct DiscoveryClient<T> {
+    pub struct DiscoveryHandlerClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl DiscoveryClient<tonic::transport::Channel> {
+    impl DiscoveryHandlerClient<tonic::transport::Channel> {
         #[doc = r" Attempt to create a new client by connecting to a given endpoint."]
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -153,7 +167,7 @@ pub mod discovery_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> DiscoveryClient<T>
+    impl<T> DiscoveryHandlerClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::ResponseBody: Body + HttpBody + Send + 'static,
@@ -180,13 +194,13 @@ pub mod discovery_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v0.Discovery/Discover");
+            let path = http::uri::PathAndQuery::from_static("/v0.DiscoveryHandler/Discover");
             self.inner
                 .server_streaming(request.into_request(), path, codec)
                 .await
         }
     }
-    impl<T: Clone> Clone for DiscoveryClient<T> {
+    impl<T: Clone> Clone for DiscoveryHandlerClient<T> {
         fn clone(&self) -> Self {
             Self {
                 inner: self.inner.clone(),
@@ -201,14 +215,13 @@ pub mod registration_server {
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with RegistrationServer."]
     #[async_trait]
     pub trait Registration: Send + Sync + 'static {
-        async fn register(
+        async fn register_discovery_handler(
             &self,
-            request: tonic::Request<super::RegisterRequest>,
+            request: tonic::Request<super::RegisterDiscoveryHandlerRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     #[doc = " Registration is the service advertised by the Akri Agent."]
-    #[doc = " Any `DiscoveryHandler` can register with Akri under a specified"]
-    #[doc = " protocol."]
+    #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
     #[derive(Debug)]
     #[doc(hidden)]
     pub struct RegistrationServer<T: Registration> {
@@ -237,17 +250,21 @@ pub mod registration_server {
         fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/v0.Registration/Register" => {
-                    struct RegisterSvc<T: Registration>(pub Arc<T>);
-                    impl<T: Registration> tonic::server::UnaryService<super::RegisterRequest> for RegisterSvc<T> {
+                "/v0.Registration/RegisterDiscoveryHandler" => {
+                    struct RegisterDiscoveryHandlerSvc<T: Registration>(pub Arc<T>);
+                    impl<T: Registration>
+                        tonic::server::UnaryService<super::RegisterDiscoveryHandlerRequest>
+                        for RegisterDiscoveryHandlerSvc<T>
+                    {
                         type Response = super::Empty;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::RegisterRequest>,
+                            request: tonic::Request<super::RegisterDiscoveryHandlerRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.register(request).await };
+                            let fut =
+                                async move { inner.register_discovery_handler(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -255,7 +272,7 @@ pub mod registration_server {
                     let fut = async move {
                         let interceptor = inner.1.clone();
                         let inner = inner.0;
-                        let method = RegisterSvc(inner);
+                        let method = RegisterDiscoveryHandlerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = if let Some(interceptor) = interceptor {
                             tonic::server::Grpc::with_interceptor(codec, interceptor)
@@ -298,12 +315,12 @@ pub mod registration_server {
     }
 }
 #[doc = r" Generated server implementations."]
-pub mod discovery_server {
+pub mod discovery_handler_server {
     #![allow(unused_variables, dead_code, missing_docs)]
     use tonic::codegen::*;
-    #[doc = "Generated trait containing gRPC methods that should be implemented for use with DiscoveryServer."]
+    #[doc = "Generated trait containing gRPC methods that should be implemented for use with DiscoveryHandlerServer."]
     #[async_trait]
-    pub trait Discovery: Send + Sync + 'static {
+    pub trait DiscoveryHandler: Send + Sync + 'static {
         #[doc = "Server streaming response type for the Discover method."]
         type DiscoverStream: Stream<Item = Result<super::DiscoverResponse, tonic::Status>>
             + Send
@@ -316,11 +333,11 @@ pub mod discovery_server {
     }
     #[derive(Debug)]
     #[doc(hidden)]
-    pub struct DiscoveryServer<T: Discovery> {
+    pub struct DiscoveryHandlerServer<T: DiscoveryHandler> {
         inner: _Inner<T>,
     }
     struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
-    impl<T: Discovery> DiscoveryServer<T> {
+    impl<T: DiscoveryHandler> DiscoveryHandlerServer<T> {
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
             let inner = _Inner(inner, None);
@@ -332,7 +349,7 @@ pub mod discovery_server {
             Self { inner }
         }
     }
-    impl<T: Discovery> Service<http::Request<HyperBody>> for DiscoveryServer<T> {
+    impl<T: DiscoveryHandler> Service<http::Request<HyperBody>> for DiscoveryHandlerServer<T> {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
@@ -342,9 +359,10 @@ pub mod discovery_server {
         fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/v0.Discovery/Discover" => {
-                    struct DiscoverSvc<T: Discovery>(pub Arc<T>);
-                    impl<T: Discovery> tonic::server::ServerStreamingService<super::DiscoverRequest>
+                "/v0.DiscoveryHandler/Discover" => {
+                    struct DiscoverSvc<T: DiscoveryHandler>(pub Arc<T>);
+                    impl<T: DiscoveryHandler>
+                        tonic::server::ServerStreamingService<super::DiscoverRequest>
                         for DiscoverSvc<T>
                     {
                         type Response = super::DiscoverResponse;
@@ -386,13 +404,13 @@ pub mod discovery_server {
             }
         }
     }
-    impl<T: Discovery> Clone for DiscoveryServer<T> {
+    impl<T: DiscoveryHandler> Clone for DiscoveryHandlerServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self { inner }
         }
     }
-    impl<T: Discovery> Clone for _Inner<T> {
+    impl<T: DiscoveryHandler> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(self.0.clone(), self.1.clone())
         }
@@ -402,7 +420,7 @@ pub mod discovery_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: Discovery> tonic::transport::NamedService for DiscoveryServer<T> {
-        const NAME: &'static str = "v0.Discovery";
+    impl<T: DiscoveryHandler> tonic::transport::NamedService for DiscoveryHandlerServer<T> {
+        const NAME: &'static str = "v0.DiscoveryHandler";
     }
 }
