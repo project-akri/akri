@@ -9,7 +9,7 @@ These two tasks enable Akri to find configured resources (leaf devices), expose 
 ## Handling resource availability changes
 The first step in handling resource availability is determining what resources (leaf devices) to look for.  This is accomplished by finding existing Configurations and watching for changes to them.
 
-Once the Akri Agent understands what resources to look for (via `Configuration.protocol`), it will [find any resources that are visible](##resource-discovery).
+Once the Akri Agent understands what resources to look for (via `Configuration.discovery_handler`), it will [find any resources that are visible](##resource-discovery).
 
 For each resource that is found:
 

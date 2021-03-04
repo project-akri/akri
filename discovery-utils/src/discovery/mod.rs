@@ -72,14 +72,14 @@ pub mod discovery_handler {
     /// This obtains the expected type `T` from a discovery details map
     /// by running it through function `f` which will attempt to deserialize the String.
     /// It expects `T` to be serialized yaml stored in the map as
-    /// the String value associated with the key `protocolHandler`.
+    /// the String value associated with the key `discoveryHandlerConfig`.
     pub fn deserialize_discovery_details<T>(
         discovery_details: &std::collections::HashMap<String, String>,
     ) -> Result<T, anyhow::Error>
     where
         T: serde::de::DeserializeOwned,
     {
-        if let Some(discovery_handler_str) = discovery_details.get("protocolHandler") {
+        if let Some(discovery_handler_str) = discovery_details.get("discoveryHandlerConfig") {
             let discovery_handler_config: T =
                 serde_yaml::from_str(discovery_handler_str).map_err(|e| {
                     anyhow::format_err!(
@@ -90,7 +90,7 @@ pub mod discovery_handler {
             Ok(discovery_handler_config)
         } else {
             Err(anyhow::format_err!(
-                "Expected discovery information to be stored under key 'protocolHandler' in Config discovery details: {:?}",
+                "Expected discovery information to be stored under key 'discoveryHandlerConfig' in Config discovery details: {:?}",
                 discovery_details
             ))
         }

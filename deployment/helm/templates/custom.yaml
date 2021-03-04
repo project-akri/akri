@@ -4,8 +4,8 @@ kind: Configuration
 metadata:
   name: {{ .Values.customDiscovery.name }}
 spec:
-  protocol: 
-    name: {{ required "A customDiscovery.protocolName is required." .Values.customDiscovery.protocolName }}
+  discoveryHandler: 
+    name: {{ required "A customDiscovery.discoveryHandlerName is required." .Values.customDiscovery.discoveryHandlerName }}
     {{- /* Check if the map is empty */}}
     {{- if .Values.customDiscovery.discoveryDetails }}
     discoveryDetails:

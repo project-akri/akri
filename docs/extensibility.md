@@ -47,13 +47,13 @@ devices that can be shared between nodes. The protocol name also resolves to the
 Handler will run on.
 
 ### Decide what information is passed via an Akri Configuration
-Akri's Configuration CRD takes in a [`ProtocolHandler`](../shared/src/akri/configuration.rs), which is defined
+Akri's Configuration CRD takes in a [`DiscoveryHandlerInfo`](../shared/src/akri/configuration.rs), which is defined
 structurally as follows:
 ```rust
 /// This defines a protocol
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ProtocolHandler {
+pub struct DiscoveryHandlerInfo {
     pub name: String,
     #[serde(default)]
     pub discovery_details: HashMap<String, String>,
@@ -72,7 +72,7 @@ kind: Configuration
 metadata:
   name: http
 spec:
-  protocol:
+  discoveryHandler:
     name: http
     discoveryDetails:
       discoveryEndpoint: http://discovery:9999/discovery
@@ -449,7 +449,7 @@ Specify the container for that DaemonSet as the HTTP discovery handler that you 
 automatically deploy a custom Configuration, set `customDiscovery.enabled=true`. We will customize this Configuration to
 contain the discovery endpoint needed by our HTTP Discovery Handler by including it in the `discovery_details` map of
 the Configuration, like so: `customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery`. We
-also need to set the protocol name the Discovery Handler will register under (`customDiscovery.protocolName`) and a name
+also need to set the protocol name the Discovery Handler will register under (`customDiscovery.discoveryHandlerName`) and a name
 for the Discovery Handler and Configuration (`customDiscovery.name`). All these settings come together as the following
 Akri installation command:
 > Note: Be sure to consult the [user guide](./user-guide.md) to see whether your Kubernetes distribution needs any
@@ -462,7 +462,7 @@ Akri installation command:
   --set customDiscovery.discovery.image.repository=$DH_IMAGE \
   --set customDiscovery.enabled=true  \
   --set customDiscovery.name=akri-http  \
-  --set customDiscovery.protocolName=http \
+  --set customDiscovery.discoveryHandlerName=http \
   --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery
   ```
 
@@ -481,7 +481,7 @@ resources, by updating our Configuration to include a broker PodSpec.
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
-    --set customDiscovery.protocolName=http \
+    --set customDiscovery.discoveryHandlerName=http \
     --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery \
     --set customDiscovery.brokerPod.image=nginx:latest
   watch kubectl get pods,akrii
@@ -663,7 +663,7 @@ used in our installation command.
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
-    --set customDiscovery.protocolName=http \
+    --set customDiscovery.discoveryHandlerName=http \
     --set customDiscovery.discoveryDetails.discoveryEndpoint=http://discovery:9999/discovery \
     --set customDiscovery.brokerPod.image=$BROKER_IMAGE
   watch kubectl get pods,akrii

@@ -38,10 +38,10 @@
             ],
             "type": "ClusterIP"
         },
-        "protocol": {
+        "discoveryHandler": {
             "name": "debugEcho",
             "discoveryDetails": {
-                "protocolHandler": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
+                "discoveryHandlerConfig": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
             }
         },
         "properties": {}

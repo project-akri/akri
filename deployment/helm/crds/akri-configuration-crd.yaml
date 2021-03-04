@@ -15,7 +15,7 @@ spec:
             spec:
               type: object
               properties:
-                protocol: # {{ProtocolHandler}}
+                discoveryHandler: # {{DiscoveryHandlerInfo}}
                   type: object
                   properties:
                     name:

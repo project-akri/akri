@@ -162,7 +162,7 @@ mod tests {
     fn test_deserialize_discovery_details_empty() {
         // Check that if no DiscoveryUrls are provided, the default LDS url is used.
         let yaml = r#"
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             opcuaDiscoveryMethod: 
               standard: {}
         "#;
@@ -178,7 +178,7 @@ mod tests {
     fn test_deserialize_discovery_details_detailed() {
         // Test standard discovery
         let yaml = r#"
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             opcuaDiscoveryMethod: 
               standard:
                 discoveryUrls:

@@ -3,10 +3,10 @@ kind: Configuration
 metadata:
   name: akri-onvif-video
 spec:
-  protocol:
+  discoveryHandler:
     name: onvif
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         ipAddresses: 
           action: Exclude
           items:

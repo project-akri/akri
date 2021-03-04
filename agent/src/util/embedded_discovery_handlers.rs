@@ -7,7 +7,7 @@ use akri_onvif::discovery_handler::OnvifDiscoveryHandlerConfig;
 #[cfg(feature = "opcua-feat")]
 use akri_opcua::discovery_handler::OpcuaDiscoveryHandlerConfig;
 use akri_shared::{
-    akri::configuration::ProtocolHandler,
+    akri::configuration::DiscoveryHandlerInfo,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
 #[cfg(feature = "udev-feat")]
@@ -16,25 +16,28 @@ use anyhow::Error;
 use log::trace;
 
 /// Returns the appropriate embedded DiscoveryHandler as determined by the deserialized contents
-/// of the value of the discovery_details map at key "protocolHandler".
+/// of the value of the discovery_details map at key "discoveryHandlerConfig".
 pub fn get_discovery_handler(
-    protocol_handler: &ProtocolHandler,
+    discovery_handler_info: &DiscoveryHandlerInfo,
 ) -> Result<Box<dyn DiscoveryHandler<DiscoverStream = DiscoverStream>>, Error> {
     let query_var_set = ActualEnvVarQuery {};
-    inner_get_discovery_handler(protocol_handler, &query_var_set)
+    inner_get_discovery_handler(discovery_handler_info, &query_var_set)
 }
 
 fn inner_get_discovery_handler(
-    protocol_handler: &ProtocolHandler,
+    discovery_handler_info: &DiscoveryHandlerInfo,
     query: &impl EnvVarQuery,
 ) -> Result<Box<dyn DiscoveryHandler<DiscoverStream = DiscoverStream>>, Error> {
     trace!(
-        "inner_get_discovery_handler - for ProtocolHandler {:?}",
-        protocol_handler
+        "inner_get_discovery_handler - for DiscoveryHandlerInfo {:?}",
+        discovery_handler_info
     );
-    // Determine whether it is an embedded protocol
-    if let Some(discovery_handler_str) = protocol_handler.discovery_details.get("protocolHandler") {
-        match protocol_handler.name.as_str() {
+    // Determine whether it is an embedded discovery handler
+    if let Some(discovery_handler_str) = discovery_handler_info
+        .discovery_details
+        .get("discoveryHandlerConfig")
+    {
+        match discovery_handler_info.name.as_str() {
             #[cfg(feature = "onvif-feat")]
             akri_onvif::DISCOVERY_HANDLER_NAME => {
                 let _discovery_handler_config: OnvifDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("ONVIF Configuration discovery details improperly configured with error {:?}", e))?;
@@ -57,15 +60,16 @@ fn inner_get_discovery_handler(
                 ))
             }
             akri_debug_echo::DISCOVERY_HANDLER_NAME => {
-                let _discovery_handler_config: DebugEchoDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("debug echo Configuration discovery details improperly configured with error {:?}", e))?;
-                match query.get_env_var("ENABLE_DEBUG_ECHO") {
-                    Ok(_) => Ok(Box::new(
-                        akri_debug_echo::discovery_handler::DiscoveryHandlerImpl::new(None),
-                    )),
-                    _ => Err(anyhow::format_err!("Debug echo protocol not configured")),
+                match query.get_env_var(super::constants::ENABLE_DEBUG_ECHO_LABEL) {
+                    Ok(_) => {
+                        let _discovery_handler_config: DebugEchoDiscoveryHandlerConfig = serde_yaml::from_str(discovery_handler_str).map_err(|e| anyhow::format_err!("debug echo Configuration discovery details improperly configured with error {:?}", e))?;
+                        Ok(Box::new(
+                        akri_debug_echo::discovery_handler::DiscoveryHandlerImpl::new(None)))
+                    },
+                    _ => Err(anyhow::format_err!("Debug echo discovery handler not configured")),
                 }
             }
-            // If the feature-gated protocol handlers are not included, this catch-all
+            // If the feature-gated discovery handlers are not included, this catch-all
             // should surface any invalid Configuration requests (i.e. udev-feat not
             // included at build-time ... but at runtime, a udev Configuration is
             // applied).  For the default build, where all features are included, this
@@ -73,14 +77,14 @@ fn inner_get_discovery_handler(
             // explicitly hide this warning.
             #[allow(unreachable_patterns)]
             _ => Err(anyhow::format_err!(
-                "No embedded discovery handler found for configuration with protocol handler {:?}",
-                protocol_handler
+                "No embedded discovery handler found for configuration with discovery handler info {:?}",
+                discovery_handler_info
             )),
         }
     } else {
         Err(anyhow::format_err!(
-            "No embedded discovery handler configuration found in discovery details map with key 'protocolHandler' for ProtocolHandler {:?}",
-            protocol_handler
+            "No embedded discovery handler configuration found in discovery details map with key 'discoveryHandlerConfig' for DiscoveryHandlerInfo {:?}",
+            discovery_handler_info
         ))
     }
 }
@@ -88,15 +92,15 @@ fn inner_get_discovery_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use akri_shared::{akri::configuration::ProtocolHandler, os::env_var::MockEnvVarQuery};
+    use akri_shared::{akri::configuration::DiscoveryHandlerInfo, os::env_var::MockEnvVarQuery};
     use std::env::VarError;
 
     #[test]
     fn test_inner_get_discovery_handler() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mock_query = MockEnvVarQuery::new();
-        let deserialized = serde_json::from_str::<ProtocolHandler>(
-            r#"{"name":"onvif", "discoveryDetails":{"protocolHandler":"{}"}}"#,
+        let deserialized = serde_json::from_str::<DiscoveryHandlerInfo>(
+            r#"{"name":"onvif", "discoveryDetails":{"discoveryHandlerConfig":"{}"}}"#,
         )
         .unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
@@ -104,30 +108,30 @@ mod tests {
         let udev_yaml = r#"
         name: udev
         discoveryDetails:
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             udevRules: []
         "#;
-        let deserialized: ProtocolHandler = serde_yaml::from_str(&udev_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&udev_yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
         let yaml = r#"
         name: opcua
         discoveryDetails:
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             opcuaDiscoveryMethod: 
               standard: {}
         "#;
-        let deserialized: ProtocolHandler = serde_yaml::from_str(&yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
-        let deserialized = serde_json::from_str::<ProtocolHandler>(
+        let deserialized = serde_json::from_str::<DiscoveryHandlerInfo>(
             r#"{"name":"random", "discoveryDetails":{"key":"random protocol"}}"#,
         )
         .unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_err());
 
-        let deserialized = serde_json::from_str::<ProtocolHandler>(
-            r#"{"name":"random", "discoveryDetails":{"protocolHandler":"random protocol"}}"#,
+        let deserialized = serde_json::from_str::<DiscoveryHandlerInfo>(
+            r#"{"name":"random", "discoveryDetails":{"discoveryHandlerConfig":"random protocol"}}"#,
         )
         .unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_err());
@@ -136,14 +140,14 @@ mod tests {
     #[tokio::test]
     async fn test_factory_for_debug_echo() {
         let debug_echo_yaml = r#"
-        protocol: 
+        discoveryHandler: 
         name: debugEcho
         discoveryDetails:
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             descriptions:
             - "foo1"
         "#;
-        let deserialized: ProtocolHandler = serde_yaml::from_str(&debug_echo_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
         // Test that errors without environment var set
         let mut mock_query_without_var_set = MockEnvVarQuery::new();
         mock_query_without_var_set

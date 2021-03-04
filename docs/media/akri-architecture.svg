@@ -270,7 +270,7 @@
 			<text x="4" y="314.99" class="st21" v:langID="1033"><v:paragraph/><v:tabList/>kind: <tspan class="st22">Configuration</tspan><tspan
 						x="4" dy="1.2em" class="st8">metadata:</tspan><tspan x="4" dy="1.2em" class="st8">  </tspan>name: akri<tspan
 						class="st22">- </tspan><tspan class="st22">&#60;protocolA&#62;</tspan><tspan x="4" dy="1.2em" class="st8">spec:</tspan><tspan
-						x="4" dy="1.2em" class="st8">  </tspan>protocol:<tspan x="4" dy="1.2em" class="st8">    </tspan>&#60;protocolA&#62;<tspan
+						x="4" dy="1.2em" class="st8">  </tspan>discoveryHandler:<tspan x="4" dy="1.2em" class="st8">    </tspan>&#60;protocolA&#62;<tspan
 						x="4" dy="1.2em" class="st8">  </tspan>brokerPodSpec:<tspan x="4" dy="1.2em" class="st8">    </tspan>containers:<tspan
 						x="4" dy="1.2em" class="st8">    </tspan>- name: <tspan class="st22">custom</tspan><tspan class="st22">-</tspan><tspan
 						class="st22">broker</tspan><tspan x="4" dy="1.2em" class="st8">      </tspan>image: &#34;<tspan

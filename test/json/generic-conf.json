@@ -30,10 +30,10 @@
         ],
         "type": "ClusterIP"
     },
-    "protocol": {
+    "discoveryHandler": {
         "name": "opcua",
         "discoveryDetails" : {
-            "protocolHandler": "\"opcua\":{\"opcuaDiscoveryMethod\":{\"standard\":{\"discoveryUrls\": [\"opc.tcp://127.0.0.1:4855/\"]}}, \"applicationNames\": { \"action\": \"Exclude\", \"items\": [\"Some application name\"]}}"
+            "discoveryHandlerConfig": "\"opcua\":{\"opcuaDiscoveryMethod\":{\"standard\":{\"discoveryUrls\": [\"opc.tcp://127.0.0.1:4855/\"]}}, \"applicationNames\": { \"action\": \"Exclude\", \"items\": [\"Some application name\"]}}"
         }
     },
     "properties": {}

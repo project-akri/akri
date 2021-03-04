@@ -44,7 +44,7 @@ pub enum StreamType {
 
 /// A DiscoveryOperator is created for each Configuration that is applied to the cluster.
 /// It handles discovery of the devices specified in a Configuration by calling `Discover` on
-/// all registered discovery handlers that are using the same protocol as specified in `Configuration.protocol.name.`
+/// all `DiscoveryHandlers` registered with name `Configuration.discovery_handler.name.`
 /// For each device discovered by the discovery handlers, it creates a device plugin.
 /// If a device disappears, it deletes the associated instance after a grace period (for non-local devices).
 /// Note: Since this structure is automocked, the compiler does not seem to be able to confirm that all the
@@ -92,13 +92,13 @@ impl DiscoveryOperator {
     #[allow(dead_code)]
     pub async fn stop_all_discovery(&self) {
         let mut discovery_handler_map = self.discovery_handler_map.lock().unwrap().clone();
-        if let Some(protocol_dhs_map) =
-            discovery_handler_map.get_mut(&self.config.spec.protocol.name)
+        if let Some(subset_discovery_handler_map) =
+            discovery_handler_map.get_mut(&self.config.spec.discovery_handler.name)
         {
-            for (endpoint, dh_details) in protocol_dhs_map.clone() {
+            for (endpoint, dh_details) in subset_discovery_handler_map.clone() {
                 match dh_details.stop_discovery.send(()) {
-                    Ok(_) => trace!("stop_all_discovery - discovery client for protocol {} at endpoint {:?} told to stop", self.config.spec.protocol.name, endpoint),
-                    Err(e) => error!("stop_all_discovery - discovery client for protocol {} at endpoint {:?} could not receive stop message with error {:?}", self.config.spec.protocol.name, endpoint, e)
+                    Ok(_) => trace!("stop_all_discovery - discovery client for {} discovery handler at endpoint {:?} told to stop", self.config.spec.discovery_handler.name, endpoint),
+                    Err(e) => error!("stop_all_discovery - discovery client {} discovery handler at endpoint {:?} could not receive stop message with error {:?}", self.config.spec.discovery_handler.name, endpoint, e)
                 }
             }
         }
@@ -107,16 +107,16 @@ impl DiscoveryOperator {
     /// Calls discover on the Discovery Handler at the given endpoint and returns the connection stream.
     pub async fn get_stream(&self, endpoint: &DiscoveryHandlerEndpoint) -> Option<StreamType> {
         let discover_request = tonic::Request::new(DiscoverRequest {
-            discovery_details: self.config.spec.protocol.discovery_details.clone(),
+            discovery_details: self.config.spec.discovery_handler.discovery_details.clone(),
         });
         trace!("get_stream - endpoint is {:?}", endpoint);
         match endpoint {
             DiscoveryHandlerEndpoint::Embedded => {
-                match get_discovery_handler(&self.config.spec.protocol) {
+                match get_discovery_handler(&self.config.spec.discovery_handler) {
                     Ok(discovery_handler) => {
                         trace!(
-                            "get_stream - using embedded discovery handler for protocol {}",
-                            self.config.spec.protocol.name
+                            "get_stream - using embedded {} discovery handler",
+                            self.config.spec.discovery_handler.name
                         );
                         Some(StreamType::Embedded(
                             discovery_handler
@@ -127,7 +127,7 @@ impl DiscoveryOperator {
                         ))
                     }
                     Err(e) => {
-                        error!("get_stream - no embedded discovery handler found for protocol {} with error {:?}", self.config.spec.protocol.name, e);
+                        error!("get_stream - no embedded discovery handler found with name {} with error {:?}", self.config.spec.discovery_handler.name, e);
                         None
                     }
                 }
@@ -146,8 +146,8 @@ impl DiscoveryOperator {
                 {
                     Ok(channel) => {
                         trace!(
-                            "get_stream - connecting to external discovery handler for protocol {} over UDS",
-                            self.config.spec.protocol.name
+                            "get_stream - connecting to external {} discovery handler over UDS",
+                            self.config.spec.discovery_handler.name
                         );
                         let mut discovery_handler_client = DiscoveryHandlerClient::new(channel);
                         Some(StreamType::External(
@@ -159,7 +159,7 @@ impl DiscoveryOperator {
                         ))
                     }
                     Err(e) => {
-                        error!("get_stream - failed to connect to discovery handler over UDS for protocol {} with error {}", self.config.spec.protocol.name, e);
+                        error!("get_stream - failed to connect to {} discovery handler over UDS with error {}", self.config.spec.discovery_handler.name, e);
                         None
                     }
                 }
@@ -168,8 +168,8 @@ impl DiscoveryOperator {
                 match DiscoveryHandlerClient::connect(addr.clone()).await {
                     Ok(mut discovery_handler_client) => {
                         trace!(
-                            "get_stream - connecting to external discovery handler for protocol {} over network",
-                            self.config.spec.protocol.name
+                            "get_stream - connecting to external {} discovery handler over network",
+                            self.config.spec.discovery_handler.name
                         );
                         Some(StreamType::External(
                             discovery_handler_client
@@ -180,7 +180,7 @@ impl DiscoveryOperator {
                         ))
                     }
                     Err(e) => {
-                        error!("get_stream - failed to connect to discovery handler over network for protocol {} with error {}", self.config.spec.protocol.name, e);
+                        error!("get_stream - failed to connect to {} discovery handler over network with error {}", self.config.spec.discovery_handler.name, e);
                         None
                     }
                 }
@@ -228,12 +228,12 @@ impl DiscoveryOperator {
         endpoint: &DiscoveryHandlerEndpoint,
         connectivity_status: DiscoveryHandlerStatus,
     ) {
-        trace!("set_discovery_handler_connectivity_status - set status of {:?} for discovery handler at endpoint {:?} and protocol {}", connectivity_status, endpoint, self.config.spec.protocol.name);
+        trace!("set_discovery_handler_connectivity_status - set status of {:?} for {} discovery handler at endpoint {:?}", connectivity_status, self.config.spec.discovery_handler.name, endpoint);
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let protocol_map = registered_dh_map
-            .get_mut(&self.config.spec.protocol.name)
+        let subset_discovery_handler_map = registered_dh_map
+            .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
-        let dh_details = protocol_map.get_mut(endpoint).unwrap();
+        let dh_details = subset_discovery_handler_map.get_mut(endpoint).unwrap();
         dh_details.connectivity_status = connectivity_status;
     }
 
@@ -247,19 +247,19 @@ impl DiscoveryOperator {
         &self,
         endpoint: &DiscoveryHandlerEndpoint,
     ) -> Result<bool, anyhow::Error> {
-        trace!("mark_offline_or_deregister_discovery_handler - discovery handler at endpoint {:?} and protocol {} is offline", endpoint, self.config.spec.protocol.name);
+        trace!("mark_offline_or_deregister_discovery_handler - {} discovery handler at endpoint {:?} is offline", self.config.spec.discovery_handler.name, endpoint);
         let mut deregistered = false;
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let protocol_map = registered_dh_map
-            .get_mut(&self.config.spec.protocol.name)
+        let subset_discovery_handler_map = registered_dh_map
+            .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
-        let dh_details = protocol_map.get_mut(endpoint).unwrap();
+        let dh_details = subset_discovery_handler_map.get_mut(endpoint).unwrap();
         match dh_details.connectivity_status {
             DiscoveryHandlerStatus::Offline(instant) => {
                 if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
-                    trace!("mark_offline_or_deregister_discovery_handler - de-registering discovery handler for protocol {} at endpoint {:?} since been offline for longer than 5 minutes", self.config.spec.protocol.name, endpoint);
+                    trace!("mark_offline_or_deregister_discovery_handler - de-registering {} discovery handler at endpoint {:?} since been offline for longer than 5 minutes", self.config.spec.discovery_handler.name, endpoint);
                     // Remove discovery handler from map if timed out
-                    protocol_map.remove(endpoint).unwrap();
+                    subset_discovery_handler_map.remove(endpoint).unwrap();
                     deregistered = true;
                 }
             }
@@ -506,7 +506,7 @@ pub mod start_discovery {
     /// until the Configuration is deleted, at which point, this function is signaled to stop.
     /// It consists of three subtasks:
     /// 1) Initiates discovery on all already registered discovery handlers in the RegisteredDiscoveryHandlerMap
-    /// with the same protocol name as the Configuration (Configuration.protocol.name).
+    /// with the same discovery handler name as the Configuration (Configuration.discovery_handler.name).
     /// 2) Listens for new discover handlers to come online for this Configuration and initiates discovery.
     /// 3) Checks whether Offline Instances have exceeded their grace period, in which case it
     /// deletes the Instance.
@@ -518,14 +518,14 @@ pub mod start_discovery {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
-            "start_discovery - entered for protocol {}",
-            config.spec.protocol.name
+            "start_discovery - entered for {} discovery handler",
+            config.spec.discovery_handler.name
         );
         let config_name = config.metadata.name.clone();
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);
 
-        // Call discover on already registered Discovery Handlers for this Configuration's protocol
+        // Call discover on already registered Discovery Handlers requested by this Configuration's
         let known_dh_discovery_operator = discovery_operator.clone();
         tasks.push(tokio::spawn(async move {
             do_discover(
@@ -577,7 +577,7 @@ pub mod start_discovery {
         Ok(())
     }
 
-    /// Waits to be notified of new discovery handlers. If the discovery handler does discovery for this Configuration's protocol,
+    /// Waits to be notified of new discovery handlers. If the discovery handler does discovery for this Configuration,
     /// discovery is kicked off.
     async fn listen_for_new_discovery_handlers(
         discovery_operator: Arc<DiscoveryOperator>,
@@ -593,9 +593,9 @@ pub mod start_discovery {
                     break;
                 },
                 result = new_discovery_handler_receiver.recv() => {
-                    // Check if it is this protocol
-                    if let Ok(protocol) = result {
-                        if protocol == discovery_operator.get_config().spec.protocol.name {
+                    // Check if it is one of this Configuration's discovery handlers
+                    if let Ok(discovery_handler_name) = result {
+                        if discovery_handler_name == discovery_operator.get_config().spec.discovery_handler.name {
                             trace!("listen_for_new_discovery_handlers - received new registered discovery handler for configuration {}", discovery_operator.get_config().metadata.name);
                             let new_discovery_operator = discovery_operator.clone();
                             discovery_tasks.push(tokio::spawn(async move {
@@ -611,23 +611,24 @@ pub mod start_discovery {
         Ok(())
     }
 
-    /// For each Discovery Handler registered for this DiscoveryOperator's protocol,
-    /// tries to establish connection with the DiscoveryHandler and spawns a discovery thread for each connection.
-    /// This function also manages the DiscoveryHandlerStatus of each Discovery Handler as follows:
-    /// /// DiscoveryHandlerStatus::Active if a connection is established via a call to get_stream
-    /// /// DiscoveryHandlerStatus::Waiting after a connection has finished due to either being signaled to stop connecting
+    /// A Configuration specifies the name of `DiscoveryHandlers` that should be utilized for discovery.
+    /// This tries to establish connection with each `DiscoveryHandler` registered under the requested
+    /// `DiscoveryHandler` name and spawns a discovery thread for each connection.
+    /// This function also manages the `DiscoveryHandlerStatus` of each `DiscoveryHandler` as follows:
+    /// /// `DiscoveryHandlerStatus::Active` if a connection is established via a call to get_stream
+    /// /// `DiscoveryHandlerStatus::Waitin`g after a connection has finished due to either being signaled to stop connecting
     /// /// or an error being returned from the discovery handler (that is not a broken pipe)
-    /// /// DiscoveryHandlerStatus::Offline if a connection cannot be established via a call to get_stream
+    /// /// `DiscoveryHandlerStatus::Offline` if a connection cannot be established via a call to get_stream
     /// If a connection cannot be established, continues to try, sleeping between iteration.
-    /// Removes the discovery handler from the RegisteredDiscoveryHandlerMap if it has been offline for longer than the grace period.
+    /// Removes the discovery handler from the `RegisteredDiscoveryHandlerMap` if it has been offline for longer than the grace period.
     pub async fn do_discover(
         discovery_operator: Arc<DiscoveryOperator>,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         trace!(
-            "do_discover - entered for protocol {}",
-            config.spec.protocol.name
+            "do_discover - entered for {} discovery handler",
+            config.spec.discovery_handler.name
         );
         // get clone of map
         let mut discovery_handler_map = discovery_operator
@@ -639,19 +640,21 @@ pub mod start_discovery {
             "do_discover - discovery_handler_map is {:?}",
             discovery_handler_map
         );
-        if let Some(protocol_dhs_map) = discovery_handler_map.get_mut(&config.spec.protocol.name) {
-            for (endpoint, dh_details) in protocol_dhs_map.clone() {
+        if let Some(subset_discovery_handler_map) =
+            discovery_handler_map.get_mut(&config.spec.discovery_handler.name)
+        {
+            for (endpoint, dh_details) in subset_discovery_handler_map.clone() {
                 trace!(
-                    "do_discover - for protocol {} and endpoint {:?}",
-                    config.spec.protocol.name,
+                    "do_discover - for {} discovery handler at endpoint {:?}",
+                    config.spec.discovery_handler.name,
                     endpoint
                 );
-                // Only use Discovery Handler if it doesn't have a client yet
+                // Only use DiscoveryHandler if it doesn't have a client yet
                 if dh_details.connectivity_status != DiscoveryHandlerStatus::Active {
                     trace!(
-                        "do_discover - endpoint {:?} for protocol {} doesn't have client",
-                        endpoint,
-                        config.spec.protocol.name
+                        "do_discover - {} discovery handler at endpoint {:?} doesn't have client",
+                        config.spec.discovery_handler.name,
+                        endpoint
                     );
                     let mut stop_discovery_receiver = dh_details.stop_discovery.subscribe();
                     loop {
@@ -924,10 +927,10 @@ pub mod tests {
         let discovery_handler_details =
             create_discovery_handler_details(dh_name, endpoint.clone(), shared);
         // Add discovery handler to registered discovery handler map
-        let mut protocol_dh_map = HashMap::new();
-        protocol_dh_map.insert(endpoint.clone(), discovery_handler_details);
+        let mut subset_dh_map = HashMap::new();
+        subset_dh_map.insert(endpoint.clone(), discovery_handler_details);
         let mut dh_map = HashMap::new();
-        dh_map.insert(dh_name.to_string(), protocol_dh_map);
+        dh_map.insert(dh_name.to_string(), subset_dh_map);
         Arc::new(std::sync::Mutex::new(dh_map))
     }
 
@@ -1324,13 +1327,13 @@ pub mod tests {
             .unwrap();
     }
 
-    fn setup_non_mocked_dh(protocol: &str) -> (DiscoveryOperator, DiscoveryHandlerEndpoint) {
+    fn setup_non_mocked_dh(dh_name: &str) -> (DiscoveryOperator, DiscoveryHandlerEndpoint) {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let endpoint = "socket.sock";
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
-        let discovery_handler_map = create_discovery_handler_map(protocol, &dh_endpoint, false);
+        let discovery_handler_map = create_discovery_handler_map(dh_name, &dh_endpoint, false);
         (
             DiscoveryOperator::new(
                 discovery_handler_map,
@@ -1344,8 +1347,8 @@ pub mod tests {
     #[tokio::test]
     async fn test_set_discovery_handler_connectivity_status() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let protocol = "debugEcho";
-        let (discovery_operator, endpoint) = setup_non_mocked_dh(protocol);
+        let discovery_handler_name = "debugEcho";
+        let (discovery_operator, endpoint) = setup_non_mocked_dh(discovery_handler_name);
         // Test that an online discovery handler is marked Active
         discovery_operator
             .set_discovery_handler_connectivity_status(&endpoint, DiscoveryHandlerStatus::Active);
@@ -1354,7 +1357,7 @@ pub mod tests {
                 .discovery_handler_map
                 .lock()
                 .unwrap()
-                .get_mut(protocol)
+                .get_mut(discovery_handler_name)
                 .unwrap()
                 .clone()
                 .get(&endpoint)
@@ -1368,8 +1371,8 @@ pub mod tests {
     #[tokio::test]
     async fn test_mark_offline_or_deregister_discovery_handler() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let protocol = "debugEcho";
-        let (discovery_operator, endpoint) = setup_non_mocked_dh(protocol);
+        let discovery_handler_name = "debugEcho";
+        let (discovery_operator, endpoint) = setup_non_mocked_dh(discovery_handler_name);
         // Test that an online discovery handler is marked offline
         assert_eq!(
             discovery_operator
@@ -1382,7 +1385,7 @@ pub mod tests {
             .discovery_handler_map
             .lock()
             .unwrap()
-            .get_mut(protocol)
+            .get_mut(discovery_handler_name)
             .unwrap()
             .clone()
             .get(&endpoint)
@@ -1407,7 +1410,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_get_stream_embedded() {
         let _ = env_logger::builder().is_test(true).try_init();
-        std::env::set_var("ENABLE_DEBUG_ECHO", "yes");
+        std::env::set_var(super::super::constants::ENABLE_DEBUG_ECHO_LABEL, "yes");
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();

@@ -3,10 +3,10 @@ kind: Configuration
 metadata:
   name: akri-opcua
 spec:
-  protocol:
+  discoveryHandler:
     name: opcua
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         opcuaDiscoveryMethod: 
           standard:
             discoveryUrls:

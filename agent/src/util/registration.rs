@@ -1,3 +1,4 @@
+use super::constants::ENABLE_DEBUG_ECHO_LABEL;
 use akri_discovery_utils::discovery::{
     v0::{
         register_discovery_handler_request::EndpointType,
@@ -21,13 +22,13 @@ use tonic::{transport::Server, Request, Response, Status};
 /// without it being removed from the map of registered Discovery Handlers.
 pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
 
-// Map of RegisterDiscoveryHandlerRequests for a specific protocol where key is the endpoint of the Discovery Handler
-// and value is whether or not the discovered devices are local.
-pub type ProtocolDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryHandlerDetails>;
+/// Map of `DiscoveryHandlers` of the same type (registered with the same name) where key is
+/// the endpoint of the Discovery Handler and value is `DiscoveryHandlerDetails`.
+pub type SubsetDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryHandlerDetails>;
 
-/// Map of all registered Discovery Handlers where key is protocol
-/// and value is a map of all Discovery Handlers for that protocol.
-pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, ProtocolDiscoveryHandlerMap>>>;
+/// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name
+/// and value is a map of all `DiscoveryHandlers` with that name.
+pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, SubsetDiscoveryHandlerMap>>>;
 
 /// A Discovery Handler's endpoint, distinguished by URI type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -150,7 +151,7 @@ impl Registration for AgentRegistration {
             .is_err()
         {
             // If no configurations have been applied, no receivers can nor need to be updated about the new discovery handler
-            trace!("register - new discovery handler registered for protocol {} but no active discovery operators to receive the message", dh_name);
+            trace!("register - new {} discovery handler registered but no active discovery operators to receive the message", dh_name);
         }
         Ok(Response::new(Empty {}))
     }
@@ -215,12 +216,15 @@ pub fn inner_register_embedded_discovery_handlers(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     type Details = (String, bool);
     let mut embedded_discovery_handlers: Vec<Details> = Vec::new();
-    let shared: bool = query
-        .get_env_var(akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
-        .unwrap()
-        .parse()
-        .unwrap();
-    embedded_discovery_handlers.push((akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string(), shared));
+    if query.get_env_var(ENABLE_DEBUG_ECHO_LABEL).is_ok() {
+        let shared: bool = query
+            .get_env_var(akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
+            .unwrap()
+            .parse()
+            .unwrap();
+        embedded_discovery_handlers
+            .push((akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string(), shared));
+    }
     #[cfg(feature = "onvif-feat")]
     embedded_discovery_handlers.push((
         akri_onvif::DISCOVERY_HANDLER_NAME.to_string(),
@@ -272,18 +276,24 @@ mod tests {
 
     #[test]
     fn test_register_embedded_discovery_handlers() {
-        // set environment variable to set whether debug echo instances are shared
-        let mut mock_env_var_shared = MockEnvVarQuery::new();
-        mock_env_var_shared
+        let mut seq = mockall::Sequence::new();
+        // Enable debug echo and set environment variable to set whether debug echo instances are shared
+        let mut mock_env_var = MockEnvVarQuery::new();
+        mock_env_var
             .expect_get_env_var()
+            .times(1)
+            .withf(|label: &str| label == ENABLE_DEBUG_ECHO_LABEL)
+            .in_sequence(&mut seq)
+            .returning(|_| Ok("1".to_string()));
+        mock_env_var
+            .expect_get_env_var()
+            .times(1)
+            .withf(|label: &str| label == akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
+            .in_sequence(&mut seq)
             .returning(|_| Ok("false".to_string()));
         let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
-        inner_register_embedded_discovery_handlers(
-            discovery_handler_map.clone(),
-            &mock_env_var_shared,
-        )
-        .unwrap();
-        assert_eq!(discovery_handler_map.lock().unwrap().len(), 4);
+        inner_register_embedded_discovery_handlers(discovery_handler_map.clone(), &mock_env_var)
+            .unwrap();
         assert!(discovery_handler_map
             .lock()
             .unwrap()
@@ -295,6 +305,24 @@ mod tests {
         assert!(discovery_handler_map.lock().unwrap().get("opcua").is_some());
         #[cfg(feature = "udev-feat")]
         assert!(discovery_handler_map.lock().unwrap().get("udev").is_some());
+    }
+
+    #[test]
+    fn test_register_embedded_discovery_handlers_no_debug_echo() {
+        let mut mock_env_var = MockEnvVarQuery::new();
+        mock_env_var
+            .expect_get_env_var()
+            .times(1)
+            .withf(|label: &str| label == ENABLE_DEBUG_ECHO_LABEL)
+            .returning(|_| Err(std::env::VarError::NotPresent));
+        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+        inner_register_embedded_discovery_handlers(discovery_handler_map.clone(), &mock_env_var)
+            .unwrap();
+        assert!(discovery_handler_map
+            .lock()
+            .unwrap()
+            .get("debugEcho")
+            .is_none());
     }
 
     #[tokio::test]

@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn test_deserialize_discovery_details() {
         let onvif_yaml = r#"
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&onvif_yaml).unwrap();

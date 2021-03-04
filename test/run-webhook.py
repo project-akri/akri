@@ -64,7 +64,7 @@ TEMPLATE = {
         "uid": "00000000-0000-0000-0000-000000000000"
     },
     "spec": {
-        "protocol": {
+        "discoveryHandler": {
             "debugEcho": {
                 "descriptions": ["foo", "bar"],
                 "shared": True

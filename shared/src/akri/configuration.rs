@@ -1,5 +1,5 @@
 //
-// Use this to allow ProtocolHandler enum
+// Use this to allow DiscoveryHandlerInfo enum
 // to use case similar to other properties (specifically avoiding CamelCase,
 // in favor of camelCase)
 //
@@ -19,10 +19,11 @@ use std::collections::HashMap;
 pub type KubeAkriConfig = Object<Configuration, Void>;
 pub type KubeAkriConfigList = ObjectList<Object<Configuration, Void>>;
 
-/// This defines a protocol
+/// This specifies which `DiscoveryHandler` should be used for discovery
+/// and any details that need to be sent to the `DiscoveryHandler`.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ProtocolHandler {
+pub struct DiscoveryHandlerInfo {
     pub name: String,
     #[serde(default)]
     pub discovery_details: HashMap<String, String>,
@@ -37,8 +38,9 @@ pub struct ProtocolHandler {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Configuration {
-    /// This defines the capability protocol
-    pub protocol: ProtocolHandler,
+    /// This defines the `DiscoveryHandler` that should be used to
+    /// discover the capability and any information needed by the `DiscoveryHandler`.
+    pub discovery_handler: DiscoveryHandlerInfo,
 
     /// This defines the number of nodes that can schedule worloads for
     /// any given capability that is found
@@ -199,21 +201,23 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         if serde_json::from_str::<Configuration>(r#"{}"#).is_ok() {
-            panic!("protocol is required");
+            panic!("discovery handler is required");
         }
 
         serde_json::from_str::<Configuration>(
-            r#"{"protocol":{"name":"random", "discoveryDetails":{"key":"random protocol"}}}"#,
+            r#"{"discoveryHandler":{"name":"random", "discoveryDetails":{"key":"random protocol"}}}"#,
         )
         .unwrap();
-        if serde_json::from_str::<Configuration>(r#"{"protocol":{"name":"random"}}"#).is_err() {
+        if serde_json::from_str::<Configuration>(r#"{"discoveryHandler":{"name":"random"}}"#)
+            .is_err()
+        {
             panic!("discovery details are not required");
         }
-        if serde_json::from_str::<Configuration>(r#"{"protocol":{}}"#).is_ok() {
-            panic!("protocol name is required");
+        if serde_json::from_str::<Configuration>(r#"{"discoveryHandler":{}}"#).is_ok() {
+            panic!("discovery handler name is required");
         }
 
-        let json = r#"{"protocol":{"name":"onvif", "discoveryDetails":{"protocolHandler":"{\"onvif\":{}}"}}}"#;
+        let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":{"discoveryHandlerConfig":"{\"onvif\":{}}"}}}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
@@ -226,7 +230,7 @@ mod crd_serialization_tests {
     fn test_config_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"protocol":{"name":"random", "discoveryDetails":{}}, "capacity":4}"#;
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":{}}, "capacity":4}"#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
@@ -236,7 +240,7 @@ mod crd_serialization_tests {
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
         let expected_deserialized =
-            r#"{"protocol":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":{}},"capacity":4}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -307,7 +311,7 @@ mod crd_serialization_tests {
                     ],
                     "type": "ClusterIP"
                 },
-                "protocol": {
+                "discoveryHandler": {
                     "name": "random",
                     "discoveryDetails": {}
                 },
@@ -318,8 +322,8 @@ mod crd_serialization_tests {
             }
         "#;
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
-        assert_eq!(deserialized.protocol.name, "random".to_string());
-        assert!(deserialized.protocol.discovery_details.is_empty());
+        assert_eq!(deserialized.discovery_handler.name, "random".to_string());
+        assert!(deserialized.discovery_handler.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);
         assert_ne!(None, deserialized.broker_pod_spec);
         assert_ne!(None, deserialized.instance_service_spec);

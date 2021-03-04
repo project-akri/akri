@@ -5,10 +5,10 @@ metadata:
   namespace: config-a-namespace
   uid: e9fbe880-99da-47c1-bea3-5398f21ee747
 spec:
-  protocol: 
+  discoveryHandler: 
     name: debugEcho
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         descriptions:
         - "filter1"
         - "filter2"

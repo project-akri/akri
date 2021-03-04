@@ -93,8 +93,8 @@ customDiscovery:
   # name is the Kubernetes resource name that will be created for this
   # customDiscovery configuration
   name: akri-custom-discovery
-  # protocolName is the name of the protocol the Discovery Handler registers under
-  protocolName: 
+  # discoveryHandlerName is the name the Discovery Handler is expected to register under
+  discoveryHandlerName: 
   # properties is a map of properties that will be passed to any instances
   # created as a result of applying this customDiscovery configuration
   properties:

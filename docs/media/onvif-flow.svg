@@ -686,7 +686,7 @@
 						x="4" dy="1.2em" class="st3">metadata:<v:newlineChar/></tspan><tspan x="4" dy="1.2em" class="st3">  </tspan>name: <tspan
 						class="st19">akri</tspan><tspan class="st19">-</tspan><tspan class="st19">onvif</tspan><tspan class="st19">-</tspan><tspan
 						class="st19">video<v:newlineChar/></tspan><tspan x="4" dy="1.2em" class="st3">spec:<v:newlineChar/></tspan><tspan
-						x="4" dy="1.2em" class="st3">  </tspan>protocol:<v:newlineChar/><tspan x="4" dy="1.2em" class="st3">    </tspan>onvif:<v:newlineChar/><tspan
+						x="4" dy="1.2em" class="st3">  </tspan>discoveryHandler:<v:newlineChar/><tspan x="4" dy="1.2em" class="st3">    </tspan>onvif:<v:newlineChar/><tspan
 						x="4" dy="1.2em" class="st3">  </tspan>brokerPodSpec:<v:newlineChar/><tspan x="4" dy="1.2em" class="st3">    </tspan>containers:<v:newlineChar/><tspan
 						x="4" dy="1.2em" class="st3">    </tspan>- name: <tspan class="st19">akri</tspan><tspan class="st19">-</tspan><tspan
 						class="st19">onvif</tspan><tspan class="st19">-</tspan><tspan class="st19">video</tspan><tspan class="st19">-</tspan><tspan

@@ -4,10 +4,10 @@ kind: Configuration
 metadata:
   name: {{ .Values.opcua.name }}
 spec:
-  protocol:
+  discoveryHandler:
     name: opcua
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         opcuaDiscoveryMethod: 
           standard:
             discoveryUrls: 

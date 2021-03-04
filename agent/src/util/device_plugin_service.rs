@@ -430,7 +430,7 @@ async fn try_update_instance_device_usage(
     Ok(())
 }
 
-/// This sets the volume mounts and environment variables according to the instance's protocol.
+/// This sets the volume mounts and environment variables according to the instance's `DiscoveryHandler`.
 fn build_container_allocate_response(
     annotations: HashMap<String, String>,
     device: &Device,

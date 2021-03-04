@@ -54,8 +54,9 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
     metadata:
       name: akri-<protocolA>
     spec:
-      protocol:
-        <protocolA>:
+      discoveryHandler:
+        name: protocolA
+        discovery_details: {}
       brokerPodSpec:
         containers:
         - name: custom-broker

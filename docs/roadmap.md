@@ -1,5 +1,5 @@
 # Roadmap
-## Implement additional protocol handlers
+## Implement additional discovery handlers
 There are endless sensors, controllers, and MCU class devices on the edge and each type of device has a different
 discovery protocol. Akri is an interface for helping expose those devices as resources to your Kubernetes cluster on the
 edge. Before it can add a device as a cluster resource, Akri must first discover the device using the appropriate

@@ -133,7 +133,7 @@ mod tests {
     fn test_deserialize_discovery_details_empty() {
         // Check that udev errors if no udev rules passed in
         let yaml = r#"
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
@@ -142,7 +142,7 @@ mod tests {
         assert!(udev_dh_config.is_err());
 
         let yaml = r#"
-        protocolHandler: |+
+        discoveryHandlerConfig: |+
           udevRules: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
-        protocolHandler: |+
+        discoveryHandlerConfig: |+
           udevRules:
           - 'KERNEL=="video[0-9]*"'
         "#;

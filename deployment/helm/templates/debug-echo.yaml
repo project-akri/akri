@@ -4,10 +4,10 @@ kind: Configuration
 metadata:
   name: {{ .Values.debugEcho.name }}
 spec:
-  protocol: 
+  discoveryHandler: 
     name: debugEcho
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         {{- if .Values.debugEcho.descriptions}}
         descriptions:
         {{- toYaml .Values.debugEcho.descriptions | nindent 10 }}

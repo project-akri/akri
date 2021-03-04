@@ -26,3 +26,6 @@ pub const SLOT_RECONCILIATION_CHECK_DELAY_SECS: u64 = 10;
 
 /// Length of time a slot can be unused before slot reconciliation reclaims it
 pub const SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS: u64 = 300;
+
+/// Label of environment variable that, when set, enables the embedded debug echo discovery handler
+pub const ENABLE_DEBUG_ECHO_LABEL: &str = "ENABLE_DEBUG_ECHO";

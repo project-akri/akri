@@ -3,10 +3,10 @@ kind: Configuration
 metadata:
   name: akri-udev-video
 spec:
-  protocol:
+  discoveryHandler:
     name: udev
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         udevRules:
         -  'KERNEL=="video[0-9]*"'
   brokerPodSpec:

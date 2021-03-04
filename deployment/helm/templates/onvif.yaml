@@ -4,10 +4,10 @@ kind: Configuration
 metadata:
   name: {{ .Values.onvif.name }}
 spec:
-  protocol:
+  discoveryHandler:
     name: onvif
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         ipAddresses: 
           action: {{ .Values.onvif.ipAddresses.action }}
           {{- if .Values.onvif.ipAddresses.items}}

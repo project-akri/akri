@@ -4,10 +4,10 @@ kind: Configuration
 metadata:
   name: {{ .Values.udev.name }}
 spec:
-  protocol:
+  discoveryHandler:
     name: udev
     discoveryDetails:
-      protocolHandler: |+
+      discoveryHandlerConfig: |+
         udevRules:
         {{- required "Please set at least one udev rule with `--set udev.udevRules[0]==\"<udev rule>\"' to specify what you want discovered. See the udev Configuration document at https://github.com/deislabs/akri/blob/main/docs/udev-configuration.md for more information." .Values.udev.udevRules | toYaml | nindent 10 }}
   {{- if .Values.udev.brokerPod.image.repository }}

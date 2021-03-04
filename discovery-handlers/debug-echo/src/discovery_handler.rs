@@ -125,12 +125,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 mod tests {
     use super::*;
     use akri_discovery_utils::discovery::v0::DiscoverRequest;
-    use akri_shared::akri::configuration::ProtocolHandler;
+    use akri_shared::akri::configuration::DiscoveryHandlerInfo;
 
     #[test]
     fn test_deserialize_discovery_details_empty() {
         let yaml = r#"
-          protocolHandler: |+
+          discoveryHandlerConfig: |+
             {}
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
@@ -139,7 +139,7 @@ mod tests {
         assert!(dh_config.is_err());
 
         let yaml = r#"
-        protocolHandler: |+
+        discoveryHandlerConfig: |+
             descriptions: []
         "#;
         let deserialized: HashMap<String, String> = serde_yaml::from_str(&yaml).unwrap();
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_deserialize_discovery_details_detailed() {
         let yaml = r#"
-        protocolHandler: |+
+        discoveryHandlerConfig: |+
             descriptions:
               - "foo1"
         "#;
@@ -172,11 +172,11 @@ mod tests {
         let debug_echo_yaml = r#"
           name: debugEcho
           discoveryDetails:
-            protocolHandler: |+
+            discoveryHandlerConfig: |+
               descriptions:
               - "foo1"
         "#;
-        let deserialized: ProtocolHandler = serde_yaml::from_str(&debug_echo_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
         let discovery_handler = DiscoveryHandlerImpl::new(None);
         let device = akri_discovery_utils::discovery::v0::Device {
             id: "foo1".to_string(),
