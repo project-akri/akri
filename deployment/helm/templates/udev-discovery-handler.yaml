@@ -35,14 +35,18 @@ spec:
         ports:
         - name: discovery
           containerPort: {{ .Values.udev.discovery.port }}
+        {{- end }}
         env:
+        {{- if .Values.udev.discovery.useNetworkConnection }}
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
         {{- end }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
         volumeMounts:
-        - name: agent-registration
+        - name: discovery-handlers
           mountPath: /var/lib/akri
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -53,8 +57,8 @@ spec:
       {{- toYaml .Values.udev.discovery.nodeSelectors | nindent 8 }}
       {{- end }}
       volumes:
-      - name: agent-registration
+      - name: discovery-handlers
         hostPath:
-          path: /var/lib/akri
+          path: {{ .Values.agent.host.discoveryHandlers }}
 {{- end }}
 {{- end }}

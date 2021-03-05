@@ -1,11 +1,8 @@
 use super::constants::ENABLE_DEBUG_ECHO_LABEL;
-use akri_discovery_utils::discovery::{
-    v0::{
-        register_discovery_handler_request::EndpointType,
-        registration_server::{Registration, RegistrationServer},
-        Empty, RegisterDiscoveryHandlerRequest,
-    },
-    AGENT_REGISTRATION_SOCKET,
+use akri_discovery_utils::discovery::v0::{
+    register_discovery_handler_request::EndpointType,
+    registration_server::{Registration, RegistrationServer},
+    Empty, RegisterDiscoveryHandlerRequest,
 };
 use akri_shared::{
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
@@ -165,7 +162,7 @@ pub async fn run_registration_server(
     internal_run_registration_server(
         discovery_handler_map,
         new_discovery_handler_sender,
-        AGENT_REGISTRATION_SOCKET,
+        &akri_discovery_utils::get_registration_socket(),
     )
     .await
 }
@@ -218,7 +215,7 @@ pub fn inner_register_embedded_discovery_handlers(
     let mut embedded_discovery_handlers: Vec<Details> = Vec::new();
     if query.get_env_var(ENABLE_DEBUG_ECHO_LABEL).is_ok() {
         let shared: bool = query
-            .get_env_var(akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
+            .get_env_var(akri_debug_echo::DEBUG_ECHO_INSTANCES_SHARED_LABEL)
             .unwrap()
             .parse()
             .unwrap();
@@ -288,7 +285,7 @@ mod tests {
         mock_env_var
             .expect_get_env_var()
             .times(1)
-            .withf(|label: &str| label == akri_debug_echo::INSTANCES_ARE_SHARED_LABEL)
+            .withf(|label: &str| label == akri_debug_echo::DEBUG_ECHO_INSTANCES_SHARED_LABEL)
             .in_sequence(&mut seq)
             .returning(|_| Ok("false".to_string()));
         let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));

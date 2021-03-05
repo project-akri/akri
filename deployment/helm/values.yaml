@@ -74,6 +74,9 @@ agent:
     pullPolicy: ""
   securityContext: {}
   host:
+    # discoveryHandlers is the location of Akri Discovery Handler sockets and
+    # the agent registration service
+    discoveryHandlers: /var/lib/akri
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
     kubeletDevicePlugins: /var/lib/kubelet/device-plugins
     # crictl is the node path to crictl
@@ -104,9 +107,6 @@ customDiscovery:
   # discoveryDetails is the string of discovery details that is 
   # passed to a Discovery Handler which can parse it into an expected format.
   discoveryDetails: ""
-  # shared defines whether instances created as a result of
-  # applying this customDiscovery configuration as shared
-  shared: true
   brokerPod:
     # container used by customDiscovery
     image:

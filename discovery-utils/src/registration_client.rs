@@ -1,6 +1,5 @@
-use super::discovery::{
-    v0::{registration_client::RegistrationClient, RegisterDiscoveryHandlerRequest},
-    AGENT_REGISTRATION_SOCKET,
+use super::discovery::v0::{
+    registration_client::RegistrationClient, RegisterDiscoveryHandlerRequest,
 };
 use log::{info, trace};
 use std::convert::TryFrom;
@@ -16,8 +15,8 @@ pub async fn register_discovery_handler(
     loop {
         // We will ignore this dummy uri because UDS does not use it.
         if let Ok(channel) = Endpoint::try_from("dummy://[::]:50051")?
-            .connect_with_connector(tower::service_fn(|_: Uri| {
-                tokio::net::UnixStream::connect(AGENT_REGISTRATION_SOCKET)
+            .connect_with_connector(tower::service_fn(move |_: Uri| {
+                tokio::net::UnixStream::connect(super::get_registration_socket())
             }))
             .await
         {

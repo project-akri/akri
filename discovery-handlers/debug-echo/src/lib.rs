@@ -7,4 +7,4 @@ extern crate serde_derive;
 pub const DISCOVERY_HANDLER_NAME: &str = "debugEcho";
 /// Label of the environment variable in debugEcho discovery handlers that sets whether debug echo registers
 /// as discovering local instances on nodes rather than ones visible to multiple nodes
-pub const INSTANCES_ARE_SHARED_LABEL: &str = "INSTANCES_ARE_SHARED";
+pub const DEBUG_ECHO_INSTANCES_SHARED_LABEL: &str = "DEBUG_ECHO_INSTANCES_SHARED";

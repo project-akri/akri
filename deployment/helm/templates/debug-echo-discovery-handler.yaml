@@ -43,10 +43,12 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         {{- end }}
-        - name: INSTANCES_ARE_SHARED
-          value: {{ .Values.debugEcho.shared }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        - name: DEBUG_ECHO_INSTANCES_SHARED
+          value: {{ .Values.debugEcho.shared | quote }}
         volumeMounts:
-        - name: agent-registration
+        - name: discovery-handlers
           mountPath: /var/lib/akri
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -57,8 +59,8 @@ spec:
       {{- toYaml .Values.debugEcho.discovery.nodeSelectors | nindent 8 }}
       {{- end }}
       volumes:
-      - name: agent-registration
+      - name: discovery-handlers
         hostPath:
-          path: /var/lib/akri
+          path: {{ .Values.agent.host.discoveryHandlers }}
 {{- end }}
 {{- end }}
