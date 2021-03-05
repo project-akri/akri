@@ -1,4 +1,8 @@
 use super::{
+    constants::{
+        DISCOVERY_OPERATOR_FINISHED_DISCOVERY_CHANNEL_CAPACITY,
+        DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY,
+    },
     device_plugin_service,
     device_plugin_service::InstanceMap,
     discovery_operator::start_discovery::{start_discovery, DiscoveryOperator},
@@ -13,7 +17,7 @@ use futures::StreamExt;
 use kube::api::{Informer, RawApi, WatchEvent};
 use log::{info, trace};
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{broadcast, mpsc, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
 
@@ -21,9 +25,15 @@ type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
 /// and senders for ceasing to discover instances upon Configuration deletion.
 #[derive(Debug)]
 pub struct ConfigInfo {
+    /// Map of all of a Configuration's Instances
     instance_map: InstanceMap,
+    /// Sends notification to a `DiscoveryOperator` that it should stop all discovery for its Configuration.
+    /// This signals it to tell each of its subtasks to stop discovery.
+    /// A broadcast channel is used so both the sending and receiving ends can be cloned.
     stop_discovery_sender: broadcast::Sender<()>,
-    finished_discovery_sender: broadcast::Sender<()>,
+    /// Receives notification that all `DiscoveryOperators` threads have completed and a Configuration's Instances
+    /// can be safely deleted and the associated `DevicePluginServices` terminated.
+    finished_discovery_receiver: mpsc::Receiver<()>,
 }
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
@@ -177,15 +187,14 @@ async fn handle_config_add(
     let config_name = config.metadata.name.clone();
     // Create a new instance map for this config and add it to the config map
     let instance_map: InstanceMap = Arc::new(Mutex::new(HashMap::new()));
-    // Channel capacity: should only ever be sent once upon config deletion
     let (stop_discovery_sender, _): (broadcast::Sender<()>, broadcast::Receiver<()>) =
-        broadcast::channel(4);
-    // Channel capacity: should only ever be sent once upon receiving stop watching message
-    let (mut finished_discovery_sender, _) = broadcast::channel(1);
+        broadcast::channel(DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY);
+    let (mut finished_discovery_sender, finished_discovery_receiver) =
+        mpsc::channel(DISCOVERY_OPERATOR_FINISHED_DISCOVERY_CHANNEL_CAPACITY);
     let config_info = ConfigInfo {
         instance_map: instance_map.clone(),
         stop_discovery_sender: stop_discovery_sender.clone(),
-        finished_discovery_sender: finished_discovery_sender.clone(),
+        finished_discovery_receiver,
     };
     config_map
         .lock()
@@ -233,14 +242,15 @@ pub async fn handle_config_delete(
         .send(())
         .is_ok()
     {
-        let mut finished_discovery_receiver = config_map
+        config_map
             .lock()
             .await
-            .get(&config.metadata.name)
+            .get_mut(&config.metadata.name)
             .unwrap()
-            .finished_discovery_sender
-            .subscribe();
-        finished_discovery_receiver.recv().await.unwrap();
+            .finished_discovery_receiver
+            .recv()
+            .await
+            .unwrap();
         trace!(
             "handle_config_delete - for config {} received message that do_periodic_discovery ended",
             config.metadata.name
@@ -322,14 +332,14 @@ mod config_action_tests {
         )
         .await;
         let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
-        let (finished_discovery_sender, _) = broadcast::channel(2);
+        let (mut finished_discovery_sender, finished_discovery_receiver) = mpsc::channel(2);
         let mut map: HashMap<String, ConfigInfo> = HashMap::new();
         map.insert(
             config_name.clone(),
             ConfigInfo {
                 stop_discovery_sender,
                 instance_map: instance_map.clone(),
-                finished_discovery_sender: finished_discovery_sender.clone(),
+                finished_discovery_receiver,
             },
         );
         let config_map: ConfigMap = Arc::new(Mutex::new(map));
@@ -348,7 +358,7 @@ mod config_action_tests {
         // Assert that handle_config_delete tells start_discovery to end
         assert!(stop_discovery_receiver.recv().await.is_ok());
         // Mimic do_periodic_discovery's response
-        finished_discovery_sender.send(()).unwrap();
+        finished_discovery_sender.send(()).await.unwrap();
 
         // Assert list_and_watch is signaled to end for every instance associated with a config
         let mut tasks = Vec::new();

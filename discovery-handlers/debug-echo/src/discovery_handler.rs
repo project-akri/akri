@@ -1,5 +1,5 @@
 use akri_discovery_utils::discovery::{
-    discovery_handler::deserialize_discovery_details,
+    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
     v0::{discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
 };
@@ -36,11 +36,11 @@ pub struct DebugEchoDiscoveryDetails {
 /// It mocks discovering the devices by inspecting the contents of the file at `DEBUG_ECHO_AVAILABILITY_CHECK_PATH`.
 /// If the file contains "OFFLINE", it won't discover any of the devices, else it discovers them all.
 pub struct DiscoveryHandlerImpl {
-    register_sender: Option<tokio::sync::mpsc::Sender<()>>,
+    register_sender: Option<mpsc::Sender<()>>,
 }
 
 impl DiscoveryHandlerImpl {
-    pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+    pub fn new(register_sender: Option<mpsc::Sender<()>>) -> Self {
         DiscoveryHandlerImpl { register_sender }
     }
 }
@@ -55,7 +55,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for debug echo protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut tx, rx) = mpsc::channel(4);
+        let (mut discovered_devices_sender, discovered_devices_receiver) =
+            mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: DebugEchoDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
@@ -78,7 +79,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     // If the device is now offline, return an empty list of instance info
                     offline = true;
-                    if let Err(e) = tx
+                    if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
                             devices: Vec::new(),
                         }))
@@ -104,7 +105,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             device_specs: Vec::default(),
                         })
                         .collect::<Vec<Device>>();
-                    if let Err(e) = tx.send(Ok(DiscoverResponse { devices })).await {
+                    if let Err(e) = discovered_devices_sender
+                        .send(Ok(DiscoverResponse { devices }))
+                        .await
+                    {
                         // TODO: consider re-registering here
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
                         if let Some(mut sender) = register_sender {
@@ -117,7 +121,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             }
         });
         trace!("outside of thread");
-        Ok(Response::new(rx))
+        Ok(Response::new(discovered_devices_receiver))
     }
 }
 

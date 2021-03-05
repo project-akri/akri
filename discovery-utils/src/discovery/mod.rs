@@ -20,6 +20,15 @@ pub mod discovery_handler {
 
     const DISCOVERY_PORT: i16 = 10000;
 
+    /// Capacity of channel over which a message is sent by `DiscoveryHandler::discover` that its `DiscoveryHandler`
+    /// should re-register due to the Agent dropping its end of the current connection.
+    pub const REGISTER_AGAIN_CHANNEL_CAPACITY: usize = 1;
+
+    /// Capacity of channel over which discovery handlers send updates to clients about currently discovered devices. It
+    /// is assumed that clients are always listening for updates; however, the size is increased to account for any delays
+    /// in receiving.
+    pub const DISCOVERED_DEVICES_CHANNEL_CAPACITY: usize = 4;
+
     pub async fn run_discovery_handler(
         discovery_handler: impl DiscoveryHandler,
         register_receiver: mpsc::Receiver<()>,
@@ -68,8 +77,8 @@ pub mod discovery_handler {
         Ok(())
     }
 
-    /// This obtains the expected type `T` from a discovery details String
-    /// by running it through function `f` which will attempt to deserialize the String.
+    /// This obtains the expected type `T` from a discovery details String by running it through function `f` which will
+    /// attempt to deserialize the String.
     pub fn deserialize_discovery_details<T>(discovery_details: &str) -> Result<T, anyhow::Error>
     where
         T: serde::de::DeserializeOwned,
@@ -104,15 +113,17 @@ pub mod mock_discovery_handler {
             &self,
             _: tonic::Request<DiscoverRequest>,
         ) -> Result<tonic::Response<Self::DiscoverStream>, tonic::Status> {
-            let (mut tx, rx) = mpsc::channel(4);
+            let (mut discovered_devices_sender, discovered_devices_receiver) =
+                mpsc::channel(super::discovery_handler::DISCOVERED_DEVICES_CHANNEL_CAPACITY);
             tokio::spawn(async move {
-                tx.send(Ok(DiscoverResponse {
-                    devices: Vec::new(),
-                }))
-                .await
-                .unwrap();
+                discovered_devices_sender
+                    .send(Ok(DiscoverResponse {
+                        devices: Vec::new(),
+                    }))
+                    .await
+                    .unwrap();
             });
-            Ok(tonic::Response::new(rx))
+            Ok(tonic::Response::new(discovered_devices_receiver))
         }
     }
 
@@ -181,9 +192,9 @@ pub mod server {
         .await
     }
 
-    /// Creates a DiscoveryHandlerServer for the given Discovery Handler at the specified endpoint
-    /// Verifies the endpoint by checking that it is in the discovery handler directory if it is
-    /// UDS or that it is a valid IP address and port.
+    /// Creates a DiscoveryHandlerServer for the given Discovery Handler at the specified endpoint Verifies the endpoint
+    /// by checking that it is in the discovery handler directory if it is UDS or that it is a valid IP address and
+    /// port.
     pub async fn internal_run_discovery_server(
         discovery_handler: impl DiscoveryHandler,
         discovery_endpoint: &str,

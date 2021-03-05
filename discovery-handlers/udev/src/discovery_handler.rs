@@ -1,6 +1,6 @@
 use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
 use akri_discovery_utils::discovery::{
-    discovery_handler::deserialize_discovery_details,
+    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
     v0::{
         discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
         Mount,
@@ -28,11 +28,11 @@ pub struct UdevDiscoveryDetails {
 
 /// `DiscoveryHandlerImpl` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
 pub struct DiscoveryHandlerImpl {
-    register_sender: Option<tokio::sync::mpsc::Sender<()>>,
+    register_sender: Option<mpsc::Sender<()>>,
 }
 
 impl DiscoveryHandlerImpl {
-    pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+    pub fn new(register_sender: Option<mpsc::Sender<()>>) -> Self {
         DiscoveryHandlerImpl { register_sender }
     }
 }
@@ -47,7 +47,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for udev protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut tx, rx) = mpsc::channel(4);
+        let (mut discovered_devices_sender, discovered_devices_receiver) =
+            mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
@@ -101,7 +102,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 {
                     info!("discover - sending updated device list");
                     previously_discovered_devices = discovered_devices.clone();
-                    if let Err(e) = tx
+                    if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
                             devices: discovered_devices,
                         }))
@@ -120,7 +121,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(rx))
+        Ok(Response::new(discovered_devices_receiver))
     }
 }
 

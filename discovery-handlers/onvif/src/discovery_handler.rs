@@ -5,7 +5,7 @@ use super::discovery_utils::{
 };
 use akri_discovery_utils::{
     discovery::{
-        discovery_handler::deserialize_discovery_details,
+        discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
         v0::{
             discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
         },
@@ -48,11 +48,11 @@ fn default_discovery_timeout_seconds() -> i32 {
 /// `discover_handler_config.mac_addresses`, and `discover_handler_config.scopes`.
 /// The instances it discovers are always shared.
 pub struct DiscoveryHandlerImpl {
-    register_sender: Option<tokio::sync::mpsc::Sender<()>>,
+    register_sender: Option<mpsc::Sender<()>>,
 }
 
 impl DiscoveryHandlerImpl {
-    pub fn new(register_sender: Option<tokio::sync::mpsc::Sender<()>>) -> Self {
+    pub fn new(register_sender: Option<mpsc::Sender<()>>) -> Self {
         DiscoveryHandlerImpl { register_sender }
     }
 }
@@ -67,7 +67,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for ONVIF protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut tx, rx) = mpsc::channel(4);
+        let (mut discovered_devices_sender, discovered_devices_receiver) =
+            mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: OnvifDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
@@ -104,7 +105,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 if changed_camera_list || matching_camera_count != cameras.len() {
                     trace!("discover - sending updated device list");
                     cameras = filtered_onvif_cameras.clone();
-                    if let Err(e) = tx
+                    if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
                             devices: filtered_onvif_cameras,
                         }))
@@ -123,7 +124,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(rx))
+        Ok(Response::new(discovered_devices_receiver))
     }
 }
 

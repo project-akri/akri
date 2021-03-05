@@ -1,6 +1,8 @@
 use super::super::INSTANCE_COUNT_METRIC;
 use super::{
-    constants::SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
+    constants::{
+        DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
+    },
     device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
     device_plugin_service,
     device_plugin_service::{
@@ -9,7 +11,7 @@ use super::{
     embedded_discovery_handlers::get_discovery_handler,
     registration::{
         DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
-        RegisteredDiscoveryHandlerMap, DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS,
+        RegisteredDiscoveryHandlerMap,
     },
     streaming_extension::StreamingExt,
 };
@@ -96,7 +98,7 @@ impl DiscoveryOperator {
             discovery_handler_map.get_mut(&self.config.spec.discovery_handler.name)
         {
             for (endpoint, dh_details) in subset_discovery_handler_map.clone() {
-                match dh_details.stop_discovery.send(()) {
+                match dh_details.close_discovery_handler_connection.send(()) {
                     Ok(_) => trace!("stop_all_discovery - discovery client for {} discovery handler at endpoint {:?} told to stop", self.config.spec.discovery_handler.name, endpoint),
                     Err(e) => error!("stop_all_discovery - discovery client {} discovery handler at endpoint {:?} could not receive stop message with error {:?}", self.config.spec.discovery_handler.name, endpoint, e)
                 }
@@ -500,7 +502,7 @@ pub mod start_discovery {
     use akri_shared::k8s;
     use mockall_double::double;
     use std::{sync::Arc, time::Duration};
-    use tokio::sync::broadcast;
+    use tokio::sync::{broadcast, mpsc};
 
     /// This is spawned as a task for each Configuration and continues to run
     /// until the Configuration is deleted, at which point, this function is signaled to stop.
@@ -514,7 +516,7 @@ pub mod start_discovery {
         discovery_operator: DiscoveryOperator,
         new_discovery_handler_sender: broadcast::Sender<String>,
         stop_all_discovery_sender: broadcast::Sender<()>,
-        finished_all_discovery_sender: &mut broadcast::Sender<()>,
+        finished_all_discovery_sender: &mut mpsc::Sender<()>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
@@ -573,7 +575,7 @@ pub mod start_discovery {
             }
         }));
         futures::future::try_join_all(tasks).await?;
-        finished_all_discovery_sender.send(()).unwrap();
+        finished_all_discovery_sender.send(()).await?;
         Ok(())
     }
 
@@ -656,7 +658,8 @@ pub mod start_discovery {
                         config.spec.discovery_handler.name,
                         endpoint
                     );
-                    let mut stop_discovery_receiver = dh_details.stop_discovery.subscribe();
+                    let mut stop_discovery_receiver =
+                        dh_details.close_discovery_handler_connection.subscribe();
                     loop {
                         tokio::select! {
                             _ = stop_discovery_receiver.recv() => {
@@ -938,12 +941,12 @@ pub mod tests {
         endpoint: DiscoveryHandlerEndpoint,
         shared: bool,
     ) -> DiscoveryDetails {
-        let (stop_discovery, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) = broadcast::channel(2);
         DiscoveryDetails {
             name: name.to_string(),
             endpoint,
             shared,
-            stop_discovery: stop_discovery.clone(),
+            close_discovery_handler_connection: close_discovery_handler_connection.clone(),
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         }
     }
@@ -1021,7 +1024,7 @@ pub mod tests {
             .get(&DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()))
             .unwrap()
             .clone()
-            .stop_discovery
+            .close_discovery_handler_connection
             .clone();
         mock_discovery_operator
             .expect_stop_all_discovery()
@@ -1031,16 +1034,16 @@ pub mod tests {
             });
         let (new_dh_sender, _) = broadcast::channel(2);
         let (stop_all_discovery_sender, _) = broadcast::channel(2);
-        let (finished_discovery_sender, mut finished_discovery_receiver) = broadcast::channel(2);
+        let (mut finished_discovery_sender, mut finished_discovery_receiver) =
+            tokio::sync::mpsc::channel(2);
         let thread_new_dh_sender = new_dh_sender.clone();
         let thread_stop_all_discovery_sender = stop_all_discovery_sender.clone();
-        let thread_finished_discovery_sender = finished_discovery_sender.clone();
         let handle = tokio::spawn(async move {
             start_discovery::start_discovery(
                 mock_discovery_operator,
                 thread_new_dh_sender,
                 thread_stop_all_discovery_sender,
-                &mut thread_finished_discovery_sender.clone(),
+                &mut finished_discovery_sender,
             )
             .await
             .unwrap();
@@ -1416,12 +1419,12 @@ pub mod tests {
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();
-        let (tx, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryDetails {
             name: dh_name.clone(),
             endpoint: endpoint.clone(),
             shared: false,
-            stop_discovery: tx,
+            close_discovery_handler_connection,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
@@ -1458,12 +1461,12 @@ pub mod tests {
             mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
-        let (tx, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryDetails {
             name: dh_name.to_string(),
             endpoint: dh_endpoint.clone(),
             shared: false,
-            stop_discovery: tx,
+            close_discovery_handler_connection,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();

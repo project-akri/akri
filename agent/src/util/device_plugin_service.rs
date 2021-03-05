@@ -1,4 +1,6 @@
-use super::constants::{HEALTHY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY};
+use super::constants::{
+    HEALTHY, KUBELET_UPDATE_CHANNEL_CAPACITY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
+};
 use super::v1beta1;
 use super::v1beta1::{
     device_plugin_server::DevicePlugin, AllocateRequest, AllocateResponse, DevicePluginOptions,
@@ -133,7 +135,8 @@ impl DevicePlugin for DevicePluginService {
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
         // Create a channel that list_and_watch can periodically send updates to kubelet on
-        let (mut kubelet_update_sender, kubelet_update_receiver) = mpsc::channel(4);
+        let (mut kubelet_update_sender, kubelet_update_receiver) =
+            mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
             let mut keep_looping = true;

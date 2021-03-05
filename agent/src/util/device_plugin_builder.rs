@@ -1,5 +1,8 @@
 use super::{
-    constants::{DEVICE_PLUGIN_PATH, K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET},
+    constants::{
+        DEVICE_PLUGIN_PATH, DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY, K8S_DEVICE_PLUGIN_VERSION,
+        KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
+    },
     device_plugin_service::{DevicePluginService, InstanceMap},
     v1beta1,
     v1beta1::{device_plugin_server::DevicePluginServer, registration_client, DevicePluginOptions},
@@ -60,11 +63,10 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             .to_str()
             .unwrap()
             .to_string();
-        // Channel capacity set to 6 because 3 possible senders (allocate, update_connectivity_status, and handle_config_delete)
-        // and and receiver only periodically checks channel
-        let (list_and_watch_message_sender, _) = broadcast::channel(6);
-        // Channel capacity set to 2 because worst case both register and list_and_watch send messages at same time and receiver is always listening
-        let (server_ender_sender, server_ender_receiver) = mpsc::channel(2);
+        let (list_and_watch_message_sender, _) =
+            broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
+        let (server_ender_sender, server_ender_receiver) =
+            mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
         let device_plugin_service = DevicePluginService {
             instance_name: instance_name.clone(),
             endpoint: device_endpoint.clone(),

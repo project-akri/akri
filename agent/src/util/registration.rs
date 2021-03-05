@@ -1,4 +1,6 @@
-use super::constants::ENABLE_DEBUG_ECHO_LABEL;
+use super::constants::{
+    CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY, ENABLE_DEBUG_ECHO_LABEL,
+};
 use akri_discovery_utils::discovery::v0::{
     register_discovery_handler_request::EndpointType,
     registration_server::{Registration, RegistrationServer},
@@ -15,17 +17,17 @@ use std::time::Instant;
 use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
 
-/// Maximum amount of time allowed to pass without being able to connect to a discovery handler
-/// without it being removed from the map of registered Discovery Handlers.
-pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
-
-/// Map of `DiscoveryHandlers` of the same type (registered with the same name) where key is
-/// the endpoint of the Discovery Handler and value is `DiscoveryDetails`.
+/// Map of `DiscoveryHandlers` of the same type (registered with the same name) where key is the endpoint of the
+/// Discovery Handler and value is `DiscoveryDetails`.
 pub type SubsetDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryDetails>;
 
-/// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name
-/// and value is a map of all `DiscoveryHandlers` with that name.
+/// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name and value is a map of all
+/// `DiscoveryHandlers` with that name.
 pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, SubsetDiscoveryHandlerMap>>>;
+
+/// Alias illustrating that `AgentRegistration.new_discovery_handler_sender`, sends the Discovery Handler name of the
+/// newly registered Discovery Handler.
+pub type DiscoveryHandlerName = String;
 
 /// A Discovery Handler's endpoint, distinguished by URI type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -49,17 +51,24 @@ pub enum DiscoveryHandlerStatus {
     Offline(Instant),
 }
 
+/// Details about a `DiscoveryHandler` and a sender for terminating its clients when needed.
 #[derive(Debug, Clone)]
 pub struct DiscoveryDetails {
+    /// Name of the `DiscoveryHandler`
     pub name: String,
+    /// Endpoint of the `DiscoveryHandler`
     pub endpoint: DiscoveryHandlerEndpoint,
+    /// Whether instances discovered by the `DiscoveryHandler` can be shared/seen by multiple nodes.
     pub shared: bool,
-    pub stop_discovery: broadcast::Sender<()>,
+    /// Channel over which the Registration service tells a DiscoveryOperator client to close a connection with a
+    /// `DiscoveryHandler`, if any. A broadcast channel is used so both the sending and receiving ends can be cloned.
+    pub close_discovery_handler_connection: broadcast::Sender<()>,
+    /// Connection state of the `DiscoveryHandler`.
     pub connectivity_status: DiscoveryHandlerStatus,
 }
 
-/// This maps the endpoint string and endpoint type of a `RegisterDiscoveryHandlerRequest`
-/// into a `DiscoveryHandlerEndpoint` so as to support embedded `DiscoveryHandlers`.
+/// This maps the endpoint string and endpoint type of a `RegisterDiscoveryHandlerRequest` into a
+/// `DiscoveryHandlerEndpoint` so as to support embedded `DiscoveryHandlers`.
 pub fn create_discovery_handler_endpoint(
     endpoint: &str,
     endpoint_type: EndpointType,
@@ -70,18 +79,17 @@ pub fn create_discovery_handler_endpoint(
     }
 }
 
-/// Hosts a register service that external Discovery Handlers can call in order to be added to
-/// the RegisteredDiscoveryHandlerMap that is shared with DiscoveryOperators.
-/// When a new Discovery Handler is registered, a message is broadcast to inform any running DiscoveryOperators
-/// in case they should use the new Discovery Handler.
+/// Hosts a register service that external Discovery Handlers can call in order to be added to the
+/// RegisteredDiscoveryHandlerMap that is shared with DiscoveryOperators. When a new Discovery Handler is registered, a
+/// message is broadcast to inform any running DiscoveryOperators in case they should use the new Discovery Handler.
 pub struct AgentRegistration {
-    new_discovery_handler_sender: broadcast::Sender<String>,
+    new_discovery_handler_sender: broadcast::Sender<DiscoveryHandlerName>,
     registered_discovery_handlers: RegisteredDiscoveryHandlerMap,
 }
 
 impl AgentRegistration {
     pub fn new(
-        new_discovery_handler_sender: broadcast::Sender<String>,
+        new_discovery_handler_sender: broadcast::Sender<DiscoveryHandlerName>,
         registered_discovery_handlers: RegisteredDiscoveryHandlerMap,
     ) -> Self {
         AgentRegistration {
@@ -93,11 +101,10 @@ impl AgentRegistration {
 
 #[tonic::async_trait]
 impl Registration for AgentRegistration {
-    /// Adds new `DiscoveryHandler`s to the RegisteredDiscoveryHandlerMap and broadcasts a message to
-    /// any running DiscoveryOperators that a new `DiscoveryHandler` exists.
-    /// If the discovery handler is already registered at an endpoint and the register request has changed,
-    /// the previously registered DH is told to stop discovery and is removed from the map. Then, the updated
-    /// DH is registered.
+    /// Adds new `DiscoveryHandler`s to the RegisteredDiscoveryHandlerMap and broadcasts a message to any running
+    /// DiscoveryOperators that a new `DiscoveryHandler` exists. If the discovery handler is already registered at an
+    /// endpoint and the register request has changed, the previously registered DH is told to stop discovery and is
+    /// removed from the map. Then, the updated DH is registered.
     async fn register_discovery_handler(
         &self,
         request: Request<RegisterDiscoveryHandlerRequest>,
@@ -110,12 +117,13 @@ impl Registration for AgentRegistration {
             EndpointType::from_i32(req.endpoint_type).unwrap(),
         );
         info!("register - called with register request {:?}", req);
-        let (tx, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) =
+            broadcast::channel(CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY);
         let discovery_handler_details = DiscoveryDetails {
             name: dh_name.clone(),
             endpoint: dh_endpoint.clone(),
             shared: req.shared,
-            stop_discovery: tx,
+            close_discovery_handler_connection,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
@@ -127,7 +135,10 @@ impl Registration for AgentRegistration {
                     // Stop current discovery with this DH if any. A receiver may not exist if
                     // 1) no configuration has been applied that uses this DH or
                     // 2) a connection cannot be made with the DH's endpoint
-                    dh_details.stop_discovery.send(()).unwrap_or_default();
+                    dh_details
+                        .close_discovery_handler_connection
+                        .send(())
+                        .unwrap_or_default();
                 } else {
                     // Already registered. Return early.
                     return Ok(Response::new(Empty {}));
@@ -147,7 +158,8 @@ impl Registration for AgentRegistration {
             .send(dh_name.clone())
             .is_err()
         {
-            // If no configurations have been applied, no receivers can nor need to be updated about the new discovery handler
+            // If no configurations have been applied, no receivers can nor need to be updated about the new discovery
+            // handler
             trace!("register - new {} discovery handler registered but no active discovery operators to receive the message", dh_name);
         }
         Ok(Response::new(Empty {}))
@@ -157,7 +169,7 @@ impl Registration for AgentRegistration {
 /// Serves the Agent registration service over UDS.
 pub async fn run_registration_server(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
-    new_discovery_handler_sender: broadcast::Sender<String>,
+    new_discovery_handler_sender: broadcast::Sender<DiscoveryHandlerName>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     internal_run_registration_server(
         discovery_handler_map,
@@ -169,7 +181,7 @@ pub async fn run_registration_server(
 
 pub async fn internal_run_registration_server(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
-    new_discovery_handler_sender: broadcast::Sender<String>,
+    new_discovery_handler_sender: broadcast::Sender<DiscoveryHandlerName>,
     socket_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("internal_run_registration_server - entered");
@@ -204,8 +216,8 @@ pub fn register_embedded_discovery_handlers(
     Ok(())
 }
 
-/// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap,
-/// specifying an endpoint of Endpoint::Embedded to signal that it is an embedded Discovery Handler.
+/// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap, specifying an endpoint of
+/// Endpoint::Embedded to signal that it is an embedded Discovery Handler.
 #[cfg(any(test, feature = "agent-all-in-one"))]
 pub fn inner_register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
@@ -240,12 +252,12 @@ pub fn inner_register_embedded_discovery_handlers(
 
     embedded_discovery_handlers.into_iter().for_each(|dh| {
         let (name, shared) = dh;
-        let (tx, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) = broadcast::channel(2);
         let discovery_handler_details = DiscoveryDetails {
             name: name.clone(),
             endpoint: DiscoveryHandlerEndpoint::Embedded,
             shared,
-            stop_discovery: tx,
+            close_discovery_handler_connection,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
@@ -391,17 +403,19 @@ mod tests {
         );
         assert_eq!(discovery_handler_details.shared, request.shared);
 
-        // When a discovery handler is re-registered with the same register request, no message should be
-        // sent to terminate any existing discovery clients.
-        let mut stop_discovery_receiver = discovery_handler_details.stop_discovery.subscribe();
+        // When a discovery handler is re-registered with the same register request, no message should be sent to
+        // terminate any existing discovery clients.
+        let mut stop_discovery_receiver = discovery_handler_details
+            .close_discovery_handler_connection
+            .subscribe();
         assert!(registration_client
             .register_discovery_handler(request)
             .await
             .is_ok());
         assert!(stop_discovery_receiver.try_recv().is_err());
 
-        // When a discovery handler at a specified endpoint re-registers at the same endpoint but with a different locality
-        // current discovery handler clients should be notified to terminate and the entry in the
+        // When a discovery handler at a specified endpoint re-registers at the same endpoint but with a different
+        // locality current discovery handler clients should be notified to terminate and the entry in the
         // RegisteredDiscoveryHandlersMap should be replaced.
         let local_request = RegisterDiscoveryHandlerRequest {
             name: "name".to_string(),

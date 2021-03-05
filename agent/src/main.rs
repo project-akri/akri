@@ -20,8 +20,12 @@ use tokio::sync::broadcast;
 #[cfg(feature = "agent-all-in-one")]
 use util::registration::register_embedded_discovery_handlers;
 use util::{
-    config_action, constants::SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS,
-    registration::run_registration_server, slot_reconciliation::periodic_slot_reconciliation,
+    config_action,
+    constants::{
+        NEW_DISCOVERY_HANDLER_CHANNEL_CAPACITY, SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS,
+    },
+    registration::{run_registration_server, DiscoveryHandlerName},
+    slot_reconciliation::periodic_slot_reconciliation,
 };
 
 lazy_static! {
@@ -50,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     let mut tasks = Vec::new();
 
-    // Start server for prometheus metrics
+    // Start server for Prometheus metrics
     tasks.push(tokio::spawn(async move {
         run_metrics_server().await.unwrap();
     }));
@@ -58,13 +62,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
     let discovery_handler_map_clone = discovery_handler_map.clone();
     let (new_discovery_handler_sender, _): (
-        broadcast::Sender<String>,
-        broadcast::Receiver<String>,
-    ) = broadcast::channel(4);
+        broadcast::Sender<DiscoveryHandlerName>,
+        broadcast::Receiver<DiscoveryHandlerName>,
+    ) = broadcast::channel(NEW_DISCOVERY_HANDLER_CHANNEL_CAPACITY);
     let new_discovery_handler_sender_clone = new_discovery_handler_sender.clone();
     #[cfg(feature = "agent-all-in-one")]
     register_embedded_discovery_handlers(discovery_handler_map_clone.clone())?;
-    // Start registration service for registering `DiscoveryHandler` Pods
+
+    // Start registration service for registering `DiscoveryHandlers`
     tasks.push(tokio::spawn(async move {
         run_registration_server(discovery_handler_map_clone, new_discovery_handler_sender)
             .await
