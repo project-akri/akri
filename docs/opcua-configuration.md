@@ -26,6 +26,7 @@ helm install akri akri-helm-charts/akri \
     --set opcua.enabled=true \
     --set opcua.brokerPod.image.repository=nginx
 ```
+> Note: set `opcua.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
 
 The generic OPC UA Configuration can be tailored to your cluster by modifying the [Akri Helm chart
 values](../deployment/helm/values.yaml) in the following ways:

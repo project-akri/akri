@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
-        image: {{ required "A customDiscovery.discovery.image.repository is required." .Values.customDiscovery.discovery.image.repository | quote }}
+        image: {{ printf "%s:%s" (required "A customDiscovery.discovery.image.repository is required." .Values.customDiscovery.discovery.image.repository) .Values.customDiscovery.discovery.image.tag | quote }}
         {{- with .Values.customDiscovery.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}

@@ -107,7 +107,7 @@ Instead of having to build a Configuration from scratch, Akri has provided [Helm
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
         --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
     ```
 
 ## Inspecting Akri

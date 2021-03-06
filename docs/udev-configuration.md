@@ -127,6 +127,8 @@ helm install akri akri-helm-charts/akri \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.brokerPod.image.repository=nginx
 ```
+> Note: set `udev.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
 The Configuration will automatically create a broker for each discovered device. It will also create a service for each
 broker and one for all brokers of the Configuration that applications can point to. See the [Customizing Akri
 Installation](./customizing-akri-installation.md) to learn how to [modify the broker pod

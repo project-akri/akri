@@ -93,7 +93,7 @@ To grab the latest Akri Helm charts, run `helm repo update`.
         ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
 
-1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the discovery protocol
+1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the protocol
    that will be used in the Configuration. This is done in the setting `--set <protocol>.enabled=true` below. Here,
    `<protocol>` could be `udev`, `onvif`, or `opcua`. Helm will automatically apply the default Configuration for that protocol to
    the cluster. You can set values in the Helm install command to customize the Configuration. To explore the values you
@@ -122,6 +122,8 @@ To grab the latest Akri Helm charts, run `helm repo update`.
         # --set <protocol>.brokerPod.image.repository=<your broker image> \
         # apply any additional settings here
     ```
+    > Note: set `<protocol>.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
     Run `kubectl get crd`, and you should see Akri's two CRDs listed. Run `kubectl get pods -o wide`, and you should see
     the Akri Controller pod, Agent pods, and broker pods if a broker was specified. Run `kubectl get akric`, and you
     should see the Configuration for the protocol you specified.  If devices were discovered, the instances can be seen

@@ -7,24 +7,24 @@ spec:
   discoveryHandler:
     name: opcua
     discoveryDetails: |+
-        opcuaDiscoveryMethod: 
-          standard:
-            discoveryUrls: 
-            {{- toYaml .Values.opcua.discoveryUrls | nindent 14 }}
-        applicationNames:
-          action: {{ .Values.opcua.applicationNames.action }}
-          {{- if .Values.opcua.applicationNames.items}}
-          items:
-          {{- toYaml .Values.opcua.applicationNames.items | nindent 12 }}
-          {{- else }}
-          items: []
-          {{- end }}
+      opcuaDiscoveryMethod: 
+        standard:
+          discoveryUrls: 
+          {{- toYaml .Values.opcua.discoveryUrls | nindent 10 }}
+      applicationNames:
+        action: {{ .Values.opcua.applicationNames.action }}
+        {{- if .Values.opcua.applicationNames.items}}
+        items:
+        {{- toYaml .Values.opcua.applicationNames.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
   {{- if .Values.opcua.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:
     containers:
     - name: {{ .Values.opcua.name }}-broker
-      image: {{ .Values.opcua.brokerPod.image.repository | quote }}
+      image: {{ printf "%s:%s" .Values.opcua.brokerPod.image.repository .Values.opcua.brokerPod.image.tag | quote }}
       {{- with .Values.opcua.brokerPod.image.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}

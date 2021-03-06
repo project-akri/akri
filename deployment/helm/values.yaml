@@ -108,10 +108,13 @@ customDiscovery:
   # passed to a Discovery Handler which can parse it into an expected format.
   discoveryDetails: ""
   brokerPod:
-    # container used by customDiscovery
     image:
-    # pullPolicy is the customDiscovery pull policy
-    pullPolicy: ""
+      # repository is the customDiscovery broker container reference
+      repository:
+      # tag is the customDiscovery broker image tag
+      tag: latest
+      # pullPolicy is the customDiscovery pull policy
+      pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
   createInstanceServices: true
@@ -145,8 +148,10 @@ customDiscovery:
     # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
     enabled: false
     image:
-      # repository is the container reference
-      repository: 
+      # repository is the customDiscovery broker container reference
+      repository:
+      # tag is the customDiscovery broker image tag
+      tag: latest
       # pullPolicy is the pull policy
       pullPolicy: ""
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
@@ -175,9 +180,16 @@ debugEcho:
   shared: true
   brokerPod:
     # container used by debugEcho
-    image: nginx:latest
-    # pullPolicy is the debugEcho pull policy
-    pullPolicy: ""
+    image:
+      # repository is the debugEcho broker container reference
+      repository: nginx
+      # tag is the debugEcho broker image tag
+      tag: latest
+      # pullPolicy is the debugEcho pull policy
+      pullPolicy: ""
+  # createInstanceServices is specified if a service should automatically be
+  # created for each broker pod
+  createInstanceServices: true
   instanceService:
     # name is the description of the instance service
     name: akri-debug-echo-foo-instance-service
@@ -189,6 +201,9 @@ debugEcho:
     targetPort: 6052
     # protocol is the service protocol of the instance service
     protocol: TCP
+  # createConfigurationService is specified if a single service should automatically be
+  # created for all broker pods of a Configuration
+  createConfigurationService: true
   configurationService:
     # name is the description of the configuration service
     name: akri-debug-echo-foo-configuration-service
@@ -246,8 +261,10 @@ onvif:
   capacity: 1
   brokerPod:
     image:
-      # repository is the container reference
+      # repository is the onvif broker container reference
       repository:
+      # tag is the onvif broker image tag
+      tag: latest
       # pullPolicy is the Akri onvif broker pull policy
       pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
@@ -331,9 +348,11 @@ opcua:
   capacity: 1
   brokerPod:
     image:
-      # repository is the Akri OPC UA broker container reference
-      repository: 
-      # pullPolicy is the Akri OPC UA broker pull policy
+      # repository is the OPC UA broker container reference
+      repository:
+      # tag is the OPC UA broker image tag
+      tag: latest
+      # pullPolicy is the OPC UA broker pull policy
       pullPolicy: ""
   # createInstanceServices is specified if a service should automatically be
   # created for each broker pod
@@ -402,8 +421,11 @@ udev:
   capacity: 1
   brokerPod:
     image:
-      # repository is the container reference
+      # repository is the udev broker container reference
       repository:
+      # tag is the udev broker image tag
+      tag: latest
+      # pullPolicy is the udev broker pull policy
       pullPolicy: ""
     securityContext: {}
   # createInstanceServices is specified if a service should automatically be
@@ -466,17 +488,19 @@ webhookConfiguration:
   image:
     # repository is the Akri Webhook for Configurations image reference
     repository: ghcr.io/deislabs/akri/webhook-configuration
+    # tag is the container tag
+    # webhook-configuration.yaml will default to v(AppVersion)-dev
     tag:
-    # pullPolicy is the Akri Controller pull policy
+    # pullPolicy is the Akri Webhook pull policy
     pullPolicy: Always
-  # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
+  # onlyOnControlPlane dictates whether the Akri Webhook will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false
-  # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Controller 
+  # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Webhook 
   # to run on the control plane node
   allowOnControlPlane: true
-  # linuxOnly dictates whether the Akri Controller will only run on a linux node
+  # linuxOnly dictates whether the Akri Webhook will only run on a linux node
   linuxOnly: true
-  # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
-  # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
+  # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Webhook to run on
+  # This can be set from the helm command line using `--set webhookConfiguration.nodeSelectors.label="value"`
   nodeSelectors: {}

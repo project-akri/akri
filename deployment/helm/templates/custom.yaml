@@ -7,11 +7,11 @@ spec:
   discoveryHandler: 
     name: {{ required "A customDiscovery.discoveryHandlerName is required." .Values.customDiscovery.discoveryHandlerName }}
     discoveryDetails: {{ .Values.customDiscovery.discoveryDetails }}
-  {{- if .Values.customDiscovery.brokerPod.image }}
+  {{- if .Values.customDiscovery.brokerPod.image.repository }}
   brokerPodSpec:
     containers:
     - name: {{ .Values.customDiscovery.name }}-broker
-      image: {{ .Values.customDiscovery.brokerPod.image | quote }}
+      image: {{ printf "%s:%s" .Values.customDiscovery.brokerPod.image.repository .Values.customDiscovery.brokerPod.image.tag | quote }}
       {{- with .Values.customDiscovery.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
@@ -23,7 +23,7 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
-  {{- if .Values.customDiscovery.brokerPod.image }}
+  {{- if .Values.customDiscovery.brokerPod.image.repository }}
   {{- if .Values.customDiscovery.createInstanceServices }}
   instanceServiceSpec:
     type: {{ .Values.customDiscovery.instanceService.type }}

@@ -182,7 +182,7 @@ to the OPC Foundation's .NET Console Reference Server.
     helm install akri akri-helm-charts/akri \
         --set opcua.enabled=true \
         --set opcua.name=akri-opcua-monitoring \
-        --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+        --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
         --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
         --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
         --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
@@ -299,7 +299,7 @@ To see how Akri easily scales as nodes are added to the cluster, add another nod
    ```sh
    helm upgrade akri akri-helm-charts/akri \
       --set opcua.enabled=true \
-      --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+      --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
       --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
       --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
       --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
@@ -353,7 +353,7 @@ the servers). Be sure to uncomment mounting certificates if you are enabling sec
 helm install akri akri-helm-charts/akri \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
     --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
@@ -378,7 +378,7 @@ server named "SomeServer0", do the following.
 helm install akri akri-helm-charts/akri \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
     --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
@@ -391,7 +391,7 @@ Alternatively, to only discover the server named "SomeServer0", do the following
 helm install akri akri-helm-charts/akri \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
+    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
     --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
@@ -417,6 +417,8 @@ helm install akri akri-helm-charts/akri \
     --set opcua.brokerPod.image.repository='ghcr.io/<USERNAME>/opcua-broker'
     # --set opcua.mountCertificates='true'
 ```
+> Note: set `opcua.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
 Now, your broker will be deployed to all discovered OPC UA servers. Next, you can create a Kubernetes deployment for
 your own end application like [anomaly-detection-app.yaml](../deployment/samples/akri-anomaly-detection-app.yaml) and
 apply it to your Kubernetes cluster. 

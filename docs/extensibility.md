@@ -475,7 +475,7 @@ resources, by updating our Configuration to include a broker PodSpec.
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \
     --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
-    --set customDiscovery.brokerPod.image=nginx:latest
+    --set customDiscovery.brokerPod.image.repository=nginx
   watch kubectl get pods,akrii
 ```
 Our empty nginx brokers do not do anything with the devices they've requested, so lets create our own broker.
@@ -635,13 +635,14 @@ USER=[[GITHUB-USER]]
 BROKER="http-broker"
 TAGS="v1"
 
-BROKER_IMAGE="${HOST}/${USER}/${BROKER}:${TAGS}"
+BROKER_IMAGE="${HOST}/${USER}/${BROKER}"
+BROKER_IMAGE_TAGGED="${BROKER_IMAGE}:${TAGS}"
 
 docker build \
---tag=${BROKER_IMAGE} \
+--tag=${BROKER_IMAGE_TAGGED} \
 --file=./samples/brokers/http/Dockerfiles/standalone \
 . && \
-docker push ${BROKER_IMAGE}
+docker push ${BROKER_IMAGE_TAGGED}
 ```
 
 ## Deploy broker
@@ -657,7 +658,8 @@ used in our installation command.
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \
     --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
-    --set customDiscovery.brokerPod.image=$BROKER_IMAGE
+    --set customDiscovery.brokerPod.image.repository=$BROKER_IMAGE \
+    --set customDiscovery.brokerPod.image.tag=$TAGS
   watch kubectl get pods,akrii
 ```
 > Note: substitute `helm upgrade` for `helm install` if you do not have an existing Akri installation

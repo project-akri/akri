@@ -69,7 +69,8 @@ command could be run:
 ```bash 
 helm upgrade akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository=<your broker image> \
+    --set onvif.brokerPod.image.repository=<your broker image name> \
+    --set onvif.brokerPod.image.tag=<your broker image tag> \
     --set onvif.ipAddresses.action=Exclude \
     --set onvif.ipAddresses.items[0]=10.0.0.1
 ```
