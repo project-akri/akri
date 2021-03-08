@@ -39,10 +39,9 @@ Pull down the [Discovery Handler template](https://github.com/kate-goldenring/ak
 cargo install cargo-generate
 cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-http-discovery-handler
 ```
-### Specify the protocol name and locality of the devices it discovers
+### Specify the DiscoveryHandler name and whether discovered devices are sharable
 Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to
-register our DiscoveryHandler with the Akri Agent. We only need to specify the protocol name and locality of our
-Discovery Handler. Set the protocol name to `http` and `shared` to true, as our HTTP Discovery Handler will discover
+register our `DiscoveryHandler` with the Akri Agent. We only need to specify the `DiscoveryHandler` name and whether the device discovered by our `DiscoveryHandler` can be shared. Set `name` equal to `"http"` and `shared` to `true`, as our HTTP Discovery Handler will discover
 devices that can be shared between nodes. The protocol name also resolves to the name of the socket the Discovery
 Handler will run on.
 
@@ -160,13 +159,14 @@ USER=[[GITHUB-USER]]
 DH="http-discovery-handler"
 TAGS="v1"
 
-DH_IMAGE="${HOST}/${USER}/${DH}:${TAGS}"
+DH_IMAGE="${HOST}/${USER}/${DH}"
+DH_IMAGE_TAGGED="${DH_IMAGE}:${TAGS}"
 
 docker build \
---tag=${DH_IMAGE} \
+--tag=${DH_IMAGE_TAGGED} \
 --file=./Dockerfile.discovery-handler \
 . && \
-docker push ${DH_IMAGE}
+docker push ${DH_IMAGE_TAGGED}
 ```
 
 Save the name of your image. We will pass it into our Akri installation command when we are ready to deploy our
@@ -437,7 +437,7 @@ Akri has provided helm templates for custom Discovery Handlers and their Configu
 a starting point. They may need to modified to meet the needs of a Discovery Handler. When installing Akri, specify that
 you want to deploy a custom Discovery Handler as a Daemonset by setting `customDiscovery.discovery.enabled=true`.
 Specify the container for that DaemonSet as the HTTP discovery handler that you built
-[above](###build-the-discoveryhandler-container) by setting `customDiscovery.discovery.image.repository=$DH_IMAGE`. To
+[above](###build-the-discoveryhandler-container) by setting `customDiscovery.discovery.image.repository=$DH_IMAGE` and `customDiscovery.discovery.image.repository=$TAGS`. To
 automatically deploy a custom Configuration, set `customDiscovery.enabled=true`. We will customize this Configuration to
 contain the discovery endpoint needed by our HTTP Discovery Handler by setting it in the `discovery_details` string of
 the Configuration, like so: `customDiscovery.discoveryDetails=http://discovery:9999/discovery`. We also need to set the
@@ -452,6 +452,7 @@ installation command:
   --set imagePullSecrets[0].name="crPullSecret" \
   --set customDiscovery.discovery.enabled=true  \
   --set customDiscovery.discovery.image.repository=$DH_IMAGE \
+  --set customDiscovery.discovery.image.tag=$TAGS \
   --set customDiscovery.enabled=true  \
   --set customDiscovery.name=akri-http  \
   --set customDiscovery.discoveryHandlerName=http \
@@ -471,6 +472,7 @@ resources, by updating our Configuration to include a broker PodSpec.
     --set imagePullSecrets[0].name="crPullSecret" \
     --set customDiscovery.discovery.enabled=true  \
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
+    --set customDiscovery.discovery.image.tag=$TAGS \
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \
@@ -654,6 +656,7 @@ used in our installation command.
     --set imagePullSecrets[0].name="crPullSecret" \
     --set customDiscovery.discovery.enabled=true  \
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
+    --set customDiscovery.discovery.image.tag=$TAGS \
     --set customDiscovery.enabled=true  \
     --set customDiscovery.name=akri-http  \
     --set customDiscovery.discoveryHandlerName=http \

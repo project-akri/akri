@@ -43,7 +43,8 @@ controller:
     # repository is the Akri Controller container reference
     repository: ghcr.io/deislabs/akri/controller
     # tag is the Akri Controller container tag
-    # controller.yaml will default to v(AppVersion)-dev
+    # controller.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Controller pull policy
     pullPolicy: ""
@@ -68,7 +69,8 @@ agent:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
     # tag is the Akri Agent container tag
-    # agent.yaml will default to v(AppVersion)-dev
+    # agent.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Agent pull policy
     pullPolicy: ""
@@ -223,7 +225,8 @@ debugEcho:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/debug-echo-discovery
       # tag is the container tag
-      # debugEcho.yaml will default to v(AppVersion)-dev
+      # debugEcho.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
@@ -307,7 +310,8 @@ onvif:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/onvif-discovery
       # tag is the container tag
-      # onvif.yaml will default to v(AppVersion)-dev
+      # onvif.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
@@ -390,7 +394,8 @@ opcua:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/opcua-discovery
       # tag is the container tag
-      # opcua.yaml will default to v(AppVersion)-dev
+      # opcua.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
@@ -464,7 +469,8 @@ udev:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/udev-discovery
       # tag is the container tag
-      # udev.yaml will default to v(AppVersion)-dev
+      # udev.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
@@ -489,7 +495,8 @@ webhookConfiguration:
     # repository is the Akri Webhook for Configurations image reference
     repository: ghcr.io/deislabs/akri/webhook-configuration
     # tag is the container tag
-    # webhook-configuration.yaml will default to v(AppVersion)-dev
+    # webhook-configuration.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Webhook pull policy
     pullPolicy: Always
