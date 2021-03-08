@@ -1182,6 +1182,50 @@ pub mod tests {
         );
     }
 
+    // Checks either that InstanceConnectivityStatus changed to expected value until success or exceeded tries
+    // or that all instances have been deleted from map.
+    // Sleep between tries to give update_instance_connectivity_status the chance chance to grab mutex InstanceMap.
+    async fn check_status_or_empty_loop(
+        status: InstanceConnectivityStatus,
+        equality: bool,
+        instance_map: InstanceMap,
+        check_empty: bool,
+    ) {
+        let mut keep_looping = false;
+        let mut map_is_empty = false;
+        let tries: i8 = 5;
+        for _x in 0..tries {
+            println!("try number {}", _x);
+            keep_looping = false;
+            tokio::time::delay_for(Duration::from_millis(100)).await;
+            let unwrapped_instance_map = instance_map.lock().await.clone();
+            if check_empty && unwrapped_instance_map.is_empty() {
+                map_is_empty = true;
+                break;
+            }
+            for (_, instance_info) in unwrapped_instance_map {
+                if instance_info.connectivity_status != status && equality {
+                    keep_looping = true;
+                }
+                if instance_info.connectivity_status == status && !equality {
+                    keep_looping = true;
+                }
+            }
+            if !keep_looping {
+                break;
+            }
+        }
+        if keep_looping {
+            panic!(
+                "failed to assert that all instances had status equal T/F: [{}] to status [{:?}]",
+                equality, status
+            );
+        }
+        if check_empty && !map_is_empty {
+            panic!("instances were not cleared from map");
+        }
+    }
+
     // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
     // 2: InstanceConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: InstanceConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
@@ -1228,18 +1272,18 @@ pub mod tests {
             MockKubeInterface::new(),
         )
         .await;
-        // Make sure update_instance_connectivity_status has updated the map before grabbing it
-        tokio::time::delay_for(Duration::from_millis(500)).await;
-        let unwrapped_instance_map = instance_map.lock().await.clone();
-        for (_, instance_info) in unwrapped_instance_map {
-            assert_ne!(
-                instance_info.connectivity_status,
-                InstanceConnectivityStatus::Online
-            );
-        }
+
+        // Check that no instances are still online
+        check_status_or_empty_loop(
+            InstanceConnectivityStatus::Online,
+            false,
+            instance_map,
+            false,
+        )
+        .await;
 
         //
-        // 2: Assert that InstanceConnectivityStatus of non local instances that come back online in <5 mins is changed to Online
+        // 2: Assert that InstanceConnectivityStatus of shared instances that come back online in <5 mins is changed to Online
         //
         let instance_map: InstanceMap = build_instance_map(
             &config,
@@ -1265,18 +1309,18 @@ pub mod tests {
             MockKubeInterface::new(),
         )
         .await;
-        // Make sure update_instance_connectivity_status has updated the map before grabbing it
-        tokio::time::delay_for(Duration::from_millis(500)).await;
-        let unwrapped_instance_map = instance_map.lock().await.clone();
-        for (_, instance_info) in unwrapped_instance_map {
-            assert_eq!(
-                instance_info.connectivity_status,
-                InstanceConnectivityStatus::Online
-            );
-        }
+
+        // Check that all instances marked online
+        check_status_or_empty_loop(
+            InstanceConnectivityStatus::Online,
+            true,
+            instance_map,
+            false,
+        )
+        .await;
 
         //
-        // 4: Assert that local devices that go offline are removed from the instance map
+        // 3: Assert that local devices that go offline are removed from the instance map
         //
         let mut mock = MockKubeInterface::new();
         mock.expect_delete_instance()
@@ -1300,10 +1344,9 @@ pub mod tests {
             mock,
         )
         .await;
-        // Make sure update_instance_connectivity_status has updated the map before grabbing it
-        tokio::time::delay_for(Duration::from_millis(500)).await;
-        let unwrapped_instance_map = instance_map.lock().await.clone();
-        assert!(unwrapped_instance_map.is_empty());
+        // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
+        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
+            .await;
     }
 
     async fn run_update_instance_connectivity_status(
