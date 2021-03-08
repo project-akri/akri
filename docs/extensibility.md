@@ -448,7 +448,7 @@ installation command:
 > additional configuration.
 ```bash
   helm repo add akri-helm-charts https://deislabs.github.io/akri/
-  helm install akri akri-helm-charts/akri \
+  helm install akri akri-helm-charts/akri-dev \
   --set imagePullSecrets[0].name="crPullSecret" \
   --set customDiscovery.discovery.enabled=true  \
   --set customDiscovery.discovery.image.repository=$DH_IMAGE \
@@ -468,7 +468,7 @@ resources](./requesting-akri-resources.md). Alternatively, you could have Akri a
 discovered devices. We call these workloads brokers. To quickly see this, lets deploy empty nginx pods to discovered
 resources, by updating our Configuration to include a broker PodSpec.
 ```bash
-  helm upgrade akri akri-helm-charts/akri \
+  helm upgrade akri akri-helm-charts/akri-dev \
     --set imagePullSecrets[0].name="crPullSecret" \
     --set customDiscovery.discovery.enabled=true  \
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
@@ -652,7 +652,7 @@ docker push ${BROKER_IMAGE_TAGGED}
 Now that the HTTP broker has been created, we can substitute it's image in for the simple nginx broker we previously
 used in our installation command.
 ```bash
-  helm upgrade akri akri-helm-charts/akri \
+  helm upgrade akri akri-helm-charts/akri-dev \
     --set imagePullSecrets[0].name="crPullSecret" \
     --set customDiscovery.discovery.enabled=true  \
     --set customDiscovery.discovery.image.repository=$DH_IMAGE \
