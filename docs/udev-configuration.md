@@ -27,10 +27,9 @@ sound devices made by the vendor `Great Vendor`. You set the following udev rule
 Configuration:
 ```yaml
 spec:
-  discoveryHandler:
-    udev:
-      udevRules:
-      -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
+  discoveryHandler: |+
+    udevRules:
+    -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
 ```
 
 ### Testing a udev rule
