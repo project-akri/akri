@@ -15,4 +15,4 @@ pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 /// Name that udev discovery handlers use when registering with the Agent
 pub const DISCOVERY_HANDLER_NAME: &str = "udev";
 /// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
-pub const SHARED: bool = true;
+pub const SHARED: bool = false;

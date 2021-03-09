@@ -26,8 +26,9 @@ Now, you can see a bunch of attributes you could use to narrow your udev rule. M
 sound devices made by the vendor `Great Vendor`. You set the following udev rule under the udev protocol in your
 Configuration:
 ```yaml
-spec:
-  discoveryHandler: |+
+discoveryHandler:
+  name: udev
+  discoveryDetails: |+
     udevRules:
     -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
 ```

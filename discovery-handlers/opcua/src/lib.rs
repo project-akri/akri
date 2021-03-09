@@ -11,4 +11,4 @@ pub const OPCUA_DISCOVERY_URL_LABEL: &str = "OPCUA_DISCOVERY_URL";
 /// Name that OPC UA discovery handlers use when registering with the Agent
 pub const DISCOVERY_HANDLER_NAME: &str = "opcua";
 /// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
-pub const SHARED: bool = false;
+pub const SHARED: bool = true;
