@@ -30,7 +30,10 @@ jobs:
         persist-credentials: false
 
     - name: Create tarpaulin instance
-      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo 'sleep ${{ env.TARPAULIN_TIMEOUT_MINUTES }}m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+      run: |
+        STAY_ALIVE_SCRIPT = "sleep ${{ env.TARPAULIN_TIMEOUT_MINUTES }}m; echo bye"
+        echo "Using this as stay-alive script: [ $STAY_ALIVE_SCRIPT ]"
+        docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo $STAY_ALIVE_SCRIPT > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
