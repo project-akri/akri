@@ -740,7 +740,8 @@ pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
 #[cfg(test)]
 mod device_plugin_service_tests {
     use super::super::{
-        device_plugin_builder::serve, v1beta1::device_plugin_client::DevicePluginClient,
+        device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
+        v1beta1::device_plugin_client::DevicePluginClient,
     };
     use super::*;
     use akri_shared::akri::configuration::KubeAkriConfig;
@@ -1124,13 +1125,15 @@ mod device_plugin_service_tests {
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let instance_name = device_plugin_service.instance_name.clone();
-        serve(
-            device_plugin_service,
-            socket_path.clone(),
-            device_plugin_service_receivers.server_ender_receiver,
-        )
-        .await
-        .unwrap();
+        let device_plugin_builder = DevicePluginBuilder {};
+        device_plugin_builder
+            .serve(
+                device_plugin_service,
+                socket_path.clone(),
+                device_plugin_service_receivers.server_ender_receiver,
+            )
+            .await
+            .unwrap();
         let channel = Endpoint::try_from("dummy://[::]:50051")
             .unwrap()
             .connect_with_connector(service_fn(move |_: Uri| {

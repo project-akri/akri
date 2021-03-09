@@ -38,6 +38,22 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         instance_map: InstanceMap,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+    async fn serve(
+        &self,
+        device_plugin_service: DevicePluginService,
+        socket_path: String,
+        server_ender_receiver: mpsc::Receiver<()>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+    async fn register(
+        &self,
+        capability_id: &str,
+        socket_name: &str,
+        instance_name: &str,
+        mut server_ender_sender: mpsc::Sender<()>,
+        kubelet_socket: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 }
 
 /// For each Instance, builds a Device Plugin, registers it with the kubelet, and serves it over UDS.
@@ -82,112 +98,120 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             device,
         };
 
-        serve(
+        self.serve(
             device_plugin_service,
             socket_path.clone(),
             server_ender_receiver,
         )
         .await?;
 
-        register(
-            capability_id,
-            device_endpoint,
+        self.register(
+            &capability_id,
+            &device_endpoint,
             &instance_name,
             server_ender_sender,
+            KUBELET_SOCKET,
         )
         .await?;
 
         Ok(())
     }
-}
 
-// This starts a DevicePluginServer
-pub async fn serve(
-    device_plugin_service: DevicePluginService,
-    socket_path: String,
-    server_ender_receiver: mpsc::Receiver<()>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
-        "serve - creating a device plugin server that will listen at: {}",
-        socket_path
-    );
-    tokio::fs::create_dir_all(Path::new(&socket_path[..]).parent().unwrap())
-        .await
-        .expect("Failed to create dir at socket path");
-    let mut uds = UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
-    let service = DevicePluginServer::new(device_plugin_service);
-    let socket_path_to_delete = socket_path.clone();
-    task::spawn(async move {
-        Server::builder()
-            .add_service(service)
-            .serve_with_incoming_shutdown(
-                uds.incoming().map_ok(unix_stream::UnixStream),
-                shutdown_signal(server_ender_receiver),
-            )
+    // This starts a DevicePluginServer
+    async fn serve(
+        &self,
+        device_plugin_service: DevicePluginService,
+        socket_path: String,
+        server_ender_receiver: mpsc::Receiver<()>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        info!(
+            "serve - creating a device plugin server that will listen at: {}",
+            socket_path
+        );
+        tokio::fs::create_dir_all(Path::new(&socket_path[..]).parent().unwrap())
             .await
-            .unwrap();
-        trace!(
-            "serve - gracefully shutdown ... deleting socket {}",
-            socket_path_to_delete
-        );
-        // Socket may already be deleted in the case of the kubelet restart
-        std::fs::remove_file(socket_path_to_delete).unwrap_or(());
-    });
+            .expect("Failed to create dir at socket path");
+        let mut uds =
+            UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
+        let service = DevicePluginServer::new(device_plugin_service);
+        let socket_path_to_delete = socket_path.clone();
+        task::spawn(async move {
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming_shutdown(
+                    uds.incoming().map_ok(unix_stream::UnixStream),
+                    shutdown_signal(server_ender_receiver),
+                )
+                .await
+                .unwrap();
+            trace!(
+                "serve - gracefully shutdown ... deleting socket {}",
+                socket_path_to_delete
+            );
+            // Socket may already be deleted in the case of the kubelet restart
+            std::fs::remove_file(socket_path_to_delete).unwrap_or(());
+        });
 
-    akri_shared::uds::unix_stream::try_connect(&socket_path).await?;
-    Ok(())
-}
-
-/// This registers DevicePlugin with the kubelet.
-/// During registration, the device plugin must send
-/// (1) name of unix socket,
-/// (2) Device-Plugin API it was built against (v1beta1),
-/// (3) resource name akri.sh/device_id.
-/// If registration request to the kubelet fails, terminates DevicePluginService.
-pub async fn register(
-    capability_id: String,
-    socket_name: String,
-    instance_name: &str,
-    mut server_ender_sender: mpsc::Sender<()>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
-        "register - entered for Instance {} and socket_name: {}",
-        capability_id, socket_name
-    );
-    let op = DevicePluginOptions {
-        pre_start_required: false,
-    };
-
-    // We will ignore this dummy uri because UDS does not use it.
-    let channel = Endpoint::try_from("dummy://[::]:50051")?
-        .connect_with_connector(service_fn(|_: Uri| UnixStream::connect(KUBELET_SOCKET)))
-        .await?;
-    let mut registration_client = registration_client::RegistrationClient::new(channel);
-
-    let register_request = tonic::Request::new(v1beta1::RegisterRequest {
-        version: K8S_DEVICE_PLUGIN_VERSION.into(),
-        endpoint: socket_name,
-        resource_name: capability_id,
-        options: Some(op),
-    });
-    trace!(
-        "register - before call to register with the kubelet at socket {}",
-        KUBELET_SOCKET
-    );
-
-    // If fail to register with the kubelet, terminate device plugin
-    if registration_client
-        .register(register_request)
-        .await
-        .is_err()
-    {
-        trace!(
-            "register - failed to register Instance {} with the kubelet ... terminating device plugin",
-            instance_name
-        );
-        server_ender_sender.send(()).await?;
+        akri_shared::uds::unix_stream::try_connect(&socket_path).await?;
+        Ok(())
     }
-    Ok(())
+
+    /// This registers DevicePlugin with the kubelet.
+    /// During registration, the device plugin must send
+    /// (1) name of unix socket,
+    /// (2) Device-Plugin API it was built against (v1beta1),
+    /// (3) resource name akri.sh/device_id.
+    /// If registration request to the kubelet fails, terminates DevicePluginService.
+    async fn register(
+        &self,
+        capability_id: &str,
+        socket_name: &str,
+        instance_name: &str,
+        mut server_ender_sender: mpsc::Sender<()>,
+        kubelet_socket: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        info!(
+            "register - entered for Instance {} and socket_name: {}",
+            capability_id, socket_name
+        );
+        let op = DevicePluginOptions {
+            pre_start_required: false,
+        };
+
+        // We will ignore this dummy uri because UDS does not use it.
+        let kubelet_socket_closure = kubelet_socket.to_string();
+        let channel = Endpoint::try_from("dummy://[::]:50051")?
+            .connect_with_connector(service_fn(move |_: Uri| {
+                UnixStream::connect(kubelet_socket_closure.clone())
+            }))
+            .await?;
+        let mut registration_client = registration_client::RegistrationClient::new(channel);
+
+        let register_request = tonic::Request::new(v1beta1::RegisterRequest {
+            version: K8S_DEVICE_PLUGIN_VERSION.into(),
+            endpoint: socket_name.to_string(),
+            resource_name: capability_id.to_string(),
+            options: Some(op),
+        });
+        trace!(
+            "register - before call to register with the kubelet at socket {}",
+            kubelet_socket
+        );
+
+        // If fail to register with the kubelet, terminate device plugin
+        if registration_client
+            .register(register_request)
+            .await
+            .is_err()
+        {
+            trace!(
+                "register - failed to register Instance {} with the kubelet ... terminating device plugin",
+                instance_name
+            );
+            server_ender_sender.send(()).await?;
+        }
+        Ok(())
+    }
 }
 
 /// This acts as a signal future to gracefully shutdown DevicePluginServer upon its completion.
@@ -198,5 +222,140 @@ async fn shutdown_signal(mut server_ender_receiver: mpsc::Receiver<()>) {
             "shutdown_signal - received signal ... device plugin service gracefully shutting down"
         ),
         None => trace!("shutdown_signal - connection to server_ender_sender closed ... error"),
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::super::v1beta1::{
+        registration_server::{Registration, RegistrationServer},
+        Empty, RegisterRequest,
+    };
+    use super::*;
+    use tempfile::Builder;
+
+    struct MockRegistration {
+        pub return_error: bool,
+    }
+
+    // Mock implementation of kubelet's registration service for tests.
+    // Can be configured with its `return_error` field to return an error.
+    #[async_trait]
+    impl Registration for MockRegistration {
+        async fn register(
+            &self,
+            _request: tonic::Request<RegisterRequest>,
+        ) -> Result<tonic::Response<Empty>, tonic::Status> {
+            if self.return_error {
+                Err(tonic::Status::invalid_argument(
+                    "mock discovery handler error",
+                ))
+            } else {
+                Ok(tonic::Response::new(Empty {}))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_register() {
+        let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
+        let kubelet_socket = device_plugins_dirs
+            .path()
+            .join("kubelet.sock")
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // Start kubelet registration server
+        let mut uds =
+            UnixListener::bind(kubelet_socket.clone()).expect("Failed to bind to socket path");
+
+        let registration = MockRegistration {
+            return_error: false,
+        };
+        let service = RegistrationServer::new(registration);
+        task::spawn(async move {
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
+                .await
+                .unwrap();
+        });
+
+        // Make sure registration server has started
+        akri_shared::uds::unix_stream::try_connect(&kubelet_socket)
+            .await
+            .unwrap();
+
+        let device_plugin_builder = DevicePluginBuilder {};
+        let (server_ender_sender, _) = mpsc::channel(1);
+        // Test successful registration
+        assert!(device_plugin_builder
+            .register(
+                "random_instance_id",
+                "socket.sock",
+                "random_instance",
+                server_ender_sender,
+                &kubelet_socket
+            )
+            .await
+            .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_register_error() {
+        let device_plugin_builder = DevicePluginBuilder {};
+        let (server_ender_sender, mut server_ender_receiver) = mpsc::channel(1);
+        let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
+        let kubelet_socket = device_plugins_dirs
+            .path()
+            .join("kubelet.sock")
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        // Try to register when no registration service exists
+        assert!(device_plugin_builder
+            .register(
+                "random_instance_id",
+                "socket.sock",
+                "random_instance",
+                server_ender_sender.clone(),
+                &kubelet_socket
+            )
+            .await
+            .is_err());
+
+        // Start kubelet registration server
+        let mut uds =
+            UnixListener::bind(kubelet_socket.clone()).expect("Failed to bind to socket path");
+        let registration = MockRegistration { return_error: true };
+        let service = RegistrationServer::new(registration);
+        task::spawn(async move {
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
+                .await
+                .unwrap();
+        });
+
+        // Make sure registration server has started
+        akri_shared::uds::unix_stream::try_connect(&kubelet_socket)
+            .await
+            .unwrap();
+
+        // Test that when registration fails, no error is thrown but the DevicePluginService is signaled to shutdown
+        assert!(device_plugin_builder
+            .register(
+                "random_instance_id",
+                "socket.sock",
+                "random_instance",
+                server_ender_sender,
+                &kubelet_socket
+            )
+            .await
+            .is_ok());
+        // Make sure DevicePluginService is signaled to shutdown
+        server_ender_receiver.recv().await.unwrap();
     }
 }
