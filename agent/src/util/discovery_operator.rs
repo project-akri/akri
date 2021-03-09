@@ -839,6 +839,7 @@ pub mod tests {
         },
     };
     use super::*;
+    use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
         akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
@@ -1683,41 +1684,66 @@ pub mod tests {
         }
     }
 
+    async fn setup_and_run_mock_discovery_handler(
+        endpoint: &str,
+        endpoint_dir: &str,
+        dh_endpoint: &DiscoveryHandlerEndpoint,
+        return_error: bool,
+    ) -> DiscoveryOperator {
+        let discovery_operator = setup_non_mocked_dh("mockName", dh_endpoint);
+        // Start mock DH, specifying that it should successfully run
+        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
+            endpoint_dir,
+            endpoint,
+            return_error,
+        )
+        .await;
+        // Make sure registration server has started
+        akri_shared::uds::unix_stream::try_connect(&endpoint)
+            .await
+            .unwrap();
+        discovery_operator
+    }
+
     #[tokio::test]
-    async fn test_get_stream_external_factory() {
-        use akri_discovery_utils::discovery::mock_discovery_handler;
-        let _ = env_logger::builder().is_test(true).try_init();
-        let path_to_config = "../test/yaml/config-a.yaml";
-        let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let dh_name = "mock";
-        let (mock_dh_dir, endpoint) =
+    async fn test_get_stream_no_dh() {
+        let (_, endpoint) =
             mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
-        add_discovery_handler_to_map(&dh_name, &dh_endpoint, false, discovery_handler_map.clone());
-        let discovery_operator = DiscoveryOperator::new(
-            discovery_handler_map,
-            config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-        );
+        let discovery_operator = setup_non_mocked_dh("mock", &dh_endpoint);
         // Should not be able to get stream if DH is not running
         assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_stream_error() {
         // Start mock DH, specifying that it should return an error
-        let mut return_error = true;
-        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
-            &mock_dh_dir,
+        let return_error = true;
+        let (endpoint_dir, endpoint) =
+            mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
+        let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
+        let discovery_operator = setup_and_run_mock_discovery_handler(
             &endpoint,
+            &endpoint_dir,
+            &dh_endpoint,
             return_error,
         )
         .await;
         // Assert that get_stream returns none if the DH returns error
         assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
-        // Start mock DH, specifying that it should successfully run
-        return_error = false;
-        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
-            &mock_dh_dir,
+    }
+
+    #[tokio::test]
+    async fn test_get_stream_external_success() {
+        // Start mock DH, specifying that it should NOT return an error
+        let return_error = false;
+        let (endpoint_dir, endpoint) =
+            mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
+        let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
+        let discovery_operator = setup_and_run_mock_discovery_handler(
             &endpoint,
+            &endpoint_dir,
+            &dh_endpoint,
             return_error,
         )
         .await;
