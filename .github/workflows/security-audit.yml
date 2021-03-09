@@ -22,7 +22,7 @@ jobs:
   
       # sends an email if security audit failed 
       - name: Send mail
-        if: steps.cargo-audit.outcome != 'success'
+        if: steps.cargo-audit.outcome != 'success' && github.repository == 'deislabs/akri' # only run on main repo and not forks
         uses: dawidd6/action-send-mail@v2
         with:
           server_address: smtp-mail.outlook.com
