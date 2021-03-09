@@ -1721,8 +1721,14 @@ pub mod tests {
             return_error,
         )
         .await;
-        if let Some(StreamType::External(_)) = discovery_operator.get_stream(&dh_endpoint).await {
-            // expected
+        if let Some(StreamType::External(mut receiver)) =
+            discovery_operator.get_stream(&dh_endpoint).await
+        {
+            // MockDiscoveryHandler returns an empty array of devices
+            assert_eq!(
+                receiver.get_message().await.unwrap().unwrap().devices.len(),
+                0
+            );
         } else {
             panic!("expected external stream");
         }
