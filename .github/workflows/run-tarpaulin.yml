@@ -20,6 +20,13 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # There is a second, hidden timeout in this workflow.  When the tarpaulin container is created,
+    # it is created with a CMD that sleeps for 600 minutes.  A more reasonable value could be selected,
+    # but it seems easier to make it SOOOO big that timeout-minutes is likely to never be impacted by
+    # it.
+    #
+    # But, if this workflow is mysteriously timing out after 600 minutes, make changes to the docker
+    # create command in the Create tarpaulin instance step.
     timeout-minutes: 30
 
     steps:
@@ -29,7 +36,7 @@ jobs:
         persist-credentials: false
 
     - name: Create tarpaulin instance
-      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo 'sleep 20m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo 'sleep 600m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
