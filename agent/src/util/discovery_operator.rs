@@ -29,8 +29,12 @@ use blake2::{
 };
 use log::{error, trace};
 #[cfg(test)]
+use mock_instant::Instant;
+#[cfg(test)]
 use mockall::{automock, predicate::*};
-use std::{collections::HashMap, convert::TryFrom, sync::Arc, time::Instant};
+#[cfg(not(test))]
+use std::time::Instant;
+use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 use tokio::sync::mpsc;
 use tonic::{
     transport::{Endpoint, Uri},
@@ -94,10 +98,10 @@ impl DiscoveryOperator {
     #[allow(dead_code)]
     pub async fn stop_all_discovery(&self) {
         let mut discovery_handler_map = self.discovery_handler_map.lock().unwrap().clone();
-        if let Some(subset_discovery_handler_map) =
+        if let Some(discovery_handler_details_map) =
             discovery_handler_map.get_mut(&self.config.spec.discovery_handler.name)
         {
-            for (endpoint, dh_details) in subset_discovery_handler_map.clone() {
+            for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 match dh_details.close_discovery_handler_connection.send(()) {
                     Ok(_) => trace!("stop_all_discovery - discovery client for {} discovery handler at endpoint {:?} told to stop", self.config.spec.discovery_handler.name, endpoint),
                     Err(e) => error!("stop_all_discovery - discovery client {} discovery handler at endpoint {:?} could not receive stop message with error {:?}", self.config.spec.discovery_handler.name, endpoint, e)
@@ -120,13 +124,15 @@ impl DiscoveryOperator {
                             "get_stream - using embedded {} discovery handler",
                             self.config.spec.discovery_handler.name
                         );
-                        Some(StreamType::Embedded(
-                            discovery_handler
-                                .discover(discover_request)
-                                .await
-                                .unwrap()
-                                .into_inner(),
-                        ))
+                        match discovery_handler.discover(discover_request).await {
+                            Ok(device_update_receiver) => {
+                                Some(StreamType::Embedded(device_update_receiver.into_inner()))
+                            }
+                            Err(e) => {
+                                error!("get_stream - could not connect to DiscoveryHandler at endpoint {:?} with error {}", endpoint, e);
+                                None
+                            }
+                        }
                     }
                     Err(e) => {
                         error!("get_stream - no embedded discovery handler found with name {} with error {:?}", self.config.spec.discovery_handler.name, e);
@@ -152,13 +158,15 @@ impl DiscoveryOperator {
                             self.config.spec.discovery_handler.name
                         );
                         let mut discovery_handler_client = DiscoveryHandlerClient::new(channel);
-                        Some(StreamType::External(
-                            discovery_handler_client
-                                .discover(discover_request)
-                                .await
-                                .unwrap()
-                                .into_inner(),
-                        ))
+                        match discovery_handler_client.discover(discover_request).await {
+                            Ok(device_update_receiver) => {
+                                Some(StreamType::External(device_update_receiver.into_inner()))
+                            }
+                            Err(e) => {
+                                error!("get_stream - could not connect to DiscoveryHandler at endpoint {:?} with error {}", endpoint, e);
+                                None
+                            }
+                        }
                     }
                     Err(e) => {
                         error!("get_stream - failed to connect to {} discovery handler over UDS with error {}", self.config.spec.discovery_handler.name, e);
@@ -173,13 +181,15 @@ impl DiscoveryOperator {
                             "get_stream - connecting to external {} discovery handler over network",
                             self.config.spec.discovery_handler.name
                         );
-                        Some(StreamType::External(
-                            discovery_handler_client
-                                .discover(discover_request)
-                                .await
-                                .unwrap()
-                                .into_inner(),
-                        ))
+                        match discovery_handler_client.discover(discover_request).await {
+                            Ok(device_update_receiver) => {
+                                Some(StreamType::External(device_update_receiver.into_inner()))
+                            }
+                            Err(e) => {
+                                error!("get_stream - could not connect to DiscoveryHandler at endpoint {:?} with error {}", endpoint, e);
+                                None
+                            }
+                        }
                     }
                     Err(e) => {
                         error!("get_stream - failed to connect to {} discovery handler over network with error {}", self.config.spec.discovery_handler.name, e);
@@ -232,10 +242,10 @@ impl DiscoveryOperator {
     ) {
         trace!("set_discovery_handler_connectivity_status - set status of {:?} for {} discovery handler at endpoint {:?}", connectivity_status, self.config.spec.discovery_handler.name, endpoint);
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let subset_discovery_handler_map = registered_dh_map
+        let discovery_handler_details_map = registered_dh_map
             .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
-        let dh_details = subset_discovery_handler_map.get_mut(endpoint).unwrap();
+        let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         dh_details.connectivity_status = connectivity_status;
     }
 
@@ -252,16 +262,16 @@ impl DiscoveryOperator {
         trace!("mark_offline_or_deregister_discovery_handler - {} discovery handler at endpoint {:?} is offline", self.config.spec.discovery_handler.name, endpoint);
         let mut deregistered = false;
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let subset_discovery_handler_map = registered_dh_map
+        let discovery_handler_details_map = registered_dh_map
             .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
-        let dh_details = subset_discovery_handler_map.get_mut(endpoint).unwrap();
+        let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         match dh_details.connectivity_status {
             DiscoveryHandlerStatus::Offline(instant) => {
                 if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
                     trace!("mark_offline_or_deregister_discovery_handler - de-registering {} discovery handler at endpoint {:?} since been offline for longer than 5 minutes", self.config.spec.discovery_handler.name, endpoint);
                     // Remove discovery handler from map if timed out
-                    subset_discovery_handler_map.remove(endpoint).unwrap();
+                    discovery_handler_details_map.remove(endpoint).unwrap();
                     deregistered = true;
                 }
             }
@@ -275,7 +285,6 @@ impl DiscoveryOperator {
     /// Checks if any of this DiscoveryOperator's Configuration's Instances have been offline for too long.
     /// If a non-local device has not come back online before `SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS`,
     /// the associated Device Plugin and Instance are terminated and deleted, respectively.
-    #[allow(dead_code)]
     pub async fn delete_offline_instances(
         &self,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
@@ -642,10 +651,10 @@ pub mod start_discovery {
             "do_discover - discovery_handler_map is {:?}",
             discovery_handler_map
         );
-        if let Some(subset_discovery_handler_map) =
+        if let Some(discovery_handler_details_map) =
             discovery_handler_map.get_mut(&config.spec.discovery_handler.name)
         {
-            for (endpoint, dh_details) in subset_discovery_handler_map.clone() {
+            for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 trace!(
                     "do_discover - for {} discovery handler at endpoint {:?}",
                     config.spec.discovery_handler.name,
@@ -834,6 +843,7 @@ pub mod tests {
     use akri_shared::{
         akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
+    use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
     use std::time::Duration;
     use tokio::sync::broadcast;
@@ -920,20 +930,31 @@ pub mod tests {
         mock
     }
 
-    // Creates a RegisteredDiscoveryHandlerMap and adds an entry for a debugEcho discovery handler over uds
-    fn create_discovery_handler_map(
+    // Creates a discovery handler with specified properties and adds it to the RegisteredDiscoveryHandlerMap.
+    fn add_discovery_handler_to_map(
         dh_name: &str,
         endpoint: &DiscoveryHandlerEndpoint,
         shared: bool,
-    ) -> RegisteredDiscoveryHandlerMap {
+        registered_dh_map: RegisteredDiscoveryHandlerMap,
+    ) {
         let discovery_handler_details =
             create_discovery_handler_details(dh_name, endpoint.clone(), shared);
         // Add discovery handler to registered discovery handler map
-        let mut subset_dh_map = HashMap::new();
-        subset_dh_map.insert(endpoint.clone(), discovery_handler_details);
-        let mut dh_map = HashMap::new();
-        dh_map.insert(dh_name.to_string(), subset_dh_map);
-        Arc::new(std::sync::Mutex::new(dh_map))
+        let dh_details_map = match registered_dh_map.lock().unwrap().clone().get_mut(dh_name) {
+            Some(dh_details_map) => {
+                dh_details_map.insert(endpoint.clone(), discovery_handler_details);
+                dh_details_map.clone()
+            }
+            None => {
+                let mut dh_details_map = HashMap::new();
+                dh_details_map.insert(endpoint.clone(), discovery_handler_details);
+                dh_details_map
+            }
+        };
+        registered_dh_map
+            .lock()
+            .unwrap()
+            .insert(dh_name.to_string(), dh_details_map);
     }
 
     fn create_discovery_handler_details(
@@ -952,10 +973,12 @@ pub mod tests {
     }
 
     fn setup_test_do_discover() -> (MockDiscoveryOperator, RegisteredDiscoveryHandlerMap) {
-        let discovery_handler_map = create_discovery_handler_map(
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        add_discovery_handler_to_map(
             "debugEcho",
             &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()),
             false,
+            discovery_handler_map.clone(),
         );
 
         // Build discovery operator
@@ -991,6 +1014,53 @@ pub mod tests {
         assert_ne!(first_unshared_video_digest, second_unshared_video_digest);
         // shared instances visible to different nodes should have the same digest
         assert_eq!(first_shared_video_digest, second_shared_video_digest);
+    }
+
+    #[tokio::test]
+    async fn test_stop_all_discovery() {
+        let dh_name = "debugEcho";
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let endpoint1 = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
+        add_discovery_handler_to_map(dh_name, &endpoint1, false, discovery_handler_map.clone());
+        let mut close_discovery_handler_connection_receiver1 = discovery_handler_map
+            .lock()
+            .unwrap()
+            .get(dh_name)
+            .unwrap()
+            .get(&endpoint1)
+            .unwrap()
+            .close_discovery_handler_connection
+            .subscribe();
+        let endpoint2 = DiscoveryHandlerEndpoint::Uds("socket2.sock".to_string());
+        add_discovery_handler_to_map(dh_name, &endpoint2, false, discovery_handler_map.clone());
+        let mut close_discovery_handler_connection_receiver2 = discovery_handler_map
+            .lock()
+            .unwrap()
+            .get(dh_name)
+            .unwrap()
+            .get(&endpoint2)
+            .unwrap()
+            .close_discovery_handler_connection
+            .subscribe();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let discovery_operator = Arc::new(DiscoveryOperator::new(
+            discovery_handler_map,
+            config,
+            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        ));
+        tokio::spawn(async move {
+            discovery_operator.stop_all_discovery().await;
+        });
+        assert!(close_discovery_handler_connection_receiver1
+            .recv()
+            .await
+            .is_ok());
+        assert!(close_discovery_handler_connection_receiver2
+            .recv()
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -1226,6 +1296,85 @@ pub mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_delete_offline_instances() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let mut list_and_watch_message_receivers = Vec::new();
+        let discovery_handler_map: RegisteredDiscoveryHandlerMap =
+            Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let mut visible_discovery_results = Vec::new();
+
+        // Assert no action (to delete instances by mock kube interface) is taken for all online instances
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            InstanceConnectivityStatus::Online,
+        )
+        .await;
+        let mock = MockKubeInterface::new();
+        let discovery_operator = Arc::new(DiscoveryOperator::new(
+            discovery_handler_map.clone(),
+            config.clone(),
+            instance_map,
+        ));
+        discovery_operator
+            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .await
+            .unwrap();
+
+        // Assert no action (to delete instances by mock kube interface) is taken for instances offline for less than grace period
+        let mock_now = Instant::now();
+        MockClock::advance(Duration::from_secs(30));
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            InstanceConnectivityStatus::Offline(mock_now),
+        )
+        .await;
+        let mock = MockKubeInterface::new();
+        let discovery_operator = Arc::new(DiscoveryOperator::new(
+            discovery_handler_map.clone(),
+            config.clone(),
+            instance_map,
+        ));
+        discovery_operator
+            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .await
+            .unwrap();
+
+        // Assert that all instances that have been offline for more than 5 minutes are deleted
+        let mock_now = Instant::now();
+        MockClock::advance(Duration::from_secs(301));
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            InstanceConnectivityStatus::Offline(mock_now),
+        )
+        .await;
+        let mut mock = MockKubeInterface::new();
+        mock.expect_delete_instance()
+            .times(2)
+            .returning(move |_, _| Ok(()));
+        let discovery_operator = Arc::new(DiscoveryOperator::new(
+            discovery_handler_map.clone(),
+            config.clone(),
+            instance_map.clone(),
+        ));
+        discovery_operator
+            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .await
+            .unwrap();
+        // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
+        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
+            .await;
+    }
+
     // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
     // 2: InstanceConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: InstanceConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
@@ -1285,11 +1434,13 @@ pub mod tests {
         //
         // 2: Assert that InstanceConnectivityStatus of shared instances that come back online in <5 mins is changed to Online
         //
+        let mock_now = Instant::now();
+        MockClock::advance(Duration::from_secs(30));
         let instance_map: InstanceMap = build_instance_map(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
-            InstanceConnectivityStatus::Offline(Instant::now()),
+            InstanceConnectivityStatus::Offline(mock_now),
         )
         .await;
         let currently_visible_instances: HashMap<String, Device> = visible_discovery_results
@@ -1320,7 +1471,37 @@ pub mod tests {
         .await;
 
         //
-        // 3: Assert that local devices that go offline are removed from the instance map
+        // 3: Assert that shared instances that are offline for more than 5 minutes are removed from the instance map
+        //
+        let mock_now = Instant::now();
+        MockClock::advance(Duration::from_secs(301));
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            InstanceConnectivityStatus::Offline(mock_now),
+        )
+        .await;
+        let mut mock = MockKubeInterface::new();
+        mock.expect_delete_instance()
+            .times(2)
+            .returning(move |_, _| Ok(()));
+        let shared = true;
+        run_update_instance_connectivity_status(
+            config.clone(),
+            HashMap::new(),
+            shared,
+            instance_map.clone(),
+            discovery_handler_map.clone(),
+            mock,
+        )
+        .await;
+        // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
+        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
+            .await;
+
+        //
+        // 4: Assert that local devices that go offline are removed from the instance map
         //
         let mut mock = MockKubeInterface::new();
         mock.expect_delete_instance()
@@ -1372,20 +1553,19 @@ pub mod tests {
             .unwrap();
     }
 
-    fn setup_non_mocked_dh(dh_name: &str) -> (DiscoveryOperator, DiscoveryHandlerEndpoint) {
+    fn setup_non_mocked_dh(
+        dh_name: &str,
+        endpoint: &DiscoveryHandlerEndpoint,
+    ) -> DiscoveryOperator {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let endpoint = "socket.sock";
-        let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
-        let discovery_handler_map = create_discovery_handler_map(dh_name, &dh_endpoint, false);
-        (
-            DiscoveryOperator::new(
-                discovery_handler_map,
-                config,
-                Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            ),
-            dh_endpoint,
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        add_discovery_handler_to_map(dh_name, endpoint, false, discovery_handler_map.clone());
+        DiscoveryOperator::new(
+            discovery_handler_map,
+            config,
+            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         )
     }
 
@@ -1393,7 +1573,8 @@ pub mod tests {
     async fn test_set_discovery_handler_connectivity_status() {
         let _ = env_logger::builder().is_test(true).try_init();
         let discovery_handler_name = "debugEcho";
-        let (discovery_operator, endpoint) = setup_non_mocked_dh(discovery_handler_name);
+        let endpoint = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
+        let discovery_operator = setup_non_mocked_dh(discovery_handler_name, &endpoint);
         // Test that an online discovery handler is marked Active
         discovery_operator
             .set_discovery_handler_connectivity_status(&endpoint, DiscoveryHandlerStatus::Active);
@@ -1417,7 +1598,8 @@ pub mod tests {
     async fn test_mark_offline_or_deregister_discovery_handler() {
         let _ = env_logger::builder().is_test(true).try_init();
         let discovery_handler_name = "debugEcho";
-        let (discovery_operator, endpoint) = setup_non_mocked_dh(discovery_handler_name);
+        let endpoint = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
+        let discovery_operator = setup_non_mocked_dh(discovery_handler_name, &endpoint);
         // Test that an online discovery handler is marked offline
         assert_eq!(
             discovery_operator
@@ -1442,13 +1624,33 @@ pub mod tests {
         } else {
             panic!("DiscoveryHandlerStatus should be changed to offline");
         }
-        // Test that an offline discovery handler is not deregistered if the time has not passed
+        // Test that an offline discovery handler IS NOT deregistered if the time has not passed
         assert_eq!(
             discovery_operator
                 .mark_offline_or_deregister_discovery_handler(&endpoint)
                 .await
                 .unwrap(),
             false
+        );
+
+        // Test that an offline discovery handler IS deregistered if the time has passed
+        let mock_now = Instant::now();
+        MockClock::advance(Duration::from_secs(301));
+        discovery_operator
+            .discovery_handler_map
+            .lock()
+            .unwrap()
+            .get_mut(discovery_handler_name)
+            .unwrap()
+            .get_mut(&endpoint)
+            .unwrap()
+            .connectivity_status = DiscoveryHandlerStatus::Offline(mock_now);
+        assert_eq!(
+            discovery_operator
+                .mark_offline_or_deregister_discovery_handler(&endpoint)
+                .await
+                .unwrap(),
+            true
         );
     }
 
@@ -1462,20 +1664,7 @@ pub mod tests {
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();
-        let (close_discovery_handler_connection, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryDetails {
-            name: dh_name.clone(),
-            endpoint: endpoint.clone(),
-            shared: false,
-            close_discovery_handler_connection,
-            connectivity_status: DiscoveryHandlerStatus::Waiting,
-        };
-        let mut register_request_map = HashMap::new();
-        register_request_map.insert(endpoint, discovery_handler_details);
-        discovery_handler_map
-            .lock()
-            .unwrap()
-            .insert(dh_name, register_request_map);
+        add_discovery_handler_to_map(&dh_name, &endpoint, false, discovery_handler_map.clone());
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
@@ -1493,7 +1682,7 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_stream_external() {
+    async fn test_get_stream_external_factory() {
         use akri_discovery_utils::discovery::mock_discovery_handler;
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
@@ -1504,20 +1693,7 @@ pub mod tests {
             mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
-        let (close_discovery_handler_connection, _) = broadcast::channel(2);
-        let discovery_handler_details = DiscoveryDetails {
-            name: dh_name.to_string(),
-            endpoint: dh_endpoint.clone(),
-            shared: false,
-            close_discovery_handler_connection,
-            connectivity_status: DiscoveryHandlerStatus::Waiting,
-        };
-        let mut register_request_map = HashMap::new();
-        register_request_map.insert(dh_endpoint.clone(), discovery_handler_details);
-        discovery_handler_map
-            .lock()
-            .unwrap()
-            .insert(dh_name.to_string(), register_request_map);
+        add_discovery_handler_to_map(&dh_name, &dh_endpoint, false, discovery_handler_map.clone());
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
@@ -1525,9 +1701,24 @@ pub mod tests {
         );
         // Should not be able to get stream if DH is not running
         assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
-        // Start mock DH
-        let _dh_server_thread_handle =
-            mock_discovery_handler::run_mock_discovery_handler(&mock_dh_dir, &endpoint).await;
+        // Start mock DH, specifying that it should return an error
+        let mut return_error = true;
+        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
+            &mock_dh_dir,
+            &endpoint,
+            return_error,
+        )
+        .await;
+        // Assert that get_stream returns none if the DH returns error
+        assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
+        // Start mock DH, specifying that it should successfully run
+        return_error = false;
+        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
+            &mock_dh_dir,
+            &endpoint,
+            return_error,
+        )
+        .await;
         if let Some(StreamType::External(_)) = discovery_operator.get_stream(&dh_endpoint).await {
             // expected
         } else {

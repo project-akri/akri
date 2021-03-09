@@ -104,7 +104,9 @@ pub mod mock_discovery_handler {
     use tokio::sync::mpsc;
 
     /// Simple discovery handler for tests
-    pub struct MockDiscoveryHandler {}
+    pub struct MockDiscoveryHandler {
+        pub return_error: bool,
+    }
 
     #[async_trait]
     impl DiscoveryHandler for MockDiscoveryHandler {
@@ -123,7 +125,14 @@ pub mod mock_discovery_handler {
                     .await
                     .unwrap();
             });
-            Ok(tonic::Response::new(discovered_devices_receiver))
+            // Conditionally return error if specified
+            if self.return_error {
+                Err(tonic::Status::invalid_argument(
+                    "mock discovery handler error",
+                ))
+            } else {
+                Ok(tonic::Response::new(discovered_devices_receiver))
+            }
         }
     }
 
@@ -149,8 +158,9 @@ pub mod mock_discovery_handler {
     pub async fn run_mock_discovery_handler(
         discovery_handler_dir: &str,
         discovery_handler_endpoint: &str,
+        return_error: bool,
     ) -> tokio::task::JoinHandle<()> {
-        let discovery_handler = MockDiscoveryHandler {};
+        let discovery_handler = MockDiscoveryHandler { return_error };
         let discovery_handler_dir_string = discovery_handler_dir.to_string();
         let discovery_handler_endpoint_string = discovery_handler_endpoint.to_string();
         let handle = tokio::spawn(async move {
@@ -245,8 +255,12 @@ pub mod server {
         async fn test_run_discovery_server_uds() {
             let (discovery_handler_dir, discovery_handler_socket) =
                 get_mock_discovery_handler_dir_and_endpoint("protocol.sock");
-            let _handle: tokio::task::JoinHandle<()> =
-                run_mock_discovery_handler(&discovery_handler_dir, &discovery_handler_socket).await;
+            let _handle: tokio::task::JoinHandle<()> = run_mock_discovery_handler(
+                &discovery_handler_dir,
+                &discovery_handler_socket,
+                false,
+            )
+            .await;
             let channel = Endpoint::try_from("dummy://[::]:50051")
                 .unwrap()
                 .connect_with_connector(tower::service_fn(move |_: Uri| {
@@ -268,7 +282,9 @@ pub mod server {
         // Test when improper socket path or IP address is given as an endpoint
         #[tokio::test]
         async fn test_run_discovery_server_error_invalid_ip_addr() {
-            let discovery_handler = MockDiscoveryHandler {};
+            let discovery_handler = MockDiscoveryHandler {
+                return_error: false,
+            };
             let discovery_handler_temp_dir = Builder::new()
                 .prefix("discovery-handlers")
                 .tempdir()

@@ -19,11 +19,11 @@ use akri_shared::{
     k8s::KubeInterface,
 };
 use log::{error, info, trace};
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+#[cfg(test)]
+use mock_instant::Instant;
+#[cfg(not(test))]
+use std::time::Instant;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, mpsc, Mutex},
     time::timeout,

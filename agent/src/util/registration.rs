@@ -11,19 +11,23 @@ use akri_shared::{
     uds::unix_stream,
 };
 use futures::TryStreamExt;
+#[cfg(test)]
+use mock_instant::Instant;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+#[cfg(not(test))]
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
 
 /// Map of `DiscoveryHandlers` of the same type (registered with the same name) where key is the endpoint of the
 /// Discovery Handler and value is `DiscoveryDetails`.
-pub type SubsetDiscoveryHandlerMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryDetails>;
+pub type DiscoveryHandlerDetailsMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryDetails>;
 
 /// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name and value is a map of all
 /// `DiscoveryHandlers` with that name.
-pub type RegisteredDiscoveryHandlerMap = Arc<Mutex<HashMap<String, SubsetDiscoveryHandlerMap>>>;
+pub type RegisteredDiscoveryHandlerMap =
+    Arc<Mutex<HashMap<DiscoveryHandlerName, DiscoveryHandlerDetailsMap>>>;
 
 /// Alias illustrating that `AgentRegistration.new_discovery_handler_sender`, sends the Discovery Handler name of the
 /// newly registered Discovery Handler.
@@ -252,7 +256,8 @@ pub fn inner_register_embedded_discovery_handlers(
 
     embedded_discovery_handlers.into_iter().for_each(|dh| {
         let (name, shared) = dh;
-        let (close_discovery_handler_connection, _) = broadcast::channel(2);
+        let (close_discovery_handler_connection, _) =
+            broadcast::channel(CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY);
         let discovery_handler_details = DiscoveryDetails {
             name: name.clone(),
             endpoint: DiscoveryHandlerEndpoint::Embedded,

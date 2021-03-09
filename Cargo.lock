@@ -345,6 +345,7 @@ dependencies = [
  "kube",
  "lazy_static",
  "log",
+ "mock_instant",
  "mockall",
  "mockall_double",
  "prometheus",
@@ -2238,6 +2239,15 @@ checksum = "5a33c1b55807fbed163481b5ba66db4b2fa6cde694a5027be10fb724206c5897"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "mock_instant"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "717e29a243b81f8130e31e24e04fb151b04a44b5a7d05370935f7d937e9de06d"
+dependencies = [
+ "once_cell",
 ]
 
 [[package]]
