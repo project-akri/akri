@@ -1,0 +1,90 @@
+name: Build Production Rust Code
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-component-per-arch/**
+    - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-agent-container.yml
+    - .github/workflows/build-controller-container.yml
+    - .github/workflows/build-udev-video-broker-container.yml
+    - .github/workflows/build-webhook-configuration-container.yml
+    - build/containers/Dockerfile.agent
+    - build/containers/Dockerfile.controller
+    - build/containers/Dockerfile.udev-video-broker
+    - build/containers/Dockerfile.webhook-configuration
+    - '**.rs'
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    - version.txt
+    - build/akri-containers.mk
+    - build/akri-rust-containers.mk
+    - Makefile
+  pull_request:
+    branches: [ main ]
+    paths:
+    - .github/actions/build-component-per-arch/**
+    - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-agent-container.yml
+    - .github/workflows/build-controller-container.yml
+    - .github/workflows/build-udev-video-broker-container.yml
+    - .github/workflows/build-webhook-configuration-container.yml
+    - build/containers/Dockerfile.agent
+    - build/containers/Dockerfile.controller
+    - build/containers/Dockerfile.udev-video-broker
+    - build/containers/Dockerfile.webhook-configuration
+    - '**.rs'
+    - '**/Cargo.toml'
+    - '**/Cargo.lock'
+    - version.txt
+    - build/akri-containers.mk
+    - build/akri-rust-containers.mk
+    - Makefile
+  release:
+    types:
+      - published
+
+jobs:
+
+  build-rust:
+    runs-on: ubuntu-latest
+    timeout: 40
+    strategy:
+      matrix:
+        arch:
+          - label: arm64v8
+            make-target: arm64
+            rust-target-path: aarch64-unknown-linux-gnu
+          - label: arm32v7
+            make-target: arm32
+            rust-target-path: armv7-unknown-linux-gnueabihf
+          - label: amd64
+            make-target: amd64
+            rust-target-path: x86_64-unknown-linux-gnu
+    
+    steps:
+    - name: Checkout the head commit of the branch
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+
+    - name: Build production rust for ${{ matrix.arch.label }}
+      run: |
+        make install-cross
+        cross --version
+        make akri-cross-build-${{ matrix.arch.make-target }}
+
+    - name: Package build binaries
+      run: |
+        tar_manifest='/tmp/tar-contents.txt'
+        > $tar_manifest
+        for f in target/${{ matrix.arch.rust-target-path }}/release/*; do filetype=$( file "$f" ); case "$filetype" in *ELF*) echo "$f" >> $tar_manifest ;; esac; done
+        tar -cvf /tmp/rust-${{ matrix.arch.label }}-binaries.tar `cat $tar_manifest`
+
+    - name: Upload target binaries as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: rust-${{ matrix.arch.label }}-binaries
+        path: /tmp/rust-${{ matrix.arch.label }}-binaries.tar
+
