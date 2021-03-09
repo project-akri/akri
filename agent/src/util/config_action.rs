@@ -211,6 +211,7 @@ async fn handle_config_add(
             new_discovery_handler_sender,
             stop_discovery_sender,
             &mut finished_discovery_sender,
+            Arc::new(Box::new(k8s::create_kube_interface())),
         )
         .await
         .unwrap();

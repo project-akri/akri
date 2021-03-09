@@ -526,6 +526,7 @@ pub mod start_discovery {
         new_discovery_handler_sender: broadcast::Sender<String>,
         stop_all_discovery_sender: broadcast::Sender<()>,
         finished_all_discovery_sender: &mut mpsc::Sender<()>,
+        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
@@ -538,13 +539,11 @@ pub mod start_discovery {
 
         // Call discover on already registered Discovery Handlers requested by this Configuration's
         let known_dh_discovery_operator = discovery_operator.clone();
+        let known_dh_kube_interface = kube_interface.clone();
         tasks.push(tokio::spawn(async move {
-            do_discover(
-                known_dh_discovery_operator,
-                Arc::new(Box::new(k8s::create_kube_interface())),
-            )
-            .await
-            .unwrap();
+            do_discover(known_dh_discovery_operator, known_dh_kube_interface)
+                .await
+                .unwrap();
         }));
 
         // Listen for new discovery handlers to call discover on
@@ -565,11 +564,11 @@ pub mod start_discovery {
         // This task periodically checks if devices have been offline for too long.
         let mut stop_all_discovery_receiver = stop_all_discovery_sender.subscribe();
         let offline_dh_discovery_operator = discovery_operator.clone();
+        let offline_dh_kube_interface = kube_interface.clone();
         tasks.push(tokio::spawn(async move {
-            let kube_interface: Arc<Box<dyn k8s::KubeInterface>> = Arc::new(Box::new(k8s::create_kube_interface()));
             loop {
                 offline_dh_discovery_operator
-                    .delete_offline_instances(kube_interface.clone())
+                    .delete_offline_instances(offline_dh_kube_interface.clone())
                     .await
                     .unwrap();
                 if tokio::time::timeout(
@@ -1063,7 +1062,7 @@ pub mod tests {
             .is_ok());
     }
 
-    #[tokio::test(core_threads = 2)]
+    #[tokio::test]
     async fn test_start_discovery_termination() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (mut mock_discovery_operator, discovery_handler_map) = setup_test_do_discover();
@@ -1108,12 +1107,15 @@ pub mod tests {
             tokio::sync::mpsc::channel(2);
         let thread_new_dh_sender = new_dh_sender.clone();
         let thread_stop_all_discovery_sender = stop_all_discovery_sender.clone();
+        let mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
+            Arc::new(Box::new(MockKubeInterface::new()));
         let handle = tokio::spawn(async move {
             start_discovery::start_discovery(
                 mock_discovery_operator,
                 thread_new_dh_sender,
                 thread_stop_all_discovery_sender,
                 &mut finished_discovery_sender,
+                mock_kube_interface,
             )
             .await
             .unwrap();
