@@ -1,35 +1,10 @@
 name: Build Agent
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-    - .github/actions/build-component-per-arch/**
-    - .github/actions/build-component-multi-arch/**
-    - .github/workflows/build-agent-container.yml
-    - build/containers/Dockerfile.agent
-    - agent/**
-    - shared/**
-    - version.txt
-    - build/akri-containers.mk
-    - build/akri-rust-containers.mk
-    - Makefile
-  pull_request:
-    branches: [ main ]
-    paths:
-    - .github/actions/build-component-per-arch/**
-    - .github/actions/build-component-multi-arch/**
-    - .github/workflows/build-agent-container.yml
-    - build/containers/Dockerfile.agent
-    - agent/**
-    - shared/**
-    - version.txt
-    - build/akri-containers.mk
-    - build/akri-rust-containers.mk
-    - Makefile
-  release:
-    types:
-      - published
+  workflow_run:
+    workflows: ["Build Production Rust Code"]
+    types: 
+      - completed
 
 env:
   AKRI_COMPONENT: agent
@@ -62,13 +37,24 @@ jobs:
         yarn install
         yarn add @actions/core @actions/github @actions/exec fs
 
+    - name: Download rust build artifacts
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ github.event.workflow_run.workflow_id }}
+        workflow_conclusion: success
+        commit: ${{ github.event.workflow_run.head_sha }}
+        name: rust-${{ matrix.arch.label }}-binaries
+        path: /tmp
+
+    - name: Unpack Rust binaries
+      run: |
+        tar -xvf /tmp/rust-${{ matrix.arch.label }}-binaries.tar
+
     - name: Run Per-Arch component build for ${{ env.AKRI_COMPONENT }}
       uses: ./.github/actions/build-component-per-arch
       with:
-        github_event_name: ${{ github.event_name }}
+        github_event_name: ${{ github.event.workflow_run.event }}
         github_ref: ${{ github.ref }}
-        github_event_action: ${{ github.event.action }}
-        github_merged: ${{ github.event.pull_request.merged }}
         container_name: ${{ env.AKRI_COMPONENT }}
         container_prefix: ghcr.io/deislabs/akri
         container_registry_base_url: ghcr.io
@@ -76,10 +62,10 @@ jobs:
         container_registry_password: ${{ secrets.crPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
         platform: ${{ matrix.arch }}
-        build_rust: "1"
+        build_rust: "0"
 
   multi-arch:
-    if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
+    if: (github.event.workflow_run.event == 'release') || (github.event.workflow_run.event == 'push' && github.ref == 'refs/heads/main')
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -102,7 +88,7 @@ jobs:
     - name: Run Multi-Arch component build for ${{ env.AKRI_COMPONENT }}
       uses: ./.github/actions/build-component-multi-arch
       with:
-        github_event_name: ${{ github.event_name }}
+        github_event_name: ${{ github.event.workflow_run.event }}
         container_name: ${{ env.AKRI_COMPONENT }}
         container_prefix: ghcr.io/deislabs/akri
         container_registry_base_url: ghcr.io
