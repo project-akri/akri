@@ -16,11 +16,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  TARPAULIN_TIMEOUT_MINUTES: 30
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ env.TARPAULIN_TIMEOUT_MINUTES }}
 
     steps:
     - name: Checkout the head commit of the branch
@@ -29,7 +30,7 @@ jobs:
         persist-credentials: false
 
     - name: Create tarpaulin instance
-      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo 'sleep 20m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo 'sleep ${{ env.TARPAULIN_TIMEOUT_MINUTES }}m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
