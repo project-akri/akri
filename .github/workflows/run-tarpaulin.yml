@@ -25,7 +25,7 @@ jobs:
     # but it seems easier to make it SOOOO big that timeout-minutes is likely to never be impacted by
     # by it.
     #
-    # But, if thiw workflow is mysteriously timing out after 600 minutes, make changes to the docker
+    # But, if this workflow is mysteriously timing out after 600 minutes, make changes to the docker
     # create command in the Create tarpaulin instance step.
     timeout-minutes: 30
 
