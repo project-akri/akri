@@ -71,6 +71,13 @@ jobs:
       with:
         persist-credentials: false
 
+    - name: Rust install
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: 1.49.0
+        override: true
+        components: clippy, rustfmt
+
     - name: Build production rust for ${{ matrix.arch.label }}
       run: |
         make install-cross
