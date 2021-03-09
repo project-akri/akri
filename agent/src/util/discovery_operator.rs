@@ -1063,7 +1063,7 @@ pub mod tests {
             .is_ok());
     }
 
-    #[tokio::test]
+    #[tokio::test(core_threads = 2)]
     async fn test_start_discovery_termination() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (mut mock_discovery_operator, discovery_handler_map) = setup_test_do_discover();
