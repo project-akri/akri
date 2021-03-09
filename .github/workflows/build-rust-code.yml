@@ -49,7 +49,7 @@ jobs:
 
   build-rust:
     runs-on: ubuntu-latest
-    timeout: 40
+    timeout-minutes: 40
     strategy:
       matrix:
         arch:
