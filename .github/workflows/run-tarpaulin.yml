@@ -21,7 +21,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(env.TARPAULIN_TIMEOUT_MINUTES) }}
 
     steps:
     - name: Checkout the head commit of the branch
@@ -31,7 +30,7 @@ jobs:
 
     - name: Create tarpaulin instance
       run: |
-        STAY_ALIVE_SCRIPT="sleep ${{ env.TARPAULIN_TIMEOUT_MINUTES }}m; echo bye"
+        STAY_ALIVE_SCRIPT="sleep ${{ fromJSON(env.TARPAULIN_TIMEOUT_MINUTES) }}m; echo bye"
         echo "Using this as stay-alive script: [ $STAY_ALIVE_SCRIPT ]"
         docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.16.0 bash -c "echo $STAY_ALIVE_SCRIPT > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
@@ -44,7 +43,7 @@ jobs:
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin
       id: run-coverage-tests
-      timeout-minutes: 30
+      timeout-minutes: ${{ fromJSON(env.TARPAULIN_TIMEOUT_MINUTES) }}
       run: docker exec $(cat container_id.txt) sh -c "RUST_LOG=trace cargo tarpaulin -v --all-features --out Xml"
 
     - name: Upload report to codecov for push
