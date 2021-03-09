@@ -97,4 +97,5 @@ jobs:
       with:
         name: rust-${{ matrix.arch.label }}-binaries
         path: /tmp/rust-${{ matrix.arch.label }}-binaries.tar
+        retention-days: 1
 
