@@ -6,6 +6,7 @@ on:
     paths:
     - .github/actions/build-component-per-arch/**
     - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-rust-code.yml
     - .github/workflows/build-agent-container.yml
     - .github/workflows/build-controller-container.yml
     - .github/workflows/build-udev-video-broker-container.yml
@@ -26,6 +27,7 @@ on:
     paths:
     - .github/actions/build-component-per-arch/**
     - .github/actions/build-component-multi-arch/**
+    - .github/workflows/build-rust-code.yml
     - .github/workflows/build-agent-container.yml
     - .github/workflows/build-controller-container.yml
     - .github/workflows/build-udev-video-broker-container.yml
