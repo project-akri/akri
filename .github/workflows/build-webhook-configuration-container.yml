@@ -12,6 +12,7 @@ env:
 
 jobs:
   per-arch:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} 
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -64,7 +65,7 @@ jobs:
           build_rust: "0"
 
   multi-arch:
-    if: (github.event.workflow_run.event == 'release') || (github.event.workflow_run.event == 'push' && github.ref == 'refs/heads/main')
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} && ((github.event.workflow_run.event == 'release') || (github.event.workflow_run.event == 'push' && github.ref == 'refs/heads/main'))
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 60
