@@ -80,7 +80,6 @@ along with the following custom metrics, all of which are prefixed with `akri`.
 | Metric Name | Metric Type | Metric Source | Buckets |
 |---|---|---|---|
 | akri_instance_count | IntGaugeVec | Agent | Configuration, shared | 
-| akri_discovery_response_time | HistogramVec | Agent | Configuration | 
 | akri_broker_pod_count | IntGaugeVec | Controller | Configuration, Node |
 
 ## Exposing metrics from an Akri Broker Pod
