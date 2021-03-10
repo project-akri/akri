@@ -46,7 +46,7 @@ on:
 jobs:
   build-containers:
     runs-on: ubuntu-18.04
-    timeout-minutes: 35
+    timeout-minutes: 60
 
     steps:
       - name: Checkout the head commit of the branch
