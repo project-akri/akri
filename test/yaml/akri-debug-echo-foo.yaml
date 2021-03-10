@@ -3,12 +3,12 @@ kind: Configuration
 metadata:
   name: akri-debug-echo-foo
 spec:
-  protocol: 
-    debugEcho:
-      descriptions:
-      - "foo0"
-      - "foo1"
-      shared: false
+  discoveryHandler: 
+    name: debugEcho
+    discoveryDetails: |+
+        descriptions:
+        - "foo0"
+        - "foo1"
   brokerPodSpec:
     containers:
     - name: akri-debug-echo-foo-broker

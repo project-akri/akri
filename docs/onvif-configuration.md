@@ -11,14 +11,16 @@ margin-right: auto; display: block; margin-left: auto;"/>
 1. The Akri Controller sees the Instances and deploys `akri-onvif-video-broker` pods, which were specified in the Configuration. The Controller also creates a Kubernetes service for each ONVIF camera along with one service for all the ONVIF cameras.
 
 ## Usage
-To use the default ONVIF Configuration in your Akri-enabled cluster, you simply set `onvif.enabled=true` when installing the Akri Helm chart. If you would like broker pods to be deployed automatically to discovered cameras, set `udev.brokerPod.image.repository` to point to your broker image. Alternatively, if it meets your scenario, you could use the Akri frame server broker as done below. If you would rather manually deploy pods to utilize the cameras advertized by Akri, don't specify a broker pod and see our documentation on [requesting resources advertized by Akri](./requesting-akri-resources.md). More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
+To use the default ONVIF Configuration in your Akri-enabled cluster, you simply set `onvif.enabled=true` when installing the Akri Helm chart. If you would like broker pods to be deployed automatically to discovered cameras, set `onvif.brokerPod.image.repository` to point to your broker image. Alternatively, if it meets your scenario, you could use the Akri frame server broker as done below. If you would rather manually deploy pods to utilize the cameras advertized by Akri, don't specify a broker pod and see our documentation on [requesting resources advertized by Akri](./requesting-akri-resources.md). More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker:latest-dev"
+    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
+    --set onvif.brokerPod.image.tag="latest"
 ```
+> Note:  `onvif.brokerPod.image.tag` defaults to `latest` but is set above to show have image tags can be specified.
 
 The default Configuration will find any ONVIF camera and will deploy up to one broker pod to each camera, since `capacity` defaults to one. The brokers will supply the automatically created Instance Services and the Configuration Service with frames.
 
@@ -42,7 +44,7 @@ For example, you can enable cluster access for every camera that does not have a
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker:latest-dev" \
+    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
     --set onvif.ipAddresses.action=Exclude \
     --set onvif.ipAddresses.items[0]=10.0.0.1
 ```
@@ -52,7 +54,7 @@ You can enable cluster access for every camera with a specific name, you can mod
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker:latest-dev" \
+    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker \
     --set onvif.scopes.action=Include \
     --set onvif.scopes.items[0]="onvif://www.onvif.org/name/GreatONVIFCamera" \
     --set onvif.scopes.items[1]="onvif://www.onvif.org/name/AwesomeONVIFCamera"
@@ -65,7 +67,7 @@ decreased as desired, and defaults to 1 second if left unconfigured. It can be s
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker:latest-dev" \
+    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
     --set onvif.discoveryTimeoutSeconds=2
 ```
 
@@ -77,7 +79,7 @@ pod, you can update the Configuration like this:
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker:latest-dev" \
+    --set onvif.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
     --set onvif.capacity=2
 ```
 
@@ -92,7 +94,7 @@ document](./customizing-akri-installation.md).
 ## Implementation details
 The ONVIF implementation can be understood by looking at several things:
 
-1. [OnvifDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties
+1. [OnvifDiscoveryDetails](../shared/src/akri/configuration.rs) defines the required properties
 1. [The onvif property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates
    the CRD input
 1. [OnvifDiscoveryHandler](../agent/src/protocols/onvif/discovery_handler.rs) defines ONVIF camera discovery

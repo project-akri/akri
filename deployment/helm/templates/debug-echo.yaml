@@ -4,19 +4,20 @@ kind: Configuration
 metadata:
   name: {{ .Values.debugEcho.name }}
 spec:
-  protocol: 
-    debugEcho:
+  discoveryHandler: 
+    name: debugEcho
+    discoveryDetails: |+
       {{- if .Values.debugEcho.descriptions}}
       descriptions:
       {{- toYaml .Values.debugEcho.descriptions | nindent 6 }}
       {{- else }}
       descriptions: []
       {{- end }}
-      shared: {{ .Values.debugEcho.shared }}
+  {{- if .Values.debugEcho.brokerPod.image.repository }}
   brokerPodSpec:
     containers:
     - name: {{ .Values.debugEcho.name }}-broker
-      image: {{ .Values.debugEcho.brokerPod.image | quote }}
+      image: {{ printf "%s:%s" .Values.debugEcho.brokerPod.image.repository .Values.debugEcho.brokerPod.image.tag | quote }}
       {{- with .Values.debugEcho.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
@@ -27,6 +28,9 @@ spec:
     imagePullSecrets:
       {{- toYaml . | nindent 6 }}
     {{- end }}
+  {{- end }}
+  {{- if .Values.debugEcho.brokerPod.image.repository }}
+  {{- if .Values.debugEcho.createInstanceServices }}
   instanceServiceSpec:
     type: {{ .Values.debugEcho.instanceService.type }}
     ports:
@@ -34,6 +38,8 @@ spec:
       port: {{ .Values.debugEcho.instanceService.port }}
       protocol: {{ .Values.debugEcho.instanceService.protocol }}
       targetPort: {{ .Values.debugEcho.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.debugEcho.createConfigurationService }}
   configurationServiceSpec:
     type: {{ .Values.debugEcho.configurationService.type }}
     ports:
@@ -41,6 +47,8 @@ spec:
       port: {{ .Values.debugEcho.configurationService.port }}
       protocol: {{ .Values.debugEcho.configurationService.protocol }}
       targetPort: {{ .Values.debugEcho.configurationService.port }}
+  {{- end }}
+  {{- end }}
   {{- if .Values.debugEcho.properties }}
   properties:
   {{- toYaml . | nindent 4 }}

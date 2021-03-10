@@ -1,0 +1,17 @@
+ARG PLATFORM=amd64
+ARG CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu
+FROM ${PLATFORM}/debian:buster-slim
+ARG CROSS_BUILD_TARGET
+RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim"
+RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}"
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+
+# Copy over container legal notice
+COPY ./build/container-images-legal-notice.md .
+
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
+COPY ./target/${CROSS_BUILD_TARGET}/release/udev-discovery-handler /udev-discovery-handler
+ENV RUST_LOG udev-discovery-handler,akri_shared,akri_discovery_utils,akri_udev
+CMD ["./udev-discovery-handler"]

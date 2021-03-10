@@ -47,6 +47,9 @@ spec:
           {{- if .Values.agent.allowDebugEcho }}
           - name: ENABLE_DEBUG_ECHO
             value: "1"
+          {{- /* environment variable to tell the Agent's embedded debug echo Discovery Handler whether its instances are shared */}}
+          - name: DEBUG_ECHO_INSTANCES_SHARED
+            value: {{ .Values.debugEcho.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
             value: /host/usr/bin/crictl
@@ -58,7 +61,11 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: DISCOVERY_HANDLERS_DIRECTORY
+            value: /var/lib/akri
         volumeMounts:
+          - name: discovery-handlers
+            mountPath: /var/lib/akri
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
           - name: usr-bin-crictl
@@ -77,6 +84,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
       - name: device-plugin
         hostPath:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"

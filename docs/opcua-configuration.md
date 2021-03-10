@@ -26,6 +26,7 @@ helm install akri akri-helm-charts/akri \
     --set opcua.enabled=true \
     --set opcua.brokerPod.image.repository=nginx
 ```
+> Note: set `opcua.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
 
 The generic OPC UA Configuration can be tailored to your cluster by modifying the [Akri Helm chart
 values](../deployment/helm/values.yaml) in the following ways:
@@ -150,7 +151,7 @@ document](./customizing-akri-installation.md).
 
 ## Implementation details
 The OPC UA implementation can be understood by looking at several things:
-1. [OpcuaDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties.
+1. [OpcuaDiscoveryDetails](../shared/src/akri/configuration.rs) defines the required properties.
 1. [The OPC UA property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates
    the CRD input.
 1. [OpcuaDiscoveryHandler](../agent/src/protocols/opcua/discovery_handler.rs) defines OPC UA Server discovery.

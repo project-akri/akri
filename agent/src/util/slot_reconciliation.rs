@@ -2,8 +2,8 @@ use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
 use akri_shared::{akri::instance::Instance, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
-use mockall::automock;
-use mockall::predicate::*;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -13,7 +13,7 @@ use tokio::process::Command;
 
 type SlotQueryResult = Result<HashSet<String>, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
-#[automock]
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait SlotQuery {
     async fn get_node_slots(&self) -> SlotQueryResult;

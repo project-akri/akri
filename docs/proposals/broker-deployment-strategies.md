@@ -32,11 +32,12 @@ kind: Configuration
 metadata:
   name: akri-onvif-video
 spec:
-  protocol:
-    onvif:
-      ipAddresses: 
-        action: Exclude
-        items: []
+  discoveryHandler:
+    name: onvif
+    discoveryDetails: |+
+        ipAddresses: 
+          action: Exclude
+          items: []
     # ...
   brokerPodSpec:
     containers:

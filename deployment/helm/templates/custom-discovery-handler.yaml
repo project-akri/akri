@@ -1,0 +1,36 @@
+{{- if .Values.customDiscovery.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ printf "%s-discovery-daemonset" .Values.customDiscovery.name | quote }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+  template:
+    metadata:
+      labels:
+        name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+    spec:
+      containers:
+      - name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+        image: {{ printf "%s:%s" (required "A customDiscovery.discovery.image.repository is required." .Values.customDiscovery.discovery.image.repository) .Values.customDiscovery.discovery.image.tag | quote }}
+        {{- with .Values.customDiscovery.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        volumeMounts:
+        - name: agent-registration
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.customDiscovery.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.customDiscovery.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: agent-registration
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}

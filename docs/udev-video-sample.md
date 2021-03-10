@@ -11,7 +11,7 @@ helm install akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.name=akri-udev-video \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
 ```
 
 Akri will find all video4linux cameras and ensure that broker Pods are running on nodes that can access the cameras at all times, supplying each Instance Service and the Configuration Service with frames.
@@ -31,7 +31,7 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Microsoft"' \
-    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
 ```
 
 As another example, to make sure that the camera has a capture capability rather than just being a video output device, modify the udev rule as follows: 
@@ -40,7 +40,7 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_V4L_CAPABILITIES}=="*:capture:*"' \
-    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
 ```
 
 ### Modifying the brokerPod spec
@@ -49,7 +49,7 @@ The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/refe
   helm install akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev" \
+    --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker" \
     --set udev.brokerPod.env.FORMAT='JPEG' \
     --set udev.brokerPod.env.RESOLUTION_WIDTH='1000' \
     --set udev.brokerPod.env.RESOLUTION_HEIGHT='800' \

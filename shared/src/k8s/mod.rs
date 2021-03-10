@@ -3,6 +3,7 @@ use super::akri::{
     configuration::{KubeAkriConfig, KubeAkriConfigList},
     instance,
     instance::{Instance, KubeAkriInstance, KubeAkriInstanceList},
+    retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
@@ -163,7 +164,7 @@ pub trait KubeInterface: Send + Sync {
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<KubeAkriInstance, kube::Error>;
     async fn get_instances(
         &self,
     ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>;
@@ -492,7 +493,7 @@ impl KubeInterface for KubeImpl {
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<KubeAkriInstance, kube::Error> {
         instance::find_instance(name, namespace, &self.get_kube_client()).await
     }
     // Get Akri Instances with given namespace
@@ -619,6 +620,58 @@ impl KubeInterface for KubeImpl {
         instance::update_instance(instance_to_update, name, namespace, &self.get_kube_client())
             .await
     }
+}
+
+/// This deletes an Instance unless it has already been deleted by another node
+/// or fails after multiple retries.
+pub async fn try_delete_instance(
+    kube_interface: &dyn KubeInterface,
+    instance_name: &str,
+    instance_namespace: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    for x in 0..MAX_INSTANCE_UPDATE_TRIES {
+        match kube_interface
+            .delete_instance(instance_name, &instance_namespace)
+            .await
+        {
+            Ok(()) => {
+                log::trace!("try_delete_instance - deleted Instance {}", instance_name);
+                break;
+            }
+            Err(e) => {
+                // Check if already was deleted else return error
+                match kube_interface
+                    .find_instance(&instance_name, &instance_namespace)
+                    .await
+                {
+                    Err(kube::Error::Api(ae)) => {
+                        if ae.code == ERROR_NOT_FOUND {
+                            log::trace!(
+                                "try_delete_instance - discovered Instance {} already deleted",
+                                instance_name
+                            );
+                            break;
+                        }
+                        log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
+                    }
+                    Err(e) => {
+                        log::error!("try_delete_instance - when looking up Instance {}, got kube error: {:?}. {} retries left.", instance_name, e, MAX_INSTANCE_UPDATE_TRIES - x - 1);
+                    }
+                    Ok(_) => {
+                        log::error!(
+                            "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
+                            instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                        );
+                    }
+                }
+                if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
+                    return Err(e);
+                }
+            }
+        }
+        random_delay().await;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

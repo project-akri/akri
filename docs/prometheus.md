@@ -80,7 +80,6 @@ along with the following custom metrics, all of which are prefixed with `akri`.
 | Metric Name | Metric Type | Metric Source | Buckets |
 |---|---|---|---|
 | akri_instance_count | IntGaugeVec | Agent | Configuration, shared | 
-| akri_discovery_response_time | HistogramVec | Agent | Configuration | 
 | akri_broker_pod_count | IntGaugeVec | Controller | Configuration, Node |
 
 ## Exposing metrics from an Akri Broker Pod
@@ -105,7 +104,7 @@ process metrics and the custom `akri_frame_count` metric to port 8080 at a `/met
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
         --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest"
+        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
     ```
     > **Note**: This instruction assumes you are using vanilla Kubernetes. Be sure to reference the [user
     > guide](./user-guide.md) to determine whether the distribution you are using requires crictl path configuration.

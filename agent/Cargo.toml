@@ -1,19 +1,25 @@
 [package]
 name = "agent"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+akri-debug-echo = { path = "../discovery-handlers/debug-echo" }
+akri-discovery-utils = { path = "../discovery-utils" }
+akri-onvif = { path = "../discovery-handlers/onvif", optional = true }
+akri-opcua = { path = "../discovery-handlers/opcua", optional = true }
+akri-udev = { path = "../discovery-handlers/udev", optional = true }
+akri-shared = { path = "../shared" }
+anyhow = "1.0.38"
 async-stream = "0.2"
 async-trait = "0.1.0"
-blake2 = "0.8.0"
+blake2 = "0.9.0"
 chrono = "0.4.10"
 cfg-if = "0.1"
 env_logger = "0.6.1"
-anyhow = "1.0.38"
 futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
@@ -24,37 +30,35 @@ kube = { version = "0.23.0", features = ["openapi"] }
 k8s-openapi = { version = "0.6.0", features = ["v1_16"] }
 lazy_static = "1.4"
 log = "0.4"
-mockall = "0.9.0"
-opcua-client = { version = "0.7.0", optional = true }
-pest = { version = "2.0", optional = true }
-pest_derive = { version = "2.0", optional = true }
+mockall_double = "0.1.0"
 prometheus = { version = "0.11.0", features = ["process"] }
 prost = "0.6"
 rand = "0.8.3"
-regex = "1"
 serde = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
-akri-shared = { path = "../shared" }
-tempfile = "3.1.0"
 tokio = { version = "0.2", features = ["full"] }
 tokio-core = "0.1"
 tonic = "0.1"
 tower = "0.3" 
-udev = { version = "0.4", optional = true }
-url = "2.1.0"
+url = "2.2.0"
 uuid = { version = "0.8.1", features = ["v4"] }
-xml-rs = { version = "0.8.0", optional = true }
-yaserde = { version = "0.3.13", optional = true }
-yaserde_derive = { version = "0.3.13", optional = true }
 
 [build-dependencies]
 tonic-build = "0.1.1"
 
-[features]
-default = ["onvif-feat", "opcua-feat", "udev-feat"]
+[dev-dependencies]
+# for testing using a simple discovery handler
+akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
+mockall = "0.9.0"
+mock_instant = { version = "0.2", features = ["sync"] }
+tempfile = "3.1.0"
 
-onvif-feat = ["xml-rs", "yaserde", "yaserde_derive"]
-opcua-feat = ["opcua-client"]
-udev-feat = ["pest", "pest_derive", "udev"]
+[features]
+default = ["onvif-feat", "opcua-feat", "udev-feat", "agent-all-in-one"]
+onvif-feat = [ "akri-onvif"]
+opcua-feat = ["akri-opcua"]
+udev-feat = ["akri-udev"]
+agent-all-in-one = []
+agent-slim = []

@@ -21,7 +21,7 @@ fn check(
     deserialized: &serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     if v != &serde_json::Value::Null && deserialized == &serde_json::Value::Null {
-        return Err(None.ok_or(format!("no matching value in `deserialized`"))?);
+        return Err(None.ok_or_else(|| "no matching value in `deserialized`".to_string())?);
     }
 
     match v {
@@ -114,15 +114,15 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let x: RawExtension = serde_json::from_value(raw.clone())
                 .expect("Could not parse as Kubernetes RawExtension");
             let y = serde_json::to_string(&x).unwrap();
-            let c: KubeAkriConfig =
+            let config: KubeAkriConfig =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
-            let reserialized = serde_json::to_string(&c).unwrap();
+            let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
 
-            let v: Value = filter_configuration(raw.clone());
+            let val: Value = filter_configuration(raw.clone());
 
             // Do they match?
-            match check(&v, &deserialized) {
+            match check(&val, &deserialized) {
                 Ok(_) => AdmissionResponse::new(true, rqst.uid.to_owned()),
                 Err(e) => AdmissionResponse {
                     allowed: false,
@@ -287,11 +287,9 @@ mod tests {
                     "uid": "00000000-0000-0000-0000-000000000000"
                 },
                 "spec": {
-                    "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                    "discoveryHandler": {
+                        "name": "debugEcho",
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -377,11 +375,9 @@ mod tests {
                     "uid": "00000000-0000-0000-0000-000000000000"
                 },
                 "spec": {
-                    "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                    "discoveryHandler": {
+                        "name": "debugEcho",
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -463,11 +459,9 @@ mod tests {
                     "uid": "00000000-0000-0000-0000-000000000000"
                 },
                 "spec": {
-                    "protocol": {
-                        "debugEcho": {
-                            "descriptions": ["foo","bar"],
-                            "shared": true
-                        }
+                    "discoveryHandler": {
+                        "name": "debugEcho",
+                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
                     "brokerPodSpec": {
                         "containers": [

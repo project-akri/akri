@@ -1,0 +1,53 @@
+{{- if .Values.customDiscovery.enabled }}
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
+kind: Configuration
+metadata:
+  name: {{ .Values.customDiscovery.name }}
+spec:
+  discoveryHandler: 
+    name: {{ required "A customDiscovery.discoveryHandlerName is required." .Values.customDiscovery.discoveryHandlerName }}
+    discoveryDetails: {{ .Values.customDiscovery.discoveryDetails }}
+  {{- if .Values.customDiscovery.brokerPod.image.repository }}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.customDiscovery.name }}-broker
+      image: {{ printf "%s:%s" .Values.customDiscovery.brokerPod.image.repository .Values.customDiscovery.brokerPod.image.tag | quote }}
+      {{- with .Values.customDiscovery.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
+      resources:
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.customDiscovery.brokerPod.image.repository }}
+  {{- if .Values.customDiscovery.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.customDiscovery.instanceService.type }}
+    ports:
+    - name: {{ .Values.customDiscovery.instanceService.name }}
+      port: {{ .Values.customDiscovery.instanceService.port }}
+      protocol: {{ .Values.customDiscovery.instanceService.protocol }}
+      targetPort: {{ .Values.customDiscovery.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.customDiscovery.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.customDiscovery.configurationService.type }}
+    ports:
+    - name: {{ .Values.customDiscovery.configurationService.name }}
+      port: {{ .Values.customDiscovery.configurationService.port }}
+      protocol: {{ .Values.customDiscovery.configurationService.protocol }}
+      targetPort: {{ .Values.customDiscovery.configurationService.port }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.customDiscovery.properties }}
+  properties:
+  {{- toYaml . | nindent 4 }}
+  {{- else }}
+  properties: {}
+  {{- end }}
+  capacity: {{ .Values.customDiscovery.capacity }}
+{{- end }}

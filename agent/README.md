@@ -6,12 +6,14 @@ This is the Akri Agent project.  It is an implementation of a [Kubernetes device
 ## Traits
 
 ### Public
-* **DiscoveryHandler** - This provides an abstraction to allow protocol specific code to handle discovery and provide details for Instance creation.  Planned implementations of this trait include `OnvifDiscoveryHandler`, `UdevDiscoveryHandler`, `OpcuaDiscoveryHandler`, and `DebugEchoDiscoveryHandler`.
+* **DiscoveryHandler** - This provides an abstraction to allow protocol specific code to handle discovery and provide details for Instance creation. The trait is defined by Akri's [discovery API](../discovery-utils/proto/discovery.proto). Implementations of this trait can be found in the [discovery handlers directory](../discovery-handlers).
 ```Rust
 #[async_trait]
 pub trait DiscoveryHandler {
-    async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error>;
-    fn are_shared(&self) -> Result<bool, Error>;
+    async fn discover(
+            &self,
+            request: tonic::Request<akri_discovery_utils::discovery::v0::DiscoverRequest>,
+        ) -> Result<tonic::Response<akri_discovery_utils::discovery::v0::DiscoverStream>, tonic::Status>;
 }
 ```
 

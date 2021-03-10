@@ -1,44 +1,34 @@
 use super::constants::{
-    HEALTHY, K8S_DEVICE_PLUGIN_VERSION, KUBELET_SOCKET, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
+    HEALTHY, KUBELET_UPDATE_CHANNEL_CAPACITY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
 };
 use super::v1beta1;
 use super::v1beta1::{
-    device_plugin_server::{DevicePlugin, DevicePluginServer},
-    registration_client, AllocateRequest, AllocateResponse, DevicePluginOptions, Empty,
-    ListAndWatchResponse, PreStartContainerRequest, PreStartContainerResponse,
+    device_plugin_server::DevicePlugin, AllocateRequest, AllocateResponse, DevicePluginOptions,
+    DeviceSpec, Empty, ListAndWatchResponse, Mount, PreStartContainerRequest,
+    PreStartContainerResponse,
 };
+use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
     akri::{
-        configuration::{Configuration, ProtocolHandler},
+        configuration::Configuration,
         instance::Instance,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-        AKRI_PREFIX, AKRI_SLOT_ANNOTATION_NAME,
+        AKRI_SLOT_ANNOTATION_NAME,
     },
     k8s,
     k8s::KubeInterface,
 };
-use futures::stream::TryStreamExt;
 use log::{error, info, trace};
-use std::{
-    collections::HashMap,
-    convert::TryFrom,
-    env,
-    path::Path,
-    sync::Arc,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
-};
+#[cfg(test)]
+use mock_instant::Instant;
+#[cfg(not(test))]
+use std::time::Instant;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
-    net::UnixListener,
-    net::UnixStream,
     sync::{broadcast, mpsc, Mutex},
-    task,
-    time::{delay_for, timeout},
+    time::timeout,
 };
-use tonic::{
-    transport::{Endpoint, Server, Uri},
-    Code, Request, Response, Status,
-};
-use tower::service_fn;
+use tonic::{Code, Request, Response, Status};
 
 /// Message sent in channel to `list_and_watch`.
 /// Dictates what action `list_and_watch` should take upon being awoken.
@@ -50,9 +40,9 @@ pub enum ListAndWatchMessageKind {
     End,
 }
 
-/// Describes the discoverability of an instance for this node
+/// Describes whether an instance was discovered or the time at which it was no longer discovered.
 #[derive(PartialEq, Debug, Clone)]
-pub enum ConnectivityStatus {
+pub enum InstanceConnectivityStatus {
     /// Was discovered
     Online,
     /// Could not be discovered. Instant contains time at which it was no longer discovered.
@@ -64,8 +54,8 @@ pub enum ConnectivityStatus {
 pub struct InstanceInfo {
     /// Sender to tell `list_and_watch` to either prematurely continue looping or end
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
-    /// Instance's `ConnectivityStatus`
-    pub connectivity_status: ConnectivityStatus,
+    /// Instance's `InstanceConnectivityStatus`
+    pub connectivity_status: InstanceConnectivityStatus,
 }
 
 pub type InstanceMap = Arc<Mutex<HashMap<String, InstanceInfo>>>;
@@ -81,32 +71,33 @@ pub type InstanceMap = Arc<Mutex<HashMap<String, InstanceInfo>>>;
 #[derive(Clone)]
 pub struct DevicePluginService {
     /// Instance CRD name
-    instance_name: String,
+    pub instance_name: String,
     /// Socket endpoint
-    endpoint: String,
+    pub endpoint: String,
     /// Instance's Configuration
-    config: Configuration,
+    pub config: Configuration,
     /// Name of Instance's Configuration CRD
-    config_name: String,
+    pub config_name: String,
     /// UID of Instance's Configuration CRD
-    config_uid: String,
+    pub config_uid: String,
     /// Namespace of Instance's Configuration CRD
-    config_namespace: String,
+    pub config_namespace: String,
     /// Instance is [not]shared
-    shared: bool,
+    pub shared: bool,
     /// Hostname of node this Device Plugin is running on
-    node_name: String,
-    /// Information that must be communicated with broker. Stored in Instance CRD as metadata.
-    instance_properties: HashMap<String, String>,
+    pub node_name: String,
     /// Map of all Instances that have the same Configuration CRD as this one
-    instance_map: InstanceMap,
+    pub instance_map: InstanceMap,
     /// Receiver for list_and_watch continue or end messages
     /// Note: since the tonic grpc generated list_and_watch definition takes in &self,
     /// using broadcast sender instead of mpsc receiver
     /// Can clone broadcast sender and subscribe receiver to use in spawned thread in list_and_watch
-    list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
+    pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Upon send, terminates function that acts as the shutdown signal for this service
-    server_ender_sender: mpsc::Sender<()>,
+    pub server_ender_sender: mpsc::Sender<()>,
+    /// Device that the instance represents. Contains information about properties,
+    /// and container mounts.
+    pub device: Device,
 }
 
 #[tonic::async_trait]
@@ -144,7 +135,8 @@ impl DevicePlugin for DevicePluginService {
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
         // Create a channel that list_and_watch can periodically send updates to kubelet on
-        let (mut kubelet_update_sender, kubelet_update_receiver) = mpsc::channel(4);
+        let (mut kubelet_update_sender, kubelet_update_receiver) =
+            mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
             let mut keep_looping = true;
@@ -323,11 +315,7 @@ impl DevicePluginService {
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
-            let response = build_container_allocate_response(
-                akri_annotations,
-                &self.instance_properties,
-                &self.config.protocol,
-            );
+            let response = build_container_allocate_response(akri_annotations, &self.device);
             container_responses.push(response);
         }
         trace!(
@@ -357,7 +345,7 @@ fn get_slot_value(
     instance: &Instance,
 ) -> Result<String, Status> {
     if let Some(allocated_node) = instance.device_usage.get(device_usage_id) {
-        if allocated_node == "" {
+        if allocated_node.is_empty() {
             Ok(node_name.to_string())
         } else if allocated_node == node_name {
             Ok("".to_string())
@@ -445,36 +433,38 @@ async fn try_update_instance_device_usage(
     Ok(())
 }
 
-/// This sets the volume mounts and environment variables according to the instance's protocol.
+/// This sets the volume mounts and environment variables according to the instance's `DiscoveryHandler`.
 fn build_container_allocate_response(
     annotations: HashMap<String, String>,
-    instance_properties: &HashMap<String, String>,
-    protocol: &ProtocolHandler,
+    device: &Device,
 ) -> v1beta1::ContainerAllocateResponse {
-    let mut mounts: Vec<v1beta1::Mount> = Vec::new();
-
-    // Set mounts according to protocol
-    match protocol {
-        ProtocolHandler::udev(_handler_config) => {
-            trace!("get_volumes_and_mounts - setting volumes and mounts for udev protocol");
-            mounts = instance_properties
-                .iter()
-                .map(|(_id, devpath)| v1beta1::Mount {
-                    container_path: devpath.clone(),
-                    host_path: devpath.clone(),
-                    read_only: true,
-                })
-                .collect();
-        }
-        _ => trace!("get_volumes_and_mounts - no mounts or volumes required by this protocol"),
-    }
-
+    // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
+    let mounts: Vec<Mount> = device
+        .mounts
+        .clone()
+        .into_iter()
+        .map(|mount| Mount {
+            container_path: mount.container_path,
+            host_path: mount.host_path,
+            read_only: mount.read_only,
+        })
+        .collect();
+    let device_specs: Vec<DeviceSpec> = device
+        .device_specs
+        .clone()
+        .into_iter()
+        .map(|device_spec| DeviceSpec {
+            container_path: device_spec.container_path,
+            host_path: device_spec.host_path,
+            permissions: device_spec.permissions,
+        })
+        .collect();
     // Create response, setting environment variables to be an instance's properties (specified by protocol)
     v1beta1::ContainerAllocateResponse {
         annotations,
         mounts,
-        envs: instance_properties.clone(),
-        ..Default::default()
+        devices: device_specs,
+        envs: device.properties.clone(),
     }
 }
 
@@ -506,7 +496,7 @@ async fn try_create_instance(
         shared: dps.shared,
         nodes: vec![dps.node_name.clone()],
         device_usage,
-        metadata: dps.instance_properties.clone(),
+        metadata: dps.device.properties.clone(),
         rbac: "rbac".to_string(),
     };
 
@@ -588,7 +578,7 @@ async fn try_create_instance(
         dps.instance_name.clone(),
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
-            connectivity_status: ConnectivityStatus::Online,
+            connectivity_status: InstanceConnectivityStatus::Online,
         },
     );
 
@@ -627,7 +617,7 @@ async fn build_list_and_watch_response(
         .get(&dps.instance_name)
         .unwrap()
         .connectivity_status
-        != ConnectivityStatus::Online
+        != InstanceConnectivityStatus::Online
     {
         trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
         return Ok(build_unhealthy_virtual_devices(
@@ -689,12 +679,12 @@ fn build_virtual_devices(
     let mut devices: Vec<v1beta1::Device> = Vec::new();
     for (device_name, allocated_node) in device_usage {
         // Throw error if unshared resource is reserved by another node
-        if !shared && allocated_node != "" && allocated_node != node_name {
+        if !shared && !allocated_node.is_empty() && allocated_node != node_name {
             panic!("build_virtual_devices - unshared device reserved by a different node");
         }
         // Advertise the device as Unhealthy if it is
         // USED by !this_node && SHARED
-        let unhealthy = shared && allocated_node != "" && allocated_node != node_name;
+        let unhealthy = shared && !allocated_node.is_empty() && allocated_node != node_name;
         let health = if unhealthy {
             UNHEALTHY.to_string()
         } else {
@@ -721,7 +711,7 @@ pub async fn terminate_device_plugin_service(
     instance_map: InstanceMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut instance_map = instance_map.lock().await;
-    trace!(
+    info!(
         "terminate_device_plugin_service -- forcing list_and_watch to end for Instance {}",
         instance_name
     );
@@ -740,198 +730,6 @@ pub async fn terminate_device_plugin_service(
     Ok(())
 }
 
-/// This creates a new DevicePluginService for an instance and registers it with kubelet
-pub async fn build_device_plugin(
-    instance_name: String,
-    config_name: String,
-    config_uid: String,
-    config_namespace: String,
-    config: Configuration,
-    shared: bool,
-    instance_properties: HashMap<String, String>,
-    instance_map: InstanceMap,
-    device_plugin_path: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!("build_device_plugin - entered for device {}", instance_name);
-    let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
-    let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-    let device_endpoint: String = format!("{}-{}.sock", instance_name, unique_time.as_secs());
-    let socket_path: String = Path::new(device_plugin_path)
-        .join(device_endpoint.clone())
-        .to_str()
-        .unwrap()
-        .to_string();
-    // Channel capacity set to 6 because 3 possible senders (allocate, update_connectivity_status, and handle_config_delete)
-    // and and receiver only periodically checks channel
-    let (list_and_watch_message_sender, _) = broadcast::channel(6);
-    // Channel capacity set to 2 because worst case both register and list_and_watch send messages at same time and receiver is always listening
-    let (server_ender_sender, server_ender_receiver) = mpsc::channel(2);
-    let device_plugin_service = DevicePluginService {
-        instance_name: instance_name.clone(),
-        endpoint: device_endpoint.clone(),
-        config,
-        config_name: config_name.clone(),
-        config_uid: config_uid.clone(),
-        config_namespace: config_namespace.clone(),
-        shared,
-        node_name: env::var("AGENT_NODE_NAME")?,
-        instance_properties,
-        instance_map: instance_map.clone(),
-        list_and_watch_message_sender: list_and_watch_message_sender.clone(),
-        server_ender_sender: server_ender_sender.clone(),
-    };
-
-    serve(
-        device_plugin_service,
-        socket_path.clone(),
-        server_ender_receiver,
-    )
-    .await?;
-
-    register(
-        capability_id,
-        device_endpoint,
-        &instance_name,
-        server_ender_sender,
-    )
-    .await?;
-
-    Ok(())
-}
-
-/// This acts as a signal future to gracefully shutdown DevicePluginServer upon its completion.
-/// Ends when it receives message from `list_and_watch`.
-async fn shutdown_signal(mut server_ender_receiver: mpsc::Receiver<()>) {
-    match server_ender_receiver.recv().await {
-        Some(_) => trace!(
-            "shutdown_signal - received signal ... device plugin service gracefully shutting down"
-        ),
-        None => trace!("shutdown_signal - connection to server_ender_sender closed ... error"),
-    }
-}
-
-// This serves DevicePluginServer
-async fn serve(
-    device_plugin_service: DevicePluginService,
-    socket_path: String,
-    server_ender_receiver: mpsc::Receiver<()>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
-        "serve - creating a device plugin server that will listen at: {}",
-        socket_path
-    );
-    tokio::fs::create_dir_all(Path::new(&socket_path[..]).parent().unwrap())
-        .await
-        .expect("Failed to create dir at socket path");
-    let mut uds = UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
-    let service = DevicePluginServer::new(device_plugin_service);
-    let socket_path_to_delete = socket_path.clone();
-    task::spawn(async move {
-        Server::builder()
-            .add_service(service)
-            .serve_with_incoming_shutdown(
-                uds.incoming().map_ok(unix::UnixStream),
-                shutdown_signal(server_ender_receiver),
-            )
-            .await
-            .unwrap();
-        trace!(
-            "serve - gracefully shutdown ... deleting socket {}",
-            socket_path_to_delete
-        );
-        // Socket may already be deleted in the case of kubelet restart
-        std::fs::remove_file(socket_path_to_delete).unwrap_or(());
-    });
-
-    // Test that server is running, trying for at most 10 seconds
-    // Similar to grpc.timeout, which is yet to be implemented for tonic
-    // See issue: https://github.com/hyperium/tonic/issues/75
-    let mut connected = false;
-    let start = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs();
-    let start_plus_10 = start + 10;
-
-    while (SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
-        < start_plus_10)
-        && !connected
-    {
-        let path = socket_path.clone();
-        if let Ok(_v) = Endpoint::try_from("lttp://[::]:50051")?
-            .connect_with_connector(service_fn(move |_: Uri| UnixStream::connect(path.clone())))
-            .await
-        {
-            connected = true
-        } else {
-            delay_for(Duration::from_secs(1)).await
-        }
-    }
-
-    if !connected {
-        error!(
-            "serve - could not connect to Device Plugin server on socket {}",
-            socket_path
-        );
-    }
-    Ok(())
-}
-
-/// This registers DevicePlugin with kubelet.
-/// During registration, the device plugin must send
-/// (1) name of unix socket,
-/// (2) Device-Plugin API it was built against (v1beta1),
-/// (3) resource name akri.sh/device_id.
-/// If registration request to kubelet fails, terminates DevicePluginService.
-async fn register(
-    capability_id: String,
-    socket_name: String,
-    instance_name: &str,
-    mut server_ender_sender: mpsc::Sender<()>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
-        "register - entered for Instance {} and socket_name: {}",
-        capability_id, socket_name
-    );
-    let op = DevicePluginOptions {
-        pre_start_required: false,
-    };
-
-    // lttp://... is a fake uri that is unused (in service_fn) but necessary for uds connection
-    let channel = Endpoint::try_from("lttp://[::]:50051")?
-        .connect_with_connector(service_fn(|_: Uri| UnixStream::connect(KUBELET_SOCKET)))
-        .await?;
-    let mut registration_client = registration_client::RegistrationClient::new(channel);
-
-    let register_request = tonic::Request::new(v1beta1::RegisterRequest {
-        version: K8S_DEVICE_PLUGIN_VERSION.into(),
-        endpoint: socket_name,
-        resource_name: capability_id,
-        options: Some(op),
-    });
-    trace!(
-        "register - before call to register with Kubelet at socket {}",
-        KUBELET_SOCKET
-    );
-
-    // If fail to register with kubelet, terminate device plugin
-    if registration_client
-        .register(register_request)
-        .await
-        .is_err()
-    {
-        trace!(
-            "register - failed to register Instance {} with kubelet ... terminating device plugin",
-            instance_name
-        );
-        server_ender_sender.send(()).await?;
-    }
-    Ok(())
-}
-
 /// This creates an Instance's unique name
 pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
     format!("{}-{}", config_name, &id)
@@ -939,70 +737,28 @@ pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
         .replace("/", "-")
 }
 
-/// Module to enable UDS with tonic grpc.
-/// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
-#[cfg(unix)]
-mod unix {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-
-    use tokio::io::{AsyncRead, AsyncWrite};
-    use tonic::transport::server::Connected;
-
-    #[derive(Debug)]
-    pub struct UnixStream(pub tokio::net::UnixStream);
-
-    impl Connected for UnixStream {}
-
-    impl AsyncRead for UnixStream {
-        fn poll_read(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &mut [u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.0).poll_read(cx, buf)
-        }
-    }
-
-    impl AsyncWrite for UnixStream {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.0).poll_write(cx, buf)
-        }
-
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_flush(cx)
-        }
-
-        fn poll_shutdown(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_shutdown(cx)
-        }
-    }
-}
-
 #[cfg(test)]
 mod device_plugin_service_tests {
-    use super::super::v1beta1::device_plugin_client::DevicePluginClient;
+    use super::super::{
+        device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
+        v1beta1::device_plugin_client::DevicePluginClient,
+    };
     use super::*;
     use akri_shared::akri::configuration::KubeAkriConfig;
     use akri_shared::{
         akri::instance::{Instance, KubeAkriInstance},
         k8s::MockKubeInterface,
     };
-    use mockall::predicate::*;
     use std::{
+        convert::TryFrom,
         fs,
         io::{Error, ErrorKind},
+        time::SystemTime,
     };
     use tempfile::Builder;
+    use tokio::net::UnixStream;
+    use tonic::transport::{Endpoint, Uri};
+    use tower::service_fn;
 
     enum NodeName {
         ThisNode,
@@ -1046,14 +802,14 @@ mod device_plugin_service_tests {
     }
 
     fn create_device_plugin_service(
-        connectivity_status: ConnectivityStatus,
+        connectivity_status: InstanceConnectivityStatus,
         add_to_instance_map: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
-        let path_to_config = "../test/json/config-a.json";
-        let kube_akri_config_json =
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let kube_akri_config_yaml =
             fs::read_to_string(path_to_config).expect("Unable to read file");
         let kube_akri_config: KubeAkriConfig =
-            serde_json::from_str(&kube_akri_config_json).unwrap();
+            serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
         let device_instance_name =
             get_device_instance_name("b494b6", &kube_akri_config.metadata.name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
@@ -1075,7 +831,12 @@ mod device_plugin_service_tests {
             map.insert(device_instance_name.clone(), instance_info);
         }
         let instance_map: InstanceMap = Arc::new(Mutex::new(map));
-
+        let device = Device {
+            id: "n/a".to_string(),
+            properties: HashMap::new(),
+            mounts: Vec::new(),
+            device_specs: Vec::new(),
+        };
         let dps = DevicePluginService {
             instance_name: device_instance_name,
             endpoint: device_endpoint,
@@ -1085,10 +846,10 @@ mod device_plugin_service_tests {
             config_namespace: kube_akri_config.metadata.namespace.unwrap(),
             shared: false,
             node_name: "node-a".to_string(),
-            instance_properties: HashMap::new(),
             instance_map,
             list_and_watch_message_sender,
             server_ender_sender,
+            device,
         };
         (
             dps,
@@ -1111,6 +872,16 @@ mod device_plugin_service_tests {
         for device in expected_device_ids {
             assert!(device_ids.contains(&device));
         }
+    }
+
+    fn get_kube_not_found_error() -> kube::Error {
+        // Mock error thrown when instance not found
+        kube::Error::Api(kube::ErrorResponse {
+            status: "Failure".to_string(),
+            message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
+            reason: "NotFound".to_string(),
+            code: k8s::ERROR_NOT_FOUND,
+        })
     }
 
     // Tests that instance names are formatted correctly
@@ -1139,11 +910,11 @@ mod device_plugin_service_tests {
                 namespace == config_namespace && name == config_name
             })
             .returning(move |_, _| {
-                let path_to_config = "../test/json/config-a.json";
-                let kube_akri_config_json =
+                let path_to_config = "../test/yaml/config-a.yaml";
+                let kube_akri_config_yaml =
                     fs::read_to_string(path_to_config).expect("Unable to read file");
                 let kube_akri_config: KubeAkriConfig =
-                    serde_json::from_str(&kube_akri_config_json).unwrap();
+                    serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
                 Ok(kube_akri_config)
             });
     }
@@ -1153,7 +924,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1169,10 +940,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| {
-                let error = Error::new(ErrorKind::InvalidInput, "Configuration doesn't exist");
-                Err(Box::new(error))
-            });
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1201,7 +969,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_already_created() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1244,7 +1012,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_already_created_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1275,7 +1043,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_no_config() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let config_name = device_plugin_service.config_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1300,7 +1068,7 @@ mod device_plugin_service_tests {
     async fn test_try_create_instance_error() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let mut mock = MockKubeInterface::new();
         configure_find_configuration(
             &mut mock,
@@ -1316,7 +1084,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| Err(None.ok_or("failure")?));
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1346,7 +1114,7 @@ mod device_plugin_service_tests {
     async fn test_list_and_watch() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, false);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
         let socket_path: String = device_plugin_temp_dir
             .path()
@@ -1357,14 +1125,16 @@ mod device_plugin_service_tests {
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let instance_name = device_plugin_service.instance_name.clone();
-        serve(
-            device_plugin_service,
-            socket_path.clone(),
-            device_plugin_service_receivers.server_ender_receiver,
-        )
-        .await
-        .unwrap();
-        let channel = Endpoint::try_from("lttp://[::]:50051")
+        let device_plugin_builder = DevicePluginBuilder {};
+        device_plugin_builder
+            .serve(
+                device_plugin_service,
+                socket_path.clone(),
+                device_plugin_service_receivers.server_ender_receiver,
+            )
+            .await
+            .unwrap();
+        let channel = Endpoint::try_from("dummy://[::]:50051")
             .unwrap()
             .connect_with_connector(service_fn(move |_: Uri| {
                 UnixStream::connect(socket_path.clone())
@@ -1445,12 +1215,12 @@ mod device_plugin_service_tests {
         assert!(result.is_err());
     }
 
-    // Tests when ConnectivityStatus is offline and unhealthy devices are returned
+    // Tests when InstanceConnectivityStatus is offline and unhealthy devices are returned
     #[tokio::test]
     async fn test_build_list_and_watch_response_offline() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Offline(Instant::now()), true);
+            create_device_plugin_service(InstanceConnectivityStatus::Offline(Instant::now()), true);
         let mock = MockKubeInterface::new();
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
@@ -1466,7 +1236,7 @@ mod device_plugin_service_tests {
     async fn test_build_list_and_watch_response_no_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1475,10 +1245,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == instance_namespace && name == instance_name
             })
-            .returning(move |_, _| {
-                let error = Error::new(ErrorKind::InvalidInput, "Instance doesn't exist");
-                Err(Box::new(error))
-            });
+            .returning(move |_, _| Err(get_kube_not_found_error()));
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
                 .await
@@ -1493,7 +1260,7 @@ mod device_plugin_service_tests {
     async fn test_build_list_and_watch_response_no_instance_update() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service.instance_name.clone();
         let instance_namespace = device_plugin_service.config_namespace.clone();
         let mut mock = MockKubeInterface::new();
@@ -1518,7 +1285,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_success() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let node_name = device_plugin_service.node_name.clone();
@@ -1560,7 +1327,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_deallocate() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let mut mock = MockKubeInterface::new();
@@ -1613,7 +1380,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_taken() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let mut mock = MockKubeInterface::new();
         configure_find_instance(
@@ -1652,7 +1419,7 @@ mod device_plugin_service_tests {
     async fn test_internal_allocate_no_id() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(ConnectivityStatus::Online, true);
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let device_usage_id_slot = format!("{}-100", device_plugin_service.instance_name);
         let mut mock = MockKubeInterface::new();
         configure_find_instance(

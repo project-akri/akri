@@ -15,100 +15,15 @@ spec:
             spec:
               type: object
               properties:
-                protocol: # {{ProtocolHandler}}
+                discoveryHandler: # {{DiscoveryHandlerInfo}}
                   type: object
                   properties:
-                    debugEcho: # {{DebugEchoDiscoveryHandler}}
-                      type: object
-                      properties:
-                        shared:
-                          type: boolean
-                        descriptions:
-                          type: array
-                          items:
-                            type: string
-                    onvif: # {{OnvifDiscoveryHandler}}
-                      type: object
-                      properties:
-                        ipAddresses: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        macAddresses: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        scopes: # {{FilterList}}
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                        discoveryTimeoutSeconds:
-                          type: integer
-                    udev:
-                      type: object
-                      properties:
-                        udevRules:
-                          type: array
-                          items:
-                            type: string
-                    opcua:
-                      type: object
-                      properties:
-                        opcuaDiscoveryMethod:
-                          type: object
-                          properties:
-                            standard: # {{StandardOpcuaDiscovery}}
-                              type: object
-                              properties:
-                                  discoveryUrls:
-                                    type: array
-                                    items:
-                                      type: string
-                        applicationNames:
-                          type: object
-                          properties:
-                            action:
-                              type: string
-                              enum:
-                                - Include
-                                - Exclude
-                            items:
-                              type: array
-                              items:
-                                type: string
-                  oneOf:
-                    - required: ["debugEcho"]
-                    - required: ["onvif"]
-                    - required: ["udev"]
-                    - required: ["opcua"]
+                    name:
+                      type: string
+                    discoveryDetails:
+                      type: string
                 capacity:
                   type: integer
-                units:
-                  type: string
                 brokerPodSpec: # {{PodSpec}}
                   x-kubernetes-preserve-unknown-fields: true
                   type: object

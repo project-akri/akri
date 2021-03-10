@@ -4,8 +4,9 @@ kind: Configuration
 metadata:
   name: {{ .Values.opcua.name }}
 spec:
-  protocol:
-    opcua:
+  discoveryHandler:
+    name: opcua
+    discoveryDetails: |+
       opcuaDiscoveryMethod: 
         standard:
           discoveryUrls: 
@@ -23,7 +24,7 @@ spec:
   brokerPodSpec:
     containers:
     - name: {{ .Values.opcua.name }}-broker
-      image: {{ .Values.opcua.brokerPod.image.repository | quote }}
+      image: {{ printf "%s:%s" .Values.opcua.brokerPod.image.repository .Values.opcua.brokerPod.image.tag | quote }}
       {{- with .Values.opcua.brokerPod.image.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}

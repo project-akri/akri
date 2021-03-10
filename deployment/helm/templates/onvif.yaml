@@ -4,8 +4,9 @@ kind: Configuration
 metadata:
   name: {{ .Values.onvif.name }}
 spec:
-  protocol:
-    onvif:
+  discoveryHandler:
+    name: onvif
+    discoveryDetails: |+
       ipAddresses: 
         action: {{ .Values.onvif.ipAddresses.action }}
         {{- if .Values.onvif.ipAddresses.items}}
@@ -36,7 +37,7 @@ spec:
   brokerPodSpec:
     containers:
     - name: {{ .Values.onvif.name }}-broker
-      image: {{ .Values.onvif.brokerPod.image.repository | quote }}
+      image: {{ printf "%s:%s" .Values.onvif.brokerPod.image.repository .Values.onvif.brokerPod.image.tag | quote }}
       {{- with .Values.onvif.brokerPod.image.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}

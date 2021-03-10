@@ -26,11 +26,11 @@ Now, you can see a bunch of attributes you could use to narrow your udev rule. M
 sound devices made by the vendor `Great Vendor`. You set the following udev rule under the udev protocol in your
 Configuration:
 ```yaml
-spec:
-  protocol:
-    udev:
-      udevRules:
-      -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
+discoveryHandler:
+  name: udev
+  discoveryDetails: |+
+    udevRules:
+    -  'SUBSYSTEM=="sound", ATTR{vendor}=="Great Vendor"'
 ```
 
 ### Testing a udev rule
@@ -127,6 +127,8 @@ helm install akri akri-helm-charts/akri \
     --set udev.udevRules[0]='SUBSYSTEM=="sound"\, ATTR{vendor}=="Great Vendor"' \
     --set udev.brokerPod.image.repository=nginx
 ```
+> Note: set `udev.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
 The Configuration will automatically create a broker for each discovered device. It will also create a service for each
 broker and one for all brokers of the Configuration that applications can point to. See the [Customizing Akri
 Installation](./customizing-akri-installation.md) to learn how to [modify the broker pod
@@ -155,7 +157,7 @@ More information about how to modify an installed Configuration, add additional 
 
 ## Implementation details
 The udev implementation can be understood by looking at several things:
-1. [UdevDiscoveryHandlerConfig](../shared/src/akri/configuration.rs) defines the required properties
+1. [UdevDiscoveryDetails](../shared/src/akri/configuration.rs) defines the required properties
 1. [The udev property in akri-configuration-crd.yaml](../deployment/helm/crds/akri-configuration-crd.yaml) validates the
    CRD input
 1. [UdevDiscoveryHandler](../agent/src/protocols/udev/discovery_handler.rs) defines udev camera discovery

@@ -43,7 +43,7 @@ Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discove
 - Proposals for enhancements such as new protocol implementations can be found in the [proposals folder](./docs/proposals)
 
 ## Roadmap
-Akri was built to be extensible. We currently have ONVIF, udev, OPC UA discovery protocols, but as a community, we hope to continuously support more protocols. We have created a [protocol implementation roadmap](./docs/roadmap.md#implement-additional-protocol-handlers) in order to prioritize development of protocols. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation! We are excited to work with you to build a more connected edge.
+Akri was built to be extensible. We currently have ONVIF, udev, OPC UA discovery handlers, but as a community, we hope to continuously support more protocols. We have created a [discovery handler implementation roadmap](./docs/roadmap.md#implement-additional-discovery-handlers) in order to prioritize development of discovery handlers. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation! We are excited to work with you to build a more connected edge.
 
 ## Contributing
 This project welcomes contributions, whether by [creating new issues](https://github.com/deislabs/akri/issues/new/choose) or pull requests. See our [contributing document](./docs/contributing.md) on how to get started.
