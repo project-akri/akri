@@ -2,7 +2,7 @@
 /// either unused or used by this node.
 pub const HEALTHY: &str = "Healthy";
 
-/// For unshared devices, Unhealthy means the device is not discoverable. For shared devices, UnHealthy means that the
+/// For unshared devices, Unhealthy means the device is not discoverable. For shared devices, Unhealthy means that the
 /// device shared and used already by another node.
 pub const UNHEALTHY: &str = "Unhealthy";
 
