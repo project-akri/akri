@@ -320,7 +320,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "agent"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -1059,7 +1059,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "controller"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -1220,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -2410,7 +2410,7 @@ checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2476,7 +2476,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -4551,7 +4551,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -4562,7 +4562,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "akri-shared",
  "env_logger",
