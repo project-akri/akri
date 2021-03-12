@@ -107,6 +107,7 @@ fn filter_configuration(mut v: Value) -> Value {
 
     v
 }
+
 fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
     println!("Validating Configuration");
     match &rqst.object {
@@ -118,8 +119,15 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
-
+            println!(
+                "validate_configuration - deserialized Configuration: {:?}",
+                deserialized
+            );
             let val: Value = filter_configuration(raw.clone());
+            println!(
+                "validate_configuration - expected deserialized format: {:?}",
+                val
+            );
 
             // Do they match?
             match check(&val, &deserialized) {
@@ -289,7 +297,7 @@ mod tests {
                 "spec": {
                     "discoveryHandler": {
                         "name": "debugEcho",
-                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
+                        "discoveryDetails": "descriptions:\n- \"foo0\"\n- \"foo1\"\n"
                     },
                     "brokerPodSpec": {
                         "containers": [
@@ -309,7 +317,8 @@ mod tests {
                             }
                         ]
                     },
-                    "capacity": 1
+                    "capacity": 1,
+                    "properties": {}
                 }
             },
             "oldObject": null,
