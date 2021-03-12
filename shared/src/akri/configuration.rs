@@ -43,7 +43,7 @@ pub struct Configuration {
     /// discover the capability and any information needed by the `DiscoveryHandler`.
     pub discovery_handler: DiscoveryHandlerInfo,
 
-    /// This defines the number of nodes that can schedule worloads for
+    /// This defines the number of nodes that can schedule workloads for
     /// any given capability that is found
     #[serde(default = "default_capacity")]
     pub capacity: i32,
@@ -64,14 +64,14 @@ pub struct Configuration {
 
     /// This defines a service that should be created to access
     /// all of the capabilities found that are described by this
-    /// configuration. For each Configurataion, there is at most
+    /// configuration. For each Configuration, there is at most
     /// 1 device capability service.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration_service_spec: Option<ServiceSpec>,
 
-    /// This defines some properties that will be propogated to
+    /// This defines some properties that will be propagated to
     /// any Instance
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default)]
     pub properties: HashMap<String, String>,
 }
 
@@ -241,7 +241,7 @@ mod crd_serialization_tests {
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
         let expected_deserialized =
-            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4}"#;
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"properties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
