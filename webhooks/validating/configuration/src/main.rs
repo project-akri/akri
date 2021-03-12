@@ -119,9 +119,15 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
-            println!("validate_configuration - deserialized Configuration: {:?}", deserialized);
+            println!(
+                "validate_configuration - deserialized Configuration: {:?}",
+                deserialized
+            );
             let val: Value = filter_configuration(raw.clone());
-            println!("validate_configuration - expected deserialized format: {:?}", val);
+            println!(
+                "validate_configuration - expected deserialized format: {:?}",
+                val
+            );
 
             // Do they match?
             match check(&val, &deserialized) {

@@ -240,8 +240,7 @@ mod crd_serialization_tests {
         assert_eq!(0, deserialized.properties.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized =
-            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"properties":{}}"#;
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"properties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
