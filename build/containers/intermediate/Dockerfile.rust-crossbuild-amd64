@@ -13,8 +13,8 @@ FROM rustembedded/cross:x86_64-unknown-linux-gnu-0.1.16
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends pkg-config \
-            g++ ca-certificates curl libssl-dev \
-            libv4l-dev libudev-dev
+            g++ ca-certificates curl libssl-dev && \
+    apt-get clean
 
 # Link the container to the Akri repository
 LABEL org.opencontainers.image.source https://github.com/deislabs/akri
