@@ -25,7 +25,7 @@ install-cross:
 #    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri`
 #    To make single component: `make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration|debug-echo-discovery|udev-discovery|onvif-discovery|opcua-discovery]`
 #    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration|debug-echo-discovery|udev-discovery|onvif-discovery|opcua-discovery]`
-#
+#	 To make an agent with embedded discovery handlers (on all platforms): `AGENT_FEATURES="agent-full akri-udev akri-opcua akri-onvif" make akri-agent` 
 #
 .PHONY: akri
 akri: akri-build akri-docker-all
@@ -35,15 +35,33 @@ akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-
 akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
 akri-cross-build-amd64:
 ifeq (1, $(BUILD_AMD64))
+ifeq ($(AGENT_FEATURES),)
 	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(AMD64_TARGET)
+else
+	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(AMD64_TARGET) --workspace --exclude agent && \
+	cross build --release --target=$(AMD64_TARGET) --manifest-path agent/Cargo.toml \
+	--features "${AGENT_FEATURES}"
 endif
-akri-cross-build-arm32:
-ifeq (1, ${BUILD_ARM32})
+endif
+akri-cross-build-arm32: 
+ifeq (1, $(BUILD_ARM32))
+ifeq ($(AGENT_FEATURES),)
 	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM32V7_TARGET)
+else
+	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM32V7_TARGET) --workspace --exclude agent && \
+	cross build --release --target=$(ARM32V7_TARGET) --manifest-path agent/Cargo.toml \
+	--features "${AGENT_FEATURES}"
+endif
 endif
 akri-cross-build-arm64:
 ifeq (1, ${BUILD_ARM64})
+ifeq ($(AGENT_FEATURES),)
 	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM64V8_TARGET)
+else
+	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM64V8_TARGET) --workspace --exclude agent && \
+	cross build --release --target=$(ARM64V8_TARGET) --manifest-path agent/Cargo.toml \
+	--features "${AGENT_FEATURES}"
+endif
 endif
 
 # Rust targets

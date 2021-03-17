@@ -68,6 +68,8 @@ agent:
   image:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
+    # fullRepository is the container reference for the Akri Agent with embedded Discovery Handlers
+    fullRepository: ghcr.io/deislabs/akri/agent-full
     # tag is the Akri Agent container tag
     # agent.yaml will default to v(AppVersion)[-dev]
     # with `-dev` added if `useDevelopmentContainers` is specified

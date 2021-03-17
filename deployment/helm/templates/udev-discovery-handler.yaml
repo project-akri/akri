@@ -13,6 +13,8 @@ spec:
       labels:
         name: akri-udev-discovery
     spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
       containers:
       - name: akri-udev-discovery
         {{- if .Values.useDevelopmentContainers }}

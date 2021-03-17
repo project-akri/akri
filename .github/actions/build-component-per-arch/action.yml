@@ -25,6 +25,9 @@ inputs:
   build_rust:
     description: Specify whether rust is being built
     required: true
+  build_agent_full:
+    description: Specify whether Agent with embedded Discovery Handlers should be built
+    required: false
   github_event_name:
     description: Specify the github event name (push, pull_request, release, etc)
     required: true

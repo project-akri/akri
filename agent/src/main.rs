@@ -17,7 +17,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::broadcast;
-#[cfg(feature = "agent-all-in-one")]
+#[cfg(feature = "agent-full")]
 use util::registration::register_embedded_discovery_handlers;
 use util::{
     config_action,
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         broadcast::Receiver<DiscoveryHandlerName>,
     ) = broadcast::channel(NEW_DISCOVERY_HANDLER_CHANNEL_CAPACITY);
     let new_discovery_handler_sender_clone = new_discovery_handler_sender.clone();
-    #[cfg(feature = "agent-all-in-one")]
+    #[cfg(feature = "agent-full")]
     register_embedded_discovery_handlers(discovery_handler_map_clone.clone())?;
 
     // Start registration service for registering `DiscoveryHandlers`

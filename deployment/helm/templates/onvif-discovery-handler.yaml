@@ -13,6 +13,8 @@ spec:
       labels:
         name: akri-onvif-discovery
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: akri-onvif-discovery
         {{- if .Values.useDevelopmentContainers }}

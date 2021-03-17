@@ -56,9 +56,11 @@ mock_instant = { version = "0.2", features = ["sync"] }
 tempfile = "3.1.0"
 
 [features]
-default = ["onvif-feat", "opcua-feat", "udev-feat", "agent-all-in-one"]
+# To embed discovery handlers, add the desired discovery handler features to default and "agent-full".
+# Or set the features when building the agent with  
+# `cargo build --manifest-path agent/Cargo.toml --features "agent-full akri-udev akri-opcua akri-udev"`
+default = []
 onvif-feat = [ "akri-onvif"]
 opcua-feat = ["akri-opcua"]
 udev-feat = ["akri-udev"]
-agent-all-in-one = []
-agent-slim = []
+agent-full = []
