@@ -37,6 +37,8 @@
 !target/x86_64-unknown-linux-gnu/release/controller
 !target/x86_64-unknown-linux-gnu/debug/agent
 !target/x86_64-unknown-linux-gnu/release/agent
+!target/x86_64-unknown-linux-gnu/debug/agent-full
+!target/x86_64-unknown-linux-gnu/release/agent-full
 !target/x86_64-unknown-linux-gnu/debug/udev-video-broker
 !target/x86_64-unknown-linux-gnu/release/udev-video-broker
 !target/x86_64-unknown-linux-gnu/debug/webhook-configuration
@@ -49,6 +51,8 @@
 !target/aarch64-unknown-linux-gnu/release/controller
 !target/aarch64-unknown-linux-gnu/debug/agent
 !target/aarch64-unknown-linux-gnu/release/agent
+!target/aarch64-unknown-linux-gnu/debug/agent-full
+!target/aarch64-unknown-linux-gnu/release/agent-full
 !target/aarch64-unknown-linux-gnu/debug/udev-video-broker
 !target/aarch64-unknown-linux-gnu/release/udev-video-broker
 !target/aarch64-unknown-linux-gnu/debug/webhook-configuration
@@ -61,6 +65,8 @@
 !target/armv7-unknown-linux-gnueabihf/release/controller
 !target/armv7-unknown-linux-gnueabihf/debug/agent
 !target/armv7-unknown-linux-gnueabihf/release/agent
+!target/armv7-unknown-linux-gnueabihf/debug/agent-full
+!target/armv7-unknown-linux-gnueabihf/release/agent-full
 !target/armv7-unknown-linux-gnueabihf/debug/udev-video-broker
 !target/armv7-unknown-linux-gnueabihf/release/udev-video-broker
 !target/armv7-unknown-linux-gnueabihf/debug/webhook-configuration

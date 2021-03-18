@@ -51,6 +51,9 @@ tonic-build = "0.1.1"
 [dev-dependencies]
 # for testing using a simple discovery handler
 akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
+akri-onvif = { path = "../discovery-handlers/onvif" }
+akri-opcua = { path = "../discovery-handlers/opcua" }
+akri-udev = { path = "../discovery-handlers/udev"}
 mockall = "0.9.0"
 mock_instant = { version = "0.2", features = ["sync"] }
 tempfile = "3.1.0"
@@ -58,7 +61,7 @@ tempfile = "3.1.0"
 [features]
 # To embed discovery handlers, add the desired discovery handler features to default and "agent-full".
 # Or set the features when building the agent with  
-# `cargo build --manifest-path agent/Cargo.toml --features "agent-full akri-udev akri-opcua akri-udev"`
+# `cargo build --manifest-path agent/Cargo.toml --features "agent-full akri-udev akri-opcua akri-onvif"`
 default = []
 onvif-feat = [ "akri-onvif"]
 opcua-feat = ["akri-opcua"]

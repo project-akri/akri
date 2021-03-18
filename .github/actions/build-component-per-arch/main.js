@@ -63,10 +63,8 @@ async function shell_cmd(cmd) {
                 return
         }
         
-        if (core.getInput('build_agent_full')) {
-            process.env.AGENT_FEATURES = "agent-full akri-udev akri-opcua akri-onvif"
-        }
-        
+        process.env.AGENT_FEATURES = "agent-full akri-udev akri-opcua akri-onvif"
+
         console.log(`Makefile build target suffix: ${makefile_target_suffix}`)
 
         if (core.getInput('build_rust') == '1') {

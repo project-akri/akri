@@ -2,6 +2,9 @@ BUILD_AMD64 ?= 1
 BUILD_ARM32 ?= 1
 BUILD_ARM64 ?= 1
 
+BUILD_SLIM_AGENT ?= 1
+FULL_AGENT_EXECUTABLE_NAME ?= agent-full
+
 REGISTRY ?= devcaptest.azurecr.io
 UNIQUE_ID ?= $(USER)
 
