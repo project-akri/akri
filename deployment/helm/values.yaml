@@ -63,8 +63,8 @@ controller:
 agent:
   # enabled defines whether to apply the Akri Agent
   enabled: true
-  # slim specifies that discovery handlers will be run outside of the Agent
-  slim: false
+  # full specifies that the `agent-full` image should be used which has embedded Discovery Handlers
+  full: false
   image:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
