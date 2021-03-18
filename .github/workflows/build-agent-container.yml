@@ -1,4 +1,4 @@
-name: Build Agent with Embedded Discovery Handlers
+name: Build Agents
 
 on:
   workflow_run:
