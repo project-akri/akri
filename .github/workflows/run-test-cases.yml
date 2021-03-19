@@ -60,6 +60,8 @@ jobs:
           BUILD_AMD64: 1
           BUILD_ARM32: 0
           BUILD_ARM64: 0
+          BUILD_SLIM_AGENT: 0
+          AGENT_FEATURES: "agent-full"
           PREFIX: ghcr.io/deislabs/akri
           LABEL_PREFIX: pr
         run: |
@@ -67,7 +69,7 @@ jobs:
           make controller-build-amd64
           make agent-build-amd64
           make webhook-configuration-build-amd64
-          docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
+          docker save ${PREFIX}/agent-full:${LABEL_PREFIX}-amd64 > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX}-amd64 > webhook-configuration.tar
 
