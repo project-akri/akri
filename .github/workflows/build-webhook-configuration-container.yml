@@ -43,12 +43,12 @@ jobs:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           workflow_conclusion: success
           commit: ${{ github.event.workflow_run.head_sha }}
-          name: rust-${{ matrix.arch.label }}-binaries
+          name: rust-${{ matrix.arch }}-binaries
           path: /tmp
 
       - name: Unpack Rust binaries
         run: |
-          tar -xvf /tmp/rust-${{ matrix.arch.label }}-binaries.tar
+          tar -xvf /tmp/rust-${{ matrix.arch }}-binaries.tar
 
       - name: Run Per-Arch component build for ${{ env.AKRI_COMPONENT }}
         uses: ./.github/actions/build-component-per-arch
