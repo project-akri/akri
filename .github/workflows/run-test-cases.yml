@@ -62,6 +62,8 @@ jobs:
           BUILD_ARM64: 0
           BUILD_SLIM_AGENT: 0
           AGENT_FEATURES: "agent-full"
+          PACKAGES_TO_EXCLUDE: "akri-udev akri-onvif akri-opcua udev-video-broker debug-echo-discovery-handler onvif-discovery-handler opcua-discovery-handler udev-discovery-handler"
+          BUILD_RELEASE_FLAG: ""
           PREFIX: ghcr.io/deislabs/akri
           LABEL_PREFIX: pr
         run: |

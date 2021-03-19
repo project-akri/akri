@@ -10,15 +10,19 @@ include build/akri-python-containers.mk
 #
 # Build the Agent without any Discovery Handlers embedded
 define agent_build_slim
-	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(1) --manifest-path agent/Cargo.toml
+	PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml
 endef
 
 # Build the Agent with features that embed Discovery Handlers and rename the executable in case subsequently
 # building a slim Agent
 define agent_build_with_features
-	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(1) --manifest-path agent/Cargo.toml \
-	--features "${AGENT_FEATURES}" && \
+	PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml \
+	--features "${AGENT_FEATURES}"
+ifeq ($(if $(BUILD_RELEASE_FLAG), --release), --release)
 	mv target/$(1)/release/agent target/$(1)/release/${FULL_AGENT_EXECUTABLE_NAME}
+else
+	mv target/$(1)/debug/agent target/$(1)/debug/${FULL_AGENT_EXECUTABLE_NAME}
+endif
 endef
 
 #
@@ -53,7 +57,7 @@ akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-
 akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
 akri-cross-build-amd64:
 ifeq (1, $(BUILD_AMD64))
-	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(AMD64_TARGET) --workspace --exclude agent 
+	PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(AMD64_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
 ifneq ($(AGENT_FEATURES),)
 	$(call agent_build_with_features,$(AMD64_TARGET))
 endif
@@ -63,7 +67,7 @@ endif
 endif
 akri-cross-build-arm32: 
 ifeq (1, $(BUILD_ARM32))
-	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM32V7_TARGET) --workspace --exclude agent 
+	PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(ARM32V7_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
 ifneq ($(AGENT_FEATURES),)
 	$(call agent_build_with_features,$(ARM32V7_TARGET))
 endif
@@ -73,7 +77,7 @@ endif
 endif
 akri-cross-build-arm64:
 ifeq (1, ${BUILD_ARM64})
-	PKG_CONFIG_ALLOW_CROSS=1 cross build --release --target=$(ARM64V8_TARGET) --workspace --exclude agent 
+	PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(ARM64V8_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
 ifneq ($(AGENT_FEATURES),)
 	$(call agent_build_with_features,$(ARM64V8_TARGET))
 endif

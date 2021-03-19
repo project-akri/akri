@@ -2,6 +2,14 @@ BUILD_AMD64 ?= 1
 BUILD_ARM32 ?= 1
 BUILD_ARM64 ?= 1
 
+# Specify flag to build optimized release version of rust components.
+# Set to be empty to use debug builds.
+BUILD_RELEASE_FLAG ?= 1
+
+# Space separated list of packages to not build such as the following to not build 
+# the udev discovery handler library or module: "akri-udev udev-discovery-handler"
+PACKAGES_TO_EXCLUDE ?=
+
 BUILD_SLIM_AGENT ?= 1
 FULL_AGENT_EXECUTABLE_NAME ?= agent-full
 
