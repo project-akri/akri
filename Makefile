@@ -6,9 +6,15 @@ BUILD_ARM64 ?= 1
 # Set to be empty to use debug builds.
 BUILD_RELEASE_FLAG ?= 1
 
-# Space separated list of packages to not build such as the following to not build 
+# Space separated list of rust packages to not build such as the following to not build 
 # the udev discovery handler library or module: "akri-udev udev-discovery-handler"
 PACKAGES_TO_EXCLUDE ?=
+
+# Incremental compilation causes rustc to save additional information to disk which will be 
+# reused when recompiling the crate, improving re-compile times. 
+# The additional information is stored in the target directory.
+# By default for cargo builds, it is enabled.
+CARGO_INCREMENTAL ?= 1
 
 BUILD_SLIM_AGENT ?= 1
 FULL_AGENT_EXECUTABLE_NAME ?= agent-full

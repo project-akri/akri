@@ -66,6 +66,7 @@ jobs:
           BUILD_RELEASE_FLAG: ""
           PREFIX: ghcr.io/deislabs/akri
           LABEL_PREFIX: pr
+          CARGO_INCREMENTAL: 0
         run: |
           make akri-build
           make controller-build-amd64
