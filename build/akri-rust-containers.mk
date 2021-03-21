@@ -13,6 +13,7 @@ define add_rust_targets
   $(1)-build-arm32:
   ifeq (1, ${BUILD_ARM32})
 	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM32V7_TARGET) --build-arg BUILD_TYPE=$(if $(BUILD_RELEASE_FLAG),release,debug)
+  endif
   $(1)-build-arm64:
   ifeq (1, ${BUILD_ARM64})
 	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM64V8_TARGET) --build-arg BUILD_TYPE=$(if $(BUILD_RELEASE_FLAG),release,debug)
