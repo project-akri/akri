@@ -79,6 +79,8 @@ jobs:
         components: clippy, rustfmt
 
     - name: Build production rust for ${{ matrix.arch.label }}
+      env:
+        AGENT_FEATURES: "agent-full akri-udev akri-opcua akri-onvif" 
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         make install-cross

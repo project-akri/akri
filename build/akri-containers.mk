@@ -18,11 +18,7 @@ endef
 define agent_build_with_features
 	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml \
 	--features "${AGENT_FEATURES}"
-ifeq ($(if $(BUILD_RELEASE_FLAG), --release), --release)
-	mv target/$(1)/release/agent target/$(1)/release/${FULL_AGENT_EXECUTABLE_NAME}
-else
-	mv target/$(1)/debug/agent target/$(1)/debug/${FULL_AGENT_EXECUTABLE_NAME}
-endif
+	mv target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/agent target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/${FULL_AGENT_EXECUTABLE_NAME}
 endef
 
 #
