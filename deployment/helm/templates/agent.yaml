@@ -53,7 +53,7 @@ spec:
             value: "1"
           {{- /* environment variable to tell the Agent's embedded debug echo Discovery Handler whether its instances are shared */}}
           - name: DEBUG_ECHO_INSTANCES_SHARED
-            value: {{ .Values.debugEcho.shared | quote }}
+            value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
             value: /host/usr/bin/crictl
