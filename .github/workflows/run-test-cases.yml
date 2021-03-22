@@ -70,7 +70,7 @@ jobs:
         run: |
           make akri-build
           make controller-build-amd64
-          make agent-build-amd64
+          make agent-full-build-amd64
           make webhook-configuration-build-amd64
           docker save ${PREFIX}/agent-full:${LABEL_PREFIX}-amd64 > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
