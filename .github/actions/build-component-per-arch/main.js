@@ -62,8 +62,6 @@ async function shell_cmd(cmd) {
                 core.setFailed(`Failed with unknown platform: ${core.getInput('platform')}`)
                 return
         }
-        
-        process.env.AGENT_FEATURES = "agent-full akri-udev akri-opcua akri-onvif"
 
         console.log(`Makefile build target suffix: ${makefile_target_suffix}`)
 
