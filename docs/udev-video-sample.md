@@ -7,7 +7,7 @@ Udev is a device manager for the Linux kernel. The udev discovery handler parses
 To use create a udev Configuration for video devices for your cluster, you can simply set `udev.enabled=true` and a udev rule of `--set udev.udevRules[0]='KERNEL==\"video[0-9]*\"'` when installing the Akri Helm chart. Optionally, set a name for your generated Configuration by setting `--set udev.name=akri-udev-video` and add a broker image in the case you want a workload automatically deployed to discovered devices. More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set udev.enabled=true \
     --set udev.name=akri-udev-video \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
@@ -28,7 +28,7 @@ Instead of finding all video4linux device nodes, the udev rule can be modified t
 For example, the rule can be narrowed by matching cameras with specific properties. To see the properties of a camera on a node, do `udevadm info --query=property --name /dev/video0`, passing in the proper devnode name. In this example, `ID_VENDOR=Microsoft` was one of the outputted properties. To only find cameras made by Microsoft, the rule can be modified like the following:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Microsoft"' \
     --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
@@ -37,7 +37,7 @@ helm install akri akri-helm-charts/akri \
 As another example, to make sure that the camera has a capture capability rather than just being a video output device, modify the udev rule as follows: 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"\, ENV{ID_V4L_CAPABILITIES}=="*:capture:*"' \
     --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
@@ -46,7 +46,7 @@ helm install akri akri-helm-charts/akri \
 ### Modifying the brokerPod spec
 The `brokerPodSpec` property is a full [PodSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podspec-v1-core) and can be modified as such.  For example, to configure the frame rate, resolution, and image type the broker streams from the discovered video cameras, environment variables can be modified in the podspec. To examine what settings are supported by a camera, install `v4l-utils` and run `sudo v4l2-ctl -d /dev/video0 --list-formats-ext` on the node. By default, the environment variables are set to MJPG format, 640x480 resolution, and 10 frames per second. If the broker sees that those settings are not supported by the camera, it will query the v4l device for supported settings and use the first format, resolution, and fps in the lists returned. The environment variables can be changed when installing the Akri Helm chart. For example, tell the broker to stream JPEG format, 1000x800 resolution, and 30 frames per second by setting those environment variables when installing Akri.
 ```bash
-  helm install akri akri-helm-charts/akri \
+  helm install akri akri-helm-charts/akri-dev \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
     --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker" \

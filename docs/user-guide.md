@@ -30,7 +30,7 @@ helm install akri akri-helm-charts/akri
 
 To use the latest containers of the Akri components, add `--set useLatestContainers=true` when installing Akri like so:
 ```sh
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
    --set useLatestContainers=true 
 ```
 
@@ -106,7 +106,7 @@ Let's walk through building an Akri installation command:
     ```
 2. Install Akri's Controller and Agent, specifying the crictl configuration from [prerequisites above](#setting-up-your-cluster) in not using vanilla Kubernetes:
     ```sh
-     helm install akri akri-helm-charts/akri \
+     helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION 
     ```
     > Note: To use Akri's latest dev releases, specify `akri-helm-charts/akri-dev`
@@ -134,7 +134,7 @@ Let's walk through building an Akri installation command:
 Installation could have been done in one step rather than a series of upgrades:
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set <discovery handler name>.discovery.enabled \
     --set <discovery handler name>.configuration.enabled \
     # set any discovery details in the Configuration
@@ -142,7 +142,7 @@ helm install akri akri-helm-charts/akri \
 ```
 As a real example, Akri's Controller, Agents, udev Discovery Handlers, and a udev Configuration that specifies the discovery of only USB video devices and an nginx broker image are installed like so:
 ```sh
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set udev.discovery.enabled \
     --set udev.configuration.enabled \
     --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"' \
