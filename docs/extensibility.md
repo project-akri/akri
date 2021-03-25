@@ -434,7 +434,7 @@ discovers the devices and creates Akri Instances for each Device.
 > ```
 
 Akri has provided helm templates for custom Discovery Handlers and their Configurations. These templates are provided as
-a starting point. They may need to modified to meet the needs of a Discovery Handler. When installing Akri, specify that
+a starting point. They may need to be modified to meet the needs of a Discovery Handler. When installing Akri, specify that
 you want to deploy a custom Discovery Handler as a DaemonSet by setting `custom.discovery.enabled=true`.
 Specify the container for that DaemonSet as the HTTP discovery handler that you built
 [above](###build-the-discoveryhandler-container) by setting `custom.discovery.image.repository=$DH_IMAGE` and `custom.discovery.image.repository=$TAGS`. To

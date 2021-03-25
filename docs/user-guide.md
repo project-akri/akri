@@ -5,9 +5,10 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a Discovery Handler
-that can be used to discover resources of that type. Akri discovers devices via Discovery Handlers, which are often protocol implementations that understand filter information passed via an Akri Configuration. To see the list of currently supported Discovery Handlers, see our
-[roadmap](./roadmap.md). These Discovery Handlers can be embedded in the Akri Agent (via the Helm setting `agent.full=true`), which runs on every worker node in a cluster, or run in their own Pods (default).  
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a
+Discovery Handler that can be used to discover resources of that type. Akri discovers devices via Discovery Handlers,
+which are often protocol implementations that understand filter information passed via an Akri Configuration. To see the
+list of currently supported Discovery Handlers, see our [roadmap](./roadmap.md).
 
 ### Understanding Akri Helm charts
 Akri is most easily deployed with Helm charts.  Helm charts provide convenient packaging and configuration.
@@ -34,10 +35,14 @@ helm install akri akri-helm-charts/akri-dev \
    --set useLatestContainers=true 
 ```
 
-Starting in v0.4.0, Akri will support two Agents, one that includes all supported Discovery Handlers and one without any
-embedded Discovery Handlers. By default, the latter one will be used and the required Discovery Handlers can be deployed
-as DaemonSets by setting `<discovery handler name>.discovery.enabled=true` when installing Akri. To instead use the
-Agent with embedded udev, OPC UA, and ONVIF Discovery Handlers, set `agent.full=true`.
+Before v0.4.0, all of Akri's Discovery Handlers were embedded in the Agent. As more Discovery Handlers are added to
+Akri, this will become unsustainable and cause the Agent to have a larger footprint than oftentimes necessary (if only
+one of the many Discovery Handlers is being leveraged). Starting in v0.4.0, Akri is starting the transition to mainly
+supporting an Agent image without any embedded Discovery Handlers, which will be the image used by Akri's Helm chart by
+default. The required Discovery Handlers can be deployed as DaemonSets by setting `<discovery handler
+name>.discovery.enabled=true` when installing Akri, as explained in the [user flow](#installing-akri-flow). To instead
+use the previous strategy of an Agent image with embedded udev, OPC UA, and ONVIF Discovery Handlers, set
+`agent.full=true`.
 
 To see which version of the **akri** and **akri-dev** Helm charts are stored locally, run  `helm inspect chart akri-helm-charts/akri` and `helm inspect chart akri-helm-charts/akri-dev`, respectively.
 
@@ -116,7 +121,8 @@ Let's walk through building an Akri installation command:
     helm upgrade akri akri-helm-charts/akri \
         --set <discovery handler name>.discovery.enabled
     ```
-    > Note: To install a full Agent with embedded udev, OPC UA, and ONVIF Discovery Handlers, set `agent.full=true` instead of enabling the Discovery Handlers:
+    > Note: To install a full Agent with embedded udev, OPC UA, and ONVIF Discovery Handlers, set `agent.full=true` instead of enabling the Discovery Handlers. Note, this we restart the 
+    > Agent Pods.
     > ```sh
     > helm upgrade akri akri-helm-charts/akri \
     >    --set agent.full=true
