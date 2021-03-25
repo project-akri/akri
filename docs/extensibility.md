@@ -434,29 +434,30 @@ discovers the devices and creates Akri Instances for each Device.
 > ```
 
 Akri has provided helm templates for custom Discovery Handlers and their Configurations. These templates are provided as
-a starting point. They may need to modified to meet the needs of a Discovery Handler. When installing Akri, specify that
-you want to deploy a custom Discovery Handler as a Daemonset by setting `customDiscovery.discovery.enabled=true`.
+a starting point. They may need to be modified to meet the needs of a Discovery Handler. When installing Akri, specify that
+you want to deploy a custom Discovery Handler as a DaemonSet by setting `custom.discovery.enabled=true`.
 Specify the container for that DaemonSet as the HTTP discovery handler that you built
-[above](###build-the-discoveryhandler-container) by setting `customDiscovery.discovery.image.repository=$DH_IMAGE` and `customDiscovery.discovery.image.repository=$TAGS`. To
-automatically deploy a custom Configuration, set `customDiscovery.enabled=true`. We will customize this Configuration to
+[above](###build-the-discoveryhandler-container) by setting `custom.discovery.image.repository=$DH_IMAGE` and `custom.discovery.image.repository=$TAGS`. To
+automatically deploy a custom Configuration, set `custom.configuration.enabled=true`. We will customize this Configuration to
 contain the discovery endpoint needed by our HTTP Discovery Handler by setting it in the `discovery_details` string of
-the Configuration, like so: `customDiscovery.discoveryDetails=http://discovery:9999/discovery`. We also need to set the
-protocol name the Discovery Handler will register under (`customDiscovery.discoveryHandlerName`) and a name for the
-Discovery Handler and Configuration (`customDiscovery.name`). All these settings come together as the following Akri
+the Configuration, like so: `custom.configuration.discoveryDetails=http://discovery:9999/discovery`. We also need to set the
+name the Discovery Handler will register under (`custom.configuration.discoveryHandlerName`) and a name for the
+Discovery Handler and Configuration (`custom.discovery.name` and `custom.configuration.name`). All these settings come together as the following Akri
 installation command:
 > Note: Be sure to consult the [user guide](./user-guide.md) to see whether your Kubernetes distribution needs any
 > additional configuration.
 ```bash
   helm repo add akri-helm-charts https://deislabs.github.io/akri/
   helm install akri akri-helm-charts/akri-dev \
-  --set imagePullSecrets[0].name="crPullSecret" \
-  --set customDiscovery.discovery.enabled=true  \
-  --set customDiscovery.discovery.image.repository=$DH_IMAGE \
-  --set customDiscovery.discovery.image.tag=$TAGS \
-  --set customDiscovery.enabled=true  \
-  --set customDiscovery.name=akri-http  \
-  --set customDiscovery.discoveryHandlerName=http \
-  --set customDiscovery.discoveryDetails=http://discovery:9999/discovery
+    --set imagePullSecrets[0].name="crPullSecret" \
+    --set custom.discovery.enabled=true  \
+    --set custom.discovery.image.repository=$DH_IMAGE \
+    --set custom.discovery.image.tag=$TAGS \
+    --set custom.discovery.name=akri-http-discovery  \
+    --set custom.configuration.enabled=true  \
+    --set custom.configuration.name=akri-http  \
+    --set custom.configuration.discoveryHandlerName=http \
+    --set custom.configuration.discoveryDetails=http://discovery:9999/discovery
   ```
 
 Watch as the Agent, Controller, and Discovery Handler Pods are spun up and as Instances are created for each of the
@@ -470,14 +471,15 @@ resources, by updating our Configuration to include a broker PodSpec.
 ```bash
   helm upgrade akri akri-helm-charts/akri-dev \
     --set imagePullSecrets[0].name="crPullSecret" \
-    --set customDiscovery.discovery.enabled=true  \
-    --set customDiscovery.discovery.image.repository=$DH_IMAGE \
-    --set customDiscovery.discovery.image.tag=$TAGS \
-    --set customDiscovery.enabled=true  \
-    --set customDiscovery.name=akri-http  \
-    --set customDiscovery.discoveryHandlerName=http \
-    --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
-    --set customDiscovery.brokerPod.image.repository=nginx
+    --set custom.discovery.enabled=true  \
+    --set custom.discovery.image.repository=$DH_IMAGE \
+    --set custom.discovery.image.tag=$TAGS \
+    --set custom.discovery.name=akri-http-discovery  \
+    --set custom.configuration.enabled=true  \
+    --set custom.configuration.name=akri-http  \
+    --set custom.configuration.discoveryHandlerName=http \
+    --set custom.configuration.discoveryDetails=http://discovery:9999/discovery \
+    --set custom.brokerPod.image.repository=nginx
   watch kubectl get pods,akrii
 ```
 Our empty nginx brokers do not do anything with the devices they've requested, so lets create our own broker.
@@ -498,7 +500,7 @@ branch](https://github.com/deislabs/akri/tree/http-extensibility), 2 in Rust and
   scenario in which the broker proxies client requests using gRPC to HTTP-based devices. The advantage of this approach
   is that device functionality is encapsulated by an API that is exposed by the broker. In this case the API has a
   single method but in practice, there could be many methods implemented.
-* The third implemnentation is a gRPC-based broker and companion client implemented in Golang. This is functionally
+* The third implementation is a gRPC-based broker and companion client implemented in Golang. This is functionally
   equivalent to the Rust implementation and shares a protobuf definition. For this reason, you may combine the Rust
   broker and client with the Golang broker and client arbitrarily. The Golang broker is described in the
   [`http-apps`](https://github.com/deislabs/akri/blob/http-extensibility/samples/apps/http-apps/README.md) directory.
@@ -654,15 +656,16 @@ used in our installation command.
 ```bash
   helm upgrade akri akri-helm-charts/akri-dev \
     --set imagePullSecrets[0].name="crPullSecret" \
-    --set customDiscovery.discovery.enabled=true  \
-    --set customDiscovery.discovery.image.repository=$DH_IMAGE \
-    --set customDiscovery.discovery.image.tag=$TAGS \
-    --set customDiscovery.enabled=true  \
-    --set customDiscovery.name=akri-http  \
-    --set customDiscovery.discoveryHandlerName=http \
-    --set customDiscovery.discoveryDetails=http://discovery:9999/discovery \
-    --set customDiscovery.brokerPod.image.repository=$BROKER_IMAGE \
-    --set customDiscovery.brokerPod.image.tag=$TAGS
+    --set custom.discovery.enabled=true  \
+    --set custom.discovery.image.repository=$DH_IMAGE \
+    --set custom.discovery.image.tag=$TAGS \
+    --set custom.discovery.name=akri-http-discovery  \
+    --set custom.configuration.enabled=true  \
+    --set custom.configuration.name=akri-http  \
+    --set custom.configuration.discoveryHandlerName=http \
+    --set custom.configuration.discoveryDetails=http://discovery:9999/discovery \
+    --set custom.brokerPod.image.repository=$BROKER_IMAGE \
+    --set custom.brokerPod.image.tag=$TAGS
   watch kubectl get pods,akrii
 ```
 > Note: substitute `helm upgrade` for `helm install` if you do not have an existing Akri installation

@@ -4,9 +4,9 @@ ARG CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu
 FROM ${PLATFORM}/debian:buster-slim
 
 ARG CROSS_BUILD_TARGET
-
+ARG BUILD_TYPE=release
 RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim"
-RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}"
+RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}/${BUILD_TYPE}"
 
 # Link the container to the Akri repository
 LABEL org.opencontainers.image.source https://github.com/deislabs/akri
@@ -16,7 +16,7 @@ COPY ./build/container-images-legal-notice.md .
 
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
 
-COPY ./target/${CROSS_BUILD_TARGET}/release/webhook-configuration /server
+COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/webhook-configuration /server
 
 ENV RUST_LOG agent,akri_shared
 

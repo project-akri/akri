@@ -12,8 +12,11 @@ spec:
       labels:
         name: akri-agent
     spec:
+      {{- /* hostNetwork is only needed for embedded ONVIF discovery */}}
+      {{- if .Values.agent.full }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       {{- if .Values.agent.linuxOnly }}
       nodeSelector:
         "kubernetes.io/os": linux
@@ -23,17 +26,18 @@ spec:
       {{- end }}
       containers:
       - name: akri-agent
+        {{- $repository := ternary .Values.agent.image.fullRepository .Values.agent.image.repository .Values.agent.full -}}
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" .Values.agent.image.repository | quote }}
+        image: {{ printf "%s:latest-dev" $repository | quote }}
         {{- else }}
-        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        image: {{ printf "%s:%s" $repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" .Values.agent.image.repository | quote }}
+        image: {{ printf "%s:latest" $repository | quote }}
         {{- else }}
-        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        image: {{ printf "%s:%s" $repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- end }}
         {{- with .Values.agent.image.pullPolicy }}
@@ -49,7 +53,7 @@ spec:
             value: "1"
           {{- /* environment variable to tell the Agent's embedded debug echo Discovery Handler whether its instances are shared */}}
           - name: DEBUG_ECHO_INSTANCES_SHARED
-            value: {{ .Values.debugEcho.shared | quote }}
+            value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
             value: /host/usr/bin/crictl

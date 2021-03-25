@@ -48,7 +48,7 @@ installing Akri.
 Install Akri and expose the Controller and Agent's metrics to Prometheus by running:
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set prometheus.enabled=true
 ```
 > **Note**: This documentation assumes you are using vanilla Kubernetes. Be sure to reference the [user
@@ -100,7 +100,7 @@ process metrics and the custom `akri_frame_count` metric to port 8080 at a `/met
    Configuration name of `akri-udev-video`, by running:
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         --set udev.enabled=true \
         --set udev.name=akri-udev-video \
         --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \

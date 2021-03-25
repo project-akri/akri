@@ -1,18 +1,18 @@
-{{- if .Values.customDiscovery.enabled }}
+{{- if .Values.custom.configuration.enabled }}
 apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
-  name: {{ .Values.customDiscovery.name }}
+  name: {{ .Values.custom.configuration.name }}
 spec:
   discoveryHandler: 
-    name: {{ required "A customDiscovery.discoveryHandlerName is required." .Values.customDiscovery.discoveryHandlerName }}
-    discoveryDetails: {{ .Values.customDiscovery.discoveryDetails }}
-  {{- if .Values.customDiscovery.brokerPod.image.repository }}
+    name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
+    discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
+  {{- if .Values.custom.configuration.brokerPod.image.repository }}
   brokerPodSpec:
     containers:
-    - name: {{ .Values.customDiscovery.name }}-broker
-      image: {{ printf "%s:%s" .Values.customDiscovery.brokerPod.image.repository .Values.customDiscovery.brokerPod.image.tag | quote }}
-      {{- with .Values.customDiscovery.pullPolicy }}
+    - name: {{ .Values.custom.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.custom.configuration.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
       resources:
@@ -23,31 +23,31 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
-  {{- if .Values.customDiscovery.brokerPod.image.repository }}
-  {{- if .Values.customDiscovery.createInstanceServices }}
+  {{- if .Values.custom.configuration.brokerPod.image.repository }}
+  {{- if .Values.custom.configuration.createInstanceServices }}
   instanceServiceSpec:
-    type: {{ .Values.customDiscovery.instanceService.type }}
+    type: {{ .Values.custom.configuration.instanceService.type }}
     ports:
-    - name: {{ .Values.customDiscovery.instanceService.name }}
-      port: {{ .Values.customDiscovery.instanceService.port }}
-      protocol: {{ .Values.customDiscovery.instanceService.protocol }}
-      targetPort: {{ .Values.customDiscovery.instanceService.targetPort }}
+    - name: {{ .Values.custom.configuration.instanceService.name }}
+      port: {{ .Values.custom.configuration.instanceService.port }}
+      protocol: {{ .Values.custom.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.custom.configuration.instanceService.targetPort }}
   {{- end }}
-  {{- if .Values.customDiscovery.createConfigurationService }}
+  {{- if .Values.custom.configuration.createConfigurationService }}
   configurationServiceSpec:
-    type: {{ .Values.customDiscovery.configurationService.type }}
+    type: {{ .Values.custom.configuration.configurationService.type }}
     ports:
-    - name: {{ .Values.customDiscovery.configurationService.name }}
-      port: {{ .Values.customDiscovery.configurationService.port }}
-      protocol: {{ .Values.customDiscovery.configurationService.protocol }}
-      targetPort: {{ .Values.customDiscovery.configurationService.port }}
+    - name: {{ .Values.custom.configuration.configurationService.name }}
+      port: {{ .Values.custom.configuration.configurationService.port }}
+      protocol: {{ .Values.custom.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.custom.configuration.configurationService.port }}
   {{- end }}
   {{- end }}
-  {{- if .Values.customDiscovery.properties }}
+  {{- if .Values.custom.configuration.properties }}
   properties:
   {{- toYaml . | nindent 4 }}
   {{- else }}
   properties: {}
   {{- end }}
-  capacity: {{ .Values.customDiscovery.capacity }}
+  capacity: {{ .Values.custom.configuration.capacity }}
 {{- end }}

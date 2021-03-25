@@ -62,6 +62,7 @@ async function shell_cmd(cmd) {
                 core.setFailed(`Failed with unknown platform: ${core.getInput('platform')}`)
                 return
         }
+
         console.log(`Makefile build target suffix: ${makefile_target_suffix}`)
 
         if (core.getInput('build_rust') == '1') {

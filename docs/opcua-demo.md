@@ -179,7 +179,7 @@ to the OPC Foundation's .NET Console Reference Server.
    security, uncomment `--set opcua.mountCertificates='true'`.   
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         --set opcua.enabled=true \
         --set opcua.name=akri-opcua-monitoring \
         --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
@@ -350,7 +350,7 @@ install Akri with the OPC UA Configuration, passing in the LDS DiscoveryURL inst
 Replace "Windows host IP address" with the IP address of the Windows machine you installed the LDS on (and is hosting
 the servers). Be sure to uncomment mounting certificates if you are enabling security:
 ```sh
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
@@ -375,7 +375,7 @@ include or exclude a list of application names (the `applicationName` property o
 specified by UA Specification 12). For example, to discover all servers registered with the default LDS except for the
 server named "SomeServer0", do the following.
 ```bash
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
@@ -388,7 +388,7 @@ helm install akri akri-helm-charts/akri \
 ```
 Alternatively, to only discover the server named "SomeServer0", do the following:
 ```bash
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set opcua.enabled=true \
     --set opcua.name=akri-opcua-monitoring \
     --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
@@ -410,7 +410,7 @@ passed to it at all. Decide whether to pass environment variables, what servers 
 image to be your container image, say `ghcr.io/<USERNAME>/opcua-broker`.
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
     --set opcua.enabled=true \
     --set opcua.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
     --set opcua.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \

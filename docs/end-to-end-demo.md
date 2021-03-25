@@ -148,29 +148,32 @@ carry out one or the other (or adapt to your distribution), then continue on wit
 
 ## Installing Akri
 You tell Akri what you want to find with an Akri Configuration, which is one of Akri's Kubernetes custom resources. The Akri Configuration is simply a `yaml` file that you apply to your cluster. Within it, you specify three things: 
-1. a discovery protocol
+1. a Discovery Handler
 2. any additional device filtering
 3. an image for a Pod (that we call a "broker") that you want to be automatically deployed to utilize each discovered device
 
-For this demo, we will specify (1) Akri's udev discovery protocol, which is used to discover devices in the Linux device file system. Akri's udev discovery protocol supports (2) filtering by udev rules. We want to find all video devices in the Linux device file system, which can be specified by the udev rule `KERNEL=="video[0-9]*"`. Say we wanted to be more specific and only discover devices made by Great Vendor, we could adjust our rule to be `KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Great Vendor"`. For (3) a broker Pod image, we will use a sample container that Akri has provided that pulls frames from the cameras and serves them over gRPC. 
+For this demo, we will specify (1) Akri's udev Discovery Handler, which is used to discover devices in the Linux device file system. Akri's udev Discovery Handler supports (2) filtering by udev rules. We want to find all video devices in the Linux device file system, which can be specified with the udev rule `KERNEL=="video[0-9]*"`. Say we wanted to be more specific and only discover devices made by Great Vendor, we could adjust our rule to be `KERNEL=="video[0-9]*"\, ENV{ID_VENDOR}=="Great Vendor"`. For (3) a broker Pod image, we will use a sample container that Akri has provided that pulls frames from the cameras and serves them over gRPC. 
 
-Instead of having to build a Configuration from scratch, Akri has provided [Helm templates](../deployment/helm/templates) for each supported discovery protocol. Lets customize the generic [udev Helm template](../deployment/helm/templates/udev.yaml) with our three specifications above. We can also set the name for the Configuration to be `akri-udev-video`. Also, if using MicroK8s or K3s, configure the crictl path and socket using the `AKRI_HELM_CRICTL_CONFIGURATION` variable created when setting up your cluster. 
+All of Akri's components can be deployed by specifying values in its Helm chart during an installation. Instead of having to build a Configuration from scratch, Akri has provided [Helm templates](../deployment/helm/templates) for Configurations for each supported Discovery Handler. Lets customize the generic [udev Configuration Helm template](../deployment/helm/templates/udev.yaml) with our three specifications above. We can also set the name for the Configuration to be `akri-udev-video`. Also, if using MicroK8s or K3s, configure the crictl path and socket using the `AKRI_HELM_CRICTL_CONFIGURATION` variable created when setting up your cluster. 
+
+In order for the Agent to know how to discover video devices, the udev Discovery Handler must exist. Akri supports an Agent image that includes all supported Discovery Handlers. This Agent will be used if `agent.full=true` is set. By default, a slim Agent without any embedded Discovery Handlers is deployed and the required Discovery Handlers can be deployed as DaemonSets. This demo will use that strategy, deploying the udev Discovery Handlers by specifying `udev.discovery.enabled=true` when installing Akri.
 
 1. Add the Akri Helm chart and run the install command, setting Helm values as described above.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
+    helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set udev.enabled=true \
-        --set udev.name=akri-udev-video \
-        --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-        --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker"
+        --set udev.discovery.enabled=true \
+        --set udev.configuration.enabled=true \
+        --set udev.configuration.name=akri-udev-video \
+        --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"' \
+        --set udev.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker" 
     ```
 
 ## Inspecting Akri
 After installing Akri, since the /dev/video1 and /dev/video2 devices are running on this node, the Akri Agent will discover them and create an Instance for each camera. 
 
-1. List all that Akri has automatically created and deployed, namely the Akri Configuration we created when installing Akri, two Instances (which are the Akri custom resource that represents each device), two broker Pods (one for each camera), a service for each broker Pod, and a service for all brokers.
+1. List all that Akri has automatically created and deployed, namely Akri Configuration we created when installing Akri, two Instances (which are the Akri custom resource that represents each device), two broker Pods (one for each camera), a service for each broker Pod, a service for all brokers, the Controller Pod, Agent Pod, and the udev Discovery Handler Pod.
 
     ```sh
     watch microk8s kubectl get pods,akric,akrii,services -o wide
@@ -188,7 +191,7 @@ Look at the Configuration and Instances in more detail.
     ```sh 
     kubectl get akrii -o yaml
     ```
-    If this was a shared device (such as an IP camera), you may have wanted to increase the number of nodes that could use the same device by specifying `capacity`. There is a `capacity` parameter for each protocol, which defaults to `1`. Its value could have been increased when installing Akri (via `--set <protocol>.capacity=2` to allow 2 nodes to use the same device) and more usage slots (the number of usage slots is equal to `capacity`) would have been created in the Instance. 
+    If this was a shared device (such as an IP camera), you may have wanted to increase the number of nodes that could use the same device by specifying `capacity`. There is a `capacity` parameter for each Configuration, which defaults to `1`. Its value could have been increased when installing Akri (via `--set <discovery handler name>.configuration.capacity=2` to allow 2 nodes to use the same device) and more usage slots (the number of usage slots is equal to `capacity`) would have been created in the Instance. 
 ## Deploying a streaming application
 1. Deploy a video streaming web application that points to both the Configuration and Instance level services that were automatically created by Akri.
     ```sh
@@ -255,7 +258,7 @@ Look at the Configuration and Instances in more detail.
 
 ## Going beyond the demo
 1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-the-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
-1. Apply the [ONVIF configuration](onvif-configuration.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
+1. Apply the [ONVIF Configuration](onvif-configuration.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
 1. Add more nodes to the cluster.
 1. [Modify the udev rule](udev-video-sample.md#modifying-the-udev-rule) to find a more specific subset of cameras.
-1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev protocol [here](udev-configuration.md).
+1. Discover other udev devices by creating a new udev configuration and broker. Learn more about the udev Discovery Handler Configuration [here](udev-configuration.md).
