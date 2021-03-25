@@ -951,7 +951,7 @@ pub mod tests {
     }
 
     // Creates a discovery handler with specified properties and adds it to the RegisteredDiscoveryHandlerMap.
-    fn add_discovery_handler_to_map(
+    pub fn add_discovery_handler_to_map(
         dh_name: &str,
         endpoint: &DiscoveryHandlerEndpoint,
         shared: bool,
@@ -1716,6 +1716,7 @@ pub mod tests {
             endpoint_dir,
             endpoint,
             return_error,
+            Vec::new(),
         )
         .await;
         // Make sure registration server has started

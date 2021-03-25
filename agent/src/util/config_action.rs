@@ -54,6 +54,7 @@ pub async fn do_config_watch(
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         tasks.push(tokio::spawn(async move {
             handle_config_add(
+                Arc::new(Box::new(k8s::create_kube_interface())),
                 &config,
                 config_map,
                 discovery_handler_map,
@@ -132,6 +133,7 @@ async fn handle_config(
             );
             tokio::spawn(async move {
                 handle_config_add(
+                    Arc::new(Box::new(k8s::create_kube_interface())),
                     &config,
                     config_map,
                     discovery_handler_map,
@@ -159,6 +161,7 @@ async fn handle_config(
             handle_config_delete(kube_interface, &config, config_map.clone()).await?;
             tokio::spawn(async move {
                 handle_config_add(
+                    Arc::new(Box::new(k8s::create_kube_interface())),
                     &config,
                     config_map,
                     discovery_handler_map,
@@ -179,6 +182,7 @@ async fn handle_config(
 /// This handles added Configuration by creating a new ConfigInfo for it and adding it to the ConfigMap.
 /// Then calls a function to continually observe the availability of instances associated with the Configuration.
 async fn handle_config_add(
+    kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     config: &KubeAkriConfig,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
@@ -211,7 +215,7 @@ async fn handle_config_add(
             new_discovery_handler_sender,
             stop_discovery_sender,
             &mut finished_discovery_sender,
-            Arc::new(Box::new(k8s::create_kube_interface())),
+            kube_interface,
         )
         .await
         .unwrap();
@@ -223,7 +227,7 @@ async fn handle_config_add(
 /// This handles a deleted Configuration. First, it ceases to discover instances associated with the Configuration.
 /// Then, for each of the Configuration's Instances, it signals the DevicePluginService to shutdown,
 /// and deletes the Instance CRD.
-pub async fn handle_config_delete(
+async fn handle_config_delete(
     kube_interface: &impl KubeInterface,
     config: &KubeAkriConfig,
     config_map: ConfigMap,
@@ -308,9 +312,11 @@ mod config_action_tests {
     use super::super::{
         device_plugin_service,
         device_plugin_service::{InstanceConnectivityStatus, InstanceMap},
-        discovery_operator::tests::build_instance_map,
+        discovery_operator::tests::{add_discovery_handler_to_map, build_instance_map},
+        registration::{DiscoveryHandlerEndpoint, DiscoveryHandlerStatus},
     };
     use super::*;
+    use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
     use akri_shared::{akri::configuration::KubeAkriConfig, k8s::MockKubeInterface};
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
@@ -375,5 +381,177 @@ mod config_action_tests {
 
         // Assert that all instances have been removed from the instance map
         assert_eq!(instance_map.lock().await.len(), 0);
+    }
+
+    async fn run_and_test_handle_config_add(
+        discovery_handler_map: RegisteredDiscoveryHandlerMap,
+        config_map: ConfigMap,
+        config: KubeAkriConfig,
+        dh_endpoint: &DiscoveryHandlerEndpoint,
+        dh_name: &str,
+    ) -> tokio::task::JoinHandle<()> {
+        let (new_discovery_handler_sender, _) = broadcast::channel(1);
+        let mut mock_kube_interface = MockKubeInterface::new();
+        mock_kube_interface
+            .expect_create_instance()
+            .times(1)
+            .returning(move |_, _, _, _, _| Ok(()));
+        let arc_mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
+            Arc::new(Box::new(mock_kube_interface));
+        let config_add_config = config.clone();
+        let config_add_config_map = config_map.clone();
+        let config_add_discovery_handler_map = discovery_handler_map.clone();
+        let handle = tokio::spawn(async move {
+            handle_config_add(
+                arc_mock_kube_interface,
+                &config_add_config,
+                config_add_config_map,
+                config_add_discovery_handler_map,
+                new_discovery_handler_sender,
+            )
+            .await
+            .unwrap();
+        });
+
+        // Loop until the Configuration and single discovered Instance are added to the ConfigMap
+        let mut x: i8 = 0;
+        while x < 5 {
+            tokio::time::delay_for(std::time::Duration::from_millis(200)).await;
+            if let Some(config_info) = config_map.lock().await.get(&config.metadata.name) {
+                if config_info.instance_map.lock().await.len() == 1 {
+                    break;
+                }
+            }
+            x += 1;
+        }
+        assert_ne!(x, 4);
+        // Assert that Discovery Handler is marked as Active
+        check_discovery_handler_status(
+            discovery_handler_map,
+            dh_name,
+            dh_endpoint,
+            DiscoveryHandlerStatus::Active,
+        )
+        .await;
+        handle
+    }
+
+    async fn check_discovery_handler_status(
+        discovery_handler_map: RegisteredDiscoveryHandlerMap,
+        dh_name: &str,
+        dh_endpoint: &DiscoveryHandlerEndpoint,
+        dh_status: DiscoveryHandlerStatus,
+    ) {
+        let mut x: i8 = 0;
+        while x < 5 {
+            tokio::time::delay_for(std::time::Duration::from_millis(200)).await;
+            let dh_map = discovery_handler_map.lock().unwrap();
+            if let Some(dh_details_map) = dh_map.get(dh_name) {
+                if dh_details_map.get(dh_endpoint).unwrap().connectivity_status == dh_status {
+                    break;
+                }
+            }
+            x += 1;
+        }
+        assert_ne!(x, 4);
+    }
+
+    // Tests that when a Configuration is added, deleted, and added again,
+    // instances are created, deleted and recreated,
+    // and the Discovery Handler is marked as Active, Waiting, Active, and Waiting.
+    // Also asserts that all threads are successfully terminated.
+    #[tokio::test]
+    async fn test_handle_config_add_delete_add() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        // Set up Discovery Handler
+        // Start a mock DH, specifying that it should NOT return an error
+        let return_error = false;
+        let (endpoint_dir, endpoint) =
+            mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
+        let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
+        let device_id = "device_id";
+        let _dh_server_thread_handle = mock_discovery_handler::run_mock_discovery_handler(
+            &endpoint_dir,
+            &endpoint,
+            return_error,
+            vec![Device {
+                id: device_id.to_string(),
+                properties: HashMap::new(),
+                mounts: Vec::default(),
+                device_specs: Vec::default(),
+            }],
+        )
+        .await;
+        // Make sure registration server has started
+        akri_shared::uds::unix_stream::try_connect(&endpoint)
+            .await
+            .unwrap();
+
+        // Add Discovery Handler to map
+        let dh_name = "debugEcho";
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        add_discovery_handler_to_map(dh_name, &dh_endpoint, false, discovery_handler_map.clone());
+
+        // Set up, run, and test handle_config_add
+        // Discovery Handler should create an instance and be marked as Active
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_name = config.metadata.name.clone();
+        let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
+        let first_add_handle = run_and_test_handle_config_add(
+            discovery_handler_map.clone(),
+            config_map.clone(),
+            config.clone(),
+            &dh_endpoint,
+            dh_name,
+        )
+        .await;
+
+        let config_delete_config = config.clone();
+        let config_delete_config_map = config_map.clone();
+        handle_config_delete(
+            &MockKubeInterface::new(),
+            &config_delete_config,
+            config_delete_config_map.clone(),
+        )
+        .await
+        .unwrap();
+
+        // Assert that config is removed from map after it has been deleted
+        assert!(!config_delete_config_map
+            .lock()
+            .await
+            .contains_key(&config_name));
+
+        // Assert that Discovery Handler is marked as Waiting
+        check_discovery_handler_status(
+            discovery_handler_map.clone(),
+            dh_name,
+            &dh_endpoint,
+            DiscoveryHandlerStatus::Waiting,
+        )
+        .await;
+
+        let second_add_handle = run_and_test_handle_config_add(
+            discovery_handler_map.clone(),
+            config_map.clone(),
+            config.clone(),
+            &dh_endpoint,
+            dh_name,
+        )
+        .await;
+
+        // Assert that Discovery Handler is marked as Waiting
+        check_discovery_handler_status(
+            discovery_handler_map.clone(),
+            dh_name,
+            &dh_endpoint,
+            DiscoveryHandlerStatus::Waiting,
+        )
+        .await;
+
+        futures::future::join_all(vec![first_add_handle, second_add_handle]).await;
     }
 }

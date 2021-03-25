@@ -96,7 +96,7 @@ pub mod discovery_handler {
 #[cfg(any(feature = "mock-discovery-handler", test))]
 pub mod mock_discovery_handler {
     use super::v0::{
-        discovery_handler_server::DiscoveryHandler, DiscoverRequest, DiscoverResponse,
+        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
     };
     use akri_shared::uds::unix_stream;
     use async_trait::async_trait;
@@ -104,8 +104,10 @@ pub mod mock_discovery_handler {
     use tokio::sync::mpsc;
 
     /// Simple discovery handler for tests
+    /// Has fields for specifying that it return an error or a set of devices.
     pub struct MockDiscoveryHandler {
         pub return_error: bool,
+        pub devices: Vec<Device>,
     }
 
     #[async_trait]
@@ -117,11 +119,10 @@ pub mod mock_discovery_handler {
         ) -> Result<tonic::Response<Self::DiscoverStream>, tonic::Status> {
             let (mut discovered_devices_sender, discovered_devices_receiver) =
                 mpsc::channel(super::discovery_handler::DISCOVERED_DEVICES_CHANNEL_CAPACITY);
+            let devices = self.devices.clone();
             tokio::spawn(async move {
                 discovered_devices_sender
-                    .send(Ok(DiscoverResponse {
-                        devices: Vec::new(),
-                    }))
+                    .send(Ok(DiscoverResponse { devices }))
                     .await
                     .unwrap();
             });
@@ -159,8 +160,12 @@ pub mod mock_discovery_handler {
         discovery_handler_dir: &str,
         discovery_handler_endpoint: &str,
         return_error: bool,
+        devices: Vec<Device>,
     ) -> tokio::task::JoinHandle<()> {
-        let discovery_handler = MockDiscoveryHandler { return_error };
+        let discovery_handler = MockDiscoveryHandler {
+            return_error,
+            devices,
+        };
         let discovery_handler_dir_string = discovery_handler_dir.to_string();
         let discovery_handler_endpoint_string = discovery_handler_endpoint.to_string();
         let handle = tokio::spawn(async move {
@@ -259,6 +264,7 @@ pub mod server {
                 &discovery_handler_dir,
                 &discovery_handler_socket,
                 false,
+                Vec::new(),
             )
             .await;
             let channel = Endpoint::try_from("dummy://[::]:50051")
@@ -284,6 +290,7 @@ pub mod server {
         async fn test_run_discovery_server_error_invalid_ip_addr() {
             let discovery_handler = MockDiscoveryHandler {
                 return_error: false,
+                devices: Vec::new(),
             };
             let discovery_handler_temp_dir = Builder::new()
                 .prefix("discovery-handlers")
