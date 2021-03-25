@@ -1,49 +1,49 @@
-{{- if .Values.onvif.enabled }}
+{{- if .Values.onvif.configuration.enabled }}
 apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
-  name: {{ .Values.onvif.name }}
+  name: {{ .Values.onvif.configuration.name }}
 spec:
   discoveryHandler:
     name: onvif
     discoveryDetails: |+
       ipAddresses: 
-        action: {{ .Values.onvif.ipAddresses.action }}
-        {{- if .Values.onvif.ipAddresses.items}}
+        action: {{ .Values.onvif.configuration.discoveryDetails.ipAddresses.action }}
+        {{- if .Values.onvif.configuration.discoveryDetails.ipAddresses.items}}
         items:
-        {{- toYaml .Values.onvif.ipAddresses.items | nindent 8 }}
+        {{- toYaml .Values.onvif.configuration.discoveryDetails.ipAddresses.items | nindent 8 }}
         {{- else }}
         items: []
         {{- end }}
       macAddresses:
-        action: {{ .Values.onvif.macAddresses.action }}
-        {{- if .Values.onvif.macAddresses.items}}
+        action: {{ .Values.onvif.configuration.discoveryDetails.macAddresses.action }}
+        {{- if .Values.onvif.configuration.discoveryDetails.macAddresses.items}}
         items:
-        {{- toYaml .Values.onvif.macAddresses.items | nindent 8 }}
+        {{- toYaml .Values.onvif.configuration.discoveryDetails.macAddresses.items | nindent 8 }}
         {{- else }}
         items: []
         {{- end }}
       scopes:
-        action: {{ .Values.onvif.scopes.action }}
-        {{- if .Values.onvif.scopes.items}}
+        action: {{ .Values.onvif.configuration.discoveryDetails.scopes.action }}
+        {{- if .Values.onvif.configuration.discoveryDetails.scopes.items}}
         items:
-        {{- toYaml .Values.onvif.scopes.items | nindent 8 }}
+        {{- toYaml .Values.onvif.configuration.discoveryDetails.scopes.items | nindent 8 }}
         {{- else }}
         items: []
         {{- end }}
-      discoveryTimeoutSeconds: {{ .Values.onvif.discoveryTimeoutSeconds }}
-  {{- if .Values.onvif.brokerPod.image.repository }}
+      discoveryTimeoutSeconds: {{ .Values.onvif.configuration.discoveryDetails.discoveryTimeoutSeconds }}
+  {{- if .Values.onvif.configuration.brokerPod.image.repository }}
   {{- /* Only add broker pod spec if a broker image is provided */}}
   brokerPodSpec:
     containers:
-    - name: {{ .Values.onvif.name }}-broker
-      image: {{ printf "%s:%s" .Values.onvif.brokerPod.image.repository .Values.onvif.brokerPod.image.tag | quote }}
-      {{- with .Values.onvif.brokerPod.image.pullPolicy }}
+    - name: {{ .Values.onvif.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.onvif.configuration.brokerPod.image.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
-      {{- if .Values.onvif.brokerPod.env }}
+      {{- if .Values.onvif.configuration.brokerPod.env }}
       env:
-        {{- range $key, $val := .Values.onvif.brokerPod.env }}
+        {{- range $key, $val := .Values.onvif.configuration.brokerPod.env }}
         - name: {{ $key }}
           value: {{ $val | quote }}
         {{- end }}
@@ -57,31 +57,31 @@ spec:
     {{- end }}
   {{- end }}
   {{- /* Only add service specs if a broker image was specified and service creation was not disabled */}}
-  {{- if .Values.onvif.brokerPod.image.repository }}
-  {{- if .Values.onvif.createInstanceServices }}
+  {{- if .Values.onvif.configuration.brokerPod.image.repository }}
+  {{- if .Values.onvif.configuration.createInstanceServices }}
   instanceServiceSpec:
-    type: {{ .Values.onvif.instanceService.type }}
+    type: {{ .Values.onvif.configuration.instanceService.type }}
     ports:
-    - name: {{ .Values.onvif.instanceService.portName }}
-      port: {{ .Values.onvif.instanceService.port }}
-      protocol: {{ .Values.onvif.instanceService.protocol }}
-      targetPort: {{ .Values.onvif.instanceService.targetPort }}
+    - name: {{ .Values.onvif.configuration.instanceService.portName }}
+      port: {{ .Values.onvif.configuration.instanceService.port }}
+      protocol: {{ .Values.onvif.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.onvif.configuration.instanceService.targetPort }}
   {{- end }}
-  {{- if .Values.onvif.createConfigurationService }}
+  {{- if .Values.onvif.configuration.createConfigurationService }}
   configurationServiceSpec:
-    type: {{ .Values.onvif.configurationService.type }}
+    type: {{ .Values.onvif.configuration.configurationService.type }}
     ports:
-    - name: {{ .Values.onvif.configurationService.portName }}
-      port: {{ .Values.onvif.configurationService.port }}
-      protocol: {{ .Values.onvif.configurationService.protocol }}
-      targetPort: {{ .Values.onvif.configurationService.targetPort }}
+    - name: {{ .Values.onvif.configuration.configurationService.portName }}
+      port: {{ .Values.onvif.configuration.configurationService.port }}
+      protocol: {{ .Values.onvif.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.onvif.configuration.configurationService.targetPort }}
   {{- end }}
   {{- end }}
-  {{- if .Values.onvif.properties }}
+  {{- if .Values.onvif.configuration.properties }}
   properties:
   {{- toYaml . | nindent 4 }}
   {{- else }}
   properties: {}
   {{- end }}
-  capacity: {{ .Values.onvif.capacity }}
+  capacity: {{ .Values.onvif.configuration.capacity }}
 {{- end }}

@@ -1,32 +1,33 @@
 # Customizing an Akri Installation
-The [ONVIF](./onvif-configuration.md), [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) documentation explains how to deploy Akri for a specific
-protocol Configuration using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
+The [ONVIF](./onvif-configuration.md), [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) Configurations documentation explains how to deploy Akri and utilize a specific
+Discovery Handler using Helm (more information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts)).  This documentation elaborates upon them, covering the following:
 1. Starting Akri without any Configurations
-1. Generating, modifying and applying a custom Configuration
+1. Generating, modifying and applying a Configuration
 1. Deploying multiple Configurations
 1. Modifying a deployed Configuration
 1. Adding another Configuration to a cluster
 1. Deleting a Configuration from a cluster
+1. Applying Discovery Handlers
 
 ## Starting Akri without any Configurations
 To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri
+helm install akri akri-helm-charts/akri-dev
 ```
-This will start the Akri controller and deploy Akri Agents.
+This will deploy the Akri Controller and deploy Akri Agents.
 
-## Generating, modifying and applying a custom Configuration
-Helm allows us to parametrize the commonly modified fields in our configuration files and we have provided many (to see
-them, run `helm inspect values akri-helm-charts/akri`).  For more advanced configuration changes that are not aided by
+## Generating, modifying and applying a Configuration
+Helm allows us to parametrize the commonly modified fields in our Configuration templates and we have provided many (to see
+them, run `helm inspect values akri-helm-charts/akri`).  For more advanced Configuration changes that are not aided by
 our Helm chart, we suggest creating a Configuration file using Helm and then manually modifying it.
 
 For example, to create an ONVIF Configuration file, run the following. (To instead create a udev Configuration,
-substitute `onvif.enabled` with `udev.enabled` and add a udev rule. For OPC UA, substitute with `opcua.enabled`.)
+substitute `onvif.configuration.enabled` with `udev.configuration.enabled` and add a udev rule. For OPC UA, substitute with `opcua.configuration.enabled`.)
 ```bash
 helm template akri akri-helm-charts/akri \
-    --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository=nginx \
+    --set onvif.configuration.enabled=true \
+    --set onvif.configuration.brokerPod.image.repository=nginx \
     --set rbac.enabled=false \
     --set controller.enabled=false \
     --set agent.enabled=false > configuration.yaml
@@ -43,16 +44,31 @@ If you want your end application to consume frames from both IP cameras and loca
 installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri \
-    --set onvif.enabled=true \
-    --set udev.enabled=true \
-    --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
+helm install akri akri-helm-charts/akri-dev \
+    --set onvif.configuration.enabled=true \
+    --set udev.configuration.enabled=true \
+    --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'
 ```
 Note: You must specify a udev rule to successfully build the udev Configuration.
 
 You can confirm that both a `akri-onvif` and `akri-udev` Configuration have been created by running:
 ``` bash
 kubectl get akric
+```
+Each Configuration could also have been deployed via separate Helm installations:
+```bash
+helm install udev-config akri-helm-charts/akri \
+ --set controller.enabled=false \
+ --set agent.enabled=false \
+ --set rbac.enabled=false \
+ --set udev.configuration.enabled=true  \
+ --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'
+
+helm install onvif-config akri-helm-charts/akri \
+ --set controller.enabled=false \
+ --set agent.enabled=false \
+ --set rbac.enabled=false \
+ --set onvif.configuration.enabled=true
 ```
 
 ## Modifying a deployed Configuration
@@ -68,13 +84,13 @@ say an IP camera with IP address 10.0.0.1 is malfunctioning and should be filter
 command could be run:
 ```bash 
 helm upgrade akri akri-helm-charts/akri \
-    --set onvif.enabled=true \
-    --set onvif.brokerPod.image.repository=<your broker image name> \
-    --set onvif.brokerPod.image.tag=<your broker image tag> \
-    --set onvif.ipAddresses.action=Exclude \
-    --set onvif.ipAddresses.items[0]=10.0.0.1
+    --set onvif.configuration.enabled=true \
+    --set onvif.configuration.brokerPod.image.repository=<your broker image name> \
+    --set onvif.configuration.brokerPod.image.tag=<your broker image tag> \
+    --set onvif.configuration.discoveryDetails.ipAddresses.action=Exclude \
+    --set onvif.configuration.discoveryDetails.ipAddresses.items[0]=10.0.0.1
 ```
-Note that the command is not simply `helm upgrade --set onvif.ipAddresses.items[0]=10.0.0.1`; rather, it includes
+Note that the command is not simply `helm upgrade --set onvif.configuration.discoveryDetails.ipAddresses.items[0]=10.0.0.1`; rather, it includes
 all the old settings along with the new one. Also, note that we assumed you specified a broker pod image in your original installation command, so that brokers were deployed to utilize discovered cameras.
 
 Helm will create a new ONVIF Configuration and apply it to the cluster.
@@ -144,8 +160,7 @@ Note: the simple properties of `instanceServiceSpec` and `configurationServiceSp
 set using Helm's `--set` command (`--set onvif.instanceService.targetPort=90`).
 
 ## Adding another Configuration to a cluster
-Another Configuration can be added to an existing Akri installation using `helm upgrade` or manually using `helm
-template` and kubectl.
+Another Configuration can be added to an existing Akri installation using `helm upgrade` or via a new Helm installation.
 ### Adding additional Configurations using `helm upgrade`
 Another Configuration can be added to the cluster by using `helm upgrade`. For example, if you originally installed just the ONVIF
 Configuration and now also want to discover local cameras via udev, as well, simply run the following:
@@ -155,14 +170,20 @@ helm upgrade akri akri-helm-charts/akri \
     --set udev.enabled=true \
     --set udev.udevRules[0]='KERNEL=="video[0-9]*"'
 ```
-### Adding additional Configurations manually
-An additional Configuration can also be added to an existing Akri installation using the same process of using `helm
-template` to generate a Configuration and then using kubectl to apply it as in the ["Generating, modifying, and applying
-a Configuration yaml"](#generating-modifying-and-applying-a-custom-configuration) section above.
+### Adding additional Configurations via new Helm installations
+The udev Configuration could also have been applied via a new Helm installation like so:
+```bash
+helm install udev-config akri-helm-charts/akri \
+ --set controller.enabled=false \
+ --set agent.enabled=false \
+ --set rbac.enabled=false \
+ --set udev.configuration.enabled=true  \
+ --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'
+```
 
 ## Deleting a Configuration from a cluster
 If an operator no longer wants Akri to discover devices defined by a Configuration, they can delete the Configuration
-and all associated broker pods will automatically be brought down. This can be done with `helm upgrade` or kubectl.
+and all associated broker pods will automatically be brought down. This can be done with `helm upgrade`, `helm delete`, or kubectl.
 ### Deleting a Configuration using `helm upgrade`
 A Configuration can be deleted from a cluster using `helm upgrade`. For example, if both ONVIF and udev Configurations
 have been installed in a cluster, the udev Configuration can be deleted by only specifying the ONVIF Configuration in a
@@ -170,6 +191,12 @@ have been installed in a cluster, the udev Configuration can be deleted by only 
 ```bash
 helm upgrade akri akri-helm-charts/akri \
     --set onvif.enabled=true 
+```
+### Deleting a Configuration using `helm delete`
+If the Configuration was applied in its own Helm installation (named `udev-config` in this example), the Configuration can be
+deleted by deleting the installation.
+```bash
+helm delete udev-config
 ```
 ### Deleting a Configuration using kubectl
 A configuration can also be deleted using kubectl. To list all applied Configurations, run `kubectl get akric`. If both
@@ -183,3 +210,19 @@ To delete the ONVIF Configuration and bring down all ONVIF broker pods, run:
 ```bash 
 kubectl delete akric akri-onvif
 ```
+## Installing Discovery Handlers
+The Agent discovers devices via Discovery Handlers. Akri supports an Agent image that includes all supported Discovery Handlers. 
+This Agent will be used if `agent.full=true`, like so:
+```bash
+helm install akri akri-helm-charts/akri-dev \
+  --set agent.full=true
+```
+
+By default, a slim Agent without any embedded Discovery Handlers is deployed and the required Discovery Handlers can be deployed as DaemonSets by specifying 
+`<discovery handler name>.discovery.enabled=true` when installing Akri. For example, Akri is installed with the OPC UA and ONVIF Discovery Handlers like so:
+```bash
+helm install akri akri-helm-charts/akri-dev \
+  --set opcua.discovery.enabled=true \
+  --set onvif.discovery.enabled=true
+```
+

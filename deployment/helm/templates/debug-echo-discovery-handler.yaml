@@ -1,4 +1,3 @@
-{{- if .Values.agent.slim}}
 {{- if .Values.debugEcho.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet
@@ -62,5 +61,4 @@ spec:
       - name: discovery-handlers
         hostPath:
           path: {{ .Values.agent.host.discoveryHandlers }}
-{{- end }}
 {{- end }}

@@ -1,21 +1,21 @@
-{{- if .Values.customDiscovery.discovery.enabled }}
+{{- if .Values.custom.discovery.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ printf "%s-discovery-daemonset" .Values.customDiscovery.name | quote }}
+  name: {{ printf "%s-daemonset" .Values.custom.discovery.name }}
 spec:
   selector:
     matchLabels:
-      name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+      name: {{ .Values.custom.discovery.name }}
   template:
     metadata:
       labels:
-        name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
+        name: {{ .Values.custom.discovery.name }}
     spec:
       containers:
-      - name: {{ printf "%s-discovery" .Values.customDiscovery.name | quote }}
-        image: {{ printf "%s:%s" (required "A customDiscovery.discovery.image.repository is required." .Values.customDiscovery.discovery.image.repository) .Values.customDiscovery.discovery.image.tag | quote }}
-        {{- with .Values.customDiscovery.discovery.image.pullPolicy }}
+      - name: {{ .Values.custom.discovery.name }}
+        image: {{ printf "%s:%s" (required "A custom.discovery.image.repository is required." .Values.custom.discovery.image.repository) .Values.custom.discovery.image.tag | quote }}
+        {{- with .Values.custom.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
         volumeMounts:
@@ -25,9 +25,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.customDiscovery.discovery.nodeSelectors }}
+      {{- if .Values.custom.discovery.nodeSelectors }}
       nodeSelector:
-      {{- toYaml .Values.customDiscovery.discovery.nodeSelectors | nindent 8 }}
+      {{- toYaml .Values.custom.discovery.nodeSelectors | nindent 8 }}
       {{- end }}
       volumes:
       - name: agent-registration

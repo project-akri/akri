@@ -1,24 +1,24 @@
-{{- if .Values.debugEcho.enabled }}
+{{- if .Values.debugEcho.configuration.enabled }}
 apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
-  name: {{ .Values.debugEcho.name }}
+  name: {{ .Values.debugEcho.configuration.name }}
 spec:
   discoveryHandler: 
     name: debugEcho
     discoveryDetails: |+
-      {{- if .Values.debugEcho.descriptions}}
+      {{- if .Values.debugEcho.configuration.discoveryDetails.descriptions}}
       descriptions:
-      {{- toYaml .Values.debugEcho.descriptions | nindent 6 }}
+      {{- toYaml .Values.debugEcho.configuration.discoveryDetails.descriptions | nindent 6 }}
       {{- else }}
       descriptions: []
       {{- end }}
-  {{- if .Values.debugEcho.brokerPod.image.repository }}
+  {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
   brokerPodSpec:
     containers:
-    - name: {{ .Values.debugEcho.name }}-broker
-      image: {{ printf "%s:%s" .Values.debugEcho.brokerPod.image.repository .Values.debugEcho.brokerPod.image.tag | quote }}
-      {{- with .Values.debugEcho.pullPolicy }}
+    - name: {{ .Values.debugEcho.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.debugEcho.configuration.brokerPod.image.repository .Values.debugEcho.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.debugEcho.configuration.pullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
       resources:
@@ -29,31 +29,31 @@ spec:
       {{- toYaml . | nindent 6 }}
     {{- end }}
   {{- end }}
-  {{- if .Values.debugEcho.brokerPod.image.repository }}
-  {{- if .Values.debugEcho.createInstanceServices }}
+  {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
+  {{- if .Values.debugEcho.configuration.createInstanceServices }}
   instanceServiceSpec:
-    type: {{ .Values.debugEcho.instanceService.type }}
+    type: {{ .Values.debugEcho.configuration.instanceService.type }}
     ports:
-    - name: {{ .Values.debugEcho.instanceService.name }}
-      port: {{ .Values.debugEcho.instanceService.port }}
-      protocol: {{ .Values.debugEcho.instanceService.protocol }}
-      targetPort: {{ .Values.debugEcho.instanceService.targetPort }}
+    - name: {{ .Values.debugEcho.configuration.instanceService.name }}
+      port: {{ .Values.debugEcho.configuration.instanceService.port }}
+      protocol: {{ .Values.debugEcho.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.debugEcho.configuration.instanceService.targetPort }}
   {{- end }}
-  {{- if .Values.debugEcho.createConfigurationService }}
+  {{- if .Values.debugEcho.configuration.createConfigurationService }}
   configurationServiceSpec:
-    type: {{ .Values.debugEcho.configurationService.type }}
+    type: {{ .Values.debugEcho.configuration.configurationService.type }}
     ports:
-    - name: {{ .Values.debugEcho.configurationService.name }}
-      port: {{ .Values.debugEcho.configurationService.port }}
-      protocol: {{ .Values.debugEcho.configurationService.protocol }}
-      targetPort: {{ .Values.debugEcho.configurationService.port }}
+    - name: {{ .Values.debugEcho.configuration.configurationService.name }}
+      port: {{ .Values.debugEcho.configuration.configurationService.port }}
+      protocol: {{ .Values.debugEcho.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.debugEcho.configuration.configurationService.port }}
   {{- end }}
   {{- end }}
-  {{- if .Values.debugEcho.properties }}
+  {{- if .Values.debugEcho.configuration.properties }}
   properties:
   {{- toYaml . | nindent 4 }}
   {{- else }}
   properties: {}
   {{- end }}
-  capacity: {{ .Values.debugEcho.capacity }}
+  capacity: {{ .Values.debugEcho.configuration.capacity }}
 {{- end }}

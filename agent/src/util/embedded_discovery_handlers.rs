@@ -2,15 +2,15 @@ use akri_debug_echo::discovery_handler::DebugEchoDiscoveryDetails;
 use akri_discovery_utils::discovery::{
     v0::discovery_handler_server::DiscoveryHandler, DiscoverStream,
 };
-#[cfg(feature = "onvif-feat")]
+#[cfg(any(test, feature = "onvif-feat"))]
 use akri_onvif::discovery_handler::OnvifDiscoveryDetails;
-#[cfg(feature = "opcua-feat")]
+#[cfg(any(test, feature = "opcua-feat"))]
 use akri_opcua::discovery_handler::OpcuaDiscoveryDetails;
 use akri_shared::{
     akri::configuration::DiscoveryHandlerInfo,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
-#[cfg(feature = "udev-feat")]
+#[cfg(any(test, feature = "udev-feat"))]
 use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use anyhow::Error;
 use log::trace;
@@ -33,21 +33,22 @@ fn inner_get_discovery_handler(
     );
     // Determine whether it is an embedded discovery handler
     match discovery_handler_info.name.as_str() {
-        #[cfg(feature = "onvif-feat")]
+        #[cfg(any(test, feature = "onvif-feat"))]
         akri_onvif::DISCOVERY_HANDLER_NAME => {
+            trace!("here in onvif");
             let _discovery_handler_config: OnvifDiscoveryDetails = serde_yaml::from_str(&discovery_handler_info.discovery_details).map_err(|e| anyhow::format_err!("ONVIF Configuration discovery details improperly configured with error {:?}", e))?;
             Ok(Box::new(
                 akri_onvif::discovery_handler::DiscoveryHandlerImpl::new(None),
             ))
         }
-        #[cfg(feature = "udev-feat")]
+        #[cfg(any(test, feature = "udev-feat"))]
         akri_udev::DISCOVERY_HANDLER_NAME => {
             let _discovery_handler_config: UdevDiscoveryDetails = serde_yaml::from_str(&discovery_handler_info.discovery_details).map_err(|e| anyhow::format_err!("udev Configuration discovery details improperly configured with error {:?}", e))?;
             Ok(Box::new(
                 akri_udev::discovery_handler::DiscoveryHandlerImpl::new(None),
             ))
         }
-        #[cfg(feature = "opcua-feat")]
+        #[cfg(any(test, feature = "opcua-feat"))]
         akri_opcua::DISCOVERY_HANDLER_NAME => {
             let _discovery_handler_config: OpcuaDiscoveryDetails = serde_yaml::from_str(&discovery_handler_info.discovery_details).map_err(|e| anyhow::format_err!("OPC UA Configuration discovery details improperly configured with error {:?}", e))?;
             Ok(Box::new(

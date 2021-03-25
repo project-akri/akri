@@ -113,12 +113,15 @@ By default, `Makefile` will try to create containers with tag following this for
 PREFIX=$CONTAINER_REPOSITORY make akri
 # To make a specific component:
 PREFIX=$CONTAINER_REPOSITORY make akri-controller
-PREFIX=$CONTAINER_REPOSITORY make akri-agent
 PREFIX=$CONTAINER_REPOSITORY make akri-udev
 PREFIX=$CONTAINER_REPOSITORY make akri-onvif
 PREFIX=$CONTAINER_REPOSITORY make akri-opcua-monitoring
 PREFIX=$CONTAINER_REPOSITORY make akri-anomaly-detection
 PREFIX=$CONTAINER_REPOSITORY make akri-streaming
+PREFIX=$CONTAINER_REPOSITORY make akri-agent
+# To make an Agent with embedded Discovery Handlers, turn on the `agent-full` feature along with the 
+# feature for any Discovery Handlers that should be embedded.
+PREFIX=$CONTAINER_REPOSITORY BUILD_SLIM_AGENT=0 AGENT_FEATURES="agent-full akri-udev akri-opcua akri-onvif" make akri-agent-full 
 
 # To make a specific component on specific platform(s):
 PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make akri-streaming

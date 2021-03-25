@@ -126,6 +126,7 @@ def main():
     helm_install_command = "\
     helm install {chart_name} {location} \
     --namespace={namespace} \
+    --set=agent.full=true \
     --set=agent.allowDebugEcho=true \
     {webhook_config} \
     {cri_args} \

@@ -51,7 +51,7 @@ jobs:
 
   build-rust:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     strategy:
       matrix:
         arch:
@@ -79,6 +79,8 @@ jobs:
         components: clippy, rustfmt
 
     - name: Build production rust for ${{ matrix.arch.label }}
+      env:
+        AGENT_FEATURES: "agent-full akri-udev akri-opcua akri-onvif" 
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         make install-cross

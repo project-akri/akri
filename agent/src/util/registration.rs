@@ -210,7 +210,7 @@ pub async fn internal_run_registration_server(
     Ok(())
 }
 
-#[cfg(any(test, feature = "agent-all-in-one"))]
+#[cfg(any(test, feature = "agent-full"))]
 pub fn register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -222,7 +222,7 @@ pub fn register_embedded_discovery_handlers(
 
 /// Adds all embedded Discovery Handlers to the RegisteredDiscoveryHandlerMap, specifying an endpoint of
 /// Endpoint::Embedded to signal that it is an embedded Discovery Handler.
-#[cfg(any(test, feature = "agent-all-in-one"))]
+#[cfg(any(test, feature = "agent-full"))]
 pub fn inner_register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     query: &impl EnvVarQuery,

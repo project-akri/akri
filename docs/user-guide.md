@@ -5,9 +5,10 @@ footage from those cameras. It includes instructions on K8s cluster setup. If yo
 cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./end-to-end-demo-rpi4.md).
 
 ## Getting Started
-To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a protocol
-that can be used to discover resources of that type. To see the list of currently supported protocols, see our
-[roadmap](./roadmap.md).
+To get started using Akri, you must first decide what you want to discover and whether Akri currently supports a
+Discovery Handler that can be used to discover resources of that type. Akri discovers devices via Discovery Handlers,
+which are often protocol implementations that understand filter information passed via an Akri Configuration. To see the
+list of currently supported Discovery Handlers, see our [roadmap](./roadmap.md).
 
 ### Understanding Akri Helm charts
 Akri is most easily deployed with Helm charts.  Helm charts provide convenient packaging and configuration.
@@ -30,20 +31,25 @@ helm install akri akri-helm-charts/akri
 
 To use the latest containers of the Akri components, add `--set useLatestContainers=true` when installing Akri like so:
 ```sh
-helm install akri akri-helm-charts/akri \
+helm install akri akri-helm-charts/akri-dev \
    --set useLatestContainers=true 
 ```
+
+Before v0.4.0, all of Akri's Discovery Handlers were embedded in the Agent. As more Discovery Handlers are added to
+Akri, this will become unsustainable and cause the Agent to have a larger footprint than oftentimes necessary (if only
+one of the many Discovery Handlers is being leveraged). Starting in v0.4.0, Akri is starting the transition to mainly
+supporting an Agent image without any embedded Discovery Handlers, which will be the image used by Akri's Helm chart by
+default. The required Discovery Handlers can be deployed as DaemonSets by setting `<discovery handler
+name>.discovery.enabled=true` when installing Akri, as explained in the [user flow](#installing-akri-flow). To instead
+use the previous strategy of an Agent image with embedded udev, OPC UA, and ONVIF Discovery Handlers, set
+`agent.full=true`.
 
 To see which version of the **akri** and **akri-dev** Helm charts are stored locally, run  `helm inspect chart akri-helm-charts/akri` and `helm inspect chart akri-helm-charts/akri-dev`, respectively.
 
 To grab the latest Akri Helm charts, run `helm repo update`.
 
 ### Setting up your cluster
-1. Before deploying Akri, you must have a Kubernetes (v1.16 or higher) cluster running and `kubectl` installed. All
-   nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must
-   have one of these platforms.
-
-### Deploying Akri
+Before deploying Akri, you must have a Kubernetes, K3s, or MicroK8s cluster (v1.16 or higher) running with `kubectl` support installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must have one of these platforms.
 1. Install Helm
     ```sh
     curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
@@ -92,48 +98,107 @@ To grab the latest Akri Helm charts, run `helm repo update`.
         alias helm='microk8s helm3'
         ```
     1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
+### Installing Akri Flow
+Akri is installed using its Helm Chart, which contains settings for deploying the Akri Agents, Controller, Discovery Handlers, and Configurations. All these can be installed in one command, in several different Helm installations, or via consecutive `helm upgrades`. This section will focus on the latter strategy, helping you construct your Akri installation command, assuming you have already decided what you want Akri to discover. 
 
-1. When installing the Akri Helm chart, you can specify what Configuration to apply by specifying the protocol
-   that will be used in the Configuration. This is done in the setting `--set <protocol>.enabled=true` below. Here,
-   `<protocol>` could be `udev`, `onvif`, or `opcua`. Helm will automatically apply the default Configuration for that protocol to
-   the cluster. You can set values in the Helm install command to customize the Configuration. To explore the values you
-   can set, see our documentation on customizing the provided [ONVIF](./onvif-configuration.md),
-   [udev](./udev-configuration.md), and [OPC UA](./opcua-configuration.md) Configuration templates.
+Akri's Helm chart deploys the Akri Controller and Agent by default, so you only need to specify which Discovery Handlers and Configurations need to be deployed in your command. Akri discovers devices via Discovery Handlers, which are often protocol implementations. Akri currently supports three Discovery Handlers (udev, OPC UA and ONVIF); however, custom discovery handlers can be created and deployed as explained in Akri's [extensibility document](./extensibility.md). Akri is told what to discover via Akri Configurations, which specify the name of the Discovery Handler that should be used, any discovery details (such as filters) that need to be passed to the Discovery Handler, and optionally any broker Pods and services that should be created upon discovery. For example, the ONVIF Discovery Handler can receive requests to include or exclude cameras with certain IP addresses.
 
-    The Helm settings can also be used to customize where the Akri Controller runs. By default the Controller can be
-    deployed to any control plane or worker node. These settings can be changed by adding extra settings when installing
-    Akri below. If you don't want the Controller to ever be scheduled to control plane nodes, add `--set
-    controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
-    run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
-    runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
-    the control plane node for Kubernetes.
-    
-    However, control plane nodes on MicroK8s and K3s may not have this exact label by
-    default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=
-    --overwrite=true`. Or alternatively, in K3s, you can keep the default label value on the master and add `--set controller.nodeSelectors."node-role\.kubernetes\.io/master"=true` to the install command below.
+Let's walk through building an Akri installation command:
 
-    Run the following to fetch the Akri Helm chart, install Akri, and apply the default configuration for `<protocol>`,
-    optionally specifying the image for the broker pod that should be deployed to utilize each discovered device.
+1. Get Akri's Helm repo
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri \
-        $AKRI_HELM_CRICTL_CONFIGURATION \
-        --set <protocol>.enabled=true \
-        # --set <protocol>.brokerPod.image.repository=<your broker image> \
-        # apply any additional settings here
     ```
-    > Note: set `<protocol>.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
-
-    Run `kubectl get crd`, and you should see Akri's two CRDs listed. Run `kubectl get pods -o wide`, and you should see
-    the Akri Controller pod, Agent pods, and broker pods if a broker was specified. Run `kubectl get akric`, and you
-    should see the Configuration for the protocol you specified.  If devices were discovered, the instances can be seen
-    by running `kubectl get akrii` and further inspected by running `kubectl get akrii <protocol>-<ID> -o yaml`.
-1. Delete the configuration and watch the instances, pods, and services (if you specified a broker image) be deleted.
+2. Install Akri's Controller and Agent, specifying the crictl configuration from [prerequisites above](#setting-up-your-cluster) in not using vanilla Kubernetes:
     ```sh
-    kubectl delete akric akri-<protocol>
-    watch kubectl get pods,services,akric,akrii -o wide
+     helm install akri akri-helm-charts/akri-dev \
+        $AKRI_HELM_CRICTL_CONFIGURATION 
+    ```
+    > Note: To use Akri's latest dev releases, specify `akri-helm-charts/akri-dev`
+
+3. Upgrade the installation to deploy the Discovery Handler you wish to use. Discovery Handlers are deployed as DaemonSets like the Agent when `<discovery handler name>.discovery.enabled` is set. 
+    ```sh
+    helm upgrade akri akri-helm-charts/akri \
+        --set <discovery handler name>.discovery.enabled
+    ```
+    > Note: To install a full Agent with embedded udev, OPC UA, and ONVIF Discovery Handlers, set `agent.full=true` instead of enabling the Discovery Handlers. Note, this we restart the 
+    > Agent Pods.
+    > ```sh
+    > helm upgrade akri akri-helm-charts/akri \
+    >    --set agent.full=true
+    > ```
+
+4. Upgrade the installation to apply a Configuration, which requests discovery of certain devices by a Discovery Handler. A Configuration is applied by setting  `<discovery handler name>.configuration.enabled`. While some Configurations may not require any discovery details to be set, oftentimes setting details is preferable for narrowing the Discovery Handlers' search. These are set under `<discovery handler name>.configuration.discoveryDetails`. For example, udev rules are passed to the udev Discovery Handler to specify which devices in the Linux device file system it should search for by setting `udev.configuration.discoveryDetails.udevRules`. Akri can be instructed to automatically deploy workloads called "brokers" to each discovered device by setting a broker Pod image in a Configuration via `--set <protocol>.configuration.brokerPod.image.repository=<your broker image>`.
+    ```sh
+    helm upgrade akri akri-helm-charts/akri \
+        --set <discovery handler name>.discovery.enabled \
+        --set <discovery handler name>.configuration.enabled \
+        # set any discovery details in the Configuration
+        # specify any broker images in the Configuration
     ```
 
-### Modifying your Akri installation or deploying a custom Akri Configuration
-See the [Customizing an Akri Installation document](./customizing-akri-installation.md) for more information on how to modify
-your already deployed Akri installation or to specify a custom Akri Configuration.
+Installation could have been done in one step rather than a series of upgrades:
+```sh
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri-dev \
+    --set <discovery handler name>.discovery.enabled \
+    --set <discovery handler name>.configuration.enabled \
+    # set any discovery details in the Configuration
+    # specify any broker images in the Configuration
+```
+As a real example, Akri's Controller, Agents, udev Discovery Handlers, and a udev Configuration that specifies the discovery of only USB video devices and an nginx broker image are installed like so:
+```sh
+helm install akri akri-helm-charts/akri-dev \
+    --set udev.discovery.enabled \
+    --set udev.configuration.enabled \
+    --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"' \
+    --set udev.configuration.brokerPod.image.repository=nginx
+```
+> Note: set `<discovery handler name>.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
+This installation can be expanded to install multiple Discovery Handlers and/or Configurations. See the documentation on [udev](./udev-configuration.md), [OPC UA](./opcua-configuration.md), and [ONVIF](./onvif-configuration.md) Configurations to learn more about setting the discovery details passed to their Discovery Handlers and more.
+
+See [modifying an Akri Installation](./customizing-akri-installation.md) to learn about how to use Akri's Helm chart to install additional Configurations and Discovery Handlers.
+
+### Inspecting an Akri Installation
+- Run `kubectl get crd`, and you should see Akri's two CRDs listed. 
+- Run `kubectl get pods -o wide`, and you should see the Akri Controller, Agent, and (if specified) broker pods. 
+- Run `kubectl get akric`, and you should see the Configuration for the protocol you specified.  
+- If devices were discovered, the instances can be seen by running `kubectl get akrii` and further inspected by running `kubectl get akrii <discovery handler name>-<ID> -o yaml`.
+- List all that Akri has automatically created and deployed, namely the Akri Controller, Agents, Configurations, Instances (which are the Akri custom resource that represents each device), and if specified, broker Pods, a service for each broker Pod, and a service for all brokers.
+    ```sh
+    watch microk8s kubectl get pods,akric,akrii,services -o wide
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
+    watch kubectl get pods,akric,akrii,services -o wide
+    ```
+### Deleting Akri Configurations
+To tell Akri to stop discovering devices, simply delete the Configuration that initiated the discovery. Watch as all instances that represent the discovered devices are deleted.
+```sh
+kubectl delete akric akri-<discovery handler name>
+kubectl get akrii
+```
+
+### Deleting Akri 
+1. If you are done using Akri, it can be uninstalled via Helm.
+    ```sh
+    helm delete akri
+    ```
+1. Delete Akri's CRDs.
+    ```sh
+    kubectl delete crd instances.akri.sh
+    kubectl delete crd configurations.akri.sh
+    ```
+
+### Customizing where the Controller runs
+By default the Controller can be deployed to any control plane or worker node. This can be changed by adding extra settings when installing
+Akri below. If you don't want the Controller to ever be scheduled to control plane nodes, add `--set
+controller.allowOnControlPlane=false` to your install command below. Conversely, if you only want the Controller to
+run on control plane nodes, add `--set controller.onlyOnControlPlane=true`. This will guarantee the Controller only
+runs on nodes with the label (key, value) of (`node-role.kubernetes.io/master`, ""), which is the default label for
+the control plane node for Kubernetes.
+
+However, control plane nodes on MicroK8s and K3s may not have this exact label by
+default, so you can add it by running `kubectl label node ${HOSTNAME,,} node-role.kubernetes.io/master=--overwrite=true`. 
+Or alternatively, in K3s, you can keep the default label value on the master and set `controller.nodeSelectors."node-role\.kubernetes\.io/master"=true`.

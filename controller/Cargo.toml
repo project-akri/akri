@@ -1,6 +1,6 @@
 [package]
 name = "controller"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 
