@@ -1,0 +1,107 @@
+name: Build Discovery Handlers
+
+on:
+  workflow_run:
+    workflows: ["Build Production Rust Code"]
+    branches: [main]
+    types: 
+      - completed
+
+jobs:
+
+  per-arch:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        arch:
+          - arm64v8
+          - arm32v7
+          - amd64
+        akri-component: 
+          - debug-echo-discovery
+          - udev-discovery
+          - onvif-discovery
+          - opcua-discovery
+
+    steps:
+    - name: Checkout the head commit of the branch
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+
+    - name: Prepare To Install
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: Install Deps
+      run: |
+        yarn install
+        yarn add @actions/core @actions/github @actions/exec fs
+
+    - name: Download rust build artifacts
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ github.event.workflow_run.workflow_id }}
+        workflow_conclusion: success
+        commit: ${{ github.event.workflow_run.head_sha }}
+        name: rust-${{ matrix.arch }}-binaries
+        path: /tmp
+
+    - name: Unpack Rust binaries
+      run: |
+        tar -xvf /tmp/rust-${{ matrix.arch }}-binaries.tar
+
+    - name: Run Per-Arch component build for ${{ matrix.akri-component }}
+      uses: ./.github/actions/build-component-per-arch
+      with:
+        github_event_name: ${{ github.event.workflow_run.event }}
+        github_ref: ${{ github.ref }}
+        container_name: ${{ matrix.akri-component }}
+        container_prefix: ghcr.io/deislabs/akri
+        container_registry_base_url: ghcr.io
+        container_registry_username: ${{ secrets.crUsername }}
+        container_registry_password: ${{ secrets.crPassword }}
+        makefile_component_name: ${{ matrix.akri-component }}
+        platform: ${{ matrix.arch }}
+        build_rust: "0"
+
+  multi-arch:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} && ((github.event.workflow_run.event == 'release') || (github.event.workflow_run.event == 'push' && github.ref == 'refs/heads/main'))
+    needs: per-arch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix: 
+        akri-component: 
+          - debug-echo-discovery
+          - udev-discovery
+          - onvif-discovery
+          - opcua-discovery
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+
+    - name: Prepare To Install
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+    - name: Install Deps
+      run: |
+        yarn install
+        yarn add @actions/core @actions/github @actions/exec fs
+
+    - name: Run Multi-Arch component build for ${{ matrix.akri-component }}
+      uses: ./.github/actions/build-component-multi-arch
+      with:
+        github_event_name: ${{ github.event.workflow_run.event }}
+        container_name: ${{ matrix.akri-component }}
+        container_prefix: ghcr.io/deislabs/akri
+        container_registry_base_url: ghcr.io
+        container_registry_username: ${{ secrets.crUsername }}
+        container_registry_password: ${{ secrets.crPassword }}
+        makefile_component_name: ${{ matrix.akri-component }}
