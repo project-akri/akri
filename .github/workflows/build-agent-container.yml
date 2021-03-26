@@ -70,6 +70,11 @@ jobs:
     needs: per-arch
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      matrix:
+        akri-component: 
+          - agent
+          - agent-full
 
     steps:
     - name: Checkout repo
