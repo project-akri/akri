@@ -98,11 +98,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     offline = false;
                     let devices = descriptions
                         .iter()
-                        .map(|description| Device {
+                        .map(|description| {
+                            let mut properties = HashMap::new();
+                            properties.insert(super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(), description.clone());
+                            Device {
                             id: description.clone(),
-                            properties: HashMap::new(),
+                            properties,
                             mounts: Vec::default(),
                             device_specs: Vec::default(),
+                            }
                         })
                         .collect::<Vec<Device>>();
                     if let Err(e) = discovered_devices_sender
