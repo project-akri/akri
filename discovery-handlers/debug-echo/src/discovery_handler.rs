@@ -100,12 +100,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .iter()
                         .map(|description| {
                             let mut properties = HashMap::new();
-                            properties.insert(super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(), description.clone());
+                            properties.insert(
+                                super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
+                                description.clone(),
+                            );
                             Device {
-                            id: description.clone(),
-                            properties,
-                            mounts: Vec::default(),
-                            device_specs: Vec::default(),
+                                id: description.clone(),
+                                properties,
+                                mounts: Vec::default(),
+                                device_specs: Vec::default(),
                             }
                         })
                         .collect::<Vec<Device>>();
