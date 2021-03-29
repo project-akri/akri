@@ -200,7 +200,7 @@ impl DiscoveryOperator {
         }
     }
     /// Listens for new discovery responses and calls a function to handle the new discovery results.
-    /// Runs until the future is canceled by the calling function upon notification to stop discovery.
+    /// Runs until notified to stop discovery.
     #[allow(dead_code)]
     pub async fn internal_do_discover<'a>(
         &'a self,
@@ -208,26 +208,34 @@ impl DiscoveryOperator {
         dh_details: &'a DiscoveryDetails,
         stream: &'a mut dyn StreamingExt,
     ) -> Result<(), Status> {
+        // clone objects for thread
+        let discovery_operator = Arc::new(self.clone());
+        let stop_discovery_receiver: &mut tokio::sync::broadcast::Receiver<()> =
+            &mut dh_details.close_discovery_handler_connection.subscribe();
         loop {
             // Wait for either new discovery results or a message to stop discovery
-            let result = stream.get_message().await;
-            let message = result?;
-            if let Some(response) = message {
-                trace!(
-                    "internal_do_discover - got discovery results {:?}",
-                    response.devices
-                );
-                self.handle_discovery_results(
-                    kube_interface.clone(),
-                    response.devices,
-                    dh_details.shared,
-                    Box::new(DevicePluginBuilder {}),
-                )
-                .await
-                .unwrap();
-            } else {
-                error!("internal_do_discover - received result of type None. Should not happen.");
-                break;
+            tokio::select! {
+                _ = stop_discovery_receiver.recv() => {
+                    trace!("internal_do_discover - received message to stop discovery for endpoint {:?} serving protocol {}", dh_details.endpoint, discovery_operator.get_config().spec.discovery_handler.name);
+                    break;
+                },
+                result = stream.get_message() => {
+                    let message = result?;
+                    if let Some(response) = message {
+                        trace!("internal_do_discover - got discovery results {:?}", response.devices);
+                        self.handle_discovery_results(
+                            kube_interface.clone(),
+                            response.devices,
+                            dh_details.shared,
+                            Box::new(DevicePluginBuilder{}),
+                        )
+                        .await
+                        .unwrap();
+                    } else {
+                        error!("internal_do_discover - received result of type None. Should not happen.");
+                        break;
+                    }
+                }
             }
         }
 
@@ -635,6 +643,7 @@ pub mod start_discovery {
         discovery_operator: Arc<DiscoveryOperator>,
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let mut discovery_tasks = Vec::new();
         let config = discovery_operator.get_config();
         trace!(
             "do_discover - entered for {} discovery handler",
@@ -666,23 +675,22 @@ pub mod start_discovery {
                         config.spec.discovery_handler.name,
                         endpoint
                     );
-                    let mut stop_discovery_receiver =
-                        dh_details.close_discovery_handler_connection.subscribe();
-                    loop {
-                        tokio::select! {
-                            _ = stop_discovery_receiver.recv() => {
-                                trace!("do_discover - received message to stop discovery for discovery handler at endpoint {:?} for configuration {}", endpoint, discovery_operator.get_config().metadata.name);
-                                break;
-                            },
-                            _ = do_discover_on_discovery_handler(discovery_operator.clone(), kube_interface.clone(), &endpoint, &dh_details) => {
-                                trace!("do_discover - discovery completed for discovery handler at endpoint {:?} for configuration {}", endpoint, discovery_operator.get_config().metadata.name);
-                                break;
-                            }
-                        }
-                    }
+                    let discovery_operator = discovery_operator.clone();
+                    let kube_interface = kube_interface.clone();
+                    discovery_tasks.push(tokio::spawn(async move {
+                        do_discover_on_discovery_handler(
+                            discovery_operator.clone(),
+                            kube_interface.clone(),
+                            &endpoint,
+                            &dh_details,
+                        )
+                        .await
+                        .unwrap();
+                    }));
                 }
             }
         }
+        futures::future::try_join_all(discovery_tasks).await?;
         Ok(())
     }
 
@@ -782,11 +790,23 @@ pub mod start_discovery {
             if deregistered {
                 break;
             } else {
-                // Sleep and keep looping until connection established or deregistered due to grace period elapsing
-                #[cfg(not(test))]
-                tokio::time::delay_for(Duration::from_secs(60)).await;
-                #[cfg(test)]
-                tokio::time::delay_for(Duration::from_millis(100)).await;
+                // If a connection cannot be established with the Discovery Handler, it will sleep and try again.
+                // This continues until connection established, the Discovery Handler is deregistered due to grace period elapsing,
+                // or the Discovery Handler is told to stop discovery.
+                let mut stop_discovery_receiver =
+                    dh_details.close_discovery_handler_connection.subscribe();
+                let mut sleep_duration = Duration::from_secs(60);
+                if cfg!(test) {
+                    sleep_duration = Duration::from_millis(100);
+                }
+
+                if tokio::time::timeout(sleep_duration, stop_discovery_receiver.recv())
+                    .await
+                    .is_ok()
+                {
+                    trace!("do_discover_on_discovery_handler - received message to stop discovery for {} Discovery Handler at endpoint {:?}", dh_details.name, dh_details.endpoint);
+                    break;
+                }
             }
         }
         Ok(())
@@ -931,7 +951,7 @@ pub mod tests {
     }
 
     // Creates a discovery handler with specified properties and adds it to the RegisteredDiscoveryHandlerMap.
-    fn add_discovery_handler_to_map(
+    pub fn add_discovery_handler_to_map(
         dh_name: &str,
         endpoint: &DiscoveryHandlerEndpoint,
         shared: bool,
@@ -1696,6 +1716,7 @@ pub mod tests {
             endpoint_dir,
             endpoint,
             return_error,
+            Vec::new(),
         )
         .await;
         // Make sure registration server has started
