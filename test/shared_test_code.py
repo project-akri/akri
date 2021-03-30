@@ -12,6 +12,7 @@ GROUP = "akri.sh"
 AGENT_LOG_PATH = "/tmp/agent_log.txt"
 CONTROLLER_LOG_PATH = "/tmp/controller_log.txt"
 DEBUG_ECHO_NAME = "akri-debug-echo-foo"
+DEBUG_ECHO_DESCRIPTIONS_PREFIX = "bar"
 KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
 RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
 HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
@@ -153,7 +154,7 @@ def check_pods_running(v1, pod_label_selector, count):
 def check_broker_pods_env_var(pods):
     kubectl_cmd = get_kubectl_command()
     for pod in pods:
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep DEBUG_ECHO_DESCRIPTION=foo" | wc -l | grep -v 1"'.format(kubectl_cmd, pod.metadata.name)):
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
             print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
             return False
     return True
