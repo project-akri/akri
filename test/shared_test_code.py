@@ -140,12 +140,23 @@ def check_pods_running(v1, pod_label_selector, count):
                 for pod in pods:
                     if pod.status.phase != "Running":
                         all_running = False
-                        break
-                if all_running: return True
+                        break    
+                if all_running:
+                    if pod_label_selector == BROKER_POD_LABEL_SELECTOR:
+                         return check_broker_pods_env_var(pods)
+                    else:
+                        return True
     print("Wrong number of pods [{}] found ... expected {}".format(
         pod_label_selector, count))
     return False
 
+def check_broker_pods_env_var(pods):
+    kubectl_cmd = get_kubectl_command()
+    for pod in pods:
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep DEBUG_ECHO_DESCRIPTION=foo" | wc -l | grep -v 1"'.format(kubectl_cmd, pod.metadata.name)):
+            print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+    return True
 
 def check_svcs_running(v1, svc_label_selector, count):
     print("Checking number of svcs  [{}] ... expected {}".format(
