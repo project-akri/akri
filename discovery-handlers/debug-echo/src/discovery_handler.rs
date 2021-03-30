@@ -175,9 +175,16 @@ mod tests {
         "#;
         let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
         let discovery_handler = DiscoveryHandlerImpl::new(None);
+        let properties: HashMap<String, String> = [(
+            super::super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
+            "foo1".to_string(),
+        )]
+        .iter()
+        .cloned()
+        .collect();
         let device = akri_discovery_utils::discovery::v0::Device {
             id: "foo1".to_string(),
-            properties: HashMap::new(),
+            properties,
             mounts: Vec::default(),
             device_specs: Vec::default(),
         };
