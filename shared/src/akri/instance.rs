@@ -43,10 +43,6 @@ pub struct Instance {
     /// the slot)
     #[serde(default)]
     pub device_usage: HashMap<String, String>,
-
-    /// This is a placeholder for eventual RBAC support
-    #[serde(default = "default_rbac")]
-    pub rbac: String,
 }
 
 /// Get Instances for a given namespace
@@ -175,8 +171,7 @@ pub async fn find_instance(
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
-///         metadata: std::collections::HashMap::new(),
-///         rbac: "".to_string(),
+///         metadata: std::collections::HashMap::new()
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -322,7 +317,6 @@ pub async fn delete_instance(
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
 ///         metadata: std::collections::HashMap::new(),
-///         rbac: "".to_string(),
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -382,9 +376,6 @@ pub async fn update_instance(
 fn default_shared() -> bool {
     false
 }
-fn default_rbac() -> String {
-    "".to_string()
-}
 
 #[cfg(test)]
 mod crd_serializeation_tests {
@@ -421,10 +412,9 @@ mod crd_serializeation_tests {
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -441,10 +431,9 @@ mod crd_serializeation_tests {
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -459,7 +448,6 @@ mod crd_serializeation_tests {
         assert_eq!(true, deserialized.shared);
         assert_eq!(2, deserialized.nodes.len());
         assert_eq!(2, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let _ = serde_json::to_string(&deserialized).unwrap();
     }

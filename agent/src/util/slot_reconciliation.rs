@@ -252,7 +252,6 @@ impl DevicePluginSlotReconciler {
                 let modified_instance = Instance {
                     configuration_name: instance.spec.configuration_name.clone(),
                     metadata: instance.spec.metadata.clone(),
-                    rbac: instance.spec.rbac.clone(),
                     shared: instance.spec.shared,
                     device_usage: modified_device_usage,
                     nodes: instance.spec.nodes.clone(),

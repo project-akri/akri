@@ -505,7 +505,6 @@ async fn try_create_instance(
         nodes: vec![dps.node_name.clone()],
         device_usage,
         metadata: get_all_broker_properties(&dps.config.properties, &dps.device.properties),
-        rbac: "rbac".to_string(),
     };
 
     // Try up to MAX_INSTANCE_UPDATE_TRIES to create or update instance, breaking on success

@@ -31,8 +31,6 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
-                rbac:
-                  type: string
       additionalPrinterColumns:
       - name: Config
         type: string

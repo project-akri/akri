@@ -534,7 +534,6 @@ impl KubeInterface for KubeImpl {
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
     ///         metadata: std::collections::HashMap::new(),
-    ///         rbac: "".to_string(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace",
@@ -604,7 +603,6 @@ impl KubeInterface for KubeImpl {
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
     ///         metadata: std::collections::HashMap::new(),
-    ///         rbac: "".to_string(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace"

@@ -32,7 +32,6 @@ namespace Akri
         public bool Shared { get; set; }
         public IList<String> Nodes { get; set; }
         public Dictionary<String, String> DeviceUsage { get; set; }
-        public string Rbac { get; set; }
     }
 
     public static class Akri 
