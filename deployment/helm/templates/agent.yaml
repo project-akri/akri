@@ -29,13 +29,13 @@ spec:
         {{- $repository := ternary .Values.agent.image.fullRepository .Values.agent.image.repository .Values.agent.full -}}
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" $repository | quote }}
+        image: {{ printf "%s:%s" $repository (default "latest-dev" .Values.agent.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" $repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" $repository | quote }}
+        image: {{ printf "%s:%s" $repository (default "latest" .Values.agent.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" $repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}

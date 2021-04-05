@@ -16,13 +16,13 @@ spec:
       - name: akri-opcua-discovery
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" .Values.opcua.discovery.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default "latest-dev" .Values.opcua.discovery.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.opcua.discovery.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" .Values.opcua.discovery.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default "latest" .Values.opcua.discovery.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.opcua.discovery.image.tag) | quote }}
         {{- end }}
