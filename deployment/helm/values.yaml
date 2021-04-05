@@ -105,7 +105,7 @@ custom:
     discoveryHandlerName:
     # properties is a map of properties that will be passed to any instances
     # created as a result of applying this custom configuration
-    properties:
+    properties: {}
     # capacity is the capacity for any instances created as a result of
     # applying this custom configuration
     capacity: 1
@@ -175,7 +175,7 @@ debugEcho:
     name: akri-debug-echo
     # properties is a map of properties that will be passed to any instances
     # created as a result of applying this debugEcho configuration
-    properties:
+    properties: {}
     # capacity is the capacity for any instances created as a result of
     # applying this debugEcho configuration
     capacity: 1
@@ -257,7 +257,7 @@ onvif:
     name: akri-onvif
     # properties is a map of properties that will be passed to any instances
     # created as a result of applying this onvif configuration
-    properties:
+    properties: {}
     discoveryDetails:
       ipAddresses:
         action: Exclude
@@ -343,7 +343,7 @@ opcua:
     name: akri-opcua
     # properties is a map of properties that will be passed to any instances
     # created as a result of applying this OPC UA configuration
-    properties:
+    properties: {}
     discoveryDetails:
       # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
       discoveryUrls:
@@ -429,7 +429,7 @@ udev:
     name: akri-udev
     # properties is a map of properties that will be passed to any instances
     # created as a result of applying this udev configuration
-    properties:
+    properties: {}
     discoveryDetails:
       # udevRules is the list of udev rules used to find instances created as a result of
       # applying this udev configuration

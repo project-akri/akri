@@ -315,7 +315,11 @@ impl DevicePluginService {
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
-            let response = build_container_allocate_response(akri_annotations, &self.device);
+            let response = build_container_allocate_response(
+                self.config.properties.clone(),
+                akri_annotations,
+                &self.device,
+            );
             container_responses.push(response);
         }
         trace!(
@@ -435,6 +439,7 @@ async fn try_update_instance_device_usage(
 
 /// This sets the volume mounts and environment variables according to the instance's `DiscoveryHandler`.
 fn build_container_allocate_response(
+    configuration_properties: HashMap<String, String>,
     annotations: HashMap<String, String>,
     device: &Device,
 ) -> v1beta1::ContainerAllocateResponse {
@@ -459,12 +464,20 @@ fn build_container_allocate_response(
             permissions: device_spec.permissions,
         })
         .collect();
+
+    // Add device properties to broker environment variables map from Configuration
+    // Device properties from Discovery Handlers will overwrite Configuration set ones.
+    let envs: HashMap<String, String> = configuration_properties
+        .into_iter()
+        .chain(device.properties.clone())
+        .collect();
+
     // Create response, setting environment variables to be an instance's properties (specified by protocol)
     v1beta1::ContainerAllocateResponse {
         annotations,
         mounts,
         devices: device_specs,
-        envs: device.properties.clone(),
+        envs,
     }
 }
 
@@ -776,7 +789,7 @@ mod device_plugin_service_tests {
         result_file: &'static str,
         instance_name: String,
         instance_namespace: String,
-        device_usage_node: &'static str,
+        device_usage_node: String,
         node_name: NodeName,
     ) {
         let instance_name_clone = instance_name.clone();
@@ -831,9 +844,11 @@ mod device_plugin_service_tests {
             map.insert(device_instance_name.clone(), instance_info);
         }
         let instance_map: InstanceMap = Arc::new(Mutex::new(map));
+        let mut properties = HashMap::new();
+        properties.insert("DEVICE_LOCATION_INFO".to_string(), "endpoint".to_string());
         let device = Device {
             id: "n/a".to_string(),
-            properties: HashMap::new(),
+            properties,
             mounts: Vec::new(),
             device_specs: Vec::new(),
         };
@@ -981,7 +996,7 @@ mod device_plugin_service_tests {
             "../test/json/local-instance.json",
             device_plugin_service.instance_name.clone(),
             device_plugin_service.config_namespace.clone(),
-            "",
+            String::new(),
             NodeName::OtherNode,
         );
         let instance_name = device_plugin_service.instance_name.clone();
@@ -1024,7 +1039,7 @@ mod device_plugin_service_tests {
             "../test/json/local-instance.json",
             device_plugin_service.instance_name.clone(),
             device_plugin_service.config_namespace.clone(),
-            "",
+            String::new(),
             NodeName::ThisNode,
         );
         let dps = Arc::new(device_plugin_service);
@@ -1269,7 +1284,7 @@ mod device_plugin_service_tests {
             "../test/json/local-instance.json",
             instance_name.clone(),
             instance_namespace.clone(),
-            "",
+            String::new(),
             NodeName::ThisNode,
         );
         let devices =
@@ -1279,23 +1294,20 @@ mod device_plugin_service_tests {
         check_devices(instance_name, devices);
     }
 
-    // Test when device_usage[id] == ""
-    // internal_allocate should set device_usage[id] = m.nodeName, return
-    #[tokio::test]
-    async fn test_internal_allocate_success() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
+    fn setup_internal_allocate_tests(
+        mock: &mut MockKubeInterface,
+        device_plugin_service: &DevicePluginService,
+        formerly_allocated_node: String,
+        newly_allocated_node: String,
+    ) -> Request<AllocateRequest> {
         let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
         let device_usage_id_slot_2 = device_usage_id_slot.clone();
-        let node_name = device_plugin_service.node_name.clone();
-        let mut mock = MockKubeInterface::new();
         configure_find_instance(
-            &mut mock,
+            mock,
             "../test/json/local-instance.json",
             device_plugin_service.instance_name.clone(),
             device_plugin_service.config_namespace.clone(),
-            "",
+            formerly_allocated_node,
             NodeName::ThisNode,
         );
         mock.expect_update_instance()
@@ -1305,14 +1317,64 @@ mod device_plugin_service_tests {
                     .device_usage
                     .get(&device_usage_id_slot)
                     .unwrap()
-                    == &node_name
+                    == &newly_allocated_node
             })
             .returning(move |_, _, _| Ok(()));
         let devices_i_ds = vec![device_usage_id_slot_2];
         let container_requests = vec![v1beta1::ContainerAllocateRequest { devices_i_ds }];
-        let requests = Request::new(AllocateRequest { container_requests });
+        Request::new(AllocateRequest { container_requests })
+    }
+
+    // Test that environment variables set in a Configuration will be set in brokers
+    #[tokio::test]
+    async fn test_internal_allocate_env_vars() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (device_plugin_service, mut device_plugin_service_receivers) =
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
+        let node_name = device_plugin_service.node_name.clone();
+        let mut mock = MockKubeInterface::new();
+        let request = setup_internal_allocate_tests(
+            &mut mock,
+            &device_plugin_service,
+            String::new(),
+            node_name,
+        );
+        let broker_envs = device_plugin_service
+            .internal_allocate(request, Arc::new(mock))
+            .await
+            .unwrap()
+            .into_inner()
+            .container_responses[0]
+            .envs
+            .clone();
+        assert_eq!(broker_envs.get("RESOLUTION_WIDTH").unwrap(), "800");
+        assert_eq!(broker_envs.get("RESOLUTION_HEIGHT").unwrap(), "600");
+        // Check that Device properties are set as env vars by checking for
+        // property of device created in `create_device_plugin_service`
+        assert_eq!(broker_envs.get("DEVICE_LOCATION_INFO").unwrap(), "endpoint");
+        assert!(device_plugin_service_receivers
+            .list_and_watch_message_receiver
+            .try_recv()
+            .is_err());
+    }
+
+    // Test when device_usage[id] == ""
+    // internal_allocate should set device_usage[id] = m.nodeName, return
+    #[tokio::test]
+    async fn test_internal_allocate_success() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (device_plugin_service, mut device_plugin_service_receivers) =
+            create_device_plugin_service(InstanceConnectivityStatus::Online, true);
+        let node_name = device_plugin_service.node_name.clone();
+        let mut mock = MockKubeInterface::new();
+        let request = setup_internal_allocate_tests(
+            &mut mock,
+            &device_plugin_service,
+            String::new(),
+            node_name,
+        );
         assert!(device_plugin_service
-            .internal_allocate(requests, Arc::new(mock),)
+            .internal_allocate(request, Arc::new(mock),)
             .await
             .is_ok());
         assert!(device_plugin_service_receivers
@@ -1328,32 +1390,15 @@ mod device_plugin_service_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, mut device_plugin_service_receivers) =
             create_device_plugin_service(InstanceConnectivityStatus::Online, true);
-        let device_usage_id_slot = format!("{}-0", device_plugin_service.instance_name);
-        let device_usage_id_slot_2 = device_usage_id_slot.clone();
         let mut mock = MockKubeInterface::new();
-        configure_find_instance(
+        let request = setup_internal_allocate_tests(
             &mut mock,
-            "../test/json/local-instance.json",
-            device_plugin_service.instance_name.clone(),
-            device_plugin_service.config_namespace.clone(),
-            "node-a",
-            NodeName::ThisNode,
+            &device_plugin_service,
+            "node-a".to_string(),
+            String::new(),
         );
-        mock.expect_update_instance()
-            .times(1)
-            .withf(move |instance_to_update: &Instance, _, _| {
-                instance_to_update
-                    .device_usage
-                    .get(&device_usage_id_slot)
-                    .unwrap()
-                    == ""
-            })
-            .returning(move |_, _, _| Ok(()));
-        let devices_i_ds = vec![device_usage_id_slot_2];
-        let container_requests = vec![v1beta1::ContainerAllocateRequest { devices_i_ds }];
-        let requests = Request::new(AllocateRequest { container_requests });
         match device_plugin_service
-            .internal_allocate(requests, Arc::new(mock))
+            .internal_allocate(request, Arc::new(mock))
             .await
         {
             Ok(_) => {
@@ -1388,7 +1433,7 @@ mod device_plugin_service_tests {
             "../test/json/local-instance.json",
             device_plugin_service.instance_name.clone(),
             device_plugin_service.config_namespace.clone(),
-            "other",
+            "other".to_string(),
             NodeName::ThisNode,
         );
         let devices_i_ds = vec![device_usage_id_slot];
@@ -1427,7 +1472,7 @@ mod device_plugin_service_tests {
             "../test/json/local-instance.json",
             device_plugin_service.instance_name.clone(),
             device_plugin_service.config_namespace.clone(),
-            "other",
+            "other".to_string(),
             NodeName::ThisNode,
         );
         let devices_i_ds = vec![device_usage_id_slot];

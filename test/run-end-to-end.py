@@ -31,7 +31,21 @@ def main():
     print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
     extra_helm_args = shared_test_code.get_extra_helm_args()
     print("Providing Akri Helm chart with extra helm args: {}".format(extra_helm_args))
-    helm_install_command = "helm install akri {} --set agent.full=true --set debugEcho.configuration.enabled=true --set debugEcho.configuration.name={} --set debugEcho.configuration.shared=true --set debugEcho.configuration.discoveryDetails.descriptions[0]='{}0' --set debugEcho.configuration.discoveryDetails.descriptions[1]='{}1' --set agent.allowDebugEcho=true {} {} --debug ".format(helm_chart_location, shared_test_code.DEBUG_ECHO_NAME, shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, cri_args, extra_helm_args)
+    helm_install_command = "\
+    helm install akri {location} \
+    --set agent.full=true \
+    --set debugEcho.configuration.enabled=true \
+    --set debugEcho.configuration.name={config_name} \
+    --set debugEcho.configuration.shared=true \
+    --set debugEcho.configuration.discoveryDetails.descriptions[0]='{description_prefix}0' \
+    --set debugEcho.configuration.discoveryDetails.descriptions[1]='{description_prefix}1' \
+    --set debugEcho.configuration.properties.{res_width_key}={res_width_val} \
+    --set debugEcho.configuration.properties.{res_height_key}={res_height_val} \
+    --set agent.allowDebugEcho=true \
+    {cri_args} \
+    {helm_args} \
+    --debug \
+    ".format(location=helm_chart_location, config_name=shared_test_code.DEBUG_ECHO_NAME, description_prefix=shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, res_width_key=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_KEY, res_width_val=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_VALUE, res_height_key=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_KEY, res_height_val=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_VALUE, cri_args=cri_args, helm_args=extra_helm_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     

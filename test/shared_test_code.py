@@ -29,6 +29,12 @@ BROKER_POD_LABEL_SELECTOR = CONFIGURATION_LABEL_NAME
 CONFIGURATION_SVC_LABEL_SELECTOR = CONFIGURATION_LABEL_NAME
 INSTANCE_SVC_LABEL_SELECTOR = INSTANCE_LABEL_NAME
 
+# Debug echo Configuration properties
+PROPERTIES_RESOLUTION_WIDTH_KEY = "RESOLUTION_WIDTH"
+PROPERTIES_RESOLUTION_HEIGHT_KEY = "RESOLUTION_HEIGHT"
+PROPERTIES_RESOLUTION_WIDTH_VALUE = "800"
+PROPERTIES_RESOLUTION_HEIGHT_VALUE = "600"
+
 major_version = ""
 agent_pod_name = ""
 controller_pod_name = ""
@@ -156,6 +162,12 @@ def check_broker_pods_env_var(pods):
     for pod in pods:
         if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
             print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
+            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
+            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
             return False
     return True
 
