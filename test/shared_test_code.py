@@ -154,7 +154,7 @@ def check_pods_running(v1, pod_label_selector, count):
 def check_broker_pods_env_var(pods):
     kubectl_cmd = get_kubectl_command()
     for pod in pods:
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
             print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
             return False
     return True
