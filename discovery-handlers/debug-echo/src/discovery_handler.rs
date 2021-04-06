@@ -127,7 +127,6 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        trace!("outside of thread");
         Ok(Response::new(discovered_devices_receiver))
     }
 }
