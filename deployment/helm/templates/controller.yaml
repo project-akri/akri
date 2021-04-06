@@ -20,13 +20,13 @@ spec:
       - name: akri-controller
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" .Values.controller.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default "latest-dev" .Values.controller.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" .Values.controller.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default "latest" .Values.controller.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
         {{- end }}
