@@ -1,6 +1,6 @@
 [package]
 name = "webhook-configuration"
-version = "0.4.4"
+version = "0.4.6"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
 
