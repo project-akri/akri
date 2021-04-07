@@ -29,6 +29,8 @@ spec:
       port: 6052
       protocol: TCP
       targetPort: 6052
-  properties: {}
+  properties:
+    RESOLUTION_WIDTH: "800"
+    RESOLUTION_HEIGHT: "600"
   capacity: 5
   

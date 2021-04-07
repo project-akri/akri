@@ -88,7 +88,9 @@ spec:
   {{- end }}
   {{- if .Values.opcua.configuration.properties }}
   properties:
-  {{- toYaml . | nindent 4 }}
+  {{- range $key, $val := .Values.opcua.configuration.properties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
   {{- else }}
   properties: {}
   {{- end }}

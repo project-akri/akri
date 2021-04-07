@@ -12,6 +12,7 @@ GROUP = "akri.sh"
 AGENT_LOG_PATH = "/tmp/agent_log.txt"
 CONTROLLER_LOG_PATH = "/tmp/controller_log.txt"
 DEBUG_ECHO_NAME = "akri-debug-echo-foo"
+DEBUG_ECHO_DESCRIPTIONS_PREFIX = "bar"
 KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
 RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
 HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
@@ -27,6 +28,12 @@ BROKER_POD_LABEL_SELECTOR = CONFIGURATION_LABEL_NAME
 
 CONFIGURATION_SVC_LABEL_SELECTOR = CONFIGURATION_LABEL_NAME
 INSTANCE_SVC_LABEL_SELECTOR = INSTANCE_LABEL_NAME
+
+# Debug echo Configuration properties
+PROPERTIES_RESOLUTION_WIDTH_KEY = "RESOLUTION_WIDTH"
+PROPERTIES_RESOLUTION_HEIGHT_KEY = "RESOLUTION_HEIGHT"
+PROPERTIES_RESOLUTION_WIDTH_VALUE = "800"
+PROPERTIES_RESOLUTION_HEIGHT_VALUE = "600"
 
 major_version = ""
 agent_pod_name = ""
@@ -140,12 +147,29 @@ def check_pods_running(v1, pod_label_selector, count):
                 for pod in pods:
                     if pod.status.phase != "Running":
                         all_running = False
-                        break
-                if all_running: return True
+                        break    
+                if all_running:
+                    if pod_label_selector == BROKER_POD_LABEL_SELECTOR:
+                         return check_broker_pods_env_var(pods)
+                    else:
+                        return True
     print("Wrong number of pods [{}] found ... expected {}".format(
         pod_label_selector, count))
     return False
 
+def check_broker_pods_env_var(pods):
+    kubectl_cmd = get_kubectl_command()
+    for pod in pods:
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
+            print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
+            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
+            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
+            return False
+    return True
 
 def check_svcs_running(v1, svc_label_selector, count):
     print("Checking number of svcs  [{}] ... expected {}".format(

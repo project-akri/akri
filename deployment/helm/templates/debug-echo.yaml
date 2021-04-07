@@ -51,7 +51,9 @@ spec:
   {{- end }}
   {{- if .Values.debugEcho.configuration.properties }}
   properties:
-  {{- toYaml . | nindent 4 }}
+  {{- range $key, $val := .Values.debugEcho.configuration.properties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
   {{- else }}
   properties: {}
   {{- end }}

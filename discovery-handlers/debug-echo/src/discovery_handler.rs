@@ -98,11 +98,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     offline = false;
                     let devices = descriptions
                         .iter()
-                        .map(|description| Device {
-                            id: description.clone(),
-                            properties: HashMap::new(),
-                            mounts: Vec::default(),
-                            device_specs: Vec::default(),
+                        .map(|description| {
+                            let mut properties = HashMap::new();
+                            properties.insert(
+                                super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
+                                description.clone(),
+                            );
+                            Device {
+                                id: description.clone(),
+                                properties,
+                                mounts: Vec::default(),
+                                device_specs: Vec::default(),
+                            }
                         })
                         .collect::<Vec<Device>>();
                     if let Err(e) = discovered_devices_sender
@@ -120,7 +127,6 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        trace!("outside of thread");
         Ok(Response::new(discovered_devices_receiver))
     }
 }
@@ -168,9 +174,16 @@ mod tests {
         "#;
         let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
         let discovery_handler = DiscoveryHandlerImpl::new(None);
+        let properties: HashMap<String, String> = [(
+            super::super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
+            "foo1".to_string(),
+        )]
+        .iter()
+        .cloned()
+        .collect();
         let device = akri_discovery_utils::discovery::v0::Device {
             id: "foo1".to_string(),
-            properties: HashMap::new(),
+            properties,
             mounts: Vec::default(),
             device_specs: Vec::default(),
         };
