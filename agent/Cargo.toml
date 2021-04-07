@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.4.4"
+version = "0.4.5"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -61,7 +61,7 @@ tempfile = "3.1.0"
 [features]
 # To embed discovery handlers, add the desired discovery handler features to default and "agent-full".
 # Or set the features when building the agent with  
-# `cargo build --manifest-path agent/Cargo.toml --features "agent-full akri-udev akri-opcua akri-onvif"`
+# `cargo build --manifest-path agent/Cargo.toml --features "agent-full onvif-feat opcua-feat udev-feat"`
 default = []
 onvif-feat = [ "akri-onvif"]
 opcua-feat = ["akri-opcua"]

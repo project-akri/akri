@@ -80,7 +80,7 @@ jobs:
 
     - name: Build production rust for ${{ matrix.arch.label }}
       env:
-        AGENT_FEATURES: "agent-full akri-udev akri-opcua akri-onvif" 
+        AGENT_FEATURES: "agent-full onvif-feat opcua-feat udev-feat" 
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         make install-cross
