@@ -315,8 +315,10 @@ impl DevicePluginService {
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
+            let broker_properties =
+                get_all_broker_properties(&self.config.properties, &self.device.properties);
             let response = build_container_allocate_response(
-                self.config.properties.clone(),
+                broker_properties,
                 akri_annotations,
                 &self.device,
             );
@@ -439,7 +441,7 @@ async fn try_update_instance_device_usage(
 
 /// This sets the volume mounts and environment variables according to the instance's `DiscoveryHandler`.
 fn build_container_allocate_response(
-    configuration_properties: HashMap<String, String>,
+    broker_properties: HashMap<String, String>,
     annotations: HashMap<String, String>,
     device: &Device,
 ) -> v1beta1::ContainerAllocateResponse {
@@ -465,19 +467,12 @@ fn build_container_allocate_response(
         })
         .collect();
 
-    // Add device properties to broker environment variables map from Configuration
-    // Device properties from Discovery Handlers will overwrite Configuration set ones.
-    let envs: HashMap<String, String> = configuration_properties
-        .into_iter()
-        .chain(device.properties.clone())
-        .collect();
-
-    // Create response, setting environment variables to be an instance's properties (specified by protocol)
+    // Create response, setting environment variables to be an instance's properties.
     v1beta1::ContainerAllocateResponse {
         annotations,
         mounts,
         devices: device_specs,
-        envs,
+        envs: broker_properties,
     }
 }
 
@@ -509,7 +504,7 @@ async fn try_create_instance(
         shared: dps.shared,
         nodes: vec![dps.node_name.clone()],
         device_usage,
-        metadata: dps.device.properties.clone(),
+        metadata: get_all_broker_properties(&dps.config.properties, &dps.device.properties),
         rbac: "rbac".to_string(),
     };
 
@@ -750,6 +745,18 @@ pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
         .replace("/", "-")
 }
 
+// Aggregate a Configuration and Device's properties so they can be displayed in an Instance and injected into brokers as environment variables.
+pub fn get_all_broker_properties(
+    configuration_properties: &HashMap<String, String>,
+    device_properties: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    configuration_properties
+        .clone()
+        .into_iter()
+        .chain(device_properties.clone())
+        .collect::<HashMap<String, String>>()
+}
+
 #[cfg(test)]
 mod device_plugin_service_tests {
     use super::super::{
@@ -912,6 +919,24 @@ mod device_plugin_service_tests {
             "ip-camera-10-1-2-3".to_string(),
             get_device_instance_name(&instance_name2, &"ip-camera".to_string())
         );
+    }
+
+    // Test that a Device and Configuration's properties are aggregated and that
+    // a Device property overwrites a Configuration's.
+    #[test]
+    fn test_get_all_broker_properties() {
+        let mut device_properties = HashMap::new();
+        device_properties.insert("ENDPOINT".to_string(), "123".to_string());
+        device_properties.insert("OVERWRITE".to_string(), "222".to_string());
+        let mut configuration_properties = HashMap::new();
+        configuration_properties.insert("USE HD".to_string(), "true".to_string());
+        configuration_properties.insert("OVERWRITE".to_string(), "111".to_string());
+        let all_properties =
+            get_all_broker_properties(&configuration_properties, &device_properties);
+        assert_eq!(all_properties.len(), 3);
+        assert_eq!(all_properties.get("ENDPOINT").unwrap(), "123");
+        assert_eq!(all_properties.get("USE HD").unwrap(), "true");
+        assert_eq!(all_properties.get("OVERWRITE").unwrap(), "222");
     }
 
     fn configure_find_configuration(
