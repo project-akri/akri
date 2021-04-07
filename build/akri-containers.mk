@@ -41,9 +41,9 @@ install-cross:
 #    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri`
 #    To make single component: `make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration|debug-echo-discovery|udev-discovery|onvif-discovery|opcua-discovery]`
 #    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make akri-[controller|agent|udev|onvif|streaming|opcua-monitoring|anomaly-detection|webhook-configuration|debug-echo-discovery|udev-discovery|onvif-discovery|opcua-discovery]`
-#	 To make an agent with embedded discovery handlers (on all platforms): `FULL_AGENT_EXECUTABLE_NAME=agent AGENT_FEATURES="agent-full akri-udev akri-opcua akri-onvif" make akri-agent` 
+#	 To make an agent with embedded discovery handlers (on all platforms): `FULL_AGENT_EXECUTABLE_NAME=agent AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat" make akri-agent` 
 #	 To make a slim agent without any embedded discovery handlers: `BUILD_SLIM_AGENT=1 make akri-agent` 
-# 	 To make a slim and full Agent, with full agent executable renamed agent-full: `AGENT_FEATURES="agent-full akri-udev akri-opcua akri-onvif" BUILD_SLIM_AGENT=1 make akri-agent` 
+# 	 To make a slim and full Agent, with full agent executable renamed agent-full: `AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat" BUILD_SLIM_AGENT=1 make akri-agent` 
 #
 .PHONY: akri
 akri: akri-build akri-docker-all

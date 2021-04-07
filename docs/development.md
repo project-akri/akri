@@ -121,7 +121,7 @@ PREFIX=$CONTAINER_REPOSITORY make akri-streaming
 PREFIX=$CONTAINER_REPOSITORY make akri-agent
 # To make an Agent with embedded Discovery Handlers, turn on the `agent-full` feature along with the 
 # feature for any Discovery Handlers that should be embedded.
-PREFIX=$CONTAINER_REPOSITORY BUILD_SLIM_AGENT=0 AGENT_FEATURES="agent-full akri-udev akri-opcua akri-onvif" make akri-agent-full 
+PREFIX=$CONTAINER_REPOSITORY BUILD_SLIM_AGENT=0 AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat" make akri-agent-full 
 
 # To make a specific component on specific platform(s):
 PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make akri-streaming
