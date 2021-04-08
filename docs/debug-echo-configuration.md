@@ -6,31 +6,19 @@ configuration. Devices are visible to the Discovery Handler so long as the word 
 `/tmp/debug-echo-availability.txt` in the Pod in which the Discovery Handler is running.
 
 ## Deploying the Debug Echo Discovery Handler
-In order for the Agent to know how to discover Debug Echo devices, the Debug Echo Discovery Handler must exist. The
-Debug Echo discovery handler is automatically embedded in the Agent so long as the `agent-full` feature is set when
-building the Agent. Set this feature when building the Agent or use the Akri full Agent which includes all supported
-Discovery Handlers by setting `agent.full=true` when installing Akri. By default, a slim Agent without any embedded
-Discovery Handlers is deployed and the required Discovery Handlers can be deployed as DaemonSets. This documentation
-will use that strategy, deploying Debug Echo Discovery Handlers by specifying `debugEcho.discovery.enabled=true` when
-installing Akri.
+In order for the Agent to know how to discover Debug Echo devices, the Debug Echo Discovery Handler must exist. Akri
+supports an Agent image that includes all supported Discovery Handlers. This Agent will be used if `agent.full=true`. By
+default, a slim Agent without any embedded Discovery Handlers is deployed and the required Discovery Handlers can be
+deployed as DaemonSets. This documentation will use that strategy, deploying Debug Echo Discovery Handlers by specifying
+`debugEcho.discovery.enabled=true` when installing Akri. Notes are provided for how the steps change if using embedded
+Discovery Handlers.
 
 Since the Debug Echo Discovery Handler is for debugging, it's use must be explicitly enabled by setting
 `agent.allowDebugEcho=true`.
 
 ## Quickstart
 ### Installation
-To install Akri with an **embedded** Debug Echo Discovery Handler and a Configuration to discover unshared Debug Echo
-devices, run:
-```bash
-helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
-    --set agent.allowDebugEcho=true \
-    --set agent.full=true \
-    --set debugEcho.configuration.enabled=true \
-    --set debugEcho.configuration.shared=false
-```
-
-To install Akri with an **external** Debug Echo Discovery Handler and a Configuration to discover unshared Debug Echo
+To install Akri with **external** Debug Echo Discovery Handlers and a Configuration to discover unshared Debug Echo
 devices, run:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
@@ -40,6 +28,17 @@ helm install akri akri-helm-charts/akri-dev \
     --set debugEcho.configuration.enabled=true \
     --set debugEcho.configuration.shared=false
 ```
+
+> Note: To instead install Akri with Debug Echo Discovery Handlers **embedded** in the Agent, set `agent.full=true` and
+> remove `debugEcho.discovery.enabled=true` like in the following installation:
+>```bash
+>helm repo add akri-helm-charts https://deislabs.github.io/akri/
+>helm install akri akri-helm-charts/akri-dev \
+>   --set agent.allowDebugEcho=true \
+>   --set agent.full=true \
+>   --set debugEcho.configuration.enabled=true \
+>   --set debugEcho.configuration.shared=false
+>```
 
 By default, the Debug Echo Configuration discovers two devices, `foo1` and `foo2`, and automatically deploys an empty
 nginx broker Pod to each discovered device, so you should see two instances and brokers created as a result of your
@@ -62,14 +61,7 @@ defaults to `1`.
 Debug Echo devices are "unplugged"/"disconnected" by writing `"OFFLINE"` into the `/tmp/debug-echo-availability.txt`
 file inside the pod in which the Discovery Handler is running.
 
-**Embedded** Debug Echo Discovery Handlers run inside the Agents, so exec into each Agent to mark the devices offline.
-For single a single node cluster:
-```sh 
-AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
-kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
-```
-
-**External** Debug Echo Discovery Handlers run in their own Pods, so exec into each to mark the devices offline. For
+By default, Debug Echo Discovery Handlers run in their own Pods, so exec into each to mark the devices offline. For
 single a single node cluster:
 ```sh 
 DEBUG_ECHO_DH_POD_NAME=$(kubectl get pods --selector=name=akri-debug-echo-discovery | grep akri | awk '{print $1}')
@@ -79,6 +71,13 @@ kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/d
 >devices prone to intermittent connectivity.
 
 >Note: For, multi-node clusters, each Agent or Debug Echo Discovery Handler must be `exec`ed into. 
+
+> Note: If `agent.full=true` was specified when installing Akri, the Debug Echo Discovery Handlers run inside the Agent,
+> so exec into each Agent to mark the devices offline. For single a single node cluster:
+> ```sh 
+> AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
+> kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
+> ```
 
 Caveat: **Debug Echo devices likely should not be marked as shared for multi-node clusters**. This is because the
 contents of `/tmp/debug-echo-availability.txt` could be different for each node. If one node marks a device as "OFFLINE"
@@ -90,14 +89,7 @@ Debug Echo devices are "plugged in"/"reconnected" by removing `"OFFLINE"` from t
 file inside the pod in which the Discovery Handler is running. The commands below replace the file contents with
 `"ONLINE"`.
 
-**Embedded** Debug Echo Discovery Handlers run inside the Agents, so exec into each Agent to mark the devices offline.
-For single a single node cluster:
-```sh 
-AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
-kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
-```
-
-**External** Debug Echo Discovery Handlers run in their own Pods, so exec into each to mark the devices offline. For
+By default, Debug Echo Discovery Handlers run in their own Pods, so exec into each to mark the devices offline. For
 single a single node cluster:
 ```sh 
 DEBUG_ECHO_DH_POD_NAME=$(kubectl get pods --selector=name=akri-debug-echo-discovery | grep akri | awk '{print $1}')
@@ -105,6 +97,13 @@ kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/de
 ```
 
 >Note: For, multi-node clusters, each Agent or Debug Echo Discovery Handler must be `exec`ed into. 
+
+> Note: If `agent.full=true` was specified when installing Akri, the Debug Echo Discovery Handlers run inside the Agent,
+> so exec into each Agent to mark the devices offline. For single a single node cluster:
+> ```sh 
+> AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
+> kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
+> ```
 
 ## In the Weeds: Debug Echo Configuration Settings
 
