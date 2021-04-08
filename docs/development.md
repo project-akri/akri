@@ -54,9 +54,10 @@ To locally run the controller as part of a k8s cluster, follow these steps:
     for the sake of this, the config is assumed to be in ~/test.cluster.config
 1.  Build the repo with all default features by running `cargo build`
     > Note: By default, the Agent does not have embedded Discovery Handlers. To allow embedded Discovery Handlers in the
-    > Agent, turn on the `agent-full` feature and the feature for each Discovery Handler you wish to embed. For example,
-    > to build an Agent with OPC UA, ONVIF, udev, and debug echo Discovery Handlers: `cargo build --manifest-path
-    > agent/Cargo.toml --features "agent-full udev-feat opcua-feat onvif-feat"`
+    > Agent, turn on the `agent-full` feature and the feature for each Discovery Handler you wish to embed -- Debug echo
+    > is always included if `agent-full` is turned on. For example, to build an Agent with OPC UA, ONVIF, udev, and
+    > debug echo Discovery Handlers: `cargo build --manifest-path agent/Cargo.toml --features "agent-full udev-feat
+    > opcua-feat onvif-feat"`.
 1.  Run the desired component 
 
     Run the **Controller** locally with info-level logging: `RUST_LOG=info KUBECONFIG=~/test.cluster.config
