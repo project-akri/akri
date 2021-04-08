@@ -28,7 +28,7 @@ namespace Akri
         private const string KIND = "Instance";
 
         public string ClassName { get; set; }
-        public Dictionary<String, String> Metadata { get; set; }
+        public Dictionary<String, String> BrokerProperties { get; set; }
         public bool Shared { get; set; }
         public IList<String> Nodes { get; set; }
         public Dictionary<String, String> DeviceUsage { get; set; }

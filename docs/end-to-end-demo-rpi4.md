@@ -125,7 +125,7 @@ Look at the Configuration and Instances in more detail.
     ```sh
     kubectl get akric -o yaml
     ```
-1. Inspect the two Instances. Notice that in the metadata of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. This metadata of each Instance was passed to it's broker Pod as an environment variable. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. Each Instance represents a device and its usage.
+1. Inspect the two Instances. Notice that in the `brokerProperties` of each instance, you can see the device nodes (`/dev/video1` or `/dev/video2`) that the Instance represents. The `brokerProperties` of an Instance are set as environment variables in the broker Pods that are utilizing the device the Instance represents. This told the broker which device to connect to. We can also see in the Instance a usage slot and that it was reserved for this node. Each Instance represents a device and its usage.
     ```sh 
     kubectl get akrii -o yaml
     ```

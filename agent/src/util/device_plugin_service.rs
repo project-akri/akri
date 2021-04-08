@@ -505,7 +505,10 @@ async fn try_create_instance(
         shared: dps.shared,
         nodes: vec![dps.node_name.clone()],
         device_usage,
-        metadata: get_all_broker_properties(&dps.config.broker_properties, &dps.device.properties),
+        broker_properties: get_all_broker_properties(
+            &dps.config.broker_properties,
+            &dps.device.properties,
+        ),
     };
 
     // Try up to MAX_INSTANCE_UPDATE_TRIES to create or update instance, breaking on success

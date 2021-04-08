@@ -63,7 +63,7 @@ several possibilities for supporting **dynamic instance pooling**:
    the broker pod by the Controller. However, injecting environment variables causes pods to restart, so restarts must
    be expected. 
 1. The broker could query etcd to get the Instances, routinely checking which Instances it's node has been selected to
-   connect to and getting connection information from those Instances' `metadata` section. However, this would require
+   connect to and getting connection information from those Instances' `brokerProperties` section. However, this would require
    extra logic to be added to user's brokers.
 1. A side car container could be deployed which does the work of looking at Instances. That container could serve the
    connection information to the main broker container. This would reduce the amount of changes a user would have to
