@@ -30,6 +30,6 @@ spec:
       port: 6052
       protocol: TCP
       targetPort: 6052
-  properties: {}
+  brokerProperties: {}
   capacity: 5
   

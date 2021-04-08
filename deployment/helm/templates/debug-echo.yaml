@@ -49,13 +49,13 @@ spec:
       targetPort: {{ .Values.debugEcho.configuration.configurationService.port }}
   {{- end }}
   {{- end }}
-  {{- if .Values.debugEcho.configuration.properties }}
-  properties:
-  {{- range $key, $val := .Values.debugEcho.configuration.properties }}
+  {{- if .Values.debugEcho.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.debugEcho.configuration.brokerProperties }}
   {{- $key | nindent 4 }}: {{ $val | quote }}
   {{- end }}
   {{- else }}
-  properties: {}
+  brokerProperties: {}
   {{- end }}
   capacity: {{ .Values.debugEcho.configuration.capacity }}
 {{- end }}

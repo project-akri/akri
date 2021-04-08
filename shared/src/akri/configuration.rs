@@ -69,10 +69,13 @@ pub struct Configuration {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration_service_spec: Option<ServiceSpec>,
 
-    /// This defines some properties that will be propagated to
-    /// any Instance
+    /// This defines some properties that will be set as
+    /// environment variables in broker Pods that request
+    /// resources discovered in response to this Configuration.
+    /// These properties are also propagated in the Instances
+    /// that represent the discovered resources.
     #[serde(default)]
-    pub properties: HashMap<String, String>,
+    pub broker_properties: HashMap<String, String>,
 }
 
 /// Get Configurations for a given namespace
@@ -224,7 +227,7 @@ mod crd_serialization_tests {
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
-        assert_eq!(0, deserialized.properties.len());
+        assert_eq!(0, deserialized.broker_properties.len());
     }
 
     #[test]
@@ -237,10 +240,10 @@ mod crd_serialization_tests {
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
-        assert_eq!(0, deserialized.properties.len());
+        assert_eq!(0, deserialized.broker_properties.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"properties":{}}"#;
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerProperties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -315,7 +318,7 @@ mod crd_serialization_tests {
                     "name": "random",
                     "discoveryDetails": ""
                 },
-                "properties": {
+                "brokerProperties": {
                     "resolution-height": "600",
                     "resolution-width": "800"
                 }
@@ -328,6 +331,6 @@ mod crd_serialization_tests {
         assert_ne!(None, deserialized.broker_pod_spec);
         assert_ne!(None, deserialized.instance_service_spec);
         assert_ne!(None, deserialized.configuration_service_spec);
-        assert_eq!(2, deserialized.properties.len());
+        assert_eq!(2, deserialized.broker_properties.len());
     }
 }

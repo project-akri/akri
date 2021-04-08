@@ -318,7 +318,7 @@ mod tests {
                         ]
                     },
                     "capacity": 1,
-                    "properties": {}
+                    "brokerProperties": {}
                 }
             },
             "oldObject": null,

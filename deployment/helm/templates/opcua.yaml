@@ -86,13 +86,13 @@ spec:
       targetPort: {{ .Values.opcua.configuration.configurationService.targetPort }}
   {{- end }}
   {{- end }}
-  {{- if .Values.opcua.configuration.properties }}
-  properties:
-  {{- range $key, $val := .Values.opcua.configuration.properties }}
+  {{- if .Values.opcua.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.opcua.configuration.brokerProperties }}
   {{- $key | nindent 4 }}: {{ $val | quote }}
   {{- end }}
   {{- else }}
-  properties: {}
+  brokerProperties: {}
   {{- end }}
   capacity: {{ .Values.opcua.configuration.capacity }}
 {{- end }}
