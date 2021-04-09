@@ -39,8 +39,8 @@ def main():
     --set debugEcho.configuration.shared=true \
     --set debugEcho.configuration.discoveryDetails.descriptions[0]='{description_prefix}0' \
     --set debugEcho.configuration.discoveryDetails.descriptions[1]='{description_prefix}1' \
-    --set debugEcho.configuration.properties.{res_width_key}={res_width_val} \
-    --set debugEcho.configuration.properties.{res_height_key}={res_height_val} \
+    --set debugEcho.configuration.brokerProperties.{res_width_key}={res_width_val} \
+    --set debugEcho.configuration.brokerProperties.{res_height_key}={res_height_val} \
     --set agent.allowDebugEcho=true \
     {cri_args} \
     {helm_args} \

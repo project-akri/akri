@@ -36,7 +36,7 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                   type: object
                   nullable: true
-                properties: # map<string, string>
+                brokerProperties: # map<string, string>
                   additionalProperties:
                     type: string
                   type: object

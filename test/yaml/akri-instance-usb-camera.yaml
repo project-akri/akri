@@ -13,6 +13,6 @@ spec:
     usb-dev-video0-ffffff-2: "linux-dev3"
     usb-dev-video0-ffffff-3: "linux-dev3"
     usb-dev-video0-ffffff-4: ""
-  metadata:
+  brokerProperties:
     resolution-width: "800"
     resolution-height: "600"

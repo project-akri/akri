@@ -38,5 +38,5 @@ spec:
     - name: grpc
       port: 80
       targetPort: 8083
-  properties: {}
+  brokerProperties: {}
   capacity: 5

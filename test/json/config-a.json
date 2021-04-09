@@ -42,6 +42,6 @@
             "name": "debugEcho",
             "discoveryDetails": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
         },
-        "properties": {}
+        "brokerProperties": {}
     }
 }

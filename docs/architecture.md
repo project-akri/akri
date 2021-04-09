@@ -64,7 +64,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       capacity: 3
     ```
-1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. The Agent then creates an Instance for the discovered leaf device, listing itself as a node that can access it under `nodes`. The Akri Agent puts all the information that the broker pods will need in order to connect to the specific device under the `metadata` section of the Instance. Later, the controller will mount these as environment variables in the broker pods. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
+1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. The Agent then creates an Instance for the discovered leaf device, listing itself as a node that can access it under `nodes`. The Akri Agent puts all the information that the broker pods will need in order to connect to the specific device under the `brokerProperties` section of the Instance. Later, the controller will mount these as environment variables in the broker pods. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
     ```yaml
     kind: Instance
     metadata:
@@ -76,7 +76,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
         akri-<protocolA>-<hash>-0: ""
         akri-<protocolA>-<hash>-1: ""
         akri-<protocolA>-<hash>-2: ""
-      metadata:
+      brokerProperties:
         BROKER_ENV_VAR_1: <value>
         BROKER_ENV_VAR_N: <value>
       nodes:
@@ -127,7 +127,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
         akri-<protocolA>-<hash>-0: ""
         akri-<protocolA>-<hash>-1: "<this-node>"
         akri-<protocolA>-<hash>-2: ""
-      metadata:
+      brokerProperties:
         BROKER_ENV_VAR_1: <value>
         BROKER_ENV_VAR_N: <value>
       nodes:

@@ -95,8 +95,9 @@ pub struct DevicePluginService {
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Upon send, terminates function that acts as the shutdown signal for this service
     pub server_ender_sender: mpsc::Sender<()>,
-    /// Device that the instance represents. Contains information about properties,
-    /// and container mounts.
+    /// Device that the instance represents.
+    /// Contains information about environment variables and volumes that should be mounted
+    /// into requesting Pods.
     pub device: Device,
 }
 
@@ -316,7 +317,7 @@ impl DevicePluginService {
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
             let broker_properties =
-                get_all_broker_properties(&self.config.properties, &self.device.properties);
+                get_all_broker_properties(&self.config.broker_properties, &self.device.properties);
             let response = build_container_allocate_response(
                 broker_properties,
                 akri_annotations,
@@ -504,7 +505,10 @@ async fn try_create_instance(
         shared: dps.shared,
         nodes: vec![dps.node_name.clone()],
         device_usage,
-        metadata: get_all_broker_properties(&dps.config.properties, &dps.device.properties),
+        broker_properties: get_all_broker_properties(
+            &dps.config.broker_properties,
+            &dps.device.properties,
+        ),
     };
 
     // Try up to MAX_INSTANCE_UPDATE_TRIES to create or update instance, breaking on success

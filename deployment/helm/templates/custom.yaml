@@ -43,13 +43,13 @@ spec:
       targetPort: {{ .Values.custom.configuration.configurationService.port }}
   {{- end }}
   {{- end }}
-  {{- if .Values.custom.configuration.properties }}
-  properties:
-  {{- range $key, $val := .Values.custom.configuration.properties }}
+  {{- if .Values.custom.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.custom.configuration.brokerProperties }}
   {{- $key | nindent 4 }}: {{ $val | quote }}
   {{- end }}
   {{- else }}
-  properties: {}
+  brokerProperties: {}
   {{- end }}
   capacity: {{ .Values.custom.configuration.capacity }}
 {{- end }}

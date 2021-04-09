@@ -61,13 +61,13 @@ spec:
       targetPort: {{ .Values.udev.configuration.configurationService.targetPort }}
   {{- end }}
   {{- end }}
-  {{- if .Values.udev.configuration.properties }}
-  properties:
-  {{- range $key, $val := .Values.udev.configuration.properties }}
+  {{- if .Values.udev.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.udev.configuration.brokerProperties }}
   {{- $key | nindent 4 }}: {{ $val | quote }}
   {{- end }}
   {{- else }}
-  properties: {}
+  brokerProperties: {}
   {{- end }}
   capacity: {{ .Values.udev.configuration.capacity }}
 {{- end }}
