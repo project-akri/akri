@@ -116,7 +116,9 @@ async fn handle_instance(
                 "handle_instance - added Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Add, kube_interface)
+                .await
+                .map_err(|e| anyhow::format_err!("{}", e))?;
             Ok(())
         }
         WatchEvent::Deleted(instance) => {
@@ -124,7 +126,9 @@ async fn handle_instance(
                 "handle_instance - deleted Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Remove, kube_interface)
+                .await
+                .map_err(|e| anyhow::format_err!("{}", e))?;
             Ok(())
         }
         WatchEvent::Modified(instance) => {
@@ -132,7 +136,9 @@ async fn handle_instance(
                 "handle_instance - modified Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Update, kube_interface)
+                .await
+                .map_err(|e| anyhow::format_err!("{}", e))?;
             Ok(())
         }
         WatchEvent::Error(ref e) => Err(anyhow::format_err!(
