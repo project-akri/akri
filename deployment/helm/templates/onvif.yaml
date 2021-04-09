@@ -77,13 +77,13 @@ spec:
       targetPort: {{ .Values.onvif.configuration.configurationService.targetPort }}
   {{- end }}
   {{- end }}
-  {{- if .Values.onvif.configuration.properties }}
-  properties:
-  {{- range $key, $val := .Values.onvif.configuration.properties }}
+  {{- if .Values.onvif.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.onvif.configuration.brokerProperties }}
   {{- $key | nindent 4 }}: {{ $val | quote }}
   {{- end }}
   {{- else }}
-  properties: {}
+  brokerProperties: {}
   {{- end }}
   capacity: {{ .Values.onvif.configuration.capacity }}
 {{- end }}

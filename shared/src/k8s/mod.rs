@@ -533,7 +533,7 @@ impl KubeInterface for KubeImpl {
     ///         shared: true,
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
-    ///         metadata: std::collections::HashMap::new(),
+    ///         broker_properties: std::collections::HashMap::new(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace",
@@ -602,7 +602,7 @@ impl KubeInterface for KubeImpl {
     ///         shared: true,
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
-    ///         metadata: std::collections::HashMap::new(),
+    ///         broker_properties: std::collections::HashMap::new(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace"

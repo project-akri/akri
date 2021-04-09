@@ -17,7 +17,7 @@ spec:
               properties:
                 configurationName:
                   type: string
-                metadata:
+                brokerProperties:
                   additionalProperties:
                     type: string
                   type: object

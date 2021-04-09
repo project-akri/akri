@@ -103,9 +103,9 @@ custom:
     name: akri-custom
     # discoveryHandlerName is the name of the Discovery Handler the Configuration is using
     discoveryHandlerName:
-    # properties is a map of properties that will be passed to any instances
+    # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this custom configuration
-    properties: {}
+    brokerProperties: {}
     # capacity is the capacity for any instances created as a result of
     # applying this custom configuration
     capacity: 1
@@ -173,9 +173,9 @@ debugEcho:
     # name is the Kubernetes resource name that will be created for this
     # debugEcho configuration
     name: akri-debug-echo
-    # properties is a map of properties that will be passed to any instances
+    # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this debugEcho configuration
-    properties: {}
+    brokerProperties: {}
     # capacity is the capacity for any instances created as a result of
     # applying this debugEcho configuration
     capacity: 1
@@ -255,9 +255,9 @@ onvif:
     # name is the Kubernetes resource name that will be created for this
     # onvif configuration
     name: akri-onvif
-    # properties is a map of properties that will be passed to any instances
+    # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this onvif configuration
-    properties: {}
+    brokerProperties: {}
     discoveryDetails:
       ipAddresses:
         action: Exclude
@@ -341,9 +341,9 @@ opcua:
     # name is the Kubernetes resource name that will be created for this
     # OPC UA configuration
     name: akri-opcua
-    # properties is a map of properties that will be passed to any instances
+    # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this OPC UA configuration
-    properties: {}
+    brokerProperties: {}
     discoveryDetails:
       # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
       discoveryUrls:
@@ -427,9 +427,9 @@ udev:
     # name is the Kubernetes resource name that will be created for this
     # udev configuration
     name: akri-udev
-    # properties is a map of properties that will be passed to any instances
+    # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this udev configuration
-    properties: {}
+    brokerProperties: {}
     discoveryDetails:
       # udevRules is the list of udev rules used to find instances created as a result of
       # applying this udev configuration

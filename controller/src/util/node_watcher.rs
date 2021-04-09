@@ -304,7 +304,7 @@ impl NodeWatcher {
         // Save the instance
         let modified_instance = Instance {
             configuration_name: instance.spec.configuration_name.clone(),
-            metadata: instance.spec.metadata.clone(),
+            broker_properties: instance.spec.broker_properties.clone(),
             shared: instance.spec.shared,
             device_usage: modified_device_usage,
             nodes: modified_nodes,
