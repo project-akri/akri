@@ -106,6 +106,11 @@ impl NodeWatcher {
             }
             WatchEvent::Modified(node) => {
                 trace!("handle_node - Modified: {:?}", &node.metadata.name);
+                trace!(
+                    "handle_node - Modified with Node Status {:?} and NodeSpec: {:?}",
+                    &node.status,
+                    &node.spec
+                );
                 if self.is_node_ready(&node) {
                     self.known_nodes
                         .insert(node.metadata.name.clone(), NodeState::Running);
@@ -166,6 +171,7 @@ impl NodeWatcher {
 
     /// This determines if a node is in the Ready state.
     fn is_node_ready(&self, k8s_node: &NodeObject) -> bool {
+        trace!("is_node_ready - for node {:?}", k8s_node.metadata.name);
         k8s_node
             .status
             .as_ref()
