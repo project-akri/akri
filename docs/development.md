@@ -50,9 +50,45 @@ There are unit tests for all of the Rust code.  To run all unit tests, simply na
 
 To locally run the controller as part of a k8s cluster, follow these steps:
 
-1.  Create or provide access to a valid cluster configuration by setting KUBECONFIG (can be done in the commandline) ... for the sake of this, the config is assumed to be in ~/test.cluster.config
-1.  Build the repo by running `cargo build`
-1.  Run the desired component (in this case, looking at info-level logging and running the controller locally): `RUST_LOG=info KUBECONFIG=~/test.cluster.config ./target/debug/controller`
+1.  Create or provide access to a valid cluster configuration by setting KUBECONFIG (can be done in the commandline) ...
+    for the sake of this, the config is assumed to be in ~/test.cluster.config
+1.  Build the repo with all default features by running `cargo build`
+    > Note: By default, the Agent does not have embedded Discovery Handlers. To allow embedded Discovery Handlers in the
+    > Agent, turn on the `agent-full` feature and the feature for each Discovery Handler you wish to embed -- Debug echo
+    > is always included if `agent-full` is turned on. For example, to build an Agent with OPC UA, ONVIF, udev, and
+    > debug echo Discovery Handlers: `cargo build --manifest-path agent/Cargo.toml --features "agent-full udev-feat
+    > opcua-feat onvif-feat"`.
+1.  Run the desired component 
+
+    Run the **Controller** locally with info-level logging: `RUST_LOG=info KUBECONFIG=~/test.cluster.config
+    ./target/debug/controller`
+
+    Run the **Agent** locally with info-level logging: 
+    ```sh
+    sudo DEBUG_ECHO_INSTANCES_SHARED=true ENABLE_DEBUG_ECHO=1 RUST_LOG=info KUBECONFIG=~/test.cluster.config DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode HOST_CRICTL_PATH=/usr/bin/crictl HOST_RUNTIME_ENDPOINT=/var/run/dockershim.sock HOST_IMAGE_ENDPOINT=/var/run/dockershim.sock ./target/debug/agent
+    ```
+    > Note: The environment variables `HOST_CRICTL_PATH`, `HOST_RUNTIME_ENDPOINT`, and `HOST_IMAGE_ENDPOINT` are for
+    > slot-reconciliation (making sure Pods that no longer exist are not still claiming Akri resources). The values of
+    > these vary based on Kubernetes distribution. The above is for vanilla Kubernetes. For MicroK8s, use
+    > `HOST_CRICTL_PATH=/usr/local/bin/crictl HOST_RUNTIME_ENDPOINT=/var/snap/microk8s/common/run/containerd.sock
+    > HOST_IMAGE_ENDPOINT=/var/snap/microk8s/common/run/containerd.sock` and for K3s, use
+    > `HOST_CRICTL_PATH=/usr/local/bin/crictl HOST_RUNTIME_ENDPOINT=/run/k3s/containerd/containerd.sock
+    > HOST_IMAGE_ENDPOINT=/run/k3s/containerd/containerd.sock`.
+
+    To run **Discovery Handlers** locally, simply navigate to the Discovery Handler under
+    `akri/discovery-handler-modules/` and run using cargo run, setting where the Discovery Handler socket should be
+    created in the `DISCOVERY_HANDLERS_DIRECTORY` variable. For example, to run the ONVIF Discovery Handler locally:
+    ```sh
+    cd akri/discovery-handler-modules/onvif-discovery-handler/
+    RUST_LOG=info DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
+    ```
+    To run the [debug echo Discovery Handler](#testing-with-debug-echo-discovery-handler), an environment variable,
+    `DEBUG_ECHO_INSTANCES_SHARED`, must be set to specify whether it should register with the Agent as discovering
+    shared or unshared devices. Run the debug echo Discovery Handler to discover mock unshared devices like so:
+    ```sh
+    cd akri/discovery-handler-modules/debug-echo-discovery-handler/
+    RUST_LOG=info DEBUG_ECHO_INSTANCES_SHARED=false DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
+    ```
 
 ### To build containers
 `Makefile` has been created to help with the more complicated task of building the Akri components and containers for the various supported platforms.
@@ -183,6 +219,10 @@ helm get manifest akri | less
 
 ### Helm Upgrade
 To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [Customizing an Akri Installation document](./customizing-akri-installation.md) for further explanation. 
+
+## Testing with Debug Echo Discovery Handler
+In order to kickstart using and debugging Akri, a debug echo Discovery Handler has been created. See its
+[documentation](./debug-echo-configuration.md) to start using it.
 
 ## Naming Guidelines
 
