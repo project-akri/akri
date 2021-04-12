@@ -46,7 +46,7 @@ specifications](https://reference.opcfoundation.org/v104/).
 
 ## Setting up a single-node cluster
 Before running Akri, we need a Kubernetes cluster. If you do not have a readily available cluster, follow the steps
-provided in the [end-to-end demo](./end-to-end-demo.md#set-up-cluster) to set up a single-node MicroK8s or K3s cluster. If using MicroK8s, you can skip the step of enabling privileged pods, as the OPC UA monitoring brokers do not need to run in a privileged security context.
+provided in the [cluster setup documentation](./setting-up-cluster.md).
 
 ## Creating X.509 v3 Certificates
 **If security is not desired, this section can be skipped, as each monitoring broker will use an OPC UA Security Policy
