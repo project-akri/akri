@@ -3,13 +3,13 @@
 There are endless sensors, controllers, and MCU class devices on the edge and each type of device has a different
 discovery protocol. Akri is an interface for helping expose those devices as resources to your Kubernetes cluster on the
 edge. Before it can add a device as a cluster resource, Akri must first discover the device using the appropriate
-protocol. Akri currently supports several protocols and was built in a modular way so as to continually support more.
+Discovery Handler. Akri currently supports several Discovery Handlers and was built in a modular way so as to continually support more.
 The question is, which protocols should Akri prioritize? We are looking for community feedback to make this decision. If
 there is a protocol that you would like implemented, check our [Issues](https://github.com/deislabs/akri/issues) to see
 if that protocol has been requested, and thumbs up it so we know you, too, would like it implemented. If there is no
 existing request for your protocol, create a [new feature request](https://github.com/deislabs/akri/issues/new/choose).
-Rather than waiting for it to be prioritized, you could implement discovery via that protocol in Agent. See [the
-extensibility document](./extensibility.md) for more details.
+Rather than waiting for it to be prioritized, you could implement a Discovery Handler for that protocol. See [the
+Discovery Handler development document](./discovery-handler-development.md) for more details.
 
 ### Currently supported Discovery Handlers
 1. ONVIF (to discover IP cameras)

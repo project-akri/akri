@@ -39,7 +39,8 @@ Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discove
 - [User guide for deploying Akri using Helm](./docs/user-guide.md) 
 - [Akri architecture in depth](./docs/architecture.md)
 - [How to build Akri](./docs/development.md)
-- [How to extend Akri for protocols that haven't been supported yet](./docs/extensibility.md).
+- [How to extend Akri for protocols that haven't been supported yet](./docs/discovery-handler-development.md).
+- [How to create a broker to leverage discovered devices](./docs/broker-development.md).
 - Proposals for enhancements such as new Discovery Handler implementations can be found in the [proposals folder](./docs/proposals)
 
 ## Roadmap
