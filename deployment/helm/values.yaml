@@ -87,8 +87,6 @@ agent:
     crictl: /usr/bin/crictl
     # dockerShimSock is the node path of the docker socket
     dockerShimSock: /var/run/dockershim.sock
-    # udev is the node path of udev
-    udev: /run/udev
   # allowDebugEcho dictates whether the Akri Agent will allow DebugEcho Configurations
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node

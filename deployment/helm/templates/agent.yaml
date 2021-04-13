@@ -76,8 +76,6 @@ spec:
             mountPath: /host/usr/bin/crictl
           - name: var-run-dockershim
             mountPath: /host/var/run/dockershim.sock
-          - name: devices
-            mountPath: /run/udev
         {{- if .Values.prometheus.enabled }}
         ports:
           - name: {{ .Values.prometheus.portName | quote }}
@@ -100,7 +98,4 @@ spec:
       - name: var-run-dockershim
         hostPath:
           path: "{{ .Values.agent.host.dockerShimSock }}"
-      - name: devices
-        hostPath:
-          path: "{{ .Values.agent.host.udev }}"
 {{- end }}
