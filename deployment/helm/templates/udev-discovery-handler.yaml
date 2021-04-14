@@ -49,6 +49,10 @@ spec:
         volumeMounts:
         - name: discovery-handlers
           mountPath: /var/lib/akri
+        {{- if .Values.udev.discovery.host.udev }}
+        - name: devices
+          mountPath: /run/udev
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -61,4 +65,9 @@ spec:
       - name: discovery-handlers
         hostPath:
           path: {{ .Values.agent.host.discoveryHandlers }}
+      {{- if .Values.udev.discovery.host.udev }}
+      - name: devices
+        hostPath:
+          path: "{{ .Values.udev.discovery.host.udev }}"
+      {{- end }}
 {{- end }}
