@@ -115,7 +115,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       phase: Pending
     ```
-1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. In theWhen calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. In the `allocate` response, the Agent also tells kubelet to mount the `Instance.brokerProperties` as environment variables in the broker Pod.
+1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. When calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. In the `allocate` response, the Agent also tells kubelet to mount the `Instance.brokerProperties` as environment variables in the broker Pod.
     ```yaml
     kind: Instance
     metadata:

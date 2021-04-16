@@ -1,7 +1,7 @@
 # Creating a Broker to Utilize Discovered Devices
 Akri's Agent discovers devices described by an Akri Configuration, and for each discovered device, it creates Kubernetes
 resources using the Device Plugin Framework, which can later be requested by Pods. Akri's Controller can automate the
-usage of discovered devices by deploying Pods that request their newly created resources. Akri calls these Pods brokers.
+usage of discovered devices by deploying Pods that request the newly created resources. **Akri calls these Pods brokers.**
 
 > Background: Akri chose the term "broker" because one use case Akri initially envisioned was deploying Pods that acted
 > as protocol translation gateways. For example, Akri could discover USB cameras and automatically deploy a broker to
@@ -15,7 +15,7 @@ of a `Device` discovered by a Discovery Handler. The former is where an operator
 will be set in brokers that utilize any device discovered via the Configuration. The latter is specific to one device
 and usually contains connection information such as an RTSP URL for an ONVIF camera or a devnode for a USB device. Also,
 while `brokerProperties` can be unique to a scenario, the `properties` environment variable keys are consistent to a
-Discovery Handler, with values changing based on device. All the environment variables from these two sources are
+Discovery Handler with values changing based on device. All the environment variables from these two sources are
 displayed in an Instance that represents a discovered device, making it a good reference for what environment variables
 the broker should expect. The image below expresses how a broker Pod's environment variables come from the two
 aforementioned sources.

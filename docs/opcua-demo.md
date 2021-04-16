@@ -189,8 +189,8 @@ to the OPC Foundation's .NET Console Reference Server.
         --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
         --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
         --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
-        --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
-        --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
         # --set opcua.configuration.mountCertificates='true'
     ```
     Akri Agent will discover the two Servers and create an Instance for each Server. Watch two broker pods spin up, one
@@ -311,8 +311,8 @@ Kubernetes) cluster.
         --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
         --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
         --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
-        --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
-        --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
         --set opcua.capacity=2 \
       # --set opcua.configuration.mountCertificates='true'
    ```
@@ -367,7 +367,7 @@ helm install akri akri-helm-charts/akri-dev \
     --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
     # --set opcua.configuration.mountCertificates='true'
 ```
 You can watch as an Instance is created for each Server and two broker pods are spun up. For MicroK8s
@@ -392,9 +392,9 @@ helm install akri akri-helm-charts/akri-dev \
     --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.applicationNames.action=Exclude \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.applicationNames.items[0]="SomeServer0" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    --set opcua.configuration.discoveryDetails.applicationNames.action=Exclude \
+    --set opcua.configuration.discoveryDetails.applicationNames.items[0]="SomeServer0" \
     # --set opcua.configuration.mountCertificates='true'
 ```
 Alternatively, to only discover the server named "SomeServer0", do the following:
@@ -406,9 +406,9 @@ helm install akri akri-helm-charts/akri-dev \
     --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
     --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
     --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.applicationNames.action=Include \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.applicationNames.items[0]="SomeServer0" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    --set opcua.configuration.discoveryDetails.applicationNames.action=Include \
+    --set opcua.configuration.discoveryDetails.applicationNames.items[0]="SomeServer0" \
     # --set opcua.mountCertificates='true'
 ```
 ### Creating a different broker and end application
@@ -425,8 +425,8 @@ helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
-    --set opcua.configuration.discoveryHandler.discoveryDetails.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \
     --set opcua.configuration.brokerPod.image.repository='ghcr.io/<USERNAME>/opcua-broker'
     # --set opcua.configuration.mountCertificates='true'
 ```

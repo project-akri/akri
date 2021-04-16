@@ -457,7 +457,10 @@ installation command:
   ```
 
 Watch as the Agent, Controller, and Discovery Handler Pods are spun up and as Instances are created for each of the
-discovery devices. `watch kubectl get pods,akrii`
+discovery devices. 
+```bash
+watch kubectl get pods,akrii
+```
 
 If you simply wanted Akri to expose discovered devices to the cluster as Kubernetes resources, you could stop here. If
 you have a workload that could utilize one of these resources, you could [manually deploy pods that request them as
