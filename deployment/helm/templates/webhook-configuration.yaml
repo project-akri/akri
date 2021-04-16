@@ -64,6 +64,13 @@ items:
             {{- end }}
             {{- end }}
             imagePullPolicy: {{ .Values.webhookConfiguration.image.pullPolicy }}
+            resources:
+              requests:
+                memory: {{ .Values.webhookConfiguration.resources.memoryRequest }}
+                cpu: {{ .Values.webhookConfiguration.resources.cpuRequest }}
+              limits:
+                memory: {{ .Values.webhookConfiguration.resources.memoryLimit }}
+                cpu: {{ .Values.webhookConfiguration.resources.cpuLimit }}
             command:
             - /server
             args:

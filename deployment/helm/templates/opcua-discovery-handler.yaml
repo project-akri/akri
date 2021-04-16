@@ -30,6 +30,13 @@ spec:
         {{- with .Values.opcua.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.opcua.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.opcua.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.opcua.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.opcua.discovery.resources.cpuLimit }}
         {{- if .Values.opcua.discovery.useNetworkConnection }}
         ports:
         - name: discovery

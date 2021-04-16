@@ -30,6 +30,13 @@ spec:
         {{- with .Values.debugEcho.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.debugEcho.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.debugEcho.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.debugEcho.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.debugEcho.discovery.resources.cpuLimit }}
         {{- if .Values.debugEcho.discovery.useNetworkConnection }}
         ports:
         - name: discovery
