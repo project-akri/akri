@@ -1,0 +1,37 @@
+# This document provides values to be passed to `helm lint` to provide more exhaustive linting in our workflows.
+# Can also be used locally from base of Akri repository: `helm lint deployment/helm --values test/helm-lint-values.yaml`
+# Alternatively, linting can be done in line by setting values: 
+# `helm lint deployment/helm/ --set debugEcho.discovery.enabled=true,debugEcho.configuration.enabled=true,udev.discovery.enabled=true,udev.configuration.enabled=true,udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'...`
+debugEcho:
+  discovery: 
+    enabled: true
+  configuration:
+    enabled: true
+udev:
+  discovery:
+    enabled: true
+  configuration:
+    enabled: true
+    discoveryDetails:
+      udevRules:
+        - 'KERNEL=="video[0-9]*"'
+opcua: 
+  discovery:
+    enabled: true
+  configuration:
+    enabled: true
+onvif: 
+  discovery: 
+    enabled: true
+  configuration: 
+    enabled: true
+custom: 
+  discovery: 
+    enabled: true
+    image:
+      repository: "nginx"
+  configuration: 
+    enabled: true
+    discoveryHandlerName: "some name"
+webhookConfiguration: 
+  enabled: true
