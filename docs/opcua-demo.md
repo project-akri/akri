@@ -45,7 +45,11 @@ If at any point in the demo, you want to dive deeper into OPC UA or clarify a te
 specifications](https://reference.opcfoundation.org/v104/).
 
 ## Setting up a cluster
-Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a **single-node** cluster or adapt your currently existing cluster. This documentation assumes you are using a single-node cluster, so if installing K3s or MicroK8s, you can skip the last step of the installation instructions.
+Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster for this demo. For ease of
+setup, only create a single-node cluster, so if installing K3s or MicroK8s, you can skip the last step of
+the installation instructions of adding additional nodes. If you have an existing cluster, feel free to leverage it for
+the demo. This documentation assumes you are using a single-node cluster; however, you can certainly use a multi-node
+cluster.
 
 ## Creating X.509 v3 Certificates
 **If security is not desired, this section can be skipped, as each monitoring broker will use an OPC UA Security Policy
