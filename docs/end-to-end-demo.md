@@ -69,7 +69,7 @@ The following will be covered in this demo:
     > ```
 
 ## Setting up a cluster
-Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster or adapt your currently existing cluster. 
+Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a **single-node** cluster or adapt your currently existing cluster. This documentation assumes you are using a single-node cluster, so if installing K3s or MicroK8s, you can skip the last step of the installation instructions.
 
 > Note, if using MicroK8s, enable privileged Pods, as the udev video broker pods run privileged to easily grant them access to video devices. More explicit device access could have been configured by setting the appropriate [security context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec in the Configuration.
 
