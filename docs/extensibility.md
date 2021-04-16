@@ -1,25 +1,12 @@
-# Extensibility
+# Extensibility Example
+This document will walk through an end-to-end example of creating Discovery Handler to discover **HTTP-based devices**
+that publish random sensor data. It will also walk through how to create a custom broker to leverage the discovered
+devices. Reference the [Discovery Handler development](./discovery-handler-development.md) and [broker Pod
+development](./broker-development.md) documents if you prefer generic documentation over an example.
 
-Akri has [implemented several discovery protocols](./roadmap.md#currently-supported-protocols) with sample brokers and
-applications. However, there may be protocols you would like to use to discover resources that have not been implemented
-yet.  To enable the discovery of resources via a new protocol, you will implement a Discovery Handler (DH), which does
-discovery on behalf of the Agent. A Discovery Handler is anything that implements the `Discovery` service and
-`Registration` client defined in the [Akri's discovery gRPC proto file](../discovery-utils/proto/discovery.proto). These
-DHs run as their own Pods and are expected to register with the Agent, which hosts the `Registration` service defined in
-the gRPC interface. A discovery handler can be written in any language using protobuf; however, Akri has provided a
-template for accelerating creating a discovery handler in Rust.  
-
-This document will walk you through the development steps to implement a Discovery Handler and sample broker that
-utilizes exposed devices. This document will also cover the steps to get your Discovery Handler and broker added to
-Akri, should you wish to [contribute them back](./contributing.md).
-
-Before continuing, please read the [Akri architecture](./architecture.md), [Akri agent](./agent-in-depth.md), and
-[development](./development.md) documentation pages.  They will provide a good understanding of Akri, how it works, what
-components it is composed of, and how to build it.
-> **Note:** a Discovery Handler can use any set of steps to discover devices. It does not have to be a "protocol" in the
-> traditional sense. For example, Akri defines udev (not often called a "protocol") and OPC UA as protocols.
-
-Here, we will create a Discovery Handler to discover **HTTP-based devices** that publish random sensor data.
+Before continuing, you may wish to reference the [Akri architecture](./architecture.md) and [Akri
+agent](./agent-in-depth.md) documentation.  They will provide a good understanding of Akri, how it works, and what
+components it is composed of.
 
 Any Docker-compatible container registry will work for hosting the containers being used in this example (Docker Hub,
 Github Container Registry, Azure Container Registry, etc).  Here, we are using the [GitHub Container
@@ -30,6 +17,15 @@ yourself](https://docs.github.com/en/free-pro-team@latest/packages/getting-start
 > **Note:** if your container registry is private, you will need to create a kubernetes secret (`kubectl create secret
 > docker-registry crPullSecret --docker-server=<cr>  --docker-username=<cr-user> --docker-password=<cr-token>`) and
 > access it with an `imagePullSecret`.  Here, we will assume the secret is named `crPullSecret`.
+
+## Background on Discovery Handlers
+Akri has [implemented discovery via several protocols](./roadmap.md#currently-supported-discovery-handlers) with sample
+brokers and applications to demonstrate usage. However, there may be protocols you would like to use to discover
+resources that have not been implemented as Discovery Handlers yet. To enable the discovery of resources via a new
+protocol, you will implement a Discovery Handler (DH), which does discovery on behalf of the Agent. A Discovery Handler
+is anything that implements the `Discovery` service and `Registration` client defined in the [Akri's discovery gRPC
+proto file](../discovery-utils/proto/discovery.proto). These DHs run as their own Pods and are expected to register with
+the Agent, which hosts the `Registration` service defined in the gRPC interface. 
 
 ## New DiscoveryHandler implementation
 ### Use `cargo generate` to clone the Discovery Handler template
@@ -461,7 +457,10 @@ installation command:
   ```
 
 Watch as the Agent, Controller, and Discovery Handler Pods are spun up and as Instances are created for each of the
-discovery devices. `watch kubectl get pods,akrii`
+discovery devices. 
+```bash
+watch kubectl get pods,akrii
+```
 
 If you simply wanted Akri to expose discovered devices to the cluster as Kubernetes resources, you could stop here. If
 you have a workload that could utilize one of these resources, you could [manually deploy pods that request them as
@@ -664,8 +663,8 @@ used in our installation command.
     --set custom.configuration.name=akri-http  \
     --set custom.configuration.discoveryHandlerName=http \
     --set custom.configuration.discoveryDetails=http://discovery:9999/discovery \
-    --set custom.brokerPod.image.repository=$BROKER_IMAGE \
-    --set custom.brokerPod.image.tag=$TAGS
+    --set custom.configuration.brokerPod.image.repository=$BROKER_IMAGE \
+    --set custom.configuration.brokerPod.image.tag=$TAGS
   watch kubectl get pods,akrii
 ```
 > Note: substitute `helm upgrade` for `helm install` if you do not have an existing Akri installation
@@ -674,25 +673,3 @@ We can watch as the broker pods get deployed:
 ```bash
 watch kubectl get pods -o wide
 ```
-
-## Contributing your Protocol Implementation back to Akri
-Now that you have a working protocol implementation and broker, we'd love for you to contribute your code to Akri. The
-following steps will need to be completed to do so:
-1. Create an Issue with a feature request for this protocol.
-2. Create a proposal and put in PR for it to be added to the [proposals folder](./proposals).
-3. Implement your protocol and provide a full end to end sample.
-4. Create a pull request, that includes discovery handler and Dockerfile in the [discovery handler
-   modules](../discovery-handler-modules) and [build](../build/containers/discovery-handlers) directories, respectively.
-   Be sure to also update the minor version of Akri. See [contributing](./contributing.md#versioning) to learn more
-   about our versioning strategy.
-
-For a protocol to be considered fully implemented the following must be included in the PR. Note that the HTTP protocol
-above has not completed all of the requirements. 
-1. A new DiscoveryHandler implementation 
-1. A sample protocol broker for the new resource
-1. A sample Configuration that uses the new protocol in the form of a Helm template and values
-1. (Optional) A sample end application that utilizes the services exposed by the Configuration
-1. Dockerfile[s] for broker [and sample app] and associated update to the [makefile](../build/akri-containers.mk)
-1. Github workflow[s] for broker [and sample app] to build containers and push to Akri container repository
-1. Documentation on how to use the new sample Configuration, like the [udev Configuration
-   document](./udev-configuration.md)
