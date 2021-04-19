@@ -91,11 +91,11 @@ def get_test_version():
 
 def save_agent_and_controller_logs(namespace="default"):
     kubectl_cmd = get_kubectl_command()
-    os.system("{} logs {} --namespace={} >> {}".format(kubectl_cmd,
+    os.system("sudo {} logs {} --namespace={} >> {}".format(kubectl_cmd,
                                                        agent_pod_name,
                                                        namespace,
                                                        AGENT_LOG_PATH))
-    os.system("{} logs {} --namespace={} >> {}".format(kubectl_cmd,
+    os.system("sudo {} logs {} --namespace={} >> {}".format(kubectl_cmd,
                                                        controller_pod_name,
                                                        namespace,
                                                        CONTROLLER_LOG_PATH))
