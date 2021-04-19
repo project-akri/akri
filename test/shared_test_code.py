@@ -91,14 +91,20 @@ def get_test_version():
 
 def save_agent_and_controller_logs(namespace="default"):
     kubectl_cmd = get_kubectl_command()
-    os.system("{} logs {} --namespace={} >> {}".format(kubectl_cmd,
+    for x in range(5):
+        if os.system("sudo {} logs {} --namespace={} >> {}".format(kubectl_cmd,
                                                        agent_pod_name,
                                                        namespace,
-                                                       AGENT_LOG_PATH))
-    os.system("{} logs {} --namespace={} >> {}".format(kubectl_cmd,
-                                                       controller_pod_name,
-                                                       namespace,
-                                                       CONTROLLER_LOG_PATH))
+                                                       AGENT_LOG_PATH)):
+            continue
+
+        if os.system("sudo {} logs {} --namespace={} >> {}".format(kubectl_cmd,
+                                                        controller_pod_name,
+                                                        namespace,
+                                                        CONTROLLER_LOG_PATH)):
+            continue
+    if x == 4:
+        print("Could not successfully save agent and controller logs after 5 tries")
 
 
 def crds_applied():
@@ -160,14 +166,15 @@ def check_pods_running(v1, pod_label_selector, count):
 def check_broker_pods_env_var(pods):
     kubectl_cmd = get_kubectl_command()
     for pod in pods:
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
-            print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
-            return False
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
-            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
-            return False
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
-            print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
+        for x in range(5):
+            if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
+                print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {} on try {}".format(pod.metadata.name, x + 1))
+            if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
+                print("Could not find a {} environment variable in broker Pod {} on try {}".format(PROPERTIES_RESOLUTION_WIDTH_KEY, pod.metadata.name, x + 1))
+            if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
+                print("Could not find a {} environment variable in broker Pod {} on try {}".format(PROPERTIES_RESOLUTION_HEIGHT_KEY, pod.metadata.name, x + 1))
+        if x == 4:
+            print("Could not find expected environment variables in broker Pod {} after 5 tries".format(pod.metadata.name, x))
             return False
     return True
 
