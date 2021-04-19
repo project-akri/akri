@@ -123,6 +123,13 @@ Look at the Configuration and Instances in more detail.
 1. Deploy a video streaming web application that points to both the Configuration and Instance level services that were automatically created by Akri.
     ```sh
     kubectl apply -f https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
+    ```
+    For MicroK8s
+    ```sh
+    watch microk8s kubectl get pods
+    ```
+    For K3s and vanilla Kubernetes
+    ```sh
     watch kubectl get pods
     ```
 1. Determine which port the service is running on. Be sure to save this port number for the next step.
