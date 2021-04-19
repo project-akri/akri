@@ -49,59 +49,11 @@ To see which version of the **akri** and **akri-dev** Helm charts are stored loc
 To grab the latest Akri Helm charts, run `helm repo update`.
 
 ### Setting up your cluster
-Before deploying Akri, you must have a Kubernetes, K3s, or MicroK8s cluster (v1.16 or higher) running with `kubectl` support installed. All nodes must be Linux. All of the Akri component containers are currently built for amd64, arm64v8, or arm32v7, so all nodes must have one of these platforms.
-1. Install Helm
-    ```sh
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-1. Provide runtime-specific configuration to enable Akri and Helm
-
-    1. If using **K3s**, point to `kubeconfig` for Helm, install crictl, and configure Akri to use K3s' CRI socket.
-        ```sh
-        # Install crictl locally (note: there are no known version limitations, any crictl version is expected to work). 
-        # This step is not necessary if using a K3s version below 1.19, in which case K3s' embedded crictl can be used.
-        VERSION="v1.17.0"
-        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-        rm -f crictl-$VERSION-linux-amd64.tar.gz
-
-        # Helm uses $KUBECONFIG to find the Kubernetes configuration
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-
-        # Configure Akri to use K3s' embedded crictl and CRI socket
-        export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
-        ```
-    1. If using **MicroK8s**, enable CoreDNS, RBAC (optional), and Helm. If your broker Pods must run privileged, enable
-       privileged Pods. Also, install crictl, and configure Akri to use MicroK8s' CRI socket.
-        ```sh
-        # Enable CoreDNS, RBAC and Helm
-        microk8s enable dns rbac helm3
-
-        # Optionally enable privileged pods (if your broker Pods must run privileged) and restart MicroK8s.
-        echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
-        sudo microk8s stop && microk8s start
-
-        # Install crictl locally (note: there are no known version
-        # limitations, any crictl version is expected to work)
-        VERSION="v1.17.0"
-        curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-        sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-        rm -f crictl-$VERSION-linux-amd64.tar.gz
-
-        # Configure Akri to use MicroK8s' CRI socket
-        export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
-        ```
-        If you don't have existing kubectl and helm installations, you can add aliases. If you do not want to set an
-        alias, add microk8s in front of all kubectl and helm commands.
-        ```sh
-        alias kubectl='microk8s kubectl'
-        alias helm='microk8s helm3'
-        ```
-    1. If using **Kubernetes**, Helm and crictl do not require additional configuration.
+Before deploying Akri, you must have a Kubernetes cluster (v1.16 or higher) running with `kubectl` and `Helm` installed. Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster or adapt your currently existing cluster. Akri currently supports Linux Nodes on amd64, arm64v8, or arm32v7.
 ### Installing Akri Flow
 Akri is installed using its Helm Chart, which contains settings for deploying the Akri Agents, Controller, Discovery Handlers, and Configurations. All these can be installed in one command, in several different Helm installations, or via consecutive `helm upgrades`. This section will focus on the latter strategy, helping you construct your Akri installation command, assuming you have already decided what you want Akri to discover. 
 
-Akri's Helm chart deploys the Akri Controller and Agent by default, so you only need to specify which Discovery Handlers and Configurations need to be deployed in your command. Akri discovers devices via Discovery Handlers, which are often protocol implementations. Akri currently supports three Discovery Handlers (udev, OPC UA and ONVIF); however, custom discovery handlers can be created and deployed as explained in Akri's [extensibility document](./extensibility.md). Akri is told what to discover via Akri Configurations, which specify the name of the Discovery Handler that should be used, any discovery details (such as filters) that need to be passed to the Discovery Handler, and optionally any broker Pods and services that should be created upon discovery. For example, the ONVIF Discovery Handler can receive requests to include or exclude cameras with certain IP addresses.
+Akri's Helm chart deploys the Akri Controller and Agent by default, so you only need to specify which Discovery Handlers and Configurations need to be deployed in your command. Akri discovers devices via Discovery Handlers, which are often protocol implementations. Akri currently supports three Discovery Handlers (udev, OPC UA and ONVIF); however, custom discovery handlers can be created and deployed as explained in Akri's [Discovery Handler development document](./discovery-handler-development.md). Akri is told what to discover via Akri Configurations, which specify the name of the Discovery Handler that should be used, any discovery details (such as filters) that need to be passed to the Discovery Handler, and optionally any broker Pods and services that should be created upon discovery. For example, the ONVIF Discovery Handler can receive requests to include or exclude cameras with certain IP addresses.
 
 Let's walk through building an Akri installation command:
 
@@ -109,7 +61,7 @@ Let's walk through building an Akri installation command:
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     ```
-2. Install Akri's Controller and Agent, specifying the crictl configuration from [prerequisites above](#setting-up-your-cluster) in not using vanilla Kubernetes:
+2. Install Akri's Controller and Agent, specifying the crictl configuration from [the cluster setup steps](./setting-up-cluster.md) in not using vanilla Kubernetes:
     ```sh
      helm install akri akri-helm-charts/akri-dev \
         $AKRI_HELM_CRICTL_CONFIGURATION 
@@ -124,11 +76,11 @@ Let's walk through building an Akri installation command:
     > Note: To install a full Agent with embedded udev, OPC UA, and ONVIF Discovery Handlers, set `agent.full=true` instead of enabling the Discovery Handlers. Note, this we restart the 
     > Agent Pods.
     > ```sh
-    > helm upgrade akri akri-helm-charts/akri \
+    > helm upgrade akri akri-helm-charts/akri-dev \
     >    --set agent.full=true
     > ```
 
-4. Upgrade the installation to apply a Configuration, which requests discovery of certain devices by a Discovery Handler. A Configuration is applied by setting  `<discovery handler name>.configuration.enabled`. While some Configurations may not require any discovery details to be set, oftentimes setting details is preferable for narrowing the Discovery Handlers' search. These are set under `<discovery handler name>.configuration.discoveryDetails`. For example, udev rules are passed to the udev Discovery Handler to specify which devices in the Linux device file system it should search for by setting `udev.configuration.discoveryDetails.udevRules`. Akri can be instructed to automatically deploy workloads called "brokers" to each discovered device by setting a broker Pod image in a Configuration via `--set <protocol>.configuration.brokerPod.image.repository=<your broker image>`.
+4. Upgrade the installation to apply a Configuration, which requests discovery of certain devices by a Discovery Handler. A Configuration is applied by setting  `<discovery handler name>.configuration.enabled`. While some Configurations may not require any discovery details to be set, oftentimes setting details is preferable for narrowing the Discovery Handlers' search. These are set under `<discovery handler name>.configuration.discoveryDetails`. For example, udev rules are passed to the udev Discovery Handler to specify which devices in the Linux device file system it should search for by setting `udev.configuration.discoveryDetails.udevRules`. Akri can be instructed to automatically deploy workloads called "brokers" to each discovered device by setting a broker Pod image in a Configuration via `--set <protocol>.configuration.brokerPod.image.repository=<your broker image>`. Learn more about creating brokers in the [broker development document](./broker-development.md).
     ```sh
     helm upgrade akri akri-helm-charts/akri-dev \
         --set <discovery handler name>.discovery.enabled=true \

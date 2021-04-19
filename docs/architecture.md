@@ -64,7 +64,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       capacity: 3
     ```
-1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. The Agent then creates an Instance for the discovered leaf device, listing itself as a node that can access it under `nodes`. The Akri Agent puts all the information that the broker pods will need in order to connect to the specific device under the `brokerProperties` section of the Instance. Later, the controller will mount these as environment variables in the broker pods. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
+1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. When creating the device plugin, it tells the kubelet to set connection information for that specific device and additional metadata from a Configuration's `brokerProperties` as environment variables in all Pods that request this device's resource. This information is also set in the `brokerProperties` section of the Instance the Agent creates to represent the discovered leaf device. In the Instance, the Agent also lists itself as a node that can access the device under `nodes`. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
     ```yaml
     kind: Instance
     metadata:
@@ -115,7 +115,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       phase: Pending
     ```
-1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. When calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. 
+1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. When calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. In the `allocate` response, the Agent also tells kubelet to mount the `Instance.brokerProperties` as environment variables in the broker Pod.
     ```yaml
     kind: Instance
     metadata:

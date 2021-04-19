@@ -40,8 +40,7 @@ If you would like workloads ("broker" Pods) to be deployed automatically to disc
 See [Mounting OPC UA credentials to enable security](#mounting-opc-ua-credentials-to-enable-security) for more details on how to use this setting.
 | Helm Key | Value | Default | Description |
 |---|---|---|---|
-| opcua.configuration.mountCertificates| true, false | false | specify whether to mount a
-secret named `opcua-broker-credentials` into the OPC UA brokers |
+| opcua.configuration.mountCertificates| true, false | false | specify whether to mount a secret named `opcua-broker-credentials` into the OPC UA brokers |
 
 ### Disabling Automatic Service Creation
 By default, if a broker Pod is specified, the generic OPC UA Configuration will create services for all the brokers of a specific Akri Instance and all the brokers of an Akri Configuration. The creation of these services can be disabled.
