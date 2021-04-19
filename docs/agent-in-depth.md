@@ -26,6 +26,27 @@ To enable resource sharing, the Akri Agent creates and updates the `Instance.dev
 For more detailed information, see the [in-depth resource sharing doc](./resource-sharing-in-depth.md).
 
 ## Resource discovery
-The Agent discovers resources via Discovery Handlers (DHs). A Discovery Handler is anything that implements the `DiscoveryHandler` service defined in [`discovery.proto`](../discovery-utils/proto/discovery.proto). In order to be utilized, a DH must register with the Agent, which hosts the `Registration` service defined in [`discovery.proto`](../discovery-utils/proto/discovery.proto). The Agent maintains a list of registered DHs and their connectivity status, which is either `Waiting`, `Active`, or `Offline(Instant)`. When registered, a DH's status is `Waiting`. Once the Agent has successfully created a connecting with a DH, due a Configuration requesting resources discovered by that DH, it's status is set to `Active`. If the Agent is unable to connect or loses a connection with a DH, its status is set to `Offline(Instant)`. The `Instant` marks the time at which the DH became unresponsive. If the DH has been offline for more than 5 minutes, it is removed from the Agent's list of registered discovery handlers. If a Configuration is deleted, the Agent drops the connection it made with all DHs for that Configuration and marks the DHs' statuses as `Waiting`. Note, while probably not commonplace, the Agent allows for multiple DHs to be registered for the same protocol. IE: you could have two udev DHs running on a node on different sockets. 
+The Agent discovers resources via Discovery Handlers (DHs). A Discovery Handler is anything that implements the
+`DiscoveryHandler` service defined in [`discovery.proto`](../discovery-utils/proto/discovery.proto). In order to be
+utilized, a DH must register with the Agent, which hosts the `Registration` service defined in
+[`discovery.proto`](../discovery-utils/proto/discovery.proto). The Agent maintains a list of registered DHs and their
+connectivity statuses, which is either `Waiting`, `Active`, or `Offline(Instant)`. When registered, a DH's status is
+`Waiting`. Once a Configuration requesting resources discovered by a DH is applied to the Akri-enabled cluster, the
+Agent will create a connection with the DH requested in the Configuration and set the status of the DH to `Active`. If
+the Agent is unable to connect or loses a connection with a DH, its status is set to `Offline(Instant)`. The `Instant`
+marks the time at which the DH became unresponsive. If the DH has been offline for more than 5 minutes, it is removed
+from the Agent's list of registered Discovery Handlers. If a Configuration is deleted, the Agent drops the connection it
+made with all DHs for that Configuration and marks the DHs' statuses as `Waiting`. Note, while probably not commonplace,
+the Agent allows for multiple DHs to be registered for the same protocol. IE: you could have two udev DHs running on a
+node on different sockets. 
 
-Supported DHs each have a [library](../discovery-handlers) and a [binary implementation](../discovery-handler-modules). This allows them to either be run within the Agent binary or in their own Pod. 
+The Agent's registration service defaults to running on the socket `/var/lib/akri/agent-registration.sock` but can be
+Configured with Helm. While Discovery Handlers must register with this service over UDS, the Discovery Handler's service
+can run over UDS or an IP based endpoint.
+
+Supported Rust DHs each have a [library](../discovery-handlers) and a [binary
+implementation](../discovery-handler-modules). This allows them to either be run within the Agent binary or in their own
+Pod.
+
+Reference the [Discovery Handler development document](./discovery-handler-development.md) to learn how to implement a
+Discovery Handler. 

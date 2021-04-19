@@ -69,82 +69,9 @@ The following will be covered in this demo:
     > ```
 
 ## Setting up a cluster
+Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster or adapt your currently existing cluster. 
 
-**Note:** Feel free to deploy on any Kubernetes distribution. Here, find instructions for K3s and MicroK8s. Select and
-carry out one or the other (or adapt to your distribution), then continue on with the rest of the steps. 
-
-### Option 1: Set up single node cluster using K3s
-1. Install [K3s](https://k3s.io/) v1.18.9+k3s1.
-    ```sh
-    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.18.9+k3s1 sh -
-    ```
-1. Grant admin privilege to access kubeconfig.
-    ```sh
-    sudo addgroup k3s-admin
-    sudo adduser $USER k3s-admin
-    sudo usermod -a -G k3s-admin $USER
-    sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
-    sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-    su - $USER
-    ```
-1. Check K3s status.
-    ```sh
-    kubectl get node
-    ```
-1. Install Helm.
-    ```sh
-    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-1. K3s uses its own embedded crictl, so we need to configure the Akri Helm chart with the k3s crictl path and socket.
-    ```sh
-    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
-    ```
-
-### Option 2: Set up single node cluster using MicroK8s
-1. Install [MicroK8s](https://microk8s.io/docs).
-    ```sh
-    sudo snap install microk8s --classic --channel=1.18/stable
-    ```
-1. Grant admin privilege for running MicroK8s commands.
-    ```sh
-    sudo usermod -a -G microk8s $USER
-    sudo chown -f -R $USER ~/.kube
-    su - $USER
-    ```
-1. Check MicroK8s status.
-    ```sh
-    microk8s status --wait-ready
-    ```
-1. Enable CoreDNS, Helm and RBAC for MicroK8s.
-    ```sh
-    microk8s enable dns helm3 rbac
-    ```
-1. If you don't have an existing `kubectl` and `helm` installations, add aliases. If you do not want to set an alias, add `microk8s` in front of all `kubectl` and `helm` commands.
-    ```sh
-    alias kubectl='microk8s kubectl'
-    alias helm='microk8s helm3'
-    ```
-1. For the sake of this demo, the udev video broker pods run privileged to easily grant them access to video devices, so
-   enable privileged pods and restart MicroK8s. More explicit device access could have been configured by setting the
-   appropriate [security context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec
-   in the Configuration.
-    ```sh
-    echo "--allow-privileged=true" >> /var/snap/microk8s/current/args/kube-apiserver
-    microk8s.stop
-    microk8s.start
-    ```
-1. Akri depends on crictl to track some Pod information. MicroK8s does not install crictl locally, so crictl must be installed and the Akri Helm chart needs to be configured with the crictl path and MicroK8s containerd socket.
-    ```sh
-    # Note that we aren't aware of any version restrictions
-    VERSION="v1.17.0"
-    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-    rm -f crictl-$VERSION-linux-amd64.tar.gz
-
-    export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
-    ```
+> Note, if using MicroK8s, enable privileged Pods, as the udev video broker pods run privileged to easily grant them access to video devices. More explicit device access could have been configured by setting the appropriate [security context](udev-configuration.md#setting-the-broker-pod-security-context) in the broker PodSpec in the Configuration.
 
 ## Installing Akri
 You tell Akri what you want to find with an Akri Configuration, which is one of Akri's Kubernetes custom resources. The Akri Configuration is simply a `yaml` file that you apply to your cluster. Within it, you specify three things: 
