@@ -79,7 +79,7 @@ helm install akri akri-helm-charts/akri-dev \
 ## Specifying additional broker environment variables in a Configuration
 You can request that additional environment variables are set in Pods that request devices discovered via an Akri
 Configuration. These are set as key/value pairs in a Configuration's `brokerProperties`. For example, take the scenario
-of brokers being deployed to USB cameras discovered by Akri. You may wish to give the brokers extra image about the
+of brokers being deployed to USB cameras discovered by Akri. You may wish to give the brokers extra information about the
 image format and resolution the cameras support. The brokers then can look up these variables to know how to properly
 utilize their camera. These `brokerProperties` could be set in a Configuration during a Helm installation as follows:
 ```sh
