@@ -93,11 +93,11 @@ async fn internal_do_instance_watch(
         // Currently, this does not handle None except to break the
         // while.
         while let Some(event) = instances.next().await {
-            // Acquire lock to ensure cleanup_instance_and_configuration_svcs and the
+            // Aquire lock to ensure cleanup_instance_and_configuration_svcs and the
             // inner loop handle_instance call in internal_do_instance_watch
             // cannot execute at the same time.
             let _lock = synchronization.lock().await;
-            trace!("internal_do_instance_watch - acquired sync lock");
+            trace!("internal_do_instance_watch - aquired sync lock");
             handle_instance(event?, kube_interface).await?;
         }
     }
@@ -136,7 +136,8 @@ async fn handle_instance(
             Ok(())
         }
         WatchEvent::Error(ref e) => {
-            Err(anyhow::format_err!("handle_instance - error for Akri Instance: {}", e))
+            trace!("handle_instance - error for Akri Instance: {}", e);
+            Ok(())
         }
     }
 }
