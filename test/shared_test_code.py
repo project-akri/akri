@@ -160,13 +160,13 @@ def check_pods_running(v1, pod_label_selector, count):
 def check_broker_pods_env_var(pods):
     kubectl_cmd = get_kubectl_command()
     for pod in pods:
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
+        if os.system('sudo {} exec -i {} -- /bin/sh -c "printenv | grep ^DEBUG_ECHO_DESCRIPTION={} | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
             print("Could not find a DEBUG_ECHO_DESCRIPTION environment variable in broker Pod {}".format(pod.metadata.name))
             return False
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
+        if os.system('sudo {} exec -i {} -- /bin/sh -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):
             print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
             return False
-        if os.system('sudo {} exec -i {} -- /bin/bash -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
+        if os.system('sudo {} exec -i {} -- /bin/sh -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_HEIGHT_KEY, PROPERTIES_RESOLUTION_HEIGHT_VALUE)):
             print("Could not find a {} environment variable in broker Pod {}".format(pod.metadata.name))
             return False
     return True

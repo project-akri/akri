@@ -287,7 +287,7 @@ The empty nginx brokers do not do anything with the devices they've requested. E
 `Device.properties` (Instance's `brokerProperties`) were set as environment variables. 
 
 ```sh
-sudo kubectl exec -i <broker pod name> -- /bin/bash -c "printenv" 
+sudo kubectl exec -i <broker pod name> -- /bin/sh -c "printenv" 
 ```
 
 ## Create a broker
