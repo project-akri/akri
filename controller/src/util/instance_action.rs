@@ -108,7 +108,7 @@ async fn internal_do_instance_watch(
 async fn handle_instance(
     event: WatchEvent<KubeAkriInstance>,
     kube_interface: &impl KubeInterface,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_instance - enter");
     match event {
         WatchEvent::Added(instance) => {
@@ -116,7 +116,7 @@ async fn handle_instance(
                 "handle_instance - added Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await?;
             Ok(())
         }
         WatchEvent::Deleted(instance) => {
@@ -124,7 +124,7 @@ async fn handle_instance(
                 "handle_instance - deleted Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
             Ok(())
         }
         WatchEvent::Modified(instance) => {
@@ -132,7 +132,7 @@ async fn handle_instance(
                 "handle_instance - modified Akri Instance {}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await.map_err(|e| anyhow::format_err!("{}", e))?;
+            handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await?;
             Ok(())
         }
         WatchEvent::Error(ref e) => Err(anyhow::format_err!(
