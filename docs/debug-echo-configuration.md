@@ -65,7 +65,7 @@ By default, Debug Echo Discovery Handlers run in their own Pods, so exec into ea
 a single node cluster:
 ```sh 
 DEBUG_ECHO_DH_POD_NAME=$(kubectl get pods --selector=name=akri-debug-echo-discovery | grep akri | awk '{print $1}')
-kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
+kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
 ```
 >Note: `shared` devices have a 5 minute grace period before their instances are deleted, as they are more often network
 >devices prone to intermittent connectivity.
@@ -76,7 +76,7 @@ kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/d
 > so exec into each Agent to mark the devices offline. For a single node cluster:
 > ```sh 
 > AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
-> kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
+> kubectl exec -i $AGENT_POD_NAME -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"
 > ```
 
 Caveat: **Debug Echo devices likely should not be marked as shared for multi-node clusters**. This is because the
@@ -93,7 +93,7 @@ By default, Debug Echo Discovery Handlers run in their own Pods, so exec into ea
 a single node cluster:
 ```sh 
 DEBUG_ECHO_DH_POD_NAME=$(kubectl get pods --selector=name=akri-debug-echo-discovery | grep akri | awk '{print $1}')
-kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
+kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
 ```
 
 >Note: For multi-node clusters, each Agent or Debug Echo Discovery Handler must be `exec`ed into. 
@@ -102,7 +102,7 @@ kubectl exec -i $DEBUG_ECHO_DH_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/de
 > so exec into each Agent to mark the devices offline. For a single node cluster:
 > ```sh 
 > AGENT_POD_NAME=$(kubectl get pods --selector=name=akri-agent | grep akri | awk '{print $1}')
-> kubectl exec -i $AGENT_POD_NAME -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
+> kubectl exec -i $AGENT_POD_NAME -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"
 > ```
 
 ## In the Weeds: Debug Echo Configuration Settings
