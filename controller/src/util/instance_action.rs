@@ -135,10 +135,9 @@ async fn handle_instance(
             handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await?;
             Ok(())
         }
-        WatchEvent::Error(ref e) => Err(anyhow::format_err!(
-            "handle_instance - error for Akri Instance: {}",
-            e
-        )),
+        WatchEvent::Error(ref e) => {
+            Err(anyhow::format_err!("handle_instance - error for Akri Instance: {}", e))
+        }
     }
 }
 
