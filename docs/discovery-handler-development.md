@@ -12,6 +12,10 @@ through an example, see Akri's [extensibility demo](./extensibility.md), which w
 Handler that discovers HTTP based devices. This document will also cover the steps to get your Discovery Handler added
 to Akri, should you wish to [contribute it back](./contributing.md).
 
+Before continuing, you may wish to reference the [Akri architecture](./architecture.md) and [Akri
+agent](./agent-in-depth.md) documentation.  They will provide a good understanding of Akri, how it works, and what
+components it is composed of.
+
 A Discovery Handler can be written in any language using protobuf; however, Akri has provided a template for
 accelerating the development of Rust Discovery Handlers. This document will walk through both of those options. If using the
 Rust template, still read through the non-Rust section to gain context on the Discovery Handler interface. 

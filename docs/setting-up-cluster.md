@@ -1,22 +1,15 @@
 # Setting up your cluster
-Before deploying Akri, you must have a Kubernetes cluster (v1.16 or higher) running with `kubectl` and `Helm` installed. Akri is Kubernetes native, so it should run on most Kubernetes distributions. All of our end-to-end tests run on vanilla Kubernetes, K3s, and MicroK8s clusters. This documentation will walk through how to set up a cluster using one of those three distributions.
+Before deploying Akri, you must have a Kubernetes cluster (v1.16 or higher) running with `kubectl` and `Helm` installed. Akri is Kubernetes native, so it should run on most Kubernetes distributions. This document provides cluster setup instructions for the three Kubernetes distributions that all of our end-to-end tests run on. 
+
+Please choose **one** of the following:
+1. [Set up a K3s cluster](#Option-1-Set-up-a-K3s-cluster)
+1. [Set up a MicroK8s cluster](#Option-2-Set-up-a-MicroK8s-cluster)
+1. [Set up a standard Kubernetes cluster](#Option-3-Set-up-a-standard-Kubernetes-cluster)
+
 
 >Note: All nodes must be Linux on amd64, arm64v8, or arm32v7.
 
-## Set up a standard Kubernetes cluster
-1. Reference [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/) for instructions on how to install Kubernetes. 
-1. Install Helm for deploying Akri.
-    ```sh
-    sudo apt install -y curl
-    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-    ```
-
-> Note: To enable workloads on a single-node cluster, remove the master taint.
-> ```sh
-> kubectl taint nodes --all node-role.kubernetes.io/master-
-> ```
-
-## Set up a K3s cluster
+## Option 1: Set up a K3s cluster
 1. Install [K3s](https://k3s.io/)
     ```sh
       curl -sfL https://get.k3s.io | sh -
@@ -53,9 +46,9 @@ Before deploying Akri, you must have a Kubernetes cluster (v1.16 or higher) runn
     ```sh
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/run/k3s/containerd/containerd.sock"
     ```
-1. Add nodes to your cluster by running the K3s installation script with the `K3S_URL` and `K3S_TOKEN` environment variables. See [K3s installation documentation](https://rancher.com/docs/k3s/latest/en/quick-start/#install-script) for more details.
+1. If desired, add nodes to your cluster by running the K3s installation script with the `K3S_URL` and `K3S_TOKEN` environment variables. See [K3s installation documentation](https://rancher.com/docs/k3s/latest/en/quick-start/#install-script) for more details.
 
-## Set up a MicroK8s cluster
+## Option 2: Set up a MicroK8s cluster
 1. Install [MicroK8s](https://microk8s.io/docs).
     ```sh
     sudo snap install microk8s --classic --channel=1.19/stable
@@ -95,4 +88,17 @@ Before deploying Akri, you must have a Kubernetes cluster (v1.16 or higher) runn
 
     export AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
     ```
-1. To add additional nodes to the cluster, reference [MicroK8's documentation](https://microk8s.io/docs/clustering).
+1. If desired, reference [MicroK8's documentation](https://microk8s.io/docs/clustering) to add additional nodes to the cluster.
+
+## Option 3: Set up a standard Kubernetes cluster
+1. Reference [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/) for instructions on how to install Kubernetes. 
+1. Install Helm for deploying Akri.
+    ```sh
+    sudo apt install -y curl
+    curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+    ```
+
+> Note: To enable workloads on a single-node cluster, remove the master taint.
+> ```sh
+> kubectl taint nodes --all node-role.kubernetes.io/master-
+> ```

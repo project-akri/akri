@@ -44,9 +44,12 @@ The following steps need to be completed to run the demo:
 If at any point in the demo, you want to dive deeper into OPC UA or clarify a term, you can reference the [online OPC UA
 specifications](https://reference.opcfoundation.org/v104/).
 
-## Setting up a single-node cluster
-Before running Akri, we need a Kubernetes cluster. If you do not have a readily available cluster, follow the steps
-provided in the [cluster setup documentation](./setting-up-cluster.md).
+## Setting up a cluster
+Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster for this demo. For ease of
+setup, only create a single-node cluster, so if installing K3s or MicroK8s, you can skip the last step of
+the installation instructions of adding additional nodes. If you have an existing cluster, feel free to leverage it for
+the demo. This documentation assumes you are using a single-node cluster; however, you can certainly use a multi-node
+cluster.
 
 ## Creating X.509 v3 Certificates
 **If security is not desired, this section can be skipped, as each monitoring broker will use an OPC UA Security Policy
