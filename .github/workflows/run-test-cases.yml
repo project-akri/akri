@@ -249,6 +249,7 @@ jobs:
       - if: startsWith(matrix.kube.runtime, 'MicroK8s')
         name: Install MicroK8s
         run: |
+          set -x
           sudo snap install microk8s --classic --channel=${{ matrix.kube.version }}
           sudo microk8s status --wait-ready
           sudo usermod -a -G microk8s $USER
