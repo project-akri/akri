@@ -62,10 +62,10 @@ controller:
   resources:
     # memoryRequest defines the minimum amount of RAM that must be available to this Pod
     # for it to be scheduled by the Kubernetes Scheduler
-    memoryRequest: 100Mi
+    memoryRequest: 11Mi
     # cpuRequest defines the minimum amount of CPU that must be available to this Pod
     # for it to be scheduled by the Kubernetes Scheduler
-    cpuRequest: 15m
+    cpuRequest: 10m
     # memoryLimit defines the maximum amount of RAM this Pod can consume.
     memoryLimit: 100Mi
     # cpuLimit defines the maximum amount of CPU this Pod can consume.
@@ -107,12 +107,12 @@ agent:
   resources:
     # memoryRequest defines the minimum amount of RAM that must be available to this Pod
     # for it to be scheduled by the Kubernetes Scheduler
-    memoryRequest: 100Mi
+    memoryRequest: 11Mi
     # cpuRequest defines the minimum amount of CPU that must be available to this Pod
     # for it to be scheduled by the Kubernetes Scheduler
-    cpuRequest: 15m
+    cpuRequest: 10m
     # memoryLimit defines the maximum amount of RAM this Pod can consume.
-    memoryLimit: 100Mi
+    memoryLimit: 79Mi
     # cpuLimit defines the maximum amount of CPU this Pod can consume.
     cpuLimit: 26m
 
@@ -190,14 +190,14 @@ custom:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 100Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 15m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 100Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 26m
+      cpuLimit: 24m
 
 debugEcho:
   configuration:
@@ -282,12 +282,12 @@ debugEcho:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 100Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 15m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 100Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
       cpuLimit: 26m
 
@@ -380,14 +380,14 @@ onvif:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 100Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 15m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 100Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 26m
+      cpuLimit: 24m
 
 opcua:
   configuration:
@@ -476,15 +476,14 @@ opcua:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 100Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 15m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 100Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 26m
-
+      cpuLimit: 24m
 
 udev:
   configuration:
@@ -567,14 +566,14 @@ udev:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 100Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 15m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 100Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 26m
+      cpuLimit: 24m
 
 # Admission Controllers (Webhooks)
 webhookConfiguration:
