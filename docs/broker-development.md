@@ -75,3 +75,22 @@ helm install akri akri-helm-charts/akri-dev \
     --set udev.configuration.brokerPod.image.repository="ghcr.io/brokers/camera-broker" \
     --set udev.configuration.brokerPod.image.tag="v0.0.1" 
 ```
+
+## Specifying additional broker environment variables in a Configuration
+You can request that additional environment variables are set in Pods that request devices discovered via an Akri
+Configuration. These are set as key/value pairs in a Configuration's `brokerProperties`. For example, take the scenario
+of brokers being deployed to USB cameras discovered by Akri. You may wish to give the brokers extra information about the
+image format and resolution the cameras support. The brokers then can look up these variables to know how to properly
+utilize their camera. These `brokerProperties` could be set in a Configuration during a Helm installation as follows:
+```sh
+  helm repo add akri-helm-charts https://deislabs.github.io/akri/
+  helm install akri akri-helm-charts/akri-dev \
+  --set udev.discovery.enabled=true \
+  --set udev.configuration.enabled=true \
+  --set udev.configuration.name=akri-udev-video \
+  --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"' \
+  --set udev.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker" \
+  --set udev.configuration.brokerProperties.FORMAT='JPEG' \
+  --set udev.configuration.brokerProperties.RESOLUTION_WIDTH='1000' \
+  --set udev.configuration.brokerProperties.RESOLUTION_HEIGHT='800'
+```

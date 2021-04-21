@@ -227,7 +227,7 @@ debugEcho:
         # repository is the debugEcho broker container reference
         repository: nginx
         # tag is the debugEcho broker image tag
-        tag: latest
+        tag: stable-alpine
         # pullPolicy is the debugEcho pull policy
         pullPolicy: ""
     # createInstanceServices is specified if a service should automatically be
