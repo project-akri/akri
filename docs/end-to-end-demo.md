@@ -191,7 +191,7 @@ Look at the Configuration and Instances in more detail.
     ```
 
 ## Going beyond the demo
-1. Plug in real cameras! You can [pass environment variables](./udev-video-sample.md#modifying-the-brokerpod-spec) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
+1. Plug in real cameras! You can [pass environment variables](./broker-development#Specifying-additional-broker-environment-variables-in-a-Configuration) to the frame server broker to specify the format, resolution width/height, and frames per second of your cameras.
 1. Apply the [ONVIF Configuration](onvif-configuration.md) and make the streaming app display footage from both the local video devices and onvif cameras. To do this, modify the [video streaming yaml](../deployment/samples/akri-video-streaming-app.yaml) as described in the inline comments in order to create a larger service that aggregates the output from both the `udev-camera-svc` service and `onvif-camera-svc` service.
 1. Add more nodes to the cluster.
 1. [Modify the udev rule](udev-video-sample.md#modifying-the-udev-rule) to find a more specific subset of cameras.
