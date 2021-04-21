@@ -190,7 +190,9 @@ jobs:
         env:
           INSTALL_K3S_VERSION: ${{ matrix.kube.version }}
         run: |
-          sudo curl -sfL https://get.k3s.io | sh -
+          sudo curl -sfL https://get.k3s.io -o install.sh
+          sudo chmod +x install.sh
+          ./install.sh server --kubelet-arg=eviction-hard="imagefs.available<1%,nodefs.available<1%" --kubelet-arg=eviction-minimum-reclaim="imagefs.available=1%,nodefs.available=1%"
           sudo addgroup k3s-admin
           sudo adduser $USER k3s-admin
           sudo usermod -a -G k3s-admin $USER
