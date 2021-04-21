@@ -97,7 +97,7 @@ def do_test():
     # Check agent responds to dynamic offline/online resource
     # 
     print("Writing to Agent pod {} that device offline".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
 
     print("Checking Akri state after taking device offline")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
@@ -107,7 +107,7 @@ def do_test():
 
     # Do back online scenario
     print("Writing to Agent pod {} that device online".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
     
     print("Checking Akri state after bringing device back online")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
