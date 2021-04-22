@@ -1,6 +1,6 @@
 [package]
 name = "configuration-validator"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
 
