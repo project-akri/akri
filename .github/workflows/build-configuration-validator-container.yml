@@ -1,4 +1,4 @@
-name: Build Webhook Configuration
+name: Build Configuration Validator Webhook
 
 on:
   workflow_run:
@@ -8,8 +8,8 @@ on:
       - completed
 
 env:
-  AKRI_COMPONENT: webhook-configuration
-  MAKEFILE_COMPONENT: webhook-configuration
+  AKRI_COMPONENT: configuration-validator
+  MAKEFILE_COMPONENT: configuration-validator
 
 jobs:
   per-arch:

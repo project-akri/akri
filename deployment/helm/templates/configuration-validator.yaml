@@ -112,7 +112,7 @@ items:
           port: 443
           targetPort: 8443
   - apiVersion: admissionregistration.k8s.io/v1
-    kind: ValidatingconfigurationValidator
+    kind: ValidatingWebhookConfiguration
     metadata:
       name: {{ .Values.configurationValidator.name }}
     webhooks:
