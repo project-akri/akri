@@ -233,7 +233,7 @@ debugEcho:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/debug-echo-discovery
       # tag is the container tag
-      # debugEcho.yaml will default to v(AppVersion)[-dev]
+      # debug-echo-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
@@ -320,7 +320,7 @@ onvif:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/onvif-discovery
       # tag is the container tag
-      # onvif.yaml will default to v(AppVersion)[-dev]
+      # onvif-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
@@ -405,7 +405,7 @@ opcua:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/opcua-discovery
       # tag is the container tag
-      # opcua.yaml will default to v(AppVersion)[-dev]
+      # opcua-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy
@@ -482,7 +482,7 @@ udev:
       # repository is the container reference
       repository: ghcr.io/deislabs/akri/udev-discovery
       # tag is the container tag
-      # udev.yaml will default to v(AppVersion)[-dev]
+      # udev-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
       tag:
       # pullPolicy is the pull policy

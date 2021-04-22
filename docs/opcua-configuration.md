@@ -9,7 +9,7 @@ In order for the Agent to know how to discover OPC UA servers an OPC UA Discover
 
 ## OPC UA Configuration Settings
 Instead of having to assemble your own OPC UA Configuration yaml, we have provided a [Helm
-template](../deployment/helm/templates/opcua.yaml). Helm allows us to parametrize the commonly modified fields in our configuration files, and we have provided many for OPC UA (to see
+template](../deployment/helm/templates/opcua-configuration.yaml). Helm allows us to parametrize the commonly modified fields in our configuration files, and we have provided many for OPC UA (to see
 them, run `helm inspect values akri-helm-charts/akri`). More information about the Akri Helm charts can be found in the [user guide](./user-guide.md#understanding-akri-helm-charts).
 To apply the OPC UA Configuration to your cluster, simply set `opcua.configuration.enabled=true` along with any of the following additional Configuration settings when installing Akri.
 ### Discovery Handler Discovery Details Settings

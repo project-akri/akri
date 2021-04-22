@@ -252,10 +252,10 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let files = [
-            "../test/yaml/akri-onvif-video.yaml",
-            "../test/yaml/akri-debug-echo-foo.yaml",
-            "../test/yaml/akri-udev-video.yaml",
-            "../test/yaml/akri-opcua.yaml",
+            "../test/yaml/akri-onvif-video-configuration.yaml",
+            "../test/yaml/akri-debug-echo-foo-configuration.yaml",
+            "../test/yaml/akri-udev-video-configuration.yaml",
+            "../test/yaml/akri-opcua-configuration.yaml",
         ];
         for file in &files {
             log::trace!("test file: {}", &file);
