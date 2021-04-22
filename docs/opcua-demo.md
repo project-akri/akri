@@ -101,7 +101,7 @@ kubectl create secret generic opcua-broker-credentials \
 When mounting certificates is enabled later in the [Running Akri section](#running-akri) with Helm via `--set
 opcua.mountCertificates='true'`, the secret named `opcua-broker-credentials` will be mounted into the OPC UA monitoring
 brokers. It is mounted to the volume `credentials` at the `mountPath` /etc/opcua-certs/client-pki, as shown in the [OPC
-UA Configuration Helm template](../deployment/helm/templates/opcua.yaml). This is the path where the brokers expect to
+UA Configuration Helm template](../deployment/helm/templates/opcua-configuration.yaml). This is the path where the brokers expect to
 find the certificates.
 
 ## Creating OPC UA Servers
