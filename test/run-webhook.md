@@ -2,7 +2,7 @@
 
 File: `/tests/run-webhook.py`
 
-Complements existing Python-based end-to-end test [script](/test/run-end-to-end.py) with a script to test Akri configured to use the Configuration Admission Controller Webhook ([README](/webhooks/validating/configuration/README.me)).
+Complements existing Python-based end-to-end test [script](/test/run-end-to-end.py) with a script to test Akri configured to use the Configuration Admission Controller Webhook ([README](/webhooks/validating/configuration/README.md)).
 
 The Webhook validates Akri Configurations, permitting (semantically) valid Configurations to be applied to a cluster and prohibiting (semantically) invalid Configurations.
 
