@@ -90,7 +90,7 @@ If a change needs to be made to this container, 2 pull requests are needed.
 
 
 ## Automated builds usage
-The automated CI builds essentially run these commands, where `<component>` is one of (`controller`|`agent`|`udev`|`webhook-configuration`|`onvif`|`opcua-monitoring`|`anomaly-detection`|`streaming`) and `<platform>` is one of (`amd64`|`arm32`|`arm64`):
+The automated CI builds essentially run these commands, where `<component>` is one of (`controller`|`agent`|`udev`|`configuration-validator`|`onvif`|`opcua-monitoring`|`anomaly-detection`|`streaming`) and `<platform>` is one of (`amd64`|`arm32`|`arm64`):
 ```bash
 # Install the Rust cross building tools
 make install-cross

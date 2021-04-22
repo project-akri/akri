@@ -11,7 +11,7 @@ If you wish to install the Webhook, before installing the Helm Chart for Akri, y
 If you're using `cert-manager` and have an `Issuer` called `ca`, you may generate a Secret for a Webhook called `${WEBHOOK}` in Namespace `${NAMESPACE}` with the following commands:
 
 ```bash
-WEBHOOK="akri-webhook-configuration" # Default name if not provided
+WEBHOOK="akri-configuration-validator" # Default name if not provided
 NAMESPACE="default"
 
 echo "

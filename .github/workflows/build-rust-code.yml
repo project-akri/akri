@@ -10,11 +10,11 @@ on:
     - .github/workflows/build-agent-container.yml
     - .github/workflows/build-controller-container.yml
     - .github/workflows/build-udev-video-broker-container.yml
-    - .github/workflows/build-webhook-configuration-container.yml
+    - .github/workflows/build-configuration-validator-container.yml
     - build/containers/Dockerfile.agent
     - build/containers/Dockerfile.controller
     - build/containers/Dockerfile.udev-video-broker
-    - build/containers/Dockerfile.webhook-configuration
+    - build/containers/Dockerfile.configuration-validator
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
@@ -31,11 +31,11 @@ on:
     - .github/workflows/build-agent-container.yml
     - .github/workflows/build-controller-container.yml
     - .github/workflows/build-udev-video-broker-container.yml
-    - .github/workflows/build-webhook-configuration-container.yml
+    - .github/workflows/build-configuration-validator-container.yml
     - build/containers/Dockerfile.agent
     - build/containers/Dockerfile.controller
     - build/containers/Dockerfile.udev-video-broker
-    - build/containers/Dockerfile.webhook-configuration
+    - build/containers/Dockerfile.configuration-validator
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'

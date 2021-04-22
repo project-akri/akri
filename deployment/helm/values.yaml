@@ -504,14 +504,14 @@ configurationValidator:
   # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
   enabled: false
   # name of the webhook
-  name: akri-webhook-configuration
+  name: akri-configuration-validator
   # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate
   caBundle: null
   image:
     # repository is the Akri Webhook for Configurations image reference
-    repository: ghcr.io/deislabs/akri/webhook-configuration
+    repository: ghcr.io/deislabs/akri/configuration-validator
     # tag is the container tag
-    # webhook-configuration.yaml will default to v(AppVersion)[-dev]
+    # configuration-validator.yaml will default to v(AppVersion)[-dev]
     # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Webhook pull policy
