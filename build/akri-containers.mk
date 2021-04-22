@@ -48,7 +48,7 @@ install-cross:
 .PHONY: akri
 akri: akri-build akri-docker-all
 akri-build: install-cross akri-cross-build
-akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-docker-onvif akri-docker-streaming akri-docker-opcua-monitoring akri-docker-anomaly-detection akri-docker-webhook-configuration akri-docker-debug-echo-discovery akri-docker-onvif-discovery akri-docker-opcua-discovery akri-docker-udev-discovery
+akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-docker-onvif akri-docker-streaming akri-docker-opcua-monitoring akri-docker-anomaly-detection akri-docker-configuration-validator akri-docker-debug-echo-discovery akri-docker-onvif-discovery akri-docker-opcua-discovery akri-docker-udev-discovery
 
 akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
 akri-cross-build-amd64:
@@ -87,7 +87,7 @@ $(eval $(call add_rust_targets,controller,controller))
 $(eval $(call add_rust_targets,agent,agent))
 $(eval $(call add_rust_targets,agent-full,agent-full))
 $(eval $(call add_rust_targets,udev,udev-video-broker))
-$(eval $(call add_rust_targets,webhook-configuration,webhook-configuration))
+$(eval $(call add_rust_targets,configuration-validator,configuration-validator))
 $(eval $(call add_rust_targets,debug-echo-discovery,debug-echo-discovery))
 $(eval $(call add_rust_targets,onvif-discovery,onvif-discovery))
 $(eval $(call add_rust_targets,opcua-discovery,opcua-discovery))

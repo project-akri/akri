@@ -154,6 +154,7 @@ PREFIX=$CONTAINER_REPOSITORY make akri-onvif
 PREFIX=$CONTAINER_REPOSITORY make akri-opcua-monitoring
 PREFIX=$CONTAINER_REPOSITORY make akri-anomaly-detection
 PREFIX=$CONTAINER_REPOSITORY make akri-streaming
+PREFIX=$CONTAINER_REPOSITORY make akri-configuration-validator
 PREFIX=$CONTAINER_REPOSITORY make akri-agent
 # To make an Agent with embedded Discovery Handlers, turn on the `agent-full` feature along with the 
 # feature for any Discovery Handlers that should be embedded.

@@ -41,8 +41,8 @@
 !target/x86_64-unknown-linux-gnu/release/agent-full
 !target/x86_64-unknown-linux-gnu/debug/udev-video-broker
 !target/x86_64-unknown-linux-gnu/release/udev-video-broker
-!target/x86_64-unknown-linux-gnu/debug/webhook-configuration
-!target/x86_64-unknown-linux-gnu/release/webhook-configuration
+!target/x86_64-unknown-linux-gnu/debug/configuration-validator
+!target/x86_64-unknown-linux-gnu/release/configuration-validator
 !target/x86_64-unknown-linux-gnu/release/udev-discovery-handler
 !target/x86_64-unknown-linux-gnu/release/debug-echo-discovery-handler
 !target/x86_64-unknown-linux-gnu/release/onvif-discovery-handler
@@ -55,8 +55,8 @@
 !target/aarch64-unknown-linux-gnu/release/agent-full
 !target/aarch64-unknown-linux-gnu/debug/udev-video-broker
 !target/aarch64-unknown-linux-gnu/release/udev-video-broker
-!target/aarch64-unknown-linux-gnu/debug/webhook-configuration
-!target/aarch64-unknown-linux-gnu/release/webhook-configuration
+!target/aarch64-unknown-linux-gnu/debug/configuration-validator
+!target/aarch64-unknown-linux-gnu/release/configuration-validator
 !target/aarch64-unknown-linux-gnu/release/udev-discovery-handler
 !target/aarch64-unknown-linux-gnu/release/debug-echo-discovery-handler
 !target/aarch64-unknown-linux-gnu/release/onvif-discovery-handler
@@ -69,8 +69,8 @@
 !target/armv7-unknown-linux-gnueabihf/release/agent-full
 !target/armv7-unknown-linux-gnueabihf/debug/udev-video-broker
 !target/armv7-unknown-linux-gnueabihf/release/udev-video-broker
-!target/armv7-unknown-linux-gnueabihf/debug/webhook-configuration
-!target/armv7-unknown-linux-gnueabihf/release/webhook-configuration
+!target/armv7-unknown-linux-gnueabihf/debug/configuration-validator
+!target/armv7-unknown-linux-gnueabihf/release/configuration-validator
 !target/armv7-unknown-linux-gnueabihf/release/udev-discovery-handler
 !target/armv7-unknown-linux-gnueabihf/release/debug-echo-discovery-handler
 !target/armv7-unknown-linux-gnueabihf/release/onvif-discovery-handler

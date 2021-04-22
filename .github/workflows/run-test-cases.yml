@@ -87,7 +87,7 @@ jobs:
         with:
           name: controller.tar
           path: controller.tar
-      - name: Upload Webhook-Configuration container as artifact
+      - name: Upload Configuration Validator container as artifact
         if: startsWith(github.event_name, 'pull_request')
         uses: actions/upload-artifact@v2
         with:
@@ -179,7 +179,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: controller.tar
-      - name: Download Webhook-Configuration container artifact
+      - name: Download Configuration Validator container artifact
         if: startsWith(github.event_name, 'pull_request')
         uses: actions/download-artifact@v2
         with:
@@ -297,7 +297,7 @@ jobs:
         run: |
           git fetch origin main
           git show origin/main:version.txt > /tmp/version_to_test.txt
-          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64,webhookConfiguration.image.pullPolicy=Never,webhookConfiguration.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
+          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64,configurationValidator.image.pullPolicy=Never,configurationValidator.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
       # For non-PR (i.e. push, release, manual), version.txt is corresponds
       # to an existing Helm chart.
       - if: (!(startsWith(github.event_name, 'pull_request')))

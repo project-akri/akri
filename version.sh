@@ -133,7 +133,7 @@ if [ "$CHECK" == "1" ]; then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    CARGO_LOCK_PROJECTS="controller akri-shared agent controller webhook-configuration udev-video-broker akri-discovery-utils akri-debug-echo akri-udev akri-onvif akri-opcua debug-echo-discovery-handler onvif-discovery-handler udev-discovery-handler opcua-discovery-handler"
+    CARGO_LOCK_PROJECTS="controller akri-shared agent controller configuration-validator udev-video-broker akri-discovery-utils akri-debug-echo akri-udev akri-onvif akri-opcua debug-echo-discovery-handler onvif-discovery-handler udev-discovery-handler opcua-discovery-handler"
     CARGO_LOCK_VERSION="\"$(echo $VERSION)\""
     for CARGO_LOCK_PROJECT in $CARGO_LOCK_PROJECTS
     do
@@ -196,7 +196,7 @@ then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    CARGO_LOCK_PROJECTS="controller akri-shared agent controller webhook-configuration udev-video-broker akri-discovery-utils akri-debug-echo akri-udev akri-onvif akri-opcua debug-echo-discovery-handler onvif-discovery-handler udev-discovery-handler opcua-discovery-handler"
+    CARGO_LOCK_PROJECTS="controller akri-shared agent controller configuration-validatorudev-video-broker akri-discovery-utils akri-debug-echo akri-udev akri-onvif akri-opcua debug-echo-discovery-handler onvif-discovery-handler udev-discovery-handler opcua-discovery-handler"
     CARGO_LOCK_VERSION_PATTERN="^version = .*"
     CARGO_LOCK_VERSION_LINE="version = \"$NEW_VERSION\""
     for CARGO_LOCK_PROJECT in $CARGO_LOCK_PROJECTS

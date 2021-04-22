@@ -301,9 +301,9 @@ def do_test() -> bool:
 
 def get_webhook_helm_config() -> str:
     webhook = "\
-    --set=webhookConfiguration.enabled=true \
-    --set=webhookConfiguration.name={name} \
-    --set=webhookConfiguration.caBundle={cabundle} \
+    --set=configurationValidator.enabled=true \
+    --set=configurationValidator.name={name} \
+    --set=configurationValidator.caBundle={cabundle} \
     ".format(
         name=WEBHOOK_NAME,
         cabundle=CA_BUNDLE,

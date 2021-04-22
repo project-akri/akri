@@ -1,5 +1,5 @@
 [package]
-name = "webhook-configuration"
+name = "configuration-validator"
 version = "0.6.3"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"

@@ -500,7 +500,7 @@ udev:
       udev:
 
 # Admission Controllers (Webhooks)
-webhookConfiguration:
+configurationValidator:
   # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
   enabled: false
   # name of the webhook
@@ -525,5 +525,5 @@ webhookConfiguration:
   # linuxOnly dictates whether the Akri Webhook will only run on a linux node
   linuxOnly: true
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Webhook to run on
-  # This can be set from the helm command line using `--set webhookConfiguration.nodeSelectors.label="value"`
+  # This can be set from the helm command line using `--set configurationValidator.nodeSelectors.label="value"`
   nodeSelectors: {}

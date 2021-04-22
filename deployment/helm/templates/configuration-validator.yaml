@@ -1,18 +1,18 @@
-{{- if .Values.webhookConfiguration.enabled }}
+{{- if .Values.configurationValidator.enabled }}
 apiVersion: v1
 kind: List
 metadata:
-  name: {{ .Values.webhookConfiguration.name }}
+  name: {{ .Values.configurationValidator.name }}
 items:
   - apiVersion: v1
     kind: ServiceAccount
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
       namespace: {{ .Release.Namespace }}
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
       namespace: {{ .Release.Namespace }}
     rules:
     - apiGroups: [""]
@@ -21,49 +21,49 @@ items:
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
       namespace: {{ .Release.Namespace }}
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: Role
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
     subjects:
     - kind: ServiceAccount
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
       namespace: {{ .Release.Namespace }}
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
     spec:
       replicas: 1
       selector:
         matchLabels:
-          app: {{ .Values.webhookConfiguration.name }}
+          app: {{ .Values.configurationValidator.name }}
       template:
         metadata:
           labels:
-            app: {{ .Values.webhookConfiguration.name }}
+            app: {{ .Values.configurationValidator.name }}
         spec:
           {{- if .Values.rbac.enabled }}
-          serviceAccountName: {{ .Values.webhookConfiguration.name }}
+          serviceAccountName: {{ .Values.configurationValidator.name }}
           {{- end }}
           containers:
           - name: webhook
             {{- if .Values.useDevelopmentContainers }}
             {{- if .Values.useLatestContainers }}
-            image: {{ printf "%s:latest-dev" .Values.webhookConfiguration.image.repository | quote }}
+            image: {{ printf "%s:latest-dev" .Values.configurationValidator.image.repository | quote }}
             {{- else }}
-            image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
+            image: {{ printf "%s:%s" .Values.configurationValidator.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.configurationValidator.image.tag) | quote }}
             {{- end }}
             {{- else }}
             {{- if .Values.useLatestContainers }}
-            image: {{ printf "%s:latest" .Values.webhookConfiguration.image.repository | quote }}
+            image: {{ printf "%s:latest" .Values.configurationValidator.image.repository | quote }}
             {{- else }}
-            image: {{ printf "%s:%s" .Values.webhookConfiguration.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.webhookConfiguration.image.tag) | quote }}
+            image: {{ printf "%s:%s" .Values.configurationValidator.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.configurationValidator.image.tag) | quote }}
             {{- end }}
             {{- end }}
-            imagePullPolicy: {{ .Values.webhookConfiguration.image.pullPolicy }}
+            imagePullPolicy: {{ .Values.configurationValidator.image.pullPolicy }}
             command:
             - /server
             args:
@@ -77,53 +77,53 @@ items:
           volumes:
             - name: secrets
               secret:
-                secretName: {{ .Values.webhookConfiguration.name }}
+                secretName: {{ .Values.configurationValidator.name }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.webhookConfiguration.allowOnControlPlane }}
+          {{- if .Values.configurationValidator.allowOnControlPlane }}
           tolerations:
             {{- /* Allow this pod to run on the master. */}}
             - key: node-role.kubernetes.io/master
               effect: NoSchedule
           {{- end }}
-          {{- if or .Values.webhookConfiguration.linuxOnly .Values.webhookConfiguration.onlyOnControlPlane .Values.webhookConfiguration.nodeSelectors }}
+          {{- if or .Values.configurationValidator.linuxOnly .Values.configurationValidator.onlyOnControlPlane .Values.configurationValidator.nodeSelectors }}
           nodeSelector:
-            {{- if .Values.webhookConfiguration.nodeSelectors }}
-              {{- toYaml .Values.webhookConfiguration.nodeSelectors | nindent 8 }}
+            {{- if .Values.configurationValidator.nodeSelectors }}
+              {{- toYaml .Values.configurationValidator.nodeSelectors | nindent 8 }}
             {{- end }}
-            {{- if .Values.webhookConfiguration.linuxOnly }}
+            {{- if .Values.configurationValidator.linuxOnly }}
             "kubernetes.io/os": linux
             {{- end }}
-            {{- if .Values.webhookConfiguration.onlyOnControlPlane }}
+            {{- if .Values.configurationValidator.onlyOnControlPlane }}
             node-role.kubernetes.io/master: ""
             {{- end }}
           {{- end }}
   - apiVersion: v1
     kind: Service
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
     spec:
       selector:
-        app: {{ .Values.webhookConfiguration.name }}
+        app: {{ .Values.configurationValidator.name }}
       ports:
         - name: http
           port: 443
           targetPort: 8443
   - apiVersion: admissionregistration.k8s.io/v1
-    kind: ValidatingWebhookConfiguration
+    kind: ValidatingconfigurationValidator
     metadata:
-      name: {{ .Values.webhookConfiguration.name }}
+      name: {{ .Values.configurationValidator.name }}
     webhooks:
-      - name: {{ .Values.webhookConfiguration.name }}.{{ .Release.Namespace }}.svc
+      - name: {{ .Values.configurationValidator.name }}.{{ .Release.Namespace }}.svc
         clientConfig:
           service:
-            name: {{ .Values.webhookConfiguration.name }}
+            name: {{ .Values.configurationValidator.name }}
             namespace: {{ .Release.Namespace }}
             port: 443
             path: "/validate"
-          caBundle: {{ required "please rerun helm install" .Values.webhookConfiguration.caBundle }}
+          caBundle: {{ required "please rerun helm install" .Values.configurationValidator.caBundle }}
         rules:
           - operations:
               - "CREATE"

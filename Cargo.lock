@@ -1023,6 +1023,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "configuration-validator"
+version = "0.6.3"
+dependencies = [
+ "actix",
+ "actix-rt",
+ "actix-web",
+ "akri-shared",
+ "clap",
+ "k8s-openapi",
+ "kube",
+ "openapi",
+ "openssl",
+ "rustls 0.18.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "const_fn"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4817,24 +4835,6 @@ checksum = "a905d57e488fec8861446d3393670fb50d27a262344013181c2cdf9fff5481be"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "webhook-configuration"
-version = "0.6.3"
-dependencies = [
- "actix",
- "actix-rt",
- "actix-web",
- "akri-shared",
- "clap",
- "k8s-openapi",
- "kube",
- "openapi",
- "openssl",
- "rustls 0.18.1",
- "serde",
- "serde_json",
 ]
 
 [[package]]

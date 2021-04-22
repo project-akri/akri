@@ -33,5 +33,5 @@ custom:
   configuration: 
     enabled: true
     discoveryHandlerName: "some name"
-webhookConfiguration: 
+configurationValidator: 
   enabled: true
