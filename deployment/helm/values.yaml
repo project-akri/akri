@@ -466,7 +466,7 @@ opcua:
         # memoryLimit defines the maximum amount of RAM this Pod can consume.
         memoryLimit: 200Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
-        cpuLimit: 120m
+        cpuLimit: 30m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
