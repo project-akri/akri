@@ -102,6 +102,7 @@ If you know the DiscoveryURLs for the OPC UA Servers you want Akri to discover, 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri-dev \
+    --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://10.123.456.7:4855/"
 ```

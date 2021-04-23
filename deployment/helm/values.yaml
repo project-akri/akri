@@ -142,6 +142,17 @@ custom:
         tag: latest
         # pullPolicy is the custom pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 11Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 24Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 24m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -230,6 +241,17 @@ debugEcho:
         tag: stable-alpine
         # pullPolicy is the debugEcho pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -291,7 +313,6 @@ debugEcho:
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
       cpuLimit: 26m
 
-
 onvif:
   configuration:
     # enabled defines whether to load a onvif configuration
@@ -324,6 +345,17 @@ onvif:
         tag: latest
         # pullPolicy is the Akri onvif broker pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 98Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 134m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 400Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 2800m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -424,6 +456,17 @@ opcua:
         tag: latest
         # pullPolicy is the OPC UA broker pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 76Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 9m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 200Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 1000m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -552,6 +595,17 @@ udev:
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 10Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 30Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 29m
     # useNetworkConnection specifies whether the discovery handler should make a networked connection
     # with Agents, using its pod IP address when registering
     useNetworkConnection: false

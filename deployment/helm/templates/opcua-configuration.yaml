@@ -36,8 +36,14 @@ spec:
         {{- end }}
       {{- end }}
       resources:
+        requests:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryRequest }}
+          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuRequest }}
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
+          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
       {{- if .Values.opcua.configuration.mountCertificates}}
       volumeMounts:
       - name: credentials
