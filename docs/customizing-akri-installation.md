@@ -13,7 +13,7 @@ Discovery Handler using Helm (more information about the Akri Helm charts can be
 To install Akri without any protocol Configurations, run this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev
+helm install akri akri-helm-charts/akri
 ```
 This will deploy the Akri Controller and deploy Akri Agents.
 
@@ -44,7 +44,7 @@ If you want your end application to consume frames from both IP cameras and loca
 installed from the start with both the ONVIF and udev Configurations like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.configuration.enabled=true \
     --set udev.configuration.enabled=true \
     --set udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'
@@ -214,14 +214,14 @@ kubectl delete akric akri-onvif
 The Agent discovers devices via Discovery Handlers. Akri supports an Agent image that includes all supported Discovery Handlers. 
 This Agent will be used if `agent.full=true`, like so:
 ```bash
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
   --set agent.full=true
 ```
 
 By default, a slim Agent without any embedded Discovery Handlers is deployed and the required Discovery Handlers can be deployed as DaemonSets by specifying 
 `<discovery handler name>.discovery.enabled=true` when installing Akri. For example, Akri is installed with the OPC UA and ONVIF Discovery Handlers like so:
 ```bash
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
   --set opcua.discovery.enabled=true \
   --set onvif.discovery.enabled=true
 ```

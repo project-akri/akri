@@ -22,7 +22,7 @@ To install Akri with **external** Debug Echo Discovery Handlers and a Configurat
 devices, run:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set agent.allowDebugEcho=true \
     --set debugEcho.discovery.enabled=true \
     --set debugEcho.configuration.enabled=true \
@@ -33,7 +33,7 @@ helm install akri akri-helm-charts/akri-dev \
 > remove `debugEcho.discovery.enabled=true` like in the following installation:
 >```bash
 >helm repo add akri-helm-charts https://deislabs.github.io/akri/
->helm install akri akri-helm-charts/akri-dev \
+>helm install akri akri-helm-charts/akri \
 >   --set agent.allowDebugEcho=true \
 >   --set agent.full=true \
 >   --set debugEcho.configuration.enabled=true \

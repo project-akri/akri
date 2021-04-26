@@ -56,7 +56,7 @@ Leveraging the above settings, Akri can be installed with the ONVIF Discovery Ha
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.discovery.enabled=true \
     --set onvif.configuration.enabled=true \
     --set onvif.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
@@ -76,7 +76,7 @@ The ONVIF Discovery Handler supports basic filter capabilities has been provided
 For example, the following enables discovery of every camera that does not have an IP address of 10.0.0.1:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.discovery.enabled=true \
     --set onvif.configuration.enabled=true \
     --set onvif.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
@@ -87,7 +87,7 @@ helm install akri akri-helm-charts/akri-dev \
 You can enable cluster access for every camera with a specific name, you can modify the Configuration like so:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.discovery.enabled=true \
     --set onvif.configuration.enabled=true \
     --set onvif.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \
@@ -101,7 +101,7 @@ The ONVIF Discovery Handler will search for up to `discoveryTimeoutSeconds` for 
 decreased as desired, and defaults to 1 second if not configured. It can be set in the Configuration like this:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.discovery.enabled=true \
     --set onvif.configuration.enabled=true \
     --set onvif.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/onvif-video-broker" \

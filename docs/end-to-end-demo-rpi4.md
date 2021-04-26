@@ -105,7 +105,7 @@ In order for the Agent to know how to discover video devices, the udev Discovery
 1. Add the Akri Helm chart and run the install command, setting Helm values as described above.
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
-    helm install akri akri-helm-charts/akri-dev \
+    helm install akri akri-helm-charts/akri \
         --set udev.discovery.enabled=true \
         --set udev.configuration.enabled=true \
         --set udev.configuration.name=akri-udev-video \
