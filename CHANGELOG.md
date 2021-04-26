@@ -49,7 +49,7 @@ Significant changes were made to Akri's Helm chart. Consult the latest user guid
 By default, the Agent contains no Discovery Handlers. To deploy Discovery Handlers, they must be explicitly enabled in Akri's Helm chart.
 
 ## Known Issues
-Akri's Test K3s, Kubernetes, and MicroK8s workflow periodically fails due to GitHub Runners running out of compute resources and kubelet evicting Pods. 
+N/A
 
 ## Validated With
 
