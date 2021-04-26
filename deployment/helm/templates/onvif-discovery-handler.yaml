@@ -32,7 +32,14 @@ spec:
         {{- with .Values.onvif.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
-        {{- if .Values.debugEcho.discovery.useNetworkConnection }}
+        resources:
+          requests:
+            memory: {{ .Values.onvif.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.onvif.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.onvif.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.onvif.discovery.resources.cpuLimit }}
+        {{- if .Values.onvif.discovery.useNetworkConnection }}
         ports:
         - name: discovery
           containerPort: {{ .Values.onvif.discovery.port }}

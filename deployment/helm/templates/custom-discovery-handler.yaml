@@ -18,6 +18,13 @@ spec:
         {{- with .Values.custom.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.custom.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.custom.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.custom.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.custom.discovery.resources.cpuLimit }}
         volumeMounts:
         - name: agent-registration
           mountPath: /var/lib/akri

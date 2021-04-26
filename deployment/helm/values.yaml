@@ -59,6 +59,17 @@ controller:
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
   # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
   nodeSelectors: {}
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 11Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 10m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 100Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m
 
 agent:
   # enabled defines whether to apply the Akri Agent
@@ -93,6 +104,17 @@ agent:
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node
   linuxOnly: true
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 11Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 10m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 79Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m
 
 custom:
   configuration:
@@ -120,6 +142,17 @@ custom:
         tag: latest
         # pullPolicy is the custom pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 11Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 24Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 24m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -165,6 +198,17 @@ custom:
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set custom.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 debugEcho:
   configuration:
@@ -197,6 +241,17 @@ debugEcho:
         tag: stable-alpine
         # pullPolicy is the debugEcho pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -246,7 +301,17 @@ debugEcho:
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set debugEcho.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
-
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 26m
 
 onvif:
   configuration:
@@ -280,6 +345,17 @@ onvif:
         tag: latest
         # pullPolicy is the Akri onvif broker pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 98Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 134m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 400Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 2800m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -333,6 +409,17 @@ onvif:
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set onvif.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 opcua:
   configuration:
@@ -369,6 +456,17 @@ opcua:
         tag: latest
         # pullPolicy is the OPC UA broker pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 76Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 9m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 200Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 30m
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -418,7 +516,17 @@ opcua:
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set opcua.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
-
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 udev:
   configuration:
@@ -487,6 +595,17 @@ udev:
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 10Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 30Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 29m
     # useNetworkConnection specifies whether the discovery handler should make a networked connection
     # with Agents, using its pod IP address when registering
     useNetworkConnection: false
@@ -498,6 +617,17 @@ udev:
     host: 
       # udev is the node path of udev, usually at `/run/udev`
       udev:
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 # Admission Controllers (Webhooks)
 webhookConfiguration:
@@ -527,3 +657,14 @@ webhookConfiguration:
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Webhook to run on
   # This can be set from the helm command line using `--set webhookConfiguration.nodeSelectors.label="value"`
   nodeSelectors: {}
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 100Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 15m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 100Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m

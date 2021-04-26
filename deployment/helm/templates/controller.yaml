@@ -34,6 +34,13 @@ spec:
         {{- with .Values.controller.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.controller.resources.memoryRequest }}
+            cpu: {{ .Values.controller.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.controller.resources.memoryLimit }}
+            cpu: {{ .Values.controller.resources.cpuLimit }}
         {{- if .Values.prometheus.enabled }}
         ports:
           - name: {{ .Values.prometheus.portName | quote }}

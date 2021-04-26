@@ -32,6 +32,13 @@ spec:
         {{- with .Values.udev.discovery.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.udev.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.udev.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.udev.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.udev.discovery.resources.cpuLimit }}
         {{- if .Values.udev.discovery.useNetworkConnection }}
         ports:
         - name: discovery

@@ -43,6 +43,13 @@ spec:
         {{- with .Values.agent.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.agent.resources.memoryRequest }}
+            cpu: {{ .Values.agent.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.agent.resources.memoryLimit }}
+            cpu: {{ .Values.agent.resources.cpuLimit }}
         {{- if .Values.agent.securityContext }}
         securityContext:
         {{- toYaml .Values.agent.securityContext | nindent 10 }}
