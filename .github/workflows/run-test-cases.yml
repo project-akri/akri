@@ -117,6 +117,7 @@ jobs:
             crictl: v1.17.0
           - runtime: MicroK8s-1.20
             version: 1.20/stable
+            crictl: v1.17.0
           - runtime: MicroK8s-1.21
             version: 1.21/stable
             crictl: v1.17.0
