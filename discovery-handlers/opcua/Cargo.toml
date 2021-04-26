@@ -11,10 +11,10 @@ akri-discovery-utils = { path = "../../discovery-utils" }
 akri-shared = { path = "../../shared" }
 anyhow = "1.0.38"
 async-trait = "0.1.0"
-env_logger = "0.6.1"
+env_logger = "0.8.3"
 futures-util = "0.3"
 log = "0.4"
-opcua-client = "0.7.0"
+opcua-client = "0.8.0"
 prost = "0.6"
 serde = "1.0.104"
 serde_json = "1.0.45"

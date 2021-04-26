@@ -12,7 +12,7 @@ akri-shared = { path = "../../shared" }
 anyhow = "1.0.38"
 async-trait = "0.1.0"
 bytes = "0.5"
-env_logger = "0.6.1"
+env_logger = "0.8.3"
 futures-util = "0.3"
 hyper = { version = "0.13.5", package = "hyper" }
 log = "0.4"

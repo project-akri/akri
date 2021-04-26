@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 akri-discovery-utils = { path = "../../discovery-utils" }
 akri-opcua = { path = "../../discovery-handlers/opcua" }
-env_logger = "0.6.1"
+env_logger = "0.8.3"
 log = "0.4"
 tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
