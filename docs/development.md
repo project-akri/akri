@@ -6,9 +6,9 @@ The document includes [naming guidelines](#naming-guidelines) to help as you ext
 ## Required Tools
 To develop, you'll need:
 - A Linux environment whether on amd64 or arm64v8
-- Rust - version 1.49.0 which the build system uses can be installed using: 
+- Rust - version 1.51.0 which the build system uses can be installed using: 
     ```sh
-    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.49.0
+    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.51.0
     cargo version
     ```
 - .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
