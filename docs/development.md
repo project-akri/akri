@@ -76,10 +76,11 @@ To locally run the controller as part of a k8s cluster, follow these steps:
     > HOST_IMAGE_ENDPOINT=/run/k3s/containerd/containerd.sock`.
 
     To run **Discovery Handlers** locally, simply navigate to the Discovery Handler under
-    `akri/discovery-handler-modules/` and run using cargo run, setting where the Discovery Handler socket should be
+    `akri/discovery-handler-modules/` and run privileged using `cargo run`, setting where the Discovery Handler socket should be
     created in the `DISCOVERY_HANDLERS_DIRECTORY` variable. For example, to run the ONVIF Discovery Handler locally:
     ```sh
     cd akri/discovery-handler-modules/onvif-discovery-handler/
+    sudo -s 
     RUST_LOG=info DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
     ```
     To run the [debug echo Discovery Handler](#testing-with-debug-echo-discovery-handler), an environment variable,
