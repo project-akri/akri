@@ -150,7 +150,7 @@ jobs:
           - runtime: Kubernetes-1.20
             version: 1.20.1-00
             crictl: UNUSED
-          - runtime: Kubernetes-1.20
+          - runtime: Kubernetes-1.21
             version: 1.21.0-00
             crictl: UNUSED
         test:
