@@ -35,7 +35,7 @@ Misc
 * fix: Removed udev directory mount from Agent DaemonSet (https://github.com/deislabs/akri/pull/304)
 * fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/deislabs/akri/commit/53903e711cf4eebb9ef4367afd0f2724318b8e69#diff-97a08f11d52bb61c11fc6e159245145df32347dd439b9c6e6d94a863f3b1df4b)
 * feat: Support for specifying environment variables broker Pods via a Configuration's `brokerProperties`.
-* fix: Default memory and CPU resource requests and limits for Akri containers (INSERT PR LINK) 
+* fix: Default memory and CPU resource requests and limits for Akri containers (https://github.com/deislabs/akri/pull/305) 
 
 View the [full change log](https://github.com/deislabs/akri/compare/v0.1.5...v0.6.5)
 
