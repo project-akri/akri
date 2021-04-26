@@ -314,10 +314,10 @@ name = "agent"
 version = "0.6.5"
 dependencies = [
  "akri-debug-echo",
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "akri-onvif",
  "akri-opcua",
- "akri-shared",
+ "akri-shared 0.6.5",
  "akri-udev",
  "anyhow",
  "async-stream",
@@ -368,8 +368,8 @@ dependencies = [
 name = "akri-debug-echo"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.6.5",
+ "akri-shared 0.6.5",
  "anyhow",
  "async-trait",
  "env_logger 0.8.3",
@@ -385,9 +385,28 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
+version = "0.6.3"
+source = "git+https://github.com/deislabs/akri?branch=main#26794100674e3e2d3899ed8570a284181c6eaa00"
+dependencies = [
+ "akri-shared 0.6.3",
+ "anyhow",
+ "futures 0.3.14",
+ "log",
+ "prost",
+ "serde",
+ "serde_derive",
+ "serde_yaml",
+ "tokio 0.2.25",
+ "tonic",
+ "tonic-build",
+ "tower",
+]
+
+[[package]]
+name = "akri-discovery-utils"
 version = "0.6.5"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.6.5",
  "anyhow",
  "async-trait",
  "futures 0.3.14",
@@ -407,8 +426,8 @@ dependencies = [
 name = "akri-onvif"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.6.5",
+ "akri-shared 0.6.5",
  "anyhow",
  "async-trait",
  "bytes 0.5.6",
@@ -435,8 +454,8 @@ dependencies = [
 name = "akri-opcua"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.6.5",
+ "akri-shared 0.6.5",
  "anyhow",
  "async-trait",
  "env_logger 0.8.3",
@@ -452,6 +471,36 @@ dependencies = [
  "tokio 0.2.25",
  "tonic",
  "url 2.2.1",
+]
+
+[[package]]
+name = "akri-shared"
+version = "0.6.3"
+source = "git+https://github.com/deislabs/akri?branch=main#26794100674e3e2d3899ed8570a284181c6eaa00"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "either",
+ "env_logger 0.6.2",
+ "futures 0.1.31",
+ "futures 0.3.14",
+ "futures-util",
+ "k8s-openapi",
+ "kube",
+ "log",
+ "mockall",
+ "prometheus 0.11.0",
+ "rand 0.7.3",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+ "tokio 0.2.25",
+ "tokio-core",
+ "tokio-signal",
+ "tonic",
+ "tower",
+ "warp",
 ]
 
 [[package]]
@@ -487,7 +536,7 @@ dependencies = [
 name = "akri-udev"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "anyhow",
  "async-trait",
  "env_logger 0.8.3",
@@ -1018,7 +1067,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "controller"
 version = "0.6.5"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.6.5",
  "anyhow",
  "async-std",
  "async-trait",
@@ -1186,7 +1235,7 @@ name = "debug-echo-discovery-handler"
 version = "0.6.5"
 dependencies = [
  "akri-debug-echo",
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "env_logger 0.8.3",
  "log",
  "tokio 0.2.25",
@@ -1757,6 +1806,20 @@ dependencies = [
  "bytes 1.0.1",
  "http 0.2.3",
  "pin-project-lite 0.2.6",
+]
+
+[[package]]
+name = "http-discovery-handler"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils 0.6.3",
+ "anyhow",
+ "async-trait",
+ "env_logger 0.6.2",
+ "log",
+ "reqwest 0.10.10",
+ "tokio 0.2.25",
+ "tonic",
 ]
 
 [[package]]
@@ -2393,7 +2456,7 @@ checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
 name = "onvif-discovery-handler"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "akri-onvif",
  "env_logger 0.8.3",
  "log",
@@ -2477,7 +2540,7 @@ dependencies = [
 name = "opcua-discovery-handler"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "akri-opcua",
  "env_logger 0.8.3",
  "log",
@@ -4471,7 +4534,7 @@ dependencies = [
 name = "udev-discovery-handler"
 version = "0.6.5"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.6.5",
  "akri-udev",
  "env_logger 0.8.3",
  "log",
@@ -4482,7 +4545,7 @@ dependencies = [
 name = "udev-video-broker"
 version = "0.6.5"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.6.5",
  "env_logger 0.8.3",
  "futures 0.1.31",
  "lazy_static",
@@ -4764,7 +4827,7 @@ dependencies = [
  "actix",
  "actix-rt",
  "actix-web",
- "akri-shared",
+ "akri-shared 0.6.5",
  "clap",
  "k8s-openapi",
  "kube",

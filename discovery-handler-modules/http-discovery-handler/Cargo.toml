@@ -1,0 +1,16 @@
+[package]
+name = "http-discovery-handler"
+version = "0.1.0"
+authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
+edition = "2018"
+
+[dependencies]
+# TODO: Change this to Akri main when the library is merged
+akri-discovery-utils = { git = "https://github.com/deislabs/akri", branch = "main", package = "akri-discovery-utils" }
+async-trait = "0.1.0"
+tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
+tonic = {version = "0.1.0", features = ["tls"] }
+anyhow = "1.0.38"
+reqwest = "0.10.8"
+env_logger = "0.6.1"
+log = "0.4"
