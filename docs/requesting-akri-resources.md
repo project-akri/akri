@@ -8,7 +8,7 @@ Lets walk through how this works, using the ONVIF Discovery Handler as an exampl
 omitting a broker pod image. 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set onvif.discovery.enabled=true \
     --set onvif.configuration.enabled=true
 ```

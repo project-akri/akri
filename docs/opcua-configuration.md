@@ -60,7 +60,7 @@ pod, you can update the Configuration like this by setting `opcua.configuration.
 Leveraging the above settings, Akri can be installed with the OPC UA Discovery Handler and an OPC UA Configuration that specifies discovery via the default LDS DiscoveryURL:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true 
 ```
@@ -69,7 +69,7 @@ If you have a workload that you would like to automatically be deployed to each 
 empty nginx pod for each server. Instead, you should point to your image, say `ghcr.io/<USERNAME>/opcua-broker`.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.brokerPod.image.repository=nginx
@@ -90,7 +90,7 @@ using the default `opc.tcp://localhost:4840/` LDS DiscoveryURL, an operator can 
 Local Discovery Servers, like in the following example:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://10.1.2.3:4840/" \
@@ -101,7 +101,7 @@ helm install akri akri-helm-charts/akri-dev \
 If you know the DiscoveryURLs for the OPC UA Servers you want Akri to discover, manually list them when deploying Akri, like in the following:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://10.123.456.7:4855/"
@@ -112,7 +112,7 @@ OPC UA discovery can also receive a list of both OPC UA LDS DiscoveryURLs and sp
 
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://10.1.2.3:4840/" \
@@ -130,7 +130,7 @@ as specified by [OPC UA Specification](https://reference.opcfoundation.org/v104/
 the server named "Duke", do the following.
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.applicationNames.action=Exclude \
@@ -139,7 +139,7 @@ helm install akri akri-helm-charts/akri-dev \
 Alternatively, to only discover the server named "Go Tar Heels!", do the following:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.discoveryDetails.applicationNames.action=Include \
@@ -174,7 +174,7 @@ template](../deployment/helm/templates/opcua.configuration.yaml). This is the pa
 certificates. The following is an example how to enable security:
 ```bash
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
-helm install akri akri-helm-charts/akri-dev \
+helm install akri akri-helm-charts/akri \
     --set opcua.discovery.enabled=true \
     --set opcua.configuration.enabled=true \
     --set opcua.configuration.mountCertificates='true'

@@ -218,7 +218,7 @@ come together as the following Akri installation command:
 > additional configuration.
 ```bash
   helm repo add akri-helm-charts https://deislabs.github.io/akri/
-  helm install akri akri-helm-charts/akri-dev \
+  helm install akri akri-helm-charts/akri \
   --set imagePullSecrets[0].name="crPullSecret" \
   --set custom.discovery.enabled=true  \
   --set custom.discovery.image.repository=$DH_IMAGE \
@@ -233,7 +233,7 @@ come together as the following Akri installation command:
 > Note: if your Discovery Handler's `discoveryDetails` cannot be easily set using Helm, generate a Configuration file
 > and modify it as needed. configuration.enabled`.)
 > ```bash
->   helm install akri akri-helm-charts/akri-dev \
+>   helm install akri akri-helm-charts/akri \
 >    --set imagePullSecrets[0].name="crPullSecret" \
 >    --set custom.discovery.enabled=true  \
 >    --set custom.discovery.image.repository=$DH_IMAGE \
@@ -270,7 +270,7 @@ resources](./requesting-akri-resources.md). Alternatively, you could have Akri a
 discovered devices. We call these workloads brokers. To quickly see this, deploy empty nginx pods to discovered
 resources, by updating our Configuration to include a broker PodSpec.
 ```bash
-  helm upgrade akri akri-helm-charts/akri-dev \
+  helm upgrade akri akri-helm-charts/akri \
     --set imagePullSecrets[0].name="crPullSecret" \
     --set custom.discovery.enabled=true  \
     --set custom.discovery.image.repository=$DH_IMAGE \
