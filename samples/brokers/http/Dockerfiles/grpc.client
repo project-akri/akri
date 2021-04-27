@@ -38,7 +38,7 @@ RUN apt-get update && \
 
 COPY --from=build /${BROKER}/target/release/client /client
 
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs

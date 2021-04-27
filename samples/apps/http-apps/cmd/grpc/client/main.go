@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/deislabs/akri/http-extensibility/proto"
+	pb "github.com/project-akri/akri/http-extensibility/proto"
 
 	"google.golang.org/grpc"
 )

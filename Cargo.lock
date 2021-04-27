@@ -336,10 +336,10 @@ name = "agent"
 version = "0.7.0"
 dependencies = [
  "akri-debug-echo",
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "akri-onvif",
  "akri-opcua",
- "akri-shared",
+ "akri-shared 0.7.0",
  "akri-udev",
  "anyhow",
  "async-stream",
@@ -352,7 +352,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2 0.3.3",
- "hyper",
+ "hyper 0.14.14",
  "k8s-openapi",
  "kube",
  "kube-runtime",
@@ -392,8 +392,8 @@ dependencies = [
 name = "akri-debug-echo"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.7.0",
+ "akri-shared 0.7.0",
  "anyhow",
  "async-trait",
  "env_logger",
@@ -412,7 +412,7 @@ dependencies = [
 name = "akri-discovery-utils"
 version = "0.7.0"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.7.0",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -431,17 +431,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "akri-discovery-utils"
+version = "0.7.0"
+source = "git+https://github.com/project-akri/akri?branch=main#b48b5eb20dce9926a93335aa9322ea14d0eabb0a"
+dependencies = [
+ "akri-shared 0.7.0 (git+https://github.com/project-akri/akri?branch=main)",
+ "anyhow",
+ "async-stream",
+ "futures 0.3.17",
+ "log",
+ "prost",
+ "serde",
+ "serde_derive",
+ "serde_yaml",
+ "tokio 1.12.0",
+ "tokio-stream",
+ "tonic",
+ "tonic-build",
+ "tower",
+]
+
+[[package]]
 name = "akri-onvif"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.7.0",
+ "akri-shared 0.7.0",
  "anyhow",
  "async-trait",
  "bytes 1.1.0",
  "env_logger",
  "futures-util",
- "hyper",
+ "hyper 0.14.14",
  "log",
  "mockall",
  "serde",
@@ -463,8 +484,8 @@ dependencies = [
 name = "akri-opcua"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
- "akri-shared",
+ "akri-discovery-utils 0.7.0",
+ "akri-shared 0.7.0",
  "anyhow",
  "async-trait",
  "env_logger",
@@ -493,7 +514,37 @@ dependencies = [
  "env_logger",
  "futures 0.3.17",
  "futures-util",
- "hyper",
+ "hyper 0.14.14",
+ "k8s-openapi",
+ "kube",
+ "kube-runtime",
+ "log",
+ "mockall",
+ "prometheus 0.11.0",
+ "rand 0.8.4",
+ "schemars",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+ "tokio 1.12.0",
+ "tonic",
+ "tower",
+ "warp",
+]
+
+[[package]]
+name = "akri-shared"
+version = "0.7.0"
+source = "git+https://github.com/project-akri/akri?branch=main#b48b5eb20dce9926a93335aa9322ea14d0eabb0a"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "either",
+ "env_logger",
+ "futures 0.3.17",
+ "futures-util",
+ "hyper 0.14.14",
  "k8s-openapi",
  "kube",
  "kube-runtime",
@@ -516,7 +567,7 @@ dependencies = [
 name = "akri-udev"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "anyhow",
  "async-trait",
  "env_logger",
@@ -982,7 +1033,7 @@ checksum = "f92cfa0fd5690b3cf8c1ef2cabbd9b7ef22fa53cf5e1f92b05103f6d5d1cf6e7"
 name = "controller"
 version = "0.7.0"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.7.0",
  "anyhow",
  "async-std",
  "async-trait",
@@ -1198,7 +1249,7 @@ name = "debug-echo-discovery-handler"
 version = "0.7.0"
 dependencies = [
  "akri-debug-echo",
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "env_logger",
  "log",
  "tokio 1.12.0",
@@ -1687,7 +1738,7 @@ dependencies = [
  "bytes 1.1.0",
  "headers-core",
  "http",
- "httpdate",
+ "httpdate 1.0.1",
  "mime",
  "sha-1 0.9.8",
 ]
@@ -1749,6 +1800,16 @@ dependencies = [
 
 [[package]]
 name = "http-body"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13d5ff830006f7646652e057693569bfe0d51760c0085a071769d142a205111b"
+dependencies = [
+ "bytes 0.5.6",
+ "http",
+]
+
+[[package]]
+name = "http-body"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ff4f84919677303da5f147645dbea6b1881f368d03ac84e1dc09031ebd7b2c6"
@@ -1759,10 +1820,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-discovery-handler"
+version = "0.1.0"
+dependencies = [
+ "akri-discovery-utils 0.7.0 (git+https://github.com/project-akri/akri?branch=main)",
+ "anyhow",
+ "async-trait",
+ "env_logger",
+ "log",
+ "reqwest 0.10.10",
+ "tokio 1.12.0",
+ "tokio-stream",
+ "tonic",
+]
+
+[[package]]
 name = "httparse"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acd94fdbe1d4ff688b67b04eee2e17bd50995534a61539e45adfefb45e5e5503"
+
+[[package]]
+name = "httpdate"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494b4d60369511e7dea41cf646832512a94e542f68bb9c49e54518e0f468eb47"
 
 [[package]]
 name = "httpdate"
@@ -1778,6 +1860,30 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
+version = "0.13.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a6f157065790a3ed2f88679250419b5cdd96e714a0d65f7797fd337186e96bb"
+dependencies = [
+ "bytes 0.5.6",
+ "futures-channel",
+ "futures-core",
+ "futures-util",
+ "h2 0.2.7",
+ "http",
+ "http-body 0.3.1",
+ "httparse",
+ "httpdate 0.3.2",
+ "itoa",
+ "pin-project 1.0.8",
+ "socket2 0.3.19",
+ "tokio 0.2.25",
+ "tower-service",
+ "tracing",
+ "want",
+]
+
+[[package]]
+name = "hyper"
 version = "0.14.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b91bb1f221b6ea1f1e4371216b70f40748774c2fb5971b450c07773fb92d26b"
@@ -1788,9 +1894,9 @@ dependencies = [
  "futures-util",
  "h2 0.3.3",
  "http",
- "http-body",
+ "http-body 0.4.4",
  "httparse",
- "httpdate",
+ "httpdate 1.0.1",
  "itoa",
  "pin-project-lite 0.2.7",
  "socket2 0.4.2",
@@ -1806,10 +1912,23 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbb958482e8c7be4bc3cf272a766a2b0bf1a6755e7a6ae777f017a31d11b13b1"
 dependencies = [
- "hyper",
+ "hyper 0.14.14",
  "pin-project-lite 0.2.7",
  "tokio 1.12.0",
  "tokio-io-timeout",
+]
+
+[[package]]
+name = "hyper-tls"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d979acc56dcb5b8dddba3917601745e877576475aa046df3226eabdecef78eed"
+dependencies = [
+ "bytes 0.5.6",
+ "hyper 0.13.10",
+ "native-tls",
+ "tokio 0.2.25",
+ "tokio-tls",
 ]
 
 [[package]]
@@ -1819,7 +1938,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes 1.1.0",
- "hyper",
+ "hyper 0.14.14",
  "native-tls",
  "tokio 1.12.0",
  "tokio-native-tls",
@@ -1992,10 +2111,10 @@ dependencies = [
  "either",
  "futures 0.3.17",
  "http",
- "http-body",
- "hyper",
+ "http-body 0.4.4",
+ "hyper 0.14.14",
  "hyper-timeout",
- "hyper-tls",
+ "hyper-tls 0.5.0",
  "jsonpath_lib",
  "k8s-openapi",
  "kube-core",
@@ -2430,7 +2549,7 @@ checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 name = "onvif-discovery-handler"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "akri-onvif",
  "env_logger",
  "log",
@@ -2514,7 +2633,7 @@ dependencies = [
 name = "opcua-discovery-handler"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "akri-opcua",
  "env_logger",
  "log",
@@ -2544,7 +2663,7 @@ name = "openapi"
 version = "1.1.0"
 source = "git+https://github.com/DazWilkin/openapi-admission-v1?tag=v1.1.0#60a9ba6bd64efda65cb136a21e0d6a53e962c415"
 dependencies = [
- "reqwest",
+ "reqwest 0.11.6",
  "serde",
  "serde_derive",
  "serde_json",
@@ -2553,9 +2672,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.36"
+version = "0.10.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d9facdb76fec0b73c406f125d44d86fdad818d66fef0531eec9233ca425ff4a"
+checksum = "2bc6b9e4403633698352880b22cbe2f0e45dd0177f6fabe4585536e56a3e4f75"
 dependencies = [
  "bitflags",
  "cfg-if 1.0.0",
@@ -2573,9 +2692,9 @@ checksum = "28988d872ab76095a6e6ac88d99b54fd267702734fd7ffe610ca27f533ddb95a"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.67"
+version = "0.9.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69df2d8dfc6ce3aaf44b40dec6f487d5a886516cf6879c49e98e0710f310a058"
+checksum = "1c571f25d3f66dd427e417cebf73dbe2361d6125cf6e3a70d143fdf97c9f5150"
 dependencies = [
  "autocfg",
  "cc",
@@ -3119,6 +3238,41 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
+version = "0.10.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0718f81a8e14c4dbb3b34cf23dc6aaf9ab8a0dfec160c534b3dbca1aaa21f47c"
+dependencies = [
+ "base64 0.13.0",
+ "bytes 0.5.6",
+ "encoding_rs",
+ "futures-core",
+ "futures-util",
+ "http",
+ "http-body 0.3.1",
+ "hyper 0.13.10",
+ "hyper-tls 0.4.3",
+ "ipnet",
+ "js-sys",
+ "lazy_static",
+ "log",
+ "mime",
+ "mime_guess",
+ "native-tls",
+ "percent-encoding 2.1.0",
+ "pin-project-lite 0.2.7",
+ "serde",
+ "serde_urlencoded",
+ "tokio 0.2.25",
+ "tokio-tls",
+ "url 2.2.2",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "winreg 0.7.0",
+]
+
+[[package]]
+name = "reqwest"
 version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66d2927ca2f685faf0fc620ac4834690d29e7abb153add10f5812eef20b5e280"
@@ -3129,8 +3283,8 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http",
- "http-body",
- "hyper",
+ "http-body 0.4.4",
+ "hyper 0.14.14",
  "ipnet",
  "js-sys",
  "lazy_static",
@@ -3797,6 +3951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6703a273949a90131b290be1fe7b039d0fc884aa1935860dfcbe056f28cd8092"
 dependencies = [
  "bytes 0.5.6",
+ "fnv",
  "futures-core",
  "iovec",
  "lazy_static",
@@ -4019,6 +4174,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tls"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a70f4fcd7b3b24fb194f837560168208f669ca8cb70d0c4b862944452396343"
+dependencies = [
+ "native-tls",
+ "tokio 0.2.25",
+]
+
+[[package]]
 name = "tokio-tungstenite"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4107,8 +4272,8 @@ dependencies = [
  "futures-util",
  "h2 0.3.3",
  "http",
- "http-body",
- "hyper",
+ "http-body 0.4.4",
+ "hyper 0.14.14",
  "hyper-timeout",
  "percent-encoding 2.1.0",
  "pin-project 1.0.8",
@@ -4169,7 +4334,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http",
- "http-body",
+ "http-body 0.4.4",
  "pin-project 1.0.8",
  "tower-layer",
  "tower-service",
@@ -4345,7 +4510,7 @@ dependencies = [
 name = "udev-discovery-handler"
 version = "0.7.0"
 dependencies = [
- "akri-discovery-utils",
+ "akri-discovery-utils 0.7.0",
  "akri-udev",
  "env_logger",
  "log",
@@ -4356,7 +4521,7 @@ dependencies = [
 name = "udev-video-broker"
 version = "0.7.0"
 dependencies = [
- "akri-shared",
+ "akri-shared 0.7.0",
  "env_logger",
  "lazy_static",
  "log",
@@ -4508,7 +4673,7 @@ dependencies = [
  "futures 0.3.17",
  "headers",
  "http",
- "hyper",
+ "hyper 0.14.14",
  "log",
  "mime",
  "mime_guess",
@@ -4546,6 +4711,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "632f73e236b219150ea279196e54e610f5dbafa5d61786303d4da54f84e47fce"
 dependencies = [
  "cfg-if 1.0.0",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -4622,7 +4789,7 @@ dependencies = [
  "actix",
  "actix-rt 2.3.0",
  "actix-web",
- "akri-shared",
+ "akri-shared 0.7.0",
  "clap",
  "k8s-openapi",
  "kube",

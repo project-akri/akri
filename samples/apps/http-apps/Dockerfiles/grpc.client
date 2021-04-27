@@ -1,7 +1,7 @@
 FROM golang:1.15 as build
 
 ARG PROJECT="http-extensibility"
-ARG MODULE="github.com/deislabs/akri/${PROJECT}"
+ARG MODULE="github.com/project-akri/akri/${PROJECT}"
 
 WORKDIR /${PROJECT}
 

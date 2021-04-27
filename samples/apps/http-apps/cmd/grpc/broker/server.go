@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	pb "github.com/deislabs/akri/http-extensibility/protos"
+	pb "github.com/project-akri/akri/http-extensibility/protos"
 )
 
 var _ pb.DeviceServiceServer = (*Server)(nil)

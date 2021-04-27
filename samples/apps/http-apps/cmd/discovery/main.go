@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/deislabs/akri/http-extensibility/shared"
+	"github.com/project-akri/akri/http-extensibility/shared"
 )
 
 const (
