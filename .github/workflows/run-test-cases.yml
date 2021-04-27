@@ -288,8 +288,8 @@ jobs:
       # For push and release, we need to wait for the Helm chart and
       # associated containers to build.
       - if: github.event_name == 'push' || github.event_name == 'release'
-        name: Set sleep duration before running script to 1500
-        run: echo 1500 > /tmp/sleep_duration.txt
+        name: Set sleep duration before running script to 2700
+        run: echo 2700 > /tmp/sleep_duration.txt
 
       # For pull_request, use the locally built containers.
       - if: startsWith(github.event_name, 'pull_request')
