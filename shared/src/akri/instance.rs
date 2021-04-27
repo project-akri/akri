@@ -23,10 +23,15 @@ pub struct Instance {
     /// This contains the name of the corresponding Configuration
     pub configuration_name: String,
 
-    /// This stores information about the capability that must be communicated to
-    /// a protocol broker
+    /// This defines some properties that will be set as
+    /// environment variables in broker Pods that request
+    /// the resource this Instance represents.
+    /// It contains the `Configuration.broker_properties` from
+    /// this Instance's Configuration and the `Device.properties`
+    /// set by the Discovery Handler that discovered the resource
+    /// this Instance represents.
     #[serde(default)]
-    pub metadata: HashMap<String, String>,
+    pub broker_properties: HashMap<String, String>,
 
     /// This defines whether the capability is to be shared by multiple nodes
     #[serde(default = "default_shared")]
@@ -43,10 +48,6 @@ pub struct Instance {
     /// the slot)
     #[serde(default)]
     pub device_usage: HashMap<String, String>,
-
-    /// This is a placeholder for eventual RBAC support
-    #[serde(default = "default_rbac")]
-    pub rbac: String,
 }
 
 /// Get Instances for a given namespace
@@ -121,7 +122,7 @@ pub async fn find_instance(
     name: &str,
     namespace: &str,
     kube_client: &APIClient,
-) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<KubeAkriInstance, kube::Error> {
     log::trace!("find_instance enter");
     let akri_instance_type = RawApi::customResource(API_INSTANCES)
         .group(API_NAMESPACE)
@@ -140,17 +141,19 @@ pub async fn find_instance(
             log::trace!("find_instance return");
             Ok(config_retrieved)
         }
-        Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
-            Err(ae.into())
-        }
-        Err(e) => {
-            log::trace!("find_instance kube_client.request error: {:?}", e);
-            Err(e.into())
-        }
+        Err(e) => match e {
+            kube::Error::Api(ae) => {
+                log::trace!(
+                    "find_instance kube_client.request returned kube error: {:?}",
+                    ae
+                );
+                Err(kube::Error::Api(ae))
+            }
+            _ => {
+                log::trace!("find_instance kube_client.request error: {:?}", e);
+                Err(e)
+            }
+        },
     }
 }
 
@@ -173,8 +176,7 @@ pub async fn find_instance(
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
-///         metadata: std::collections::HashMap::new(),
-///         rbac: "".to_string(),
+///         broker_properties: std::collections::HashMap::new(),
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -319,8 +321,7 @@ pub async fn delete_instance(
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
-///         metadata: std::collections::HashMap::new(),
-///         rbac: "".to_string(),
+///         broker_properties: std::collections::HashMap::new(),
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -380,9 +381,6 @@ pub async fn update_instance(
 fn default_shared() -> bool {
     false
 }
-fn default_rbac() -> String {
-    "".to_string()
-}
 
 #[cfg(test)]
 mod crd_serializeation_tests {
@@ -415,14 +413,13 @@ mod crd_serializeation_tests {
         let json = r#"{"configurationName": "foo"}"#;
         let deserialized: Instance = serde_json::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
-        assert_eq!(0, deserialized.metadata.len());
+        assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -435,14 +432,13 @@ mod crd_serializeation_tests {
         "#;
         let deserialized: Instance = serde_yaml::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
-        assert_eq!(0, deserialized.metadata.len());
+        assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -450,14 +446,13 @@ mod crd_serializeation_tests {
     fn test_instance_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationName":"blah","metadata":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
+        let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
         let deserialized: Instance = serde_json::from_str(json).unwrap();
         assert_eq!("blah".to_string(), deserialized.configuration_name);
-        assert_eq!(1, deserialized.metadata.len());
+        assert_eq!(1, deserialized.broker_properties.len());
         assert_eq!(true, deserialized.shared);
         assert_eq!(2, deserialized.nodes.len());
         assert_eq!(2, deserialized.device_usage.len());
-        assert_eq!(0, deserialized.rbac.len());
 
         let _ = serde_json::to_string(&deserialized).unwrap();
     }

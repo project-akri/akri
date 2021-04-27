@@ -1,0 +1,71 @@
+{{- if .Values.debugEcho.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-debug-echo-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-debug-echo-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-debug-echo-discovery
+    spec:
+      containers:
+      - name: akri-debug-echo-discovery
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.debugEcho.discovery.image.repository (default "latest-dev" .Values.debugEcho.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.debugEcho.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.debugEcho.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.debugEcho.discovery.image.repository (default "latest" .Values.debugEcho.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.debugEcho.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.debugEcho.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.debugEcho.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.debugEcho.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.debugEcho.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.debugEcho.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.debugEcho.discovery.resources.cpuLimit }}
+        {{- if .Values.debugEcho.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.debugEcho.discovery.port }}
+        {{- end }}
+        env:
+        {{- if .Values.debugEcho.discovery.useNetworkConnection }}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        - name: DEBUG_ECHO_INSTANCES_SHARED
+          value: {{ .Values.debugEcho.configuration.shared | quote }}
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.debugEcho.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.debugEcho.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}

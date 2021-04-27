@@ -5,7 +5,7 @@ pub mod config_for_tests {
             configuration::KubeAkriConfig,
             instance::{Instance, KubeAkriInstance, KubeAkriInstanceList},
         },
-        k8s::test_kube::MockKubeImpl,
+        k8s::MockKubeInterface,
         os::file,
     };
     use k8s_openapi::api::core::v1::{PodSpec, PodStatus, ServiceSpec, ServiceStatus};
@@ -18,7 +18,7 @@ pub mod config_for_tests {
     pub type ServiceList = ObjectList<ServiceObject>;
 
     pub fn configure_find_instance(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         instance_name: &'static str,
         instance_namespace: &'static str,
         result_file: &'static str,
@@ -30,7 +30,13 @@ pub mod config_for_tests {
             .withf(move |name, namespace| name == instance_name && namespace == instance_namespace)
             .returning(move |_, _| {
                 if result_error {
-                    Err(None.ok_or("failure")?)
+                    // Return error that instance could not be found
+                    Err(kube::Error::Api(kube::ErrorResponse {
+                        status: "Failure".to_string(),
+                        message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
+                        reason: "NotFound".to_string(),
+                        code: akri_shared::k8s::ERROR_NOT_FOUND,
+                    }))
                 } else {
                     let dci_json = file::read_file_to_string(result_file);
                     let dci: KubeAkriInstance = serde_json::from_str(&dci_json).unwrap();
@@ -56,7 +62,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_get_instances(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         result_file: &'static str,
         listify_result: bool,
     ) {
@@ -74,7 +80,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_update_instance(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         instance_to_update: Instance,
         instance_name: &'static str,
         instance_namespace: &'static str,
@@ -104,7 +110,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_find_config(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         config_name: &'static str,
         config_namespace: &'static str,
         result_file: &'static str,
@@ -126,7 +132,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_find_services(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         svc_selector: &'static str,
         result_file: &'static str,
         result_error: bool,
@@ -146,7 +152,7 @@ pub mod config_for_tests {
             });
     }
     pub fn configure_add_service(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         svc_name: &'static str,
         namespace: &'static str,
         label_id: &'static str,
@@ -185,7 +191,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_remove_service(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         svc_name: &'static str,
         svc_namespace: &'static str,
     ) {
@@ -203,7 +209,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_update_service(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         svc_name: &'static str,
         svc_namespace: &'static str,
         result_error: bool,
@@ -227,7 +233,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_find_pods(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_selector: &'static str,
         result_file: &'static str,
         result_error: bool,
@@ -251,7 +257,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_add_pod(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_name: &'static str,
         pod_namespace: &'static str,
         label_id: &'static str,
@@ -285,7 +291,7 @@ pub mod config_for_tests {
     }
 
     pub fn configure_remove_pod(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         pod_name: &'static str,
         pod_namespace: &'static str,
     ) {

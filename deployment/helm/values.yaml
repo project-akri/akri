@@ -16,9 +16,25 @@ useDevelopmentContainers: true
 # This can be set from the helm command line using `--set imagePullSecrets[0].name="mysecret"`
 imagePullSecrets: []
 
+# generalize references to `apiGroups` and `apiVersion` values for Akri CRDs
+crds:
+  group: akri.sh
+  version: v0
+
 rbac:
   # enabled defines whether to apply rbac to Akri
   enabled: true
+
+prometheus:
+  # enabled defines whether metrics ports are exposed on
+  # the Controller and Agent
+  enabled: false
+  # endpoint is the path the port exposed for metrics
+  endpoint: /metrics
+  # port is the port that the metrics service is exposed on
+  port: 8080
+  # portName is the name of the metrics port
+  portName: metrics
 
 controller:
   # enabled defines whether to apply the Akri Controller
@@ -27,10 +43,11 @@ controller:
     # repository is the Akri Controller container reference
     repository: ghcr.io/deislabs/akri/controller
     # tag is the Akri Controller container tag
-    # controller.yaml will default to v(AppVersion)-dev
+    # controller.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Controller pull policy
-    pullPolicy: Always
+    pullPolicy: ""
   # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false
@@ -42,249 +59,612 @@ controller:
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
   # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
   nodeSelectors: {}
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 11Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 10m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 100Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m
 
 agent:
   # enabled defines whether to apply the Akri Agent
   enabled: true
+  # full specifies that the `agent-full` image should be used which has embedded Discovery Handlers
+  full: false
   image:
     # repository is the Akri Agent container reference
     repository: ghcr.io/deislabs/akri/agent
+    # fullRepository is the container reference for the Akri Agent with embedded Discovery Handlers
+    fullRepository: ghcr.io/deislabs/akri/agent-full
     # tag is the Akri Agent container tag
-    # agent.yaml will default to v(AppVersion)-dev
+    # agent.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Agent pull policy
-    pullPolicy: Always
+    pullPolicy: ""
   securityContext: {}
   host:
+    # discoveryHandlers is the location of Akri Discovery Handler sockets and
+    # the agent registration service
+    discoveryHandlers: /var/lib/akri
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
     kubeletDevicePlugins: /var/lib/kubelet/device-plugins
     # crictl is the node path to crictl
     crictl: /usr/bin/crictl
     # dockerShimSock is the node path of the docker socket
     dockerShimSock: /var/run/dockershim.sock
-    # udev is the node path of udev
-    udev: /run/udev
+    # udev is the node path of udev, usually at `/run/udev`
+    udev:
   # allowDebugEcho dictates whether the Akri Agent will allow DebugEcho Configurations
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node
   linuxOnly: true
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 11Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 10m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 79Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m
+
+custom:
+  configuration:
+    # enabled defines whether to load a custom configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # custom configuration
+    name: akri-custom
+    # discoveryHandlerName is the name of the Discovery Handler the Configuration is using
+    discoveryHandlerName:
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this custom configuration
+    brokerProperties: {}
+    # capacity is the capacity for any instances created as a result of
+    # applying this custom configuration
+    capacity: 1
+    # discoveryDetails is the string of discovery details that is 
+    # passed to a Discovery Handler which can parse it into an expected format.
+    discoveryDetails: ""
+    brokerPod:
+      image:
+        # repository is the custom broker container reference
+        repository:
+        # tag is the custom broker image tag
+        tag: latest
+        # pullPolicy is the custom pull policy
+        pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 11Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 24Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 24m
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # name is the description of the instance service
+      name: akri-custom-instance-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # name is the description of the configuration service
+      name: akri-custom-configuration-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+  # discovery defines a set of values for a custom discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # custom Discovery Handler DaemonSet
+    name: akri-custom-discovery
+    image:
+      # repository is the custom broker container reference
+      repository:
+      # tag is the custom broker image tag
+      tag: latest
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set custom.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 debugEcho:
-  # enabled defines whether to load a debugEcho configuration
-  enabled: false
-  # name is the Kubernetes resource name that will be created for this
-  # debugEcho configuration
-  name: akri-debug-echo-foo
-  # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this debugEcho configuration
-  properties:
-  # capacity is the capacity for any instances created as a result of
-  # applying this debugEcho configuration
-  capacity: 1
-  # descriptions is the list of instances created as a result of
-  # applying this debugEcho configuration
-  descriptions:
-  - "foo0"
-  - "foo1"
-  # shared defines whether instances created as a result of
-  # applying this debugEcho configuration as shared
-  shared: true
-  brokerPod:
-    # container used by debugEcho
-    image: nginx:latest
-    # pullPolicy is the debugEcho pull policy
-    pullPolicy: Always
-  instanceService:
-    # name is the description of the instance service
-    name: akri-debug-echo-foo-instance-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 6052
-    # targetPort is the service targetPort of the instance service
-    targetPort: 6052
-    # protocol is the service protocol of the instance service
-    protocol: TCP
-  configurationService:
-    # name is the description of the configuration service
-    name: akri-debug-echo-foo-configuration-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 6052
-    # targetPort is the service targetPort of the instance service
-    targetPort: 6052
-    # protocol is the service protocol of the instance service
-    protocol: TCP
+  configuration:
+    # enabled defines whether to load a debugEcho configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # debugEcho configuration
+    name: akri-debug-echo
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this debugEcho configuration
+    brokerProperties: {}
+    # capacity is the capacity for any instances created as a result of
+    # applying this debugEcho configuration
+    capacity: 1
+    discoveryDetails:
+      # descriptions is the list of instances created as a result of
+      # applying this debugEcho configuration
+      descriptions:
+      - "foo0"
+      - "foo1"
+    # shared defines whether instances created as a result of
+    # applying this debugEcho configuration are shared
+    shared: true
+    brokerPod:
+      # container used by debugEcho
+      image:
+        # repository is the debugEcho broker container reference
+        repository: nginx
+        # tag is the debugEcho broker image tag
+        tag: stable-alpine
+        # pullPolicy is the debugEcho pull policy
+        pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # name is the description of the instance service
+      name: akri-debug-echo-foo-instance-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # name is the description of the configuration service
+      name: akri-debug-echo-foo-configuration-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+  # discovery defines a set of values for a debugEcho discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/debug-echo-discovery
+      # tag is the container tag
+      # debug-echo-configuration.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set debugEcho.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 26m
 
 onvif:
-  # enabled defines whether to load a onvif configuration
-  enabled: false
-  # name is the Kubernetes resource name that will be created for this
-  # onvif configuration
-  name: akri-onvif
-  # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this onvif configuration
-  properties:
-  ipAddresses: 
-    action: Exclude
-    items: []
-  macAddresses:
-    action: Exclude
-    items: []
-  scopes:
-    action: Exclude
-    items: []
-  discoveryTimeoutSeconds: 1
-  # capacity is the capacity for any instances created as a result of
-  # applying this onvif configuration
-  capacity: 1
-  brokerPod:
+  configuration:
+    # enabled defines whether to load a onvif configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # onvif configuration
+    name: akri-onvif
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this onvif configuration
+    brokerProperties: {}
+    discoveryDetails:
+      ipAddresses:
+        action: Exclude
+        items: []
+      macAddresses:
+        action: Exclude
+        items: []
+      scopes:
+        action: Exclude
+        items: []
+      discoveryTimeoutSeconds: 1
+    # capacity is the capacity for any instances created as a result of
+    # applying this onvif configuration
+    capacity: 1
+    brokerPod:
+      image:
+        # repository is the onvif broker container reference
+        repository:
+        # tag is the onvif broker image tag
+        tag: latest
+        # pullPolicy is the Akri onvif broker pull policy
+        pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 98Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 134m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 400Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 2800m
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # name is the description of the instance service
+      name: akri-onvif-instance-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # portName is the name of the port
+      portName: grpc
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # name is the description of the configuration service
+      name: akri-onvif-configuration-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # portName is the name of the port
+      portName: grpc
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # discovery defines a set of values for a onvif discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
     image:
       # repository is the container reference
-      repository:
-      # pullPolicy is the Akri onvif broker pull policy
-      pullPolicy: Always
-  # createInstanceServices is specified if a service should automatically be
-  # created for each broker pod
-  createInstanceServices: true
-  instanceService:
-    # name is the description of the instance service
-    name: akri-onvif-instance-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # portName is the name of the port
-    portName: grpc
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
-  # createConfigurationService is specified if a single service should automatically be
-  # created for all broker pods of a Configuration
-  createConfigurationService: true
-  configurationService:
-    # name is the description of the configuration service
-    name: akri-onvif-configuration-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # portName is the name of the port
-    portName: grpc
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
+      repository: ghcr.io/deislabs/akri/onvif-discovery
+      # tag is the container tag
+      # onvif-configuration.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set onvif.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
 
 opcua:
-  # enabled defines whether to load an OPC UA configuration
-  enabled: false
-  # name is the Kubernetes resource name that will be created for this
-  # OPC UA configuration
-  name: akri-opcua
-  # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this OPC UA configuration
-  properties:
-  opcuaDiscoveryMethod: standard
-  # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
-  discoveryUrls:
-  - "opc.tcp://localhost:4840/"
-  # mountCertificates determines whether to mount into the broker pods k8s Secrets 
-  # containing OPC UA client credentials for connecting to OPC UA severs with the 
-  # same signing certificate authority.
-  # If set to false, the brokers will attempt to make an insecure connection with the servers.
-  mountCertificates: false
-  # applicationNames is a filter applied to the discovered OPC UA servers to either exclusively
-  # include or exclude servers with application names in the applicationNames list.
-  applicationNames:
-    action: Exclude
-    items: []
-  # capacity is the capacity for any instances created as a result of
-  # applying this OPC UA configuration
-  capacity: 1
-  brokerPod:
-    image:
-      # repository is the Akri OPC UA broker container reference
-      repository: 
-      # pullPolicy is the Akri OPC UA broker pull policy
-      pullPolicy: Always
-  # createInstanceServices is specified if a service should automatically be
-  # created for each broker pod
-  createInstanceServices: true
-  instanceService:
-    # name is the description of the instance service
-    name: akri-opcua-instance-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
-  # createConfigurationService is specified if a single service should automatically be
-  # created for all broker pods of a Configuration
-  createConfigurationService: true
-  configurationService:
-    # name is the description of the configuration service
-    name: akri-opcua-configuration-service
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
-
-udev:
-  # enabled defines whether to load a udev configuration
-  enabled: false
-  # name is the Kubernetes resource name that will be created for this
-  # udev configuration
-  name: akri-udev
-  # properties is a map of properties that will be passed to any instances
-  # created as a result of applying this udev configuration
-  properties:
-  # udevRules is the list of udev rules used to find instances created as a result of
-  # applying this udev configuration
-  udevRules:
-  # capacity is the capacity for any instances created as a result of
-  # applying this udev configuration
-  capacity: 1
-  brokerPod:
+  configuration:
+    # enabled defines whether to load an OPC UA configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # OPC UA configuration
+    name: akri-opcua
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this OPC UA configuration
+    brokerProperties: {}
+    discoveryDetails:
+      # discoveryUrls is a list of DiscoveryUrls for OPC UA servers
+      discoveryUrls:
+      - "opc.tcp://localhost:4840/"
+      # applicationNames is a filter applied to the discovered OPC UA servers to either exclusively
+      # include or exclude servers with application names in the applicationNames list.
+      applicationNames:
+        action: Exclude
+        items: []
+    # mountCertificates determines whether to mount into the broker pods k8s Secrets 
+    # containing OPC UA client credentials for connecting to OPC UA severs with the 
+    # same signing certificate authority.
+    # If set to false, the brokers will attempt to make an insecure connection with the servers.
+    mountCertificates: false
+    # capacity is the capacity for any instances created as a result of
+    # applying this OPC UA configuration
+    capacity: 1
+    brokerPod:
+      image:
+        # repository is the OPC UA broker container reference
+        repository:
+        # tag is the OPC UA broker image tag
+        tag: latest
+        # pullPolicy is the OPC UA broker pull policy
+        pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 76Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 9m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 200Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 30m
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # name is the description of the instance service
+      name: akri-opcua-instance-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # name is the description of the configuration service
+      name: akri-opcua-configuration-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+  # discovery defines a set of values for a opcua discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
     image:
       # repository is the container reference
-      repository:
-      pullPolicy: Always
-    securityContext: {}
-  # createInstanceServices is specified if a service should automatically be
-  # created for each broker pod
-  createInstanceServices: true
-  instanceService:
-    # portName is the name of the port
-    portName: grpc
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
-  # createConfigurationService is specified if a single service should automatically be
-  # created for all broker pods of a Configuration
-  createConfigurationService: true
-  configurationService:
-    # portName is the name of the port
-    portName: grpc
-    # type is the service type of the instance service
-    type: ClusterIP
-    # port is the service port of the instance service
-    port: 80
-    # targetPort is the service targetPort of the instance service
-    targetPort: 8083
-    # protocol is the service protocol of the instance service
-    protocol: TCP
+      repository: ghcr.io/deislabs/akri/opcua-discovery
+      # tag is the container tag
+      # opcua-configuration.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set opcua.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
+
+udev:
+  configuration:
+    # enabled defines whether to load a udev configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # udev configuration
+    name: akri-udev
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this udev configuration
+    brokerProperties: {}
+    discoveryDetails:
+      # udevRules is the list of udev rules used to find instances created as a result of
+      # applying this udev configuration
+      udevRules:
+    # capacity is the capacity for any instances created as a result of
+    # applying this udev configuration
+    capacity: 1
+    brokerPod:
+      image:
+        # repository is the udev broker container reference
+        repository:
+        # tag is the udev broker image tag
+        tag: latest
+        # pullPolicy is the udev broker pull policy
+        pullPolicy: ""
+      securityContext: {}
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # portName is the name of the port
+      portName: grpc
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # portName is the name of the port
+      portName: grpc
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 80
+      # targetPort is the service targetPort of the instance service
+      targetPort: 8083
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+  # discovery defines a set of values for a udev discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/udev-discovery
+      # tag is the container tag
+      # udev-configuration.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
+      tag:
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 10Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 30Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 29m
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set udev.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    host: 
+      # udev is the node path of udev, usually at `/run/udev`
+      udev:
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 24m
+
+# Admission Controllers (Webhooks)
+webhookConfiguration:
+  # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
+  enabled: false
+  # name of the webhook
+  name: akri-webhook-configuration
+  # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate
+  caBundle: null
+  image:
+    # repository is the Akri Webhook for Configurations image reference
+    repository: ghcr.io/deislabs/akri/webhook-configuration
+    # tag is the container tag
+    # webhook-configuration.yaml will default to v(AppVersion)[-dev]
+    # with `-dev` added if `useDevelopmentContainers` is specified
+    tag:
+    # pullPolicy is the Akri Webhook pull policy
+    pullPolicy: Always
+  # onlyOnControlPlane dictates whether the Akri Webhook will only run on nodes with 
+  # the label with (key, value) of ("node-role.kubernetes.io/master", "")
+  onlyOnControlPlane: false
+  # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Webhook 
+  # to run on the control plane node
+  allowOnControlPlane: true
+  # linuxOnly dictates whether the Akri Webhook will only run on a linux node
+  linuxOnly: true
+  # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Webhook to run on
+  # This can be set from the helm command line using `--set webhookConfiguration.nodeSelectors.label="value"`
+  nodeSelectors: {}
+  resources:
+    # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    memoryRequest: 100Mi
+    # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+    # for it to be scheduled by the Kubernetes Scheduler
+    cpuRequest: 15m
+    # memoryLimit defines the maximum amount of RAM this Pod can consume.
+    memoryLimit: 100Mi
+    # cpuLimit defines the maximum amount of CPU this Pod can consume.
+    cpuLimit: 26m

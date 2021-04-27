@@ -11,6 +11,7 @@ on:
     - samples/brokers/opcua-monitoring-broker/**
     - version.txt
     - build/akri-containers.mk
+    - build/akri-dotnet-containers.mk
     - Makefile
   pull_request:
     branches: [ main ]
@@ -22,6 +23,7 @@ on:
     - samples/brokers/opcua-monitoring-broker/**
     - version.txt
     - build/akri-containers.mk
+    - build/akri-dotnet-containers.mk
     - Makefile
   release:
     types:
@@ -72,7 +74,7 @@ jobs:
         container_registry_password: ${{ secrets.crPassword }}
         makefile_component_name: ${{ env.MAKEFILE_COMPONENT }}
         platform: ${{ matrix.arch }}
-        build_rust: "1"
+        build_rust: "0"
 
   multi-arch:
     if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')

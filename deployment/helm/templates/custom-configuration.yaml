@@ -1,0 +1,61 @@
+{{- if .Values.custom.configuration.enabled }}
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
+kind: Configuration
+metadata:
+  name: {{ .Values.custom.configuration.name }}
+spec:
+  discoveryHandler: 
+    name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
+    discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
+  {{- if .Values.custom.configuration.brokerPod.image.repository }}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.custom.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.custom.configuration.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
+      resources:
+        requests:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.custom.configuration.brokerPod.resources.memoryRequest }}
+          cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuRequest }}
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.custom.configuration.brokerPod.resources.memoryLimit }}
+          cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuLimit }}
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.custom.configuration.brokerPod.image.repository }}
+  {{- if .Values.custom.configuration.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.custom.configuration.instanceService.type }}
+    ports:
+    - name: {{ .Values.custom.configuration.instanceService.name }}
+      port: {{ .Values.custom.configuration.instanceService.port }}
+      protocol: {{ .Values.custom.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.custom.configuration.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.custom.configuration.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.custom.configuration.configurationService.type }}
+    ports:
+    - name: {{ .Values.custom.configuration.configurationService.name }}
+      port: {{ .Values.custom.configuration.configurationService.port }}
+      protocol: {{ .Values.custom.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.custom.configuration.configurationService.port }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.custom.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.custom.configuration.brokerProperties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
+  {{- else }}
+  brokerProperties: {}
+  {{- end }}
+  capacity: {{ .Values.custom.configuration.capacity }}
+{{- end }}

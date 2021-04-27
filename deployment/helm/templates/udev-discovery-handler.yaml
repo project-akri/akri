@@ -1,0 +1,80 @@
+{{- if .Values.udev.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-udev-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-udev-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-udev-discovery
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      containers:
+      - name: akri-udev-discovery
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.udev.discovery.image.repository (default "latest-dev" .Values.udev.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.udev.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.udev.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.udev.discovery.image.repository (default "latest" .Values.udev.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.udev.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.udev.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.udev.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.udev.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.udev.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.udev.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.udev.discovery.resources.cpuLimit }}
+        {{- if .Values.udev.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.udev.discovery.port }}
+        {{- end }}
+        env:
+        {{- if .Values.udev.discovery.useNetworkConnection }}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+        {{- if .Values.udev.discovery.host.udev }}
+        - name: devices
+          mountPath: /run/udev
+        {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.udev.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.udev.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+      {{- if .Values.udev.discovery.host.udev }}
+      - name: devices
+        hostPath:
+          path: "{{ .Values.udev.discovery.host.udev }}"
+      {{- end }}
+{{- end }}

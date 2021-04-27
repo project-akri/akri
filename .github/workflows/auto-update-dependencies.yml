@@ -1,0 +1,33 @@
+name: Dependencies autoupdate
+
+on:
+  workflow_dispatch:    # can be manually run if needed
+  schedule:
+    - cron: '0 0 1 * *' # run on first day of each month at 12:00 am UTC time
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  auto-update-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the head commit of the branch
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false 
+        
+    - name: Install Linux requirements
+      run: |
+        apt_dependencies="git curl libssl-dev pkg-config libudev-dev libv4l-dev"
+        echo "Run apt update and apt install the following dependencies: $apt_dependencies"
+        sudo apt update
+        sudo apt install -y $apt_dependencies
+    
+    - name: Check for dependency updates
+      uses: romoh/dependencies-autoupdate@v1.1
+      with:  
+        token: ${{ secrets.AKRI_BOT_TOKEN }}
+        update-command: "'cargo update && cargo test'"
+        on-changes-command: "'./version.sh -u -p'"

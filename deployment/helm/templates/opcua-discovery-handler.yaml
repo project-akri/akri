@@ -1,0 +1,69 @@
+{{- if .Values.opcua.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-opcua-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-opcua-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-opcua-discovery
+    spec:
+      containers:
+      - name: akri-opcua-discovery
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default "latest-dev" .Values.opcua.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.opcua.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default "latest" .Values.opcua.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.opcua.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.opcua.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.opcua.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.opcua.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.opcua.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.opcua.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.opcua.discovery.resources.cpuLimit }}
+        {{- if .Values.opcua.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.opcua.discovery.port }}
+        {{- end }}
+        env:
+        {{- if .Values.opcua.discovery.useNetworkConnection }}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.opcua.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.opcua.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}

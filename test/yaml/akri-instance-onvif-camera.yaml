@@ -14,6 +14,6 @@ spec:
     onvif-camera-ffffff-2: "linux-dev3"
     onvif-camera-ffffff-3: "linux-dev3"
     onvif-camera-ffffff-4: "linux-dev2"
-  metadata:
+  brokerProperties:
     resolution-width: "800"
     resolution-height: "600"

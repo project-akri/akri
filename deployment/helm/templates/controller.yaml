@@ -20,18 +20,32 @@ spec:
       - name: akri-controller
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" .Values.controller.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default "latest-dev" .Values.controller.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" .Values.controller.image.repository | quote }}
+        image: {{ printf "%s:%s" .Values.controller.image.repository (default "latest" .Values.controller.image.tag) | quote }}
         {{- else }}
         image: {{ printf "%s:%s" .Values.controller.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) | quote }}
         {{- end }}
         {{- end }}
-        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        {{- with .Values.controller.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.controller.resources.memoryRequest }}
+            cpu: {{ .Values.controller.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.controller.resources.memoryLimit }}
+            cpu: {{ .Values.controller.resources.cpuLimit }}
+        {{- if .Values.prometheus.enabled }}
+        ports:
+          - name: {{ .Values.prometheus.portName | quote }}
+            containerPort: {{ .Values.prometheus.port }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -44,14 +58,14 @@ spec:
       {{- end }}
       {{- if or .Values.controller.linuxOnly .Values.controller.onlyOnControlPlane .Values.controller.nodeSelectors }}
       nodeSelector:
-        {{- if .Values.controller.nodeSelectors }}
-          {{- toYaml .Values.controller.nodeSelectors | nindent 8 }}
+        {{- if .Values.controller.onlyOnControlPlane }}
+        node-role.kubernetes.io/master: ""
         {{- end }}
         {{- if .Values.controller.linuxOnly }}
         "kubernetes.io/os": linux
         {{- end }}
-        {{- if .Values.controller.onlyOnControlPlane }}
-        node-role.kubernetes.io/master: ""
+        {{- if .Values.controller.nodeSelectors }}
+          {{- toYaml .Values.controller.nodeSelectors | nindent 8 }}
         {{- end }}
       {{- end }}
 {{- end }}

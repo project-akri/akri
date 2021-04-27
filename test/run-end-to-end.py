@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import shared_test_code
-import json, os, time, yaml
+import json, os, subprocess, time, yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
@@ -31,7 +31,21 @@ def main():
     print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
     extra_helm_args = shared_test_code.get_extra_helm_args()
     print("Providing Akri Helm chart with extra helm args: {}".format(extra_helm_args))
-    helm_install_command = "helm install akri {} --set debugEcho.enabled=true --set debugEcho.name={} --set debugEcho.shared=false --set agent.allowDebugEcho=true {} {} --debug ".format(helm_chart_location, shared_test_code.DEBUG_ECHO_NAME, cri_args, extra_helm_args)
+    helm_install_command = "\
+    helm install akri {location} \
+    --set agent.full=true \
+    --set debugEcho.configuration.enabled=true \
+    --set debugEcho.configuration.name={config_name} \
+    --set debugEcho.configuration.shared=false \
+    --set debugEcho.configuration.discoveryDetails.descriptions[0]='{description_prefix}0' \
+    --set debugEcho.configuration.discoveryDetails.descriptions[1]='{description_prefix}1' \
+    --set debugEcho.configuration.brokerProperties.{res_width_key}={res_width_val} \
+    --set debugEcho.configuration.brokerProperties.{res_height_key}={res_height_val} \
+    --set agent.allowDebugEcho=true \
+    {cri_args} \
+    {helm_args} \
+    --debug \
+    ".format(location=helm_chart_location, config_name=shared_test_code.DEBUG_ECHO_NAME, description_prefix=shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, res_width_key=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_KEY, res_width_val=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_VALUE, res_height_key=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_KEY, res_height_val=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_VALUE, cri_args=cri_args, helm_args=extra_helm_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     
@@ -83,7 +97,7 @@ def do_test():
     # Check agent responds to dynamic offline/online resource
     # 
     print("Writing to Agent pod {} that device offline".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
 
     print("Checking Akri state after taking device offline")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
@@ -93,7 +107,7 @@ def do_test():
 
     # Do back online scenario
     print("Writing to Agent pod {} that device online".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/bash -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
     
     print("Checking Akri state after bringing device back online")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
@@ -105,9 +119,21 @@ def do_test():
     # Check that slot reconciliation is working on agent
     # 
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
-    result = os.system('sudo {} logs {} | grep "get_node_slots - crictl called successfully" | wc -l | grep -v 0'.format(kubectl_cmd, shared_test_code.agent_pod_name))
-    if result != 0:
-        print("Akri failed to successfully connect to crictl via the CRI socket")
+    temporary_agent_log_path = "/tmp/agent_log.txt"
+    for x in range(3):
+        log_result = subprocess.run('sudo {} logs {} > {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path), shell=True)
+        if log_result.returncode == 0:
+            print("Successfully stored Agent logs in {}".format(temporary_agent_log_path))
+            break
+        print("Failed to get logs from {} pod with result {} on attempt {} of 3".format(shared_test_code.agent_pod_name, log_result, x))
+        if x == 2:
+            return False
+    grep_result = subprocess.run(['grep', "get_node_slots - crictl called successfully", temporary_agent_log_path])
+    if grep_result.returncode != 0:
+        print("Akri failed to successfully connect to crictl via the CRI socket with return value of {}", grep_result)
+        # Log information to understand why error occurred
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('grep get_node_slots {}'.format(temporary_agent_log_path))
         return False
 
     #
@@ -141,7 +167,7 @@ def do_test():
     restored_brokers_info = shared_test_code.get_running_pod_names_and_uids(broker_pod_selector)
     if len(restored_brokers_info) != 2:
         print("Expected to find 2 broker pods but found: {}", len(restored_brokers_info))
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.foramt(kubectl_cmd))
+        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         return False
 
     # Make sure that the deleted broker uid is different from the restored broker pod uid ... signifying

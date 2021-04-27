@@ -1,12 +1,14 @@
 # Development
-This document will walk you through how to set up a local development environment, build Akri component containers, and test Akri using your newly built containers. 
+This document will walk you through how to set up a local development environment, build Akri component containers, and test Akri using your newly built containers.
+
+The document includes [naming guidelines](#naming-guidelines) to help as you extend Akri.
 
 ## Required Tools
 To develop, you'll need:
 - A Linux environment whether on amd64 or arm64v8
-- Rust - version 1.41.0 which the build system uses can be installed using: 
+- Rust - version 1.51.0 which the build system uses can be installed using: 
     ```sh
-    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.41.0
+    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.51.0
     cargo version
     ```
 - .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
@@ -48,9 +50,46 @@ There are unit tests for all of the Rust code.  To run all unit tests, simply na
 
 To locally run the controller as part of a k8s cluster, follow these steps:
 
-1.  Create or provide access to a valid cluster configuration by setting KUBECONFIG (can be done in the commandline) ... for the sake of this, the config is assumed to be in ~/test.cluster.config
-1.  Build the repo by running `cargo build`
-1.  Run the desired component (in this case, looking at info-level logging and running the controller locally): `RUST_LOG=info KUBECONFIG=~/test.cluster.config ./target/debug/controller`
+1.  Create or provide access to a valid cluster configuration by setting KUBECONFIG (can be done in the commandline) ...
+    for the sake of this, the config is assumed to be in ~/test.cluster.config
+1.  Build the repo with all default features by running `cargo build`
+    > Note: By default, the Agent does not have embedded Discovery Handlers. To allow embedded Discovery Handlers in the
+    > Agent, turn on the `agent-full` feature and the feature for each Discovery Handler you wish to embed -- Debug echo
+    > is always included if `agent-full` is turned on. For example, to build an Agent with OPC UA, ONVIF, udev, and
+    > debug echo Discovery Handlers: `cargo build --manifest-path agent/Cargo.toml --features "agent-full udev-feat
+    > opcua-feat onvif-feat"`.
+1.  Run the desired component 
+
+    Run the **Controller** locally with info-level logging: `RUST_LOG=info KUBECONFIG=~/test.cluster.config
+    ./target/debug/controller`
+
+    Run the **Agent** locally with info-level logging: 
+    ```sh
+    sudo DEBUG_ECHO_INSTANCES_SHARED=true ENABLE_DEBUG_ECHO=1 RUST_LOG=info KUBECONFIG=~/test.cluster.config DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode HOST_CRICTL_PATH=/usr/bin/crictl HOST_RUNTIME_ENDPOINT=/var/run/dockershim.sock HOST_IMAGE_ENDPOINT=/var/run/dockershim.sock ./target/debug/agent
+    ```
+    > Note: The environment variables `HOST_CRICTL_PATH`, `HOST_RUNTIME_ENDPOINT`, and `HOST_IMAGE_ENDPOINT` are for
+    > slot-reconciliation (making sure Pods that no longer exist are not still claiming Akri resources). The values of
+    > these vary based on Kubernetes distribution. The above is for vanilla Kubernetes. For MicroK8s, use
+    > `HOST_CRICTL_PATH=/usr/local/bin/crictl HOST_RUNTIME_ENDPOINT=/var/snap/microk8s/common/run/containerd.sock
+    > HOST_IMAGE_ENDPOINT=/var/snap/microk8s/common/run/containerd.sock` and for K3s, use
+    > `HOST_CRICTL_PATH=/usr/local/bin/crictl HOST_RUNTIME_ENDPOINT=/run/k3s/containerd/containerd.sock
+    > HOST_IMAGE_ENDPOINT=/run/k3s/containerd/containerd.sock`.
+
+    To run **Discovery Handlers** locally, simply navigate to the Discovery Handler under
+    `akri/discovery-handler-modules/` and run privileged using `cargo run`, setting where the Discovery Handler socket should be
+    created in the `DISCOVERY_HANDLERS_DIRECTORY` variable. For example, to run the ONVIF Discovery Handler locally:
+    ```sh
+    cd akri/discovery-handler-modules/onvif-discovery-handler/
+    sudo -s 
+    RUST_LOG=info DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
+    ```
+    To run the [debug echo Discovery Handler](#testing-with-debug-echo-discovery-handler), an environment variable,
+    `DEBUG_ECHO_INSTANCES_SHARED`, must be set to specify whether it should register with the Agent as discovering
+    shared or unshared devices. Run the debug echo Discovery Handler to discover mock unshared devices like so:
+    ```sh
+    cd akri/discovery-handler-modules/debug-echo-discovery-handler/
+    RUST_LOG=info DEBUG_ECHO_INSTANCES_SHARED=false DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
+    ```
 
 ### To build containers
 `Makefile` has been created to help with the more complicated task of building the Akri components and containers for the various supported platforms.
@@ -111,12 +150,15 @@ By default, `Makefile` will try to create containers with tag following this for
 PREFIX=$CONTAINER_REPOSITORY make akri
 # To make a specific component:
 PREFIX=$CONTAINER_REPOSITORY make akri-controller
-PREFIX=$CONTAINER_REPOSITORY make akri-agent
 PREFIX=$CONTAINER_REPOSITORY make akri-udev
 PREFIX=$CONTAINER_REPOSITORY make akri-onvif
 PREFIX=$CONTAINER_REPOSITORY make akri-opcua-monitoring
 PREFIX=$CONTAINER_REPOSITORY make akri-anomaly-detection
 PREFIX=$CONTAINER_REPOSITORY make akri-streaming
+PREFIX=$CONTAINER_REPOSITORY make akri-agent
+# To make an Agent with embedded Discovery Handlers, turn on the `agent-full` feature along with the 
+# feature for any Discovery Handlers that should be embedded.
+PREFIX=$CONTAINER_REPOSITORY BUILD_SLIM_AGENT=0 AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat" make akri-agent-full 
 
 # To make a specific component on specific platform(s):
 PREFIX=$CONTAINER_REPOSITORY BUILD_AMD64=1 BUILD_ARM32=1 BUILD_ARM64=1 make akri-streaming
@@ -134,6 +176,9 @@ source /home/$SUDO_USER/.cargo/env
 
 exit
 ```
+
+#### More information about Akri build
+For more detailed information about the Akri build infrastructure, review the [Akri build infrastructure document](./building.md)
 
 ## Install Akri with newly built containers
 When installing Akri using helm, you can set the `imagePullSecrets`, `image.repository` and `image.tag` [Helm values](../deployment/helm/values.yaml) to point to your newly created containers. For example, to install Akri with with custom Controller and Agent containers, run the following, specifying the `image.tag` version to reflect [version.txt](../version.txt):
@@ -175,3 +220,57 @@ helm get manifest akri | less
 
 ### Helm Upgrade
 To modify an Akri installation to reflect a new state, you can use [`helm upgrade`](https://helm.sh/docs/helm/helm_upgrade/). See the [Customizing an Akri Installation document](./customizing-akri-installation.md) for further explanation. 
+
+## Testing with Debug Echo Discovery Handler
+In order to kickstart using and debugging Akri, a debug echo Discovery Handler has been created. See its
+[documentation](./debug-echo-configuration.md) to start using it.
+
+## Naming Guidelines
+
+One of the [two hard things](https://martinfowler.com/bliki/TwoHardThings.html) in Computer Science is naming things. It is proposed that Akri adopt naming guidelines to make developers' lives easier by providing consistency and reduce naming complexity.
+
+Akri existed before naming guidelines were documented and may not employ the guidelines summarized here. However, it is hoped that developers will, at least, consider these guidelines when extending Akri.
+
+### General Principles
+
++ Akri uses English
++ Akri is written principally in Rust, and Rust [naming](https://rust-lang.github.io/api-guidelines/naming.html) conventions are used
++ Types need not be included in names unless ambiguity would result
++ Shorter, simpler names are preferred
+
+### Akri Discovery Handlers
+
+Various Discovery Handlers have been developed: `debug_echo`, `onvif`, `opcua`, `udev`
+
+Guidance:
+
++ `snake_case` names
++ (widely understood) initializations|acronyms are preferred
+
+### Akri Brokers
+
+Various Brokers have been developed: `onvif-video-broker`, `opcua-monitoring-broker`, `udev-video-broker`
+
+Guidance:
+
++ Broker names should reflect Discovery Handler (Protocol) names and be suffixed `-broker`
++ Use Programming language-specific naming conventions when developing Brokers in non-Rust languages
+
+> **NOTE** Even though the initialization of [ONVIF](https://en.wikipedia.org/wiki/ONVIF) includes "Video", the specification is broader than video and the broker name adds specificity by including the word (`onvif-video-broker`) in order to effectively describe its functionality.
+
+### Kubernetes Resources
+
+Various Kubernetes Resources have been developed:
+
++ CRDS: `Configurations`, `Instances`
++ Instances: `akri-agent-daemonset`, `akri-controller-deployment`, `akri-onvif`, `akri-opcua`, `akri-udev`
+
+Guidance:
+
++ Kubernetes Convention is that resources (e.g. `DaemonSet`) and CRDs use (upper) CamelCase
++ Akri Convention is that Akri Kubernetes resources be prefixed `akri-`, e.g. `akri-agent-daemonset`
++ Names combining words should use hypens (`-`) to separate the words e.g. `akri-debug-echo`
+
+> **NOTE** `akri-agent-daemonset` contradicts the general principle of not including types, if it had been named after these guidelines were drafted, it would be named `akri-agent`.
+>
+> Kubernetes' resources are strongly typed and the typing is evident through the CLI e.g. `kubectl get daemonsets/akri-agent-daemonset` and through a resource's `Kind` (e.g. `DaemonSet`). Including such types in the name is redundant.

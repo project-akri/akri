@@ -12,8 +12,11 @@ spec:
       labels:
         name: akri-agent
     spec:
+      {{- /* hostNetwork is only needed for embedded ONVIF discovery */}}
+      {{- if .Values.agent.full }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       {{- if .Values.agent.linuxOnly }}
       nodeSelector:
         "kubernetes.io/os": linux
@@ -23,20 +26,30 @@ spec:
       {{- end }}
       containers:
       - name: akri-agent
+        {{- $repository := ternary .Values.agent.image.fullRepository .Values.agent.image.repository .Values.agent.full -}}
         {{- if .Values.useDevelopmentContainers }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest-dev" .Values.agent.image.repository | quote }}
+        image: {{ printf "%s:%s" $repository (default "latest-dev" .Values.agent.image.tag) | quote }}
         {{- else }}
-        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        image: {{ printf "%s:%s" $repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- else }}
         {{- if .Values.useLatestContainers }}
-        image: {{ printf "%s:latest" .Values.agent.image.repository | quote }}
+        image: {{ printf "%s:%s" $repository (default "latest" .Values.agent.image.tag) | quote }}
         {{- else }}
-        image: {{ printf "%s:%s" .Values.agent.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
+        image: {{ printf "%s:%s" $repository (default (printf "v%s" .Chart.AppVersion) .Values.agent.image.tag) | quote }}
         {{- end }}
         {{- end }}
-        imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+        {{- with .Values.agent.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.agent.resources.memoryRequest }}
+            cpu: {{ .Values.agent.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.agent.resources.memoryLimit }}
+            cpu: {{ .Values.agent.resources.cpuLimit }}
         {{- if .Values.agent.securityContext }}
         securityContext:
         {{- toYaml .Values.agent.securityContext | nindent 10 }}
@@ -45,6 +58,9 @@ spec:
           {{- if .Values.agent.allowDebugEcho }}
           - name: ENABLE_DEBUG_ECHO
             value: "1"
+          {{- /* environment variable to tell the Agent's embedded debug echo Discovery Handler whether its instances are shared */}}
+          - name: DEBUG_ECHO_INSTANCES_SHARED
+            value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
             value: /host/usr/bin/crictl
@@ -56,20 +72,34 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: DISCOVERY_HANDLERS_DIRECTORY
+            value: /var/lib/akri
         volumeMounts:
+          - name: discovery-handlers
+            mountPath: /var/lib/akri
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
           - name: usr-bin-crictl
             mountPath: /host/usr/bin/crictl
           - name: var-run-dockershim
             mountPath: /host/var/run/dockershim.sock
+          {{- if .Values.agent.host.udev }}
           - name: devices
             mountPath: /run/udev
+          {{- end }}
+        {{- if .Values.prometheus.enabled }}
+        ports:
+          - name: {{ .Values.prometheus.portName | quote }}
+            containerPort: {{ .Values.prometheus.port }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
       - name: device-plugin
         hostPath:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"
@@ -79,7 +109,9 @@ spec:
       - name: var-run-dockershim
         hostPath:
           path: "{{ .Values.agent.host.dockerShimSock }}"
+      {{- if .Values.agent.host.udev }}
       - name: devices
         hostPath:
           path: "{{ .Values.agent.host.udev }}"
+      {{- end }}
 {{- end }}

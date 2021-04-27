@@ -2,6 +2,7 @@
 passthrough = [
     "PKG_CONFIG_ALLOW_CROSS",
     "RUST_LOG",
+    "CARGO_INCREMENTAL",
 ]
 
 [target.x86_64-unknown-linux-gnu]

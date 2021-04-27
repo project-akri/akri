@@ -1,53 +1,68 @@
 [package]
 name = "agent"
-version = "0.1.5"
+version = "0.6.5"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+akri-debug-echo = { path = "../discovery-handlers/debug-echo" }
+akri-discovery-utils = { path = "../discovery-utils" }
+akri-onvif = { path = "../discovery-handlers/onvif", optional = true }
+akri-opcua = { path = "../discovery-handlers/opcua", optional = true }
+akri-udev = { path = "../discovery-handlers/udev", optional = true }
+akri-shared = { path = "../shared" }
+anyhow = "1.0.38"
 async-stream = "0.2"
 async-trait = "0.1.0"
-blake2 = "0.8.0"
+blake2 = "0.9.0"
 chrono = "0.4.10"
-cfg-if = "0.1"
-env_logger = "0.6.1"
-failure = "0.1.5"
+cfg-if = "1.0.0"
+env_logger = "0.8.3"
 futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
-futures-old = { version = "0.1", package = "futures" }
-hyper = "0.11"
+hyper = "0.13.10"
+h2 = "=0.2.6"
 kube = { version = "0.23.0", features = ["openapi"] }
 k8s-openapi = { version = "0.6.0", features = ["v1_16"] }
+lazy_static = "1.4"
 log = "0.4"
-mime = "0.3"
-mockall = "0.6.0"
-opcua-client = "0.7.0"
-pest = "2.0"
-pest_derive = "2.0"
+mockall_double = "0.2.0"
+prometheus = { version = "0.12.0", features = ["process"] }
 prost = "0.6"
-rand = "0.7"
-regex = "1"
+rand = "0.8.3"
 serde = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
-akri-shared = { path = "../shared" }
-sxd-document = "0.3.0"
-sxd-xpath = "0.4.0"
-tempfile = "3.1.0"
 tokio = { version = "0.2", features = ["full"] }
 tokio-core = "0.1"
 tonic = "0.1"
 tower = "0.3" 
-udev = "0.4"
-url = "2.1.0"
+url = "2.2.0"
 uuid = { version = "0.8.1", features = ["v4"] }
-xml-rs = "0.8.0"
-yaserde = "0.3.13"
-yaserde_derive = "0.3.13"
 
 [build-dependencies]
 tonic-build = "0.1.1"
+
+[dev-dependencies]
+# for testing using a simple discovery handler
+akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
+akri-onvif = { path = "../discovery-handlers/onvif" }
+akri-opcua = { path = "../discovery-handlers/opcua" }
+akri-udev = { path = "../discovery-handlers/udev"}
+mockall = "0.9.0"
+mock_instant = { version = "0.2", features = ["sync"] }
+tempfile = "3.1.0"
+
+[features]
+# To embed discovery handlers, add the desired discovery handler features to default and "agent-full".
+# Or set the features when building the agent with  
+# `cargo build --manifest-path agent/Cargo.toml --features "agent-full onvif-feat opcua-feat udev-feat"`
+default = []
+onvif-feat = [ "akri-onvif"]
+opcua-feat = ["akri-opcua"]
+udev-feat = ["akri-udev"]
+agent-full = []

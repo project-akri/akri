@@ -3,7 +3,7 @@ OPC UA is a communication protocol for industrial automation. It is a client/ser
 security and communication framework. This demo will help you get started using Akri to discover OPC UA Servers and
 utilize them via a broker that contains an OPC UA Client. Specifically, a Akri Configuration called OPC UA Monitoring
 was created for this scenario, which will show how Akri can be used to detect anomaly values of a specific OPC UA
-Variable. To do so, the OPC UA Clients in the brokers will subscribe to that variable and serve it's value over gRPC for
+Variable. To do so, the OPC UA Clients in the brokers will subscribe to that variable and serve its value over gRPC for
 an anomaly detection web application to consume. This Configuration could be used to monitor a barometer, CO detector,
 and more; however, for this example, that variable will represent the temperature of a thermostat and any value outside
 the range of 70-80 degrees is an anomaly. 
@@ -44,9 +44,12 @@ The following steps need to be completed to run the demo:
 If at any point in the demo, you want to dive deeper into OPC UA or clarify a term, you can reference the [online OPC UA
 specifications](https://reference.opcfoundation.org/v104/).
 
-## Setting up a single-node cluster
-Before running Akri, we need a Kubernetes cluster. If you do not have a readily available cluster, follow the steps
-provided in the [end-to-end demo](./end-to-end-demo.md#set-up-cluster) to set up a single-node MicroK8s or K3s cluster. If using MicroK8s, you can skip the step of enabling privileged pods, as the OPC UA monitoring brokers do not need to run in a privileged security context.
+## Setting up a cluster
+Reference our [cluster setup documentation](./setting-up-cluster.md) to set up a cluster for this demo. For ease of
+setup, only create a single-node cluster, so if installing K3s or MicroK8s, you can skip the last step of
+the installation instructions of adding additional nodes. If you have an existing cluster, feel free to leverage it for
+the demo. This documentation assumes you are using a single-node cluster; however, you can certainly use a multi-node
+cluster.
 
 ## Creating X.509 v3 Certificates
 **If security is not desired, this section can be skipped, as each monitoring broker will use an OPC UA Security Policy
@@ -98,7 +101,7 @@ kubectl create secret generic opcua-broker-credentials \
 When mounting certificates is enabled later in the [Running Akri section](#running-akri) with Helm via `--set
 opcua.mountCertificates='true'`, the secret named `opcua-broker-credentials` will be mounted into the OPC UA monitoring
 brokers. It is mounted to the volume `credentials` at the `mountPath` /etc/opcua-certs/client-pki, as shown in the [OPC
-UA Configuration Helm template](../deployment/helm/templates/opcua.yaml). This is the path where the brokers expect to
+UA Configuration Helm template](../deployment/helm/templates/opcua-configuration.yaml). This is the path where the brokers expect to
 find the certificates.
 
 ## Creating OPC UA Servers
@@ -109,14 +112,15 @@ to the OPC Foundation's .NET Console Reference Server.
 
 1. Open the UA Reference solution file and navigate to NetCoreReferenceServer project.
 
-1. Open `Quickstarts.Reference.Config.xml`. This application configuration file is where many features can configured,
-   such as the application description (application name, uri, etc), security configuration, and base address. Only the
-   latter needs to be modified if using no security. On lines 76 and 77, modify the address of the server, by replacing
-   `localhost` with the IP address of the machine the server is running on. If left as   `localhost` the application
-   will automatically replace it with the hostname of the machine which will be unreachable to the broker pod. On the
-   same lines, modify the ports if they are already taken. Akri will preference using the tcp endpoint, since according
-   to the [OPC UA Security Specification](https://reference.opcfoundation.org/v104/Core/docs/Part2/4.10/), secure
-   channels over HTTPS do not provide application authentication.
+1. Open `Quickstarts.Reference.Config.xml`. This application configuration file is where many features can be
+   configured, such as the application description (application name, uri, etc), security configuration, and base
+   address. Only the latter needs to be modified if using no security. On lines 76 and 77, modify the address of the
+   server, by replacing `localhost` with the IP address of the machine the server is running on. If left as `localhost`
+   the application will automatically replace it with the hostname of the machine which will be unreachable to the
+   broker pod. On the same lines, modify the ports if they are already taken. Akri will preference using the tcp
+   endpoint, since according to the [OPC UA Security
+   Specification](https://reference.opcfoundation.org/v104/Core/docs/Part2/4.10/), secure channels over HTTPS do not
+   provide application authentication.
 
 1. (Optional) If using security, and you have already created certificates in the previous section, now you can modify
    the security configuration inside `Quickstarts.Reference.Config.xml` to point to those certificates. After using the
@@ -142,12 +146,13 @@ to the OPC Foundation's .NET Console Reference Server.
     its variables) 2. We care about the `NamespaceIndex` because it along with `Identifier`, are the two fields to a
     `NodeId`. If you inspect the `CreateDynamicVariable` function, you will see that it creates an OPC UA variable,
     using the `path` parameter ("Thermometer_Temperature") as the `Identifier` when creating the NodeID for that
-    variable. It then add the variable to the `m_dynamicNodes` list. At the bottom of `CreateAddressSpace` the following
-    line initializes a simulation that will periodically change the value of all the variables in `m_dynamicNodes`: 
+    variable. It then adds the variable to the `m_dynamicNodes` list. At the bottom of `CreateAddressSpace` the
+    following line initializes a simulation that will periodically change the value of all the variables in
+    `m_dynamicNodes`: 
     ``` c#
     m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
     ```
-    Lets change the simulation so that it usually returns a value between 70-80 and periodically returns an outlier of
+    Let's change the simulation so that it usually returns a value between 70-80 and periodically returns an outlier of
     120. Go to the `DoSimulation` function. Replace `variable.Value = GetNewValue(variable);` with the following
     ```c#
     Random rnd = new Random();
@@ -166,33 +171,33 @@ to the OPC Foundation's .NET Console Reference Server.
 
 ## Running Akri
 1. Make sure your OPC UA Servers are running
-1. Now it is time to install the Akri using Helm. We can specify that when installing Akri, we also want to create an
-   OPC UA Configuration by setting the helm value `--set opcua.enabled=true`. In the Configuration as environment
-   variables in the broker PodSpec, we will specify the `Identifier` and `NamespaceIndex` of the NodeID we want the
-   brokers to monitor. These values are mounted as environment variables in the brokers. In our case that is our
-   temperature variable we made earlier, which has an `Identifier` of `Thermometer_Temperature` and `NamespaceIndex` of
-   `2`. Finally, since we did not set up a Local Discovery Server -- see [Setting up and using a Local Discovery
+1. Now it is time to install the Akri using Helm. When installing Akri, we can specify that we want to deploy the OPC UA
+   Discovery Handlers by setting the helm value `opcua.discovery.enabled=true`. We also specify that we want to create
+   an OPC UA Configuration with `--set opcua.configuration.enabled=true`. In the Configuration, any values that should
+   be set as environment variables in brokers can be set in `opcua.configuration.brokerProperties`. In this scenario, we
+   will specify the `Identifier` and `NamespaceIndex` of the NodeID we want the brokers to monitor. In our case that is
+   our temperature variable we made earlier, which has an `Identifier` of `Thermometer_Temperature` and `NamespaceIndex`
+   of `2`. Finally, since we did not set up a Local Discovery Server -- see [Setting up and using a Local Discovery
    Server](#setting-up-and-using-a-local-discovery-server-(windows-only)) in the Extensions section at the bottom of
    this document to use a LDS -- we must specify the DiscoveryURLs of the OPC UA Servers we want Agent to discover.
    Those are the tcp addresses that we modified in step 3 of [Creating OPC UA Servers](#creating-opc-ua-servers). Be
    sure to set the appropriate IP address and port number for the DiscoveryURLs in the Helm command below. If using
-   security, uncomment `--set opcua.mountCertificates='true'`.   
+   security, uncomment `--set opcua.configuration.mountCertificates='true'`.   
     ```sh
     helm repo add akri-helm-charts https://deislabs.github.io/akri/
     helm install akri akri-helm-charts/akri \
-        --set useLatestContainers=true \
-        --set opcua.enabled=true \
-        --set opcua.name=akri-opcua-monitoring \
-        --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-        --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-        --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-        --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
-        --set opcua.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
-        # --set opcua.mountCertificates='true'
+        --set opcua.discovery.enabled=true \
+        --set opcua.configuration.enabled=true \
+        --set opcua.configuration.name=akri-opcua-monitoring \
+        --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
+        --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
+        --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
+        # --set opcua.configuration.mountCertificates='true'
     ```
     Akri Agent will discover the two Servers and create an Instance for each Server. Watch two broker pods spin up, one
-    for each Server.
-   For MicroK8s
+    for each Server. For MicroK8s
     ```sh
     watch microk8s kubectl get pods -o wide
     ```
@@ -211,7 +216,7 @@ A sample anomaly detection web application was created for this end-to-end demo.
 brokers' gRPC clients, getting the latest temperature value. It then determines whether this value is an outlier to the
 dataset using the Local Outlier Factor strategy. The dataset is simply a csv with the numbers between 70-80 repeated
 several times; therefore, any value significantly outside this range will be seen as an outlier. The web application
-serves as a log, displaying all the temperature values and the address of the OPC UA Server that sent the value. It
+serves as a log, displaying all the temperature values and the address of the OPC UA Server that sent the values. It
 shows anomaly values in red. The anomalies always have a value of 120 due to how we set up the `DoSimulation` function
 in the OPC UA Servers.
 1. Deploy the anomaly detection app and watch a pod spin up for the app.
@@ -242,8 +247,8 @@ in the OPC UA Servers.
     ```
 1. Navigate in your browser to http://ip-address:32624/ where ip-address is the IP address of your Ubuntu VM (not the
    cluster-IP) and the port number is from the output of `kubectl get services`. It takes 3 seconds for the site to
-   load, after which, you should a log of the temperature values, which updates every few seconds. Note how the values
-   are coming from two different DiscoveryURLs, namely the ones for each of the two OPC UA Servers.
+   load, after which, you should see a log of the temperature values, which updates every few seconds. Note how the
+   values are coming from two different DiscoveryURLs, namely the ones for each of the two OPC UA Servers.
 
 ## Clean up
 1. Delete the anomaly detection application deployment and service.
@@ -271,7 +276,7 @@ in the OPC UA Servers.
     ```
 
 ## Extensions
-Now that you have the end to end demo running lets talk about some ways you can go beyond the demo to better understand
+Now that you have the end to end demo running let's talk about some ways you can go beyond the demo to better understand
 the advantages of Akri. This section will cover:
 1. Adding a node to the cluster
 1. Using a Local Discovery Server to discover the Servers instead of passing the DiscoveryURLs to the OPC UA Monitoring
@@ -281,8 +286,12 @@ the advantages of Akri. This section will cover:
 1. Creating a new OPC UA Configuration
 
 ### Adding a Node to the cluster
-To see how Akri easily scales as nodes are added to the cluster, add another node to your (K3s, MicroK8s, or vanilla Kubernetes) cluster.
-1. If you are using MicroK8s, create another MicroK8s instance, following the same steps as in [Setting up a single-node cluster](#setting-up-a-single-node-cluster) above. Then, in your first VM that is currently running Akri, get the join command by running `microk8s add-node`. In your new VM, run one of the join commands outputted in the previous step. 
+To see how Akri easily scales as nodes are added to the cluster, add another node to your (K3s, MicroK8s, or vanilla
+Kubernetes) cluster.
+1. If you are using MicroK8s, create another MicroK8s instance, following the same steps as in [Setting up a single-node
+   cluster](#setting-up-a-single-node-cluster) above. Then, in your first VM that is currently running Akri, get the
+   join command by running `microk8s add-node`. In your new VM, run one of the join commands outputted in the previous
+   step. 
 1. Confirm that you have successfully added a node to the cluster by running the following in your control plane VM:
    ```sh
    kubectl get no
@@ -295,19 +304,20 @@ To see how Akri easily scales as nodes are added to the cluster, add another nod
    ```
 1. Let's play around with the capacity value and use the `helm upgrade` command to modify our OPC UA Monitoring
    Configuration such that the capacity is 2. On the control plane node, run the following, once again uncommenting
-   `--set opcua.mountCertificates='true'` if using security. Watch as the broker terminates and then four come online in
-   a Running state.
+   `--set opcua.configuration.mountCertificates='true'` if using security. Watch as the broker terminates and then four
+   come online in a Running state.
    ```sh
    helm upgrade akri akri-helm-charts/akri \
-      --set useLatestContainers=true \
-      --set opcua.enabled=true \
-      --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-      --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-      --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-      --set opcua.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
-      --set opcua.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
-      --set opcua.capacity=2 \
-      # --set opcua.mountCertificates='true'
+        --set opcua.discovery.enabled=true \
+        --set opcua.configuration.enabled=true \
+        --set opcua.configuration.name=akri-opcua-monitoring \
+        --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
+        --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
+        --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<SomeServer0 IP address>:<SomeServer0 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<SomeServer1 IP address>:<SomeServer1 port>/Quickstarts/ReferenceServer/" \
+        --set opcua.capacity=2 \
+      # --set opcua.configuration.mountCertificates='true'
    ```
    For MicroK8s
    ```sh
@@ -317,12 +327,13 @@ To see how Akri easily scales as nodes are added to the cluster, add another nod
    ```sh
    watch kubectl get pods,akrii -o wide
    ```
-1. Once you are done using Akri, you can remove your worker node from the cluster. For MicroK8s this is done by running on the worker node:
+1. Once you are done using Akri, you can remove your worker node from the cluster. For MicroK8s this is done by running
+   on the worker node:
    ```sh
    microk8s leave
    ```
-   Then, to complete the node removal, on the host run the following, inserting the name of the worker node (you can look it
-   up with `microk8s kubectl get no`):
+   Then, to complete the node removal, on the host run the following, inserting the name of the worker node (you can
+   look it up with `microk8s kubectl get no`):
    ```sh
       microk8s remove-node <node name>
    ```
@@ -348,22 +359,21 @@ address [from OPC UA Specification 12](https://reference.opcfoundation.org/v104/
 `opc.tcp://localhost:4840/`. This is seen on line 205 of `Quickstarts.ReferenceServer.xml`. 
 
 Make sure you have restarted your OPC UA Servers, since they attempt to register with their LDS on start up. Now, we can
-install Akri with the OPC UA Configuration, passing in the LDS DiscoveryURL instead of both server's DiscoveryURLs.
+install Akri with the OPC UA Configuration, passing in the LDS DiscoveryURL instead of both servers' DiscoveryURLs.
 Replace "Windows host IP address" with the IP address of the Windows machine you installed the LDS on (and is hosting
 the servers). Be sure to uncomment mounting certificates if you are enabling security:
 ```sh
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
-    --set opcua.enabled=true \
-    --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-    --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-    --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-    --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
-    # --set opcua.mountCertificates='true'
+    --set opcua.discovery.enabled=true \
+    --set opcua.configuration.enabled=true \
+    --set opcua.configuration.name=akri-opcua-monitoring \
+    --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
+    --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
+    --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    # --set opcua.configuration.mountCertificates='true'
 ```
-You can watch as an Instance is created for each Server and two broker pods are spun up.
-For MicroK8s
+You can watch as an Instance is created for each Server and two broker pods are spun up. For MicroK8s
 ```sh
 watch microk8s kubectl get pods,akrii -o wide
 ```
@@ -379,29 +389,29 @@ specified by UA Specification 12). For example, to discover all servers register
 server named "SomeServer0", do the following.
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
-    --set opcua.enabled=true \
-    --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-    --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-    --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-    --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
-    --set opcua.applicationNames.action=Exclude \
-    --set opcua.applicationNames.items[0]="SomeServer0" \
-    # --set opcua.mountCertificates='true'
+    --set opcua.discovery.enabled=true \
+    --set opcua.configuration.enabled=true \
+    --set opcua.configuration.name=akri-opcua-monitoring \
+    --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
+    --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
+    --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    --set opcua.configuration.discoveryDetails.applicationNames.action=Exclude \
+    --set opcua.configuration.discoveryDetails.applicationNames.items[0]="SomeServer0" \
+    # --set opcua.configuration.mountCertificates='true'
 ```
 Alternatively, to only discover the server named "SomeServer0", do the following:
 ```bash
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
-    --set opcua.enabled=true \
-    --set opcua.name=akri-opcua-monitoring \
-    --set opcua.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev" \
-    --set opcua.brokerPod.env.IDENTIFIER='Thermometer_Temperature' \
-    --set opcua.brokerPod.env.NAMESPACE_INDEX='2' \
-    --set opcua.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
-    --set opcua.applicationNames.action=Include \
-    --set opcua.applicationNames.items[0]="SomeServer0" \
+    --set opcua.discovery.enabled=true \
+    --set opcua.configuration.enabled=true \
+    --set opcua.configuration.name=akri-opcua-monitoring \
+    --set opcua.configuration.brokerPod.image.repository="ghcr.io/deislabs/akri/opcua-monitoring-broker" \
+    --set opcua.configuration.brokerProperties.IDENTIFIER='Thermometer_Temperature' \
+    --set opcua.configuration.brokerProperties.NAMESPACE_INDEX='2' \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<Windows host IP address>:4840/" \
+    --set opcua.configuration.discoveryDetails.applicationNames.action=Include \
+    --set opcua.configuration.discoveryDetails.applicationNames.items[0]="SomeServer0" \
     # --set opcua.mountCertificates='true'
 ```
 ### Creating a different broker and end application
@@ -410,30 +420,32 @@ Variable for anomalies. The workload or broker you want to deploy to discovered 
 Servers' address spaces are widely varied, so the options for broker implementations are endless. Passing the NodeID
 `Identifier` and `NamespaceIndex` as environment variables may still suit your needs; however, if targeting one NodeID
 is too limiting or irrelevant, instead of passing a specific NodeID to your broker Pods, you could specify any other
-environment variables via `--set opcua.brokerPod.env.KEY='VALUE'`. Or, your broker may not need additional information
-passed to it at all. Decide whether to pass environment variables, what servers to discover, and set the broker pod
-image to be your container image, say `ghcr.io/<USERNAME>/opcua-broker`.
+environment variables via `--set opcua.configuration.brokerProperties.KEY='VALUE'`. Or, your broker may not need
+additional information passed to it at all. Decide whether to pass environment variables, what servers to discover, and
+set the broker pod image to be your container image, say `ghcr.io/<USERNAME>/opcua-broker`.
 ```sh
 helm repo add akri-helm-charts https://deislabs.github.io/akri/
 helm install akri akri-helm-charts/akri \
-    --set useLatestContainers=true \
-    --set opcua.enabled=true \
-    --set opcua.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
-    --set opcua.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \
-    --set opcua.brokerPod.image.repository='ghcr.io/<USERNAME>/opcua-broker'
-    # --set opcua.mountCertificates='true'
+    --set opcua.discovery.enabled=true \
+    --set opcua.configuration.enabled=true \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[0]="opc.tcp://<IP address>:<port>/" \
+    --set opcua.configuration.discoveryDetails.discoveryUrls[1]="opc.tcp://<IP address>:<port>/" \
+    --set opcua.configuration.brokerPod.image.repository='ghcr.io/<USERNAME>/opcua-broker'
+    # --set opcua.configuration.mountCertificates='true'
 ```
+> Note: set `opcua.configuration.brokerPod.image.tag` to specify an image tag (defaults to `latest`).
+
 Now, your broker will be deployed to all discovered OPC UA servers. Next, you can create a Kubernetes deployment for
 your own end application like [anomaly-detection-app.yaml](../deployment/samples/akri-anomaly-detection-app.yaml) and
 apply it to your Kubernetes cluster. 
 
 ### Creating a new OPC UA Configuration
 Helm allows us to parametrize the commonly modified fields in our Configuration files, and we have provided many. Run
-`helm inspect values akri-helm-charts/akri` to see what values of the generic OPC UA Configuration can be customized,
-such as the Configuration and Instance `ServiceSpec`s, `capacity`, and broker `PodSpec`. We saw in the previous section
-how broker Pod environment variables can be specified via `--set opcua.brokerPod.env.KEY='VALUE'`. For more advanced
-configuration changes that are not aided by the generic OPC UA Configuration Helm chart, such as credentials naming, we
-suggest downloading the OPC UA Configuration file using Helm and then manually modifying it. See the documentation on
-[customizing an Akri
+`helm inspect values akri-helm-charts/akri` to see what values of the generic OPC UA Configuration can be
+customized, such as the Configuration and Instance `ServiceSpec`s, `capacity`, and broker `PodSpec`. We saw in the
+previous section how broker Pod environment variables can be specified via `--set
+opcua.configuration.brokerProperties.KEY='VALUE'`. For more advanced configuration changes that are not aided by the
+generic OPC UA Configuration Helm chart, such as credentials naming, we suggest downloading the OPC UA Configuration
+file using Helm and then manually modifying it. See the documentation on [customizing an Akri
 installation](./customizing-akri-installation.md#generating-modifying-and-applying-a-custom-configuration) for more
 details.

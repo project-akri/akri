@@ -106,6 +106,11 @@ impl NodeWatcher {
             }
             WatchEvent::Modified(node) => {
                 trace!("handle_node - Modified: {:?}", &node.metadata.name);
+                trace!(
+                    "handle_node - Modified with Node Status {:?} and NodeSpec: {:?}",
+                    &node.status,
+                    &node.spec
+                );
                 if self.is_node_ready(&node) {
                     self.known_nodes
                         .insert(node.metadata.name.clone(), NodeState::Running);
@@ -166,6 +171,7 @@ impl NodeWatcher {
 
     /// This determines if a node is in the Ready state.
     fn is_node_ready(&self, k8s_node: &NodeObject) -> bool {
+        trace!("is_node_ready - for node {:?}", k8s_node.metadata.name);
         k8s_node
             .status
             .as_ref()
@@ -298,8 +304,7 @@ impl NodeWatcher {
         // Save the instance
         let modified_instance = Instance {
             configuration_name: instance.spec.configuration_name.clone(),
-            metadata: instance.spec.metadata.clone(),
-            rbac: instance.spec.rbac.clone(),
+            broker_properties: instance.spec.broker_properties.clone(),
             shared: instance.spec.shared,
             device_usage: modified_device_usage,
             nodes: modified_nodes,
@@ -322,9 +327,7 @@ impl NodeWatcher {
 mod tests {
     use super::super::shared_test_utils::config_for_tests;
     use super::*;
-    use akri_shared::{
-        akri::instance::KubeAkriInstanceList, k8s::test_kube::MockKubeImpl, os::file,
-    };
+    use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
 
     #[derive(Clone)]
     struct UpdateInstance {
@@ -341,7 +344,7 @@ mod tests {
     }
 
     fn configure_for_handle_node_disappearance(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         work: &HandleNodeDisappearance,
     ) {
         config_for_tests::configure_get_instances(
@@ -368,7 +371,7 @@ mod tests {
         let node: NodeObject = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(WatchEvent::Added(node), &MockKubeImpl::new())
+            .handle_node(WatchEvent::Added(node), &MockKubeInterface::new())
             .await
             .unwrap();
 
@@ -388,7 +391,7 @@ mod tests {
         let node: NodeObject = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(WatchEvent::Added(node), &MockKubeImpl::new())
+            .handle_node(WatchEvent::Added(node), &MockKubeInterface::new())
             .await
             .unwrap();
 
@@ -417,7 +420,7 @@ mod tests {
             .device_usage
             .insert("config-a-359973-2".to_string(), "".to_string());
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_node_disappearance(
             &mut mock,
             &HandleNodeDisappearance {
@@ -452,7 +455,7 @@ mod tests {
         let node: NodeObject = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
 
-        let mock = MockKubeImpl::new();
+        let mock = MockKubeInterface::new();
         node_watcher
             .handle_node(WatchEvent::Modified(node), &mock)
             .await
@@ -483,7 +486,7 @@ mod tests {
             .device_usage
             .insert("config-a-359973-2".to_string(), "".to_string());
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_node_disappearance(
             &mut mock,
             &HandleNodeDisappearance {
@@ -530,7 +533,7 @@ mod tests {
     async fn test_handle_node_disappearance_update_failure_retries() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         mock.expect_get_instances().times(1).returning(move || {
             let instance_file = "../test/json/shared-instance-update.json";
             let instance_json = file::read_file_to_string(instance_file);
@@ -567,7 +570,7 @@ mod tests {
         let instance_json = file::read_file_to_string(instance_file);
         let kube_object_instance: KubeAkriInstance = serde_json::from_str(&instance_json).unwrap();
 
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         mock.expect_update_instance()
             .times(1)
             .withf(move |ins, n, ns| {

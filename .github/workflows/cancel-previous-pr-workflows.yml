@@ -1,0 +1,14 @@
+name: Cancel Previous PR Workflows
+on:
+  workflow_run:
+    workflows: ["Dependencies autoupdate", "Build Agents", "Build Anomaly Detection App Container", "Build Controller", "Build ONVIF Broker (.NET)", "Build OPC UA Monitoring Broker", "Build OpenCV Base", "Build Production Rust Code", "Build Rust CrossBuild", "Build UDEV Broker", "Build Video Streaming App Container", "Build Webhook Configuration", "Check Rust", "Check versioning", "Helm", "Tarpaulin Code Coverage", "Test K3s, Kubernetes, and MicroK8s"]
+    types:
+      - requested
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+    - uses: styfle/cancel-workflow-action@0.8.0
+      with:
+        workflow_id: ${{ github.event.workflow.id }}

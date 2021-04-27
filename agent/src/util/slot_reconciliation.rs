@@ -2,7 +2,8 @@ use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
 use akri_shared::{akri::instance::Instance, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
-use mockall::predicate::*;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -12,15 +13,7 @@ use tokio::process::Command;
 
 type SlotQueryResult = Result<HashSet<String>, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
-//
-// mockall and async_trait do not work effortlessly together ... to enable both,
-// follow the example here:
-//     https://github.com/mibes/mockall-async/blob/53aec15219a720ef5ac483959ff8821cb7d656ae/src/main.rs
-//
-// When async traits are supported by Rust without the async_trait crate, we should
-// add:
-//    #[automock]
-//
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait SlotQuery {
     async fn get_node_slots(&self) -> SlotQueryResult;
@@ -258,8 +251,7 @@ impl DevicePluginSlotReconciler {
                     .collect::<HashMap<String, String>>();
                 let modified_instance = Instance {
                     configuration_name: instance.spec.configuration_name.clone(),
-                    metadata: instance.spec.metadata.clone(),
-                    rbac: instance.spec.rbac.clone(),
+                    broker_properties: instance.spec.broker_properties.clone(),
                     shared: instance.spec.shared,
                     device_usage: modified_device_usage,
                     nodes: instance.spec.nodes.clone(),
@@ -350,49 +342,14 @@ pub async fn periodic_slot_reconciliation(
     }
 }
 
-pub mod test_crictl {
-    use super::{SlotQuery, SlotQueryResult};
-    use async_trait::async_trait;
-    use mockall::predicate::*;
-    use mockall::*;
-
-    //
-    // mockall and async_trait do not work effortlessly together ... to enable both,
-    // follow the example here:
-    //     https://github.com/mibes/mockall-async/blob/53aec15219a720ef5ac483959ff8821cb7d656ae/src/main.rs
-    //
-    // We can probably eliminate this when async traits are supported by Rust without
-    // the async_trait crate.
-    //
-    mock! {
-        pub SlotQueryImpl {
-            fn get_node_slots(&self) -> SlotQueryResult;
-        }
-    }
-
-    #[async_trait]
-    impl SlotQuery for MockSlotQueryImpl {
-        async fn get_node_slots(&self) -> SlotQueryResult {
-            self.get_node_slots()
-        }
-    }
-}
-
 #[cfg(test)]
 mod reconcile_tests {
-    use super::test_crictl::MockSlotQueryImpl;
     use super::*;
-    use akri_shared::{
-        akri::instance::KubeAkriInstanceList, k8s::test_kube::MockKubeImpl, os::file,
-    };
+    use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
     use k8s_openapi::api::core::v1::{PodSpec, PodStatus};
     use kube::api::{Object, ObjectList};
 
-    fn configure_get_node_slots(
-        mock: &mut MockSlotQueryImpl,
-        result: HashSet<String>,
-        error: bool,
-    ) {
+    fn configure_get_node_slots(mock: &mut MockSlotQuery, result: HashSet<String>, error: bool) {
         mock.expect_get_node_slots().times(1).returning(move || {
             if !error {
                 Ok(result.clone())
@@ -402,7 +359,7 @@ mod reconcile_tests {
         });
     }
 
-    fn configure_get_instances(mock: &mut MockKubeImpl, result_file: &'static str) {
+    fn configure_get_instances(mock: &mut MockKubeInterface, result_file: &'static str) {
         mock.expect_get_instances().times(1).returning(move || {
             let instance_list_json = file::read_file_to_string(result_file);
             let instance_list: KubeAkriInstanceList =
@@ -412,7 +369,7 @@ mod reconcile_tests {
     }
 
     fn configure_find_pods_with_field(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         selector: &'static str,
         result_file: &'static str,
     ) {
@@ -444,7 +401,7 @@ mod reconcile_tests {
         grace_period: Duration,
         reconciler: &DevicePluginSlotReconciler,
     ) {
-        let mut slot_query = MockSlotQueryImpl::new();
+        let mut slot_query = MockSlotQuery::new();
         // slot_query to identify one slot used by this node
         configure_get_node_slots(
             &mut slot_query,
@@ -452,7 +409,7 @@ mod reconcile_tests {
             node_slots.node_slots_error,
         );
 
-        let mut kube_interface = MockKubeImpl::new();
+        let mut kube_interface = MockKubeInterface::new();
         if !node_slots.node_slots_error {
             // kube_interface to find Instance with node-a using slots:
             //    config-a-359973-1 & config-a-359973-3

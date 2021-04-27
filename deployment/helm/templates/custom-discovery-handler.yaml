@@ -1,0 +1,46 @@
+{{- if .Values.custom.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ printf "%s-daemonset" .Values.custom.discovery.name }}
+spec:
+  selector:
+    matchLabels:
+      name: {{ .Values.custom.discovery.name }}
+  template:
+    metadata:
+      labels:
+        name: {{ .Values.custom.discovery.name }}
+    spec:
+      containers:
+      - name: {{ .Values.custom.discovery.name }}
+        image: {{ printf "%s:%s" (required "A custom.discovery.image.repository is required." .Values.custom.discovery.image.repository) .Values.custom.discovery.image.tag | quote }}
+        {{- with .Values.custom.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.custom.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.custom.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.custom.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.custom.discovery.resources.cpuLimit }}
+        env:
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.custom.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.custom.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}

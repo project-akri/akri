@@ -1,0 +1,104 @@
+{{- if .Values.opcua.configuration.enabled }}
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
+kind: Configuration
+metadata:
+  name: {{ .Values.opcua.configuration.name }}
+spec:
+  discoveryHandler:
+    name: opcua
+    discoveryDetails: |+
+      opcuaDiscoveryMethod: 
+        standard:
+          discoveryUrls: 
+          {{- toYaml .Values.opcua.configuration.discoveryDetails.discoveryUrls | nindent 10 }}
+      applicationNames:
+        action: {{ .Values.opcua.configuration.discoveryDetails.applicationNames.action }}
+        {{- if .Values.opcua.configuration.discoveryDetails.applicationNames.items}}
+        items:
+        {{- toYaml .Values.opcua.configuration.discoveryDetails.applicationNames.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
+  {{- if .Values.opcua.configuration.brokerPod.image.repository }}
+  {{- /* Only add broker pod spec if a broker image is provided */}}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.opcua.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.opcua.configuration.brokerPod.image.repository .Values.opcua.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.opcua.configuration.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
+      {{- if .Values.opcua.configuration.brokerPod.env }}
+      env:
+        {{- range $key, $val := .Values.opcua.configuration.brokerPod.env }}
+        - name: {{ $key }}
+          value: {{ $val | quote }}
+        {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryRequest }}
+          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuRequest }}
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
+          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
+      {{- if .Values.opcua.configuration.mountCertificates}}
+      volumeMounts:
+      - name: credentials
+        mountPath: "/etc/opcua-certs/client-pki"
+        readOnly: false
+      {{- end }}
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if .Values.opcua.configuration.mountCertificates }}
+    volumes:
+    - name: credentials
+      secret:
+        secretName: opcua-broker-credentials
+        items:
+        - key: client_certificate
+          path: own/certs/AkriBroker.der
+        - key: client_key
+          path: own/private/AkriBroker.pfx
+        - key: ca_certificate
+          path: trusted/certs/SomeCA.der
+        - key: ca_crl
+          path: trusted/crl/SomeCA.crl
+    {{- end }}
+  {{- end }}
+  {{- /* Only add service specs if a broker image was specified and service
+  creation was not disabled */}}
+  {{- if .Values.opcua.configuration.brokerPod.image.repository }}
+  {{- if .Values.opcua.configuration.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.opcua.configuration.instanceService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.opcua.configuration.instanceService.port }}
+      protocol: {{ .Values.opcua.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.opcua.configuration.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.opcua.configuration.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.opcua.configuration.configurationService.type }}
+    ports:
+    - name: grpc
+      port: {{ .Values.opcua.configuration.configurationService.port }}
+      protocol: {{ .Values.opcua.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.opcua.configuration.configurationService.targetPort }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.opcua.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.opcua.configuration.brokerProperties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
+  {{- else }}
+  brokerProperties: {}
+  {{- end }}
+  capacity: {{ .Values.opcua.configuration.capacity }}
+{{- end }}

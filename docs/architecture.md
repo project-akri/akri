@@ -15,7 +15,7 @@ The configuration of Akri is enabled by the Configuration CRD.  Akri users will 
 * a ServiceSpec (spec.instanceServiceSpec) that defines the service that provides a single stable endpoint to access each individual resource's set of broker pods.
 * a ServiceSpec (spec.configurationServiceSpec) that defines the service that provides a single stable endpoint to access the set of all brokers for all resources associated with the Configuration.
 
-Akri has already provided two Configurations, one for discovering IP cameras using the ONVIF protocol and the other for discovering USB cameras via udev. Let's look at an [example ONVIF Configuration yaml](../test/yaml/akri-onvif-video.yaml). You can see it specifies the protocol ONVIF, an image for the broker pod, a capacity of 5, and two Kubernetes services. In this case, the broker pod is a sample frame server we have provided. To get only the frames from a specific camera, a user could point an application at the Instance service, while the Configuration service provides the frames from all the cameras.The ONVIF Configuration can be customized using Helm. When installing the ONVIF Configuration to your Akri enabled cluster, you can specify [the values](../deployment/helm/values.yaml) you want to be inserted into the [ONVIF Configuration template](../deployment/helm/templates/onvif.yaml). Learn more about [deploying the ONVIF sample here](./onvif-configuration.md). 
+Akri has already provided two Configurations, one for discovering IP cameras using the ONVIF protocol and the other for discovering USB cameras via udev. Let's look at an [example ONVIF Configuration yaml](../test/yaml/akri-onvif-video-configuration.yaml). You can see it specifies the protocol ONVIF, an image for the broker pod, a capacity of 5, and two Kubernetes services. In this case, the broker pod is a sample frame server we have provided. To get only the frames from a specific camera, a user could point an application at the Instance service, while the Configuration service provides the frames from all the cameras.The ONVIF Configuration can be customized using Helm. When installing the ONVIF Configuration to your Akri enabled cluster, you can specify [the values](../deployment/helm/values.yaml) you want to be inserted into the [ONVIF Configuration template](../deployment/helm/templates/onvif-configuration.yaml). Learn more about [deploying the ONVIF sample here](./onvif-configuration.md). 
 
 ### Akri Instance CRD
 Each Instance represents an individual resource that is visible to the cluster. So, if there are 5 IP cameras visible to the cluster, there will be 5 Instances. Akri coordination and resource sharing is enabled by the Instance CRD. These instances store internal Akri state and are not intended to be edited by users. For a more in-depth understanding on how resource sharing is accomplished, see [Resource Sharing In-depth](./resource-sharing-in-depth.md).
@@ -54,8 +54,9 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
     metadata:
       name: akri-<protocolA>
     spec:
-      protocol:
-        <protocolA>:
+      discoveryHandler:
+        name: protocolA
+        discovery_details: {}
       brokerPodSpec:
         containers:
         - name: custom-broker
@@ -63,7 +64,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       capacity: 3
     ```
-1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. The Agent then creates an Instance for the discovered leaf device, listing itself as a node that can access it under `nodes`. The Akri Agent puts all the information that the broker pods will need in order to connect to the specific device under the `metadata` section of the Instance. Later, the controller will mount these as environment variables in the broker pods. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
+1. The Akri Agent sees the Configuration and discovers a leaf device using the protocol specified in the Configuration. It creates a device plugin for that leaf device and registers it with the kubelet. When creating the device plugin, it tells the kubelet to set connection information for that specific device and additional metadata from a Configuration's `brokerProperties` as environment variables in all Pods that request this device's resource. This information is also set in the `brokerProperties` section of the Instance the Agent creates to represent the discovered leaf device. In the Instance, the Agent also lists itself as a node that can access the device under `nodes`. Note how Instance has 3 available `deviceUsage` slots, since capacity was set to 3 and no brokers have been scheduled to the leaf device yet.
     ```yaml
     kind: Instance
     metadata:
@@ -75,7 +76,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
         akri-<protocolA>-<hash>-0: ""
         akri-<protocolA>-<hash>-1: ""
         akri-<protocolA>-<hash>-2: ""
-      metadata:
+      brokerProperties:
         BROKER_ENV_VAR_1: <value>
         BROKER_ENV_VAR_N: <value>
       nodes:
@@ -114,7 +115,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
       # ...
       phase: Pending
     ```
-1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. When calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. 
+1. The kubelet on the selected node sees the scheduled pod and resource limit. It checks to see if the resource is available by calling `allocate` on the device plugin running in the Agent for the requested leaf device. When calling `allocate`, the kubelet requests a specific `deviceUsage` slot. Let's say the kubelet requested `akri-<protocolA>-<hash>-1`. The leaf device's device plugin checks to see that the requested `deviceUsage` slot has not been taken by another node. If it is available, it reserves that `deviceUsage` slot for this node (as shown below) and returns true. In the `allocate` response, the Agent also tells kubelet to mount the `Instance.brokerProperties` as environment variables in the broker Pod.
     ```yaml
     kind: Instance
     metadata:
@@ -126,7 +127,7 @@ For a more in-depth understanding, see [Controller In-depth](./controller-in-dep
         akri-<protocolA>-<hash>-0: ""
         akri-<protocolA>-<hash>-1: "<this-node>"
         akri-<protocolA>-<hash>-2: ""
-      metadata:
+      brokerProperties:
         BROKER_ENV_VAR_1: <value>
         BROKER_ENV_VAR_N: <value>
       nodes:

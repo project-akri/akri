@@ -1,0 +1,71 @@
+{{- if .Values.onvif.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-onvif-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-onvif-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-onvif-discovery
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: akri-onvif-discovery
+        {{- if .Values.useDevelopmentContainers }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default "latest-dev" .Values.onvif.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default (printf "v%s-dev" .Chart.AppVersion) .Values.onvif.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- else }}
+        {{- if .Values.useLatestContainers }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default "latest" .Values.onvif.discovery.image.tag) | quote }}
+        {{- else }}
+        image: {{ printf "%s:%s" .Values.onvif.discovery.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.onvif.discovery.image.tag) | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.onvif.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.onvif.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.onvif.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.onvif.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.onvif.discovery.resources.cpuLimit }}
+        {{- if .Values.onvif.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.onvif.discovery.port }}
+        {{- end }}
+        env:
+        {{- if .Values.onvif.discovery.useNetworkConnection }}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.onvif.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.onvif.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}

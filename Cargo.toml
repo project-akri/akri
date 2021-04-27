@@ -1,7 +1,23 @@
 # Patch to allow invalid authority headers provided by grpc-go / kubelet
 # Issue to track: https://github.com/grpc/grpc-go/issues/2628
 [patch.crates-io]
-h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master"}
+h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master" }
 
 [workspace]
-members = ["shared", "controller", "agent", "samples/brokers/udev-video-broker"]
+members = [
+    "shared", 
+    "agent", 
+    "controller", 
+    "samples/brokers/udev-video-broker", 
+    "webhooks/validating/configuration",
+    "discovery-utils", 
+    "discovery-handlers/debug-echo", 
+    "discovery-handlers/onvif", 
+    "discovery-handlers/opcua", 
+    "discovery-handlers/udev", 
+    "discovery-handler-modules/debug-echo-discovery-handler", 
+    "discovery-handler-modules/onvif-discovery-handler", 
+    "discovery-handler-modules/opcua-discovery-handler", 
+    "discovery-handler-modules/udev-discovery-handler",
+    "discovery-handler-modules/http-discovery-handler",
+]

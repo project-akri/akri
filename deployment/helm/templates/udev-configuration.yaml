@@ -1,0 +1,79 @@
+{{- if .Values.udev.configuration.enabled }}
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
+kind: Configuration
+metadata:
+  name: {{ .Values.udev.configuration.name }}
+spec:
+  discoveryHandler:
+    name: udev
+    discoveryDetails: |+
+      udevRules:
+      {{- required "Please set at least one udev rule with `--set udev.configuration.discoveryDetails.udevRules[0]==\"<udev rule>\"' to specify what you want discovered. See the udev Configuration document at https://github.com/deislabs/akri/blob/main/docs/udev-configuration.md for more information." .Values.udev.configuration.discoveryDetails.udevRules | toYaml | nindent 6 }}
+  {{- if .Values.udev.configuration.brokerPod.image.repository }}
+  {{- /* Only add broker pod spec if a broker image is provided */}}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.udev.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.udev.configuration.brokerPod.image.repository .Values.udev.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.udev.configuration.brokerPod.image.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
+      {{- if .Values.udev.configuration.brokerPod.env }}
+      env:
+        {{- range $key, $val := .Values.udev.configuration.brokerPod.env }}
+        - name: {{ $key }}
+          value: {{ $val | quote }}
+        {{- end }}
+      {{- end }}
+      securityContext:
+      {{- if .Values.udev.configuration.brokerPod.securityContext }}
+        {{- toYaml .Values.udev.configuration.brokerPod.securityContext | nindent 8 }}
+      {{- else}}
+        privileged: true
+      {{- end}}
+      resources:
+        requests:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.udev.configuration.brokerPod.resources.memoryRequest }}
+          cpu: {{ .Values.udev.configuration.brokerPod.resources.cpuRequest }}
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.udev.configuration.brokerPod.resources.memoryLimit }}
+          cpu: {{ .Values.udev.configuration.brokerPod.resources.cpuLimit }}
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- /* Only add service specs if a broker image was specified and service
+  creation was not disabled */}}
+  {{- if .Values.udev.configuration.brokerPod.image.repository }}
+  {{- if .Values.udev.configuration.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.udev.configuration.instanceService.type }}
+    ports:
+    - name: {{ .Values.udev.configuration.instanceService.portName }}
+      port: {{ .Values.udev.configuration.instanceService.port }}
+      protocol: {{ .Values.udev.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.udev.configuration.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.udev.configuration.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.udev.configuration.configurationService.type }}
+    ports:
+    - name: {{ .Values.udev.configuration.configurationService.portName }}
+      port: {{ .Values.udev.configuration.configurationService.port }}
+      protocol: {{ .Values.udev.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.udev.configuration.configurationService.targetPort }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.udev.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.udev.configuration.brokerProperties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
+  {{- else }}
+  brokerProperties: {}
+  {{- end }}
+  capacity: {{ .Values.udev.configuration.capacity }}
+{{- end }}

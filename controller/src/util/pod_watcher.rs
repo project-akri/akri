@@ -601,7 +601,7 @@ mod tests {
     use super::super::shared_test_utils::config_for_tests;
     use super::super::shared_test_utils::config_for_tests::PodList;
     use super::*;
-    use akri_shared::{k8s::test_kube::MockKubeImpl, os::file};
+    use akri_shared::{k8s::MockKubeInterface, os::file};
     use kube::ErrorResponse;
 
     fn create_pods_with_phase(result_file: &'static str, specified_phase: &'static str) -> PodList {
@@ -628,7 +628,7 @@ mod tests {
                     reason: "reason".to_string(),
                     code: 0,
                 }),
-                &MockKubeImpl::new(),
+                &MockKubeInterface::new(),
             )
             .await
             .unwrap();
@@ -652,7 +652,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new())
+                .handle_pod(WatchEvent::Added(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -686,7 +686,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new())
+                .handle_pod(WatchEvent::Modified(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -713,7 +713,7 @@ mod tests {
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_pod(
             &mut mock,
             &HandlePod {
@@ -771,7 +771,7 @@ mod tests {
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_pod(
             &mut mock,
             &HandlePod {
@@ -830,7 +830,7 @@ mod tests {
         );
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_pod(
             &mut mock,
             &HandlePod {
@@ -892,7 +892,7 @@ mod tests {
         );
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         configure_for_handle_pod(
             &mut mock,
             &HandlePod {
@@ -961,7 +961,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new())
+                .handle_pod(WatchEvent::Added(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -982,7 +982,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new())
+                .handle_pod(WatchEvent::Modified(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -1007,7 +1007,7 @@ mod tests {
             .known_pods
             .insert("config-a-b494b6-pod".to_string(), PodState::Running);
         pod_watcher
-            .handle_running_pod_if_needed(pod, &MockKubeImpl::new())
+            .handle_running_pod_if_needed(pod, &MockKubeInterface::new())
             .await
             .unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
@@ -1034,7 +1034,7 @@ mod tests {
             .known_pods
             .insert("config-a-b494b6-pod".to_string(), PodState::Ended);
         pod_watcher
-            .handle_ended_pod_if_needed(pod, &MockKubeImpl::new())
+            .handle_ended_pod_if_needed(pod, &MockKubeInterface::new())
             .await
             .unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
@@ -1061,7 +1061,7 @@ mod tests {
             .known_pods
             .insert("config-a-b494b6-pod".to_string(), PodState::Deleted);
         pod_watcher
-            .handle_deleted_pod_if_needed(pod, &MockKubeImpl::new())
+            .handle_deleted_pod_if_needed(pod, &MockKubeInterface::new())
             .await
             .unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
@@ -1154,7 +1154,7 @@ mod tests {
         let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         config_for_tests::configure_find_services(
             &mut mock,
             "akri.sh/instance=config-a-b494b6",
@@ -1196,7 +1196,7 @@ mod tests {
         let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         config_for_tests::configure_find_services(
             &mut mock,
             "akri.sh/instance=config-a-b494b6",
@@ -1239,7 +1239,7 @@ mod tests {
         let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         config_for_tests::configure_find_services(
             &mut mock,
             "akri.sh/instance=config-a-b494b6",
@@ -1283,7 +1283,7 @@ mod tests {
         let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        let mut mock = MockKubeImpl::new();
+        let mut mock = MockKubeInterface::new();
         config_for_tests::configure_find_services(
             &mut mock,
             "akri.sh/instance=config-a-b494b6",
@@ -1340,7 +1340,7 @@ mod tests {
     }
 
     fn configure_for_cleanup_broker_and_configuration_svcs(
-        mock: &mut MockKubeImpl,
+        mock: &mut MockKubeInterface,
         work: &CleanupServices,
     ) {
         for i in 0..work.cleanup_services.len() {
@@ -1393,7 +1393,7 @@ mod tests {
         new_configuration_svc_name: &'static str,
     }
 
-    fn configure_for_running_pod_work(mock: &mut MockKubeImpl, work: &HandlePodRunning) {
+    fn configure_for_running_pod_work(mock: &mut MockKubeInterface, work: &HandlePodRunning) {
         config_for_tests::configure_find_config(
             mock,
             work.find_config_name,
@@ -1464,7 +1464,7 @@ mod tests {
         ended: Option<CleanupServices>,
     }
 
-    fn configure_for_handle_pod(mock: &mut MockKubeImpl, handle_pod: &HandlePod) {
+    fn configure_for_handle_pod(mock: &mut MockKubeInterface, handle_pod: &HandlePod) {
         if let Some(running) = &handle_pod.running {
             configure_for_running_pod_work(mock, &running);
         }

@@ -1,3 +1,128 @@
+# v0.6.5
+
+## Announcing Akri v0.6.5!
+Akri v0.6.5 is a pre-release of Akri.
+
+To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/v0.6.5/README.md) and start [contributing](https://github.com/deislabs/akri/blob/v0.6.5/docs/contributing.md) today!
+
+## New Features
+The v0.6.5 release introduces Akri's Logo, new features such as a new extensibility model for Discovery Handlers and a Configuration validating webhook, DevOps improvements, and more.
+
+**New Discovery Handler extensibility model**
+* feat: Discovery Handlers now live behind a [gRPC interface](https://github.com/deislabs/akri/blob/v0.6.5/discovery-utils/proto/discovery.proto) (https://github.com/deislabs/akri/pull/252), so Discovery Handlers can be written in any language without forking Akri and working within its code. See the [Discovery Handler development document] to get started creating a Discovery Handler. 
+* feat: Support of both default "slim" and old "full" Agent images (https://github.com/deislabs/akri/pull/279). Prior to this release, the Agent contained udev, ONVIF, and OPC UA Discovery Handlers. As of this release, Akri is moving towards a default of having no embedded Discovery Handlers in the Agent; rather, the desired Discovery Handlers can be deployed separately using Akri's Helm chart. This decreases the attack surface of the Agent and will keep it from exponential growth as new Discovery Handlers are continually supported. Discovery Handlers written in Rust can be conditionally compiled into the Agent -- reference [the development documentation for more details](https://github.com/deislabs/akri/blob/v0.6.5/docs/development.md#local-builds-and-tests). For the time being, Akri will continue to support a an Agent image with udev, ONVIF, and OPC UA Discovery Handlers. It will be used if `agent.full=true` is set when installing Akri's Helm chart.
+* feat: Updates to Akri's Helm charts with templates for Akri's Discovery Handlers and renaming of values to better fit the new model.
+
+DevOps improvements
+* feat: Workflow to auto-update dependencies (https://github.com/deislabs/akri/pull/224)
+* feat: Security audit workflow (https://github.com/deislabs/akri/pull/264)
+* feat: Workflow for canceling previously running workflows on PRs, reducing environmental footprint and queuing of GitHub Actions (https://github.com/deislabs/akri/pull/284) 
+* feat: Build all rust components in one workflow instead of previous strategy for a workflow for each build (https://github.com/deislabs/akri/pull/270)
+* fix: More exhaustive linting of Akri Helm charts (https://github.com/deislabs/akri/pull/306)
+
+Other enhancements
+* feat: [**Webhook for validating Configurations**](https://github.com/deislabs/akri/blob/v0.6.5/webhooks/validating/configuration/README.md) (https://github.com/deislabs/akri/pull/206)
+* feat: Support for Akri monitoring via Prometheus (https://github.com/deislabs/akri/pull/190)
+
+Misc 
+* feat: **Akri Logo** (https://github.com/deislabs/akri/pull/149)
+* fix: Allow overwriting Controller's `nodeSelectors` (https://github.com/deislabs/akri/pull/194)
+* fix: Updated `mockall` version (https://github.com/deislabs/akri/pull/214)
+* fix: Changed default image `PullPolicy` from `Always` to Kubernetes default (`IfNotPresent`) (https://github.com/deislabs/akri/pull/207)
+* fix: Improved video streaming application (for udev demo) that polls for new service creation (https://github.com/deislabs/akri/pull/173)
+* fix: Patched anomaly detection application (for OPC UA demo) to show values from all brokers (https://github.com/deislabs/akri/pull/229)
+* feat: Timestamped labels for local container builds (https://github.com/deislabs/akri/pull/234)
+* fix: Removed udev directory mount from Agent DaemonSet (https://github.com/deislabs/akri/pull/304)
+* fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/deislabs/akri/pull/288)
+* feat: Support for specifying environment variables broker Pods via a Configuration's `brokerProperties`.
+* fix: Default memory and CPU resource requests and limits for Akri containers (https://github.com/deislabs/akri/pull/305) 
+
+View the [full change log](https://github.com/deislabs/akri/compare/v0.1.5...v0.6.5)
+
+## Breaking Changes
+Akri's Configuration and Instance CRDs were modified. The old version of the CRDs should be deleted with `kubectl delete instances.akri.sh configurations.akri.sh`, and the new ones will be applied with a new Akri Helm installation.
+* Akri's Configuration CRD's `protocol` field was replaced with `discoveryHandler` in order to fit Akri's new Discovery Handler extensibility model and make the Configuration no longer strongly tied to Discovery Handlers. It's unused `units` field was removed and `properties` was renamed `brokerProperties` to be more descriptive. 
+* Akri's Instance CRD's unused `rbac` field was removed and `metadate` was renamed `brokerProperties` to be more descriptive and aligned with the Configuration CRD.
+
+Significant changes were made to Akri's Helm chart. Consult the latest user guide and Configurations documentation.
+
+By default, the Agent contains no Discovery Handlers. To deploy Discovery Handlers, they must be explicitly enabled in Akri's Helm chart.
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.21.0 |
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.20.6+k3s1 |
+| K3s | v1.19.10+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| K3s | v1.17.17+k3s1 |
+| K3s | v1.16.14+k3s1 |
+| MicroK8s | 1.21/stable |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+| MicroK8s | 1.17/stable |
+| MicroK8s | 1.16/stable |
+
+## What's next?
+Check out our [roadmap](https://github.com/deislabs/akri/blob/v0.6.5/docs/roadmap.md) to see the features we are looking forward to!
+
+## Release history
+See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.6.5/CHANGELOG.md) for more information on what changed in this and previous releases.
+# v0.1.5
+
+## Announcing Akri v0.1.5!
+Akri v0.1.5 is a pre-release of Akri.
+
+To find out more about Akri, check out our [README](https://github.com/deislabs/akri/blob/v0.1.5/README.md) and start [contributing](https://github.com/deislabs/akri/blob/v0.1.5/docs/contributing.md) today!
+
+## New Features
+The v0.1.5 release introduces support for OPC UA discovery along with:
+
+* End to end demo for discovering and utilizing OPC UA servers
+* Sample anomaly detection application for OPC UA demo
+* Sample OPC UA broker
+* OPC UA certificate generator
+
+View the [full change log](https://github.com/deislabs/akri/compare/v0.0.44...v0.1.5)
+
+## Breaking Changes
+N/A
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.20.0+k3s2 |
+| K3s | v1.19.4+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+
+## What's next?
+Check out our [roadmap](https://github.com/deislabs/akri/blob/v0.1.5/docs/roadmap.md) to see the features we are looking forward to!
+
+## Release history
+See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.1.5/CHANGELOG.md) for more information on what changed in this and previous releases.
+
 # v0.0.44
 
 ## Announcing Akri v0.0.44!
