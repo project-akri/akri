@@ -14,8 +14,8 @@ The v0.6.5 release introduces Akri's Logo, new features such as a new extensibil
 * feat: Updates to Akri's Helm charts with templates for Akri's Discovery Handlers and renaming of values to better fit the new model.
 
 DevOps improvements
-* feat: Workflow to auto-update dependencies (https://github.com/deislabs/akri/commit/c25d85c8077dabda489c6588c255dbb8b884743f)
-* feat: Security audit workflow (https://github.com/deislabs/akri/commit/ea50897e32dddcb290f3d82ff5702a41d681e26a)
+* feat: Workflow to auto-update dependencies (https://github.com/deislabs/akri/pull/224)
+* feat: Security audit workflow (https://github.com/deislabs/akri/pull/264)
 * feat: Workflow for canceling previously running workflows on PRs, reducing environmental footprint and queuing of GitHub Actions (https://github.com/deislabs/akri/pull/284) 
 * feat: Build all rust components in one workflow instead of previous strategy for a workflow for each build (https://github.com/deislabs/akri/pull/270)
 * fix: More exhaustive linting of Akri Helm charts (https://github.com/deislabs/akri/pull/306)
@@ -33,7 +33,7 @@ Misc
 * fix: Patched anomaly detection application (for OPC UA demo) to show values from all brokers (https://github.com/deislabs/akri/pull/229)
 * feat: Timestamped labels for local container builds (https://github.com/deislabs/akri/pull/234)
 * fix: Removed udev directory mount from Agent DaemonSet (https://github.com/deislabs/akri/pull/304)
-* fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/deislabs/akri/commit/53903e711cf4eebb9ef4367afd0f2724318b8e69#diff-97a08f11d52bb61c11fc6e159245145df32347dd439b9c6e6d94a863f3b1df4b)
+* fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/deislabs/akri/pull/288)
 * feat: Support for specifying environment variables broker Pods via a Configuration's `brokerProperties`.
 * fix: Default memory and CPU resource requests and limits for Akri containers (https://github.com/deislabs/akri/pull/305) 
 
@@ -78,8 +78,6 @@ Check out our [roadmap](https://github.com/deislabs/akri/blob/v0.6.5/docs/roadma
 
 ## Release history
 See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.6.5/CHANGELOG.md) for more information on what changed in this and previous releases.
-
-
 # v0.1.5
 
 ## Announcing Akri v0.1.5!
