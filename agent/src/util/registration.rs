@@ -120,7 +120,10 @@ impl Registration for AgentRegistration {
             &endpoint,
             EndpointType::from_i32(req.endpoint_type).unwrap(),
         );
-        info!("register - called with register request {:?}", req);
+        info!(
+            "register_discovery_handler - called with register request {:?}",
+            req
+        );
         let (close_discovery_handler_connection, _) =
             broadcast::channel(CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY);
         let discovery_handler_details = DiscoveryDetails {
@@ -164,7 +167,7 @@ impl Registration for AgentRegistration {
         {
             // If no configurations have been applied, no receivers can nor need to be updated about the new discovery
             // handler
-            trace!("register - new {} discovery handler registered but no active discovery operators to receive the message", dh_name);
+            trace!("register_discovery_handler - new {} discovery handler registered but no active discovery operators to receive the message", dh_name);
         }
         Ok(Response::new(Empty {}))
     }
@@ -203,7 +206,7 @@ pub async fn internal_run_registration_server(
         .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
         .await?;
     trace!(
-        "serve - gracefully shutdown ... deleting socket {}",
+        "internal_run_registration_server - gracefully shutdown ... deleting socket {}",
         socket_path
     );
     std::fs::remove_file(socket_path).unwrap_or(());

@@ -6,9 +6,9 @@ The document includes [naming guidelines](#naming-guidelines) to help as you ext
 ## Required Tools
 To develop, you'll need:
 - A Linux environment whether on amd64 or arm64v8
-- Rust - version 1.49.0 which the build system uses can be installed using: 
+- Rust - version 1.51.0 which the build system uses can be installed using: 
     ```sh
-    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.49.0
+    sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.51.0
     cargo version
     ```
 - .NET - the ONVIF broker is written in .NET, which can be installed according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
@@ -76,10 +76,11 @@ To locally run the controller as part of a k8s cluster, follow these steps:
     > HOST_IMAGE_ENDPOINT=/run/k3s/containerd/containerd.sock`.
 
     To run **Discovery Handlers** locally, simply navigate to the Discovery Handler under
-    `akri/discovery-handler-modules/` and run using cargo run, setting where the Discovery Handler socket should be
+    `akri/discovery-handler-modules/` and run privileged using `cargo run`, setting where the Discovery Handler socket should be
     created in the `DISCOVERY_HANDLERS_DIRECTORY` variable. For example, to run the ONVIF Discovery Handler locally:
     ```sh
     cd akri/discovery-handler-modules/onvif-discovery-handler/
+    sudo -s 
     RUST_LOG=info DISCOVERY_HANDLERS_DIRECTORY=~/tmp/akri AGENT_NODE_NAME=myNode cargo run
     ```
     To run the [debug echo Discovery Handler](#testing-with-debug-echo-discovery-handler), an environment variable,

@@ -60,7 +60,7 @@ an expected structure in it as serialized YAML -- to determine what to discover,
 our case, no parsing is required, as it will simply put our discovery endpoint. Our implementation will ping the
 discovery service at that URL to see if there are any devices.
 
-Ultimately, the protocol section of our HTTP Configuration will look like the following.
+Ultimately, the Discovery Handler section of our HTTP Configuration will look like the following.
 ```yaml
 apiVersion: akri.sh/v0
 kind: Configuration
@@ -74,10 +74,10 @@ spec:
 Now that we know what will be passed to our Discovery Handler, let's implement the discovery functionality.
 
 ### Add discovery logic to the `DiscoveryHandler`
-A `DiscoveryHandler` Struct has been created (in `discovery_handler.rs`) that minimally implements the `Discover`
+A `DiscoveryHandlerImpl` Struct has been created (in `discovery_handler.rs`) that minimally implements the `DiscoveryHandler`
 service. Let's fill in the `discover` function, which returns the list of discovered devices. It should have all the
 functionality desired for discovering devices via your protocol and filtering for only the desired set. For the HTTP
-protocol, `discover` will perform an HTTP GET on the protocol's discovery service URL received in the `DiscoverRequest`.
+protocol, `discover` will perform an HTTP GET on the Discovery Handler's discovery service URL received in the `DiscoverRequest`.
 
 First, let's add the additional crates we are using to our `Cargo.toml` under dependencies.
 ```toml
@@ -102,14 +102,14 @@ re-register with the Agent. The Agent may drop its end due to an error or a dele
 
 ```rust
 #[async_trait]
-impl Discovery for DiscoveryHandler {
+impl DiscoveryHandler for DiscoveryHandlerImpl {
     type DiscoverStream = DiscoverStream;
     async fn discover(
         &self,
         request: tonic::Request<DiscoverRequest>,
     ) -> Result<Response<Self::DiscoverStream>, Status> {
         // Get the discovery url from the `DiscoverRequest`
-        let url = request.get_ref().discovery_details;
+        let url = request.get_ref().discovery_details.clone();
         // Create a channel for sending and receiving device updates
         let (mut stream_sender, stream_receiver) = mpsc::channel(4);
         let mut register_sender = self.register_sender.clone();
@@ -169,8 +169,8 @@ Save the name of your image. We will pass it into our Akri installation command 
 discovery handler.
 
 ## Create some HTTP devices
-At this point, we've extended Akri to include discovery for our HTTP protocol and we've created an HTTP broker that can
-be deployed.  To really test our new discovery and brokers, we need to create something to discover.
+At this point, we've extended Akri to discover devices with our HTTP Discovery Handler, and we've created an HTTP broker
+that can be deployed.  To really test our new discovery and brokers, we need to create something to discover.
 
 For this exercise, we can create an HTTP service that listens to various paths.  Each path can simulate a different
 device by publishing some value.  With this, we can create a single Kubernetes pod that can simulate multiple devices.
@@ -186,8 +186,8 @@ To that end, let's:
 ### Mock HTTP devices and Discovery service
 To simulate a set of discoverable HTTP devices and a discovery service, create a simple HTTP server
 (`samples/apps/http-apps/cmd/device/main.go`).  The application will accept a list of `path` arguments, which will
-define endpoints that the service will respond to.  These endpoints represent devices in our HTTP protocol.  The
-application will also accept a set of `device` arguments, which will define the set of discovered devices.
+define endpoints that the service will respond to.  These endpoints represent devices in our HTTP Discovery Handler.
+The application will also accept a set of `device` arguments, which will define the set of discovered devices.
 
 ```go
 package main
@@ -483,12 +483,12 @@ resources, by updating our Configuration to include a broker PodSpec.
 ```
 Our empty nginx brokers do not do anything with the devices they've requested, so lets create our own broker.
 
-## Create a sample protocol broker
+## Create a sample broker
 We have successfully created our Discovery Handler. If you want Akri to also automatically deploy Pods (called brokers)
 to each discovered device, this section will show you how to create a custom broker that will make the HTTP-based Device
 data available to the cluster.  The broker can be written in any language as it will be deployed as an individual pod.
 
-3 different broker implementations have been created for the HTTP protocol in the [http-extensibility
+3 different broker implementations have been created for the HTTP Discovery Handler in the [http-extensibility
 branch](https://github.com/deislabs/akri/tree/http-extensibility), 2 in Rust and 1 in Go:
 * The standalone broker is a self-contained scenario that demonstrates the ability to interact with HTTP-based devices
   by `curl`ing a device's endpoints. This type of solution would be applicable in batch-like scenarios where the broker
