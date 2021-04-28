@@ -7,6 +7,9 @@ debugEcho:
     enabled: true
   configuration:
     enabled: true
+    brokerPod:
+      image:
+        repository: "nginx"
 udev:
   discovery:
     enabled: true
@@ -15,16 +18,26 @@ udev:
     discoveryDetails:
       udevRules:
         - 'KERNEL=="video[0-9]*"'
+    brokerPod:
+      image:
+        repository: "nginx"
+
 opcua: 
   discovery:
     enabled: true
   configuration:
     enabled: true
+    brokerPod:
+      image:
+        repository: "nginx"
 onvif: 
   discovery: 
     enabled: true
   configuration: 
     enabled: true
+    brokerPod:
+      image:
+        repository: "nginx"
 custom: 
   discovery: 
     enabled: true
@@ -33,5 +46,8 @@ custom:
   configuration: 
     enabled: true
     discoveryHandlerName: "some name"
+    brokerPod:
+      image:
+        repository: "nginx"
 webhookConfiguration: 
   enabled: true
