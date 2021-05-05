@@ -2,27 +2,26 @@
 # It is not intended for manual editing.
 [[package]]
 name = "actix"
-version = "0.10.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1be241f88f3b1e7e9a3fbe3b5a8a0f6915b5a1d7ee0d9a248d3376d01068cc60"
+checksum = "543c47e7827f8fcc9d1445bd98ba402137bfce80ee2187429de49c52b5131bd3"
 dependencies = [
- "actix-rt",
+ "actix-rt 2.2.0",
  "actix_derive",
  "bitflags",
- "bytes 0.5.6",
+ "bytes 1.0.1",
  "crossbeam-channel",
- "derive_more",
- "futures-channel",
+ "futures-core",
+ "futures-sink",
+ "futures-task",
  "futures-util",
  "log",
  "once_cell",
  "parking_lot 0.11.1",
- "pin-project 0.4.28",
+ "pin-project-lite 0.2.6",
  "smallvec 1.6.1",
- "tokio 0.2.25",
- "tokio-util 0.3.1",
- "trust-dns-proto",
- "trust-dns-resolver",
+ "tokio 1.4.0",
+ "tokio-util 0.6.5",
 ]
 
 [[package]]
@@ -48,7 +47,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "177837a10863f15ba8d3ae3ec12fac1099099529ed20083a27fdfe247381d0dc"
 dependencies = [
  "actix-codec",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-service",
  "actix-utils",
  "derive_more",
@@ -70,7 +69,7 @@ checksum = "452299e87817ae5673910e53c243484ca38be3828db819b6011736fc6982e874"
 dependencies = [
  "actix-codec",
  "actix-connect",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-service",
  "actix-threadpool",
  "actix-tls",
@@ -121,6 +120,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbcb2b608f0accc2f5bcf3dd872194ce13d94ee45b571487035864cf966b04ef"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "actix-router"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -139,7 +148,7 @@ version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "143fcc2912e0d1de2bcf4e2f720d2a60c28652ab4179685a1ee159e0fb3db227"
 dependencies = [
- "actix-macros",
+ "actix-macros 0.1.3",
  "actix-threadpool",
  "copyless",
  "futures-channel",
@@ -149,13 +158,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-rt"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc7d7cd957c9ed92288a7c3c96af81fa5291f65247a76a34dac7b6af74e52ba0"
+dependencies = [
+ "actix-macros 0.2.0",
+ "futures-core",
+ "tokio 1.4.0",
+]
+
+[[package]]
 name = "actix-server"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45407e6e672ca24784baa667c5d32ef109ccdd8d5e0b5ebb9ef8a67f4dfb708e"
 dependencies = [
  "actix-codec",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-service",
  "actix-utils",
  "futures-channel",
@@ -184,8 +204,8 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47239ca38799ab74ee6a8a94d1ce857014b2ac36f242f70f3f75a66f691e791c"
 dependencies = [
- "actix-macros",
- "actix-rt",
+ "actix-macros 0.1.3",
+ "actix-rt 1.1.1",
  "actix-server",
  "actix-service",
  "log",
@@ -228,7 +248,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e9022dec56632d1d7979e59af14f0597a28a830a9c1c7fec8b2327eb9f16b5a"
 dependencies = [
  "actix-codec",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-service",
  "bitflags",
  "bytes 0.5.6",
@@ -249,9 +269,9 @@ checksum = "e641d4a172e7faa0862241a20ff4f1f5ab0ab7c279f00c2d4587b77483477b86"
 dependencies = [
  "actix-codec",
  "actix-http",
- "actix-macros",
+ "actix-macros 0.1.3",
  "actix-router",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-server",
  "actix-service",
  "actix-testing",
@@ -294,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "actix_derive"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b95aceadaf327f18f0df5962fedc1bde2f870566a0b9f65c89508a3b1f79334c"
+checksum = "6d44b8fee1ced9671ba043476deddef739dd0959bf77030b26b738cc591737a7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -311,7 +331,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "agent"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -325,7 +345,7 @@ dependencies = [
  "blake2",
  "cfg-if 1.0.0",
  "chrono",
- "env_logger 0.8.3",
+ "env_logger",
  "futures 0.3.14",
  "futures-core",
  "futures-util",
@@ -366,13 +386,13 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
  "anyhow",
  "async-trait",
- "env_logger 0.8.3",
+ "env_logger",
  "futures-util",
  "log",
  "serde",
@@ -385,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -405,14 +425,14 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
  "anyhow",
  "async-trait",
  "bytes 0.5.6",
- "env_logger 0.8.3",
+ "env_logger",
  "futures-util",
  "hyper 0.13.10",
  "log",
@@ -433,13 +453,13 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
  "anyhow",
  "async-trait",
- "env_logger 0.8.3",
+ "env_logger",
  "futures-util",
  "log",
  "mockall",
@@ -456,12 +476,12 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "anyhow",
  "async-trait",
  "either",
- "env_logger 0.8.3",
+ "env_logger",
  "futures 0.1.31",
  "futures 0.3.14",
  "futures-util",
@@ -485,12 +505,12 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
  "async-trait",
- "env_logger 0.8.3",
+ "env_logger",
  "futures-util",
  "log",
  "mockall",
@@ -701,7 +721,7 @@ checksum = "b381e490e7b0cfc37ebc54079b0413d8093ef43d14a4e4747083f7fa47a9e691"
 dependencies = [
  "actix-codec",
  "actix-http",
- "actix-rt",
+ "actix-rt 1.1.1",
  "actix-service",
  "base64 0.13.0",
  "bytes 0.5.6",
@@ -987,14 +1007,14 @@ checksum = "402da840495de3f976eaefc3485b7f5eb5b0bf9761f9a47be27fe975b3b8c2ec"
 
 [[package]]
 name = "controller"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-shared",
  "anyhow",
  "async-std",
  "async-trait",
  "chrono",
- "env_logger 0.6.2",
+ "env_logger",
  "futures 0.3.14",
  "k8s-openapi",
  "kube",
@@ -1065,12 +1085,12 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.4.4"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
+checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
 dependencies = [
- "crossbeam-utils 0.7.2",
- "maybe-uninit",
+ "cfg-if 1.0.0",
+ "crossbeam-utils 0.8.3",
 ]
 
 [[package]]
@@ -1154,11 +1174,11 @@ dependencies = [
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
- "env_logger 0.8.3",
+ "env_logger",
  "log",
  "tokio 0.2.25",
 ]
@@ -1267,25 +1287,12 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aafcde04e90a5226a6443b7aabdb016ba2f8307c847d524724bd9b346dd1a2d3"
-dependencies = [
- "atty",
- "humantime 1.3.0",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17392a012ea30ef05a610aa97dfb49496e71c9f676b27879922ea5bdf60d9d3f"
 dependencies = [
  "atty",
- "humantime 2.1.0",
+ "humantime",
  "log",
  "regex",
  "termcolor",
@@ -1747,15 +1754,6 @@ name = "httpdate"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05842d0d43232b23ccb7060ecb0f0626922c21f30012e97b767b30afd4a5d4b9"
-
-[[package]]
-name = "humantime"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
-dependencies = [
- "quick-error",
-]
 
 [[package]]
 name = "humantime"
@@ -2352,11 +2350,11 @@ checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
- "env_logger 0.8.3",
+ "env_logger",
  "log",
  "tokio 0.2.25",
 ]
@@ -2436,11 +2434,11 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
- "env_logger 0.8.3",
+ "env_logger",
  "log",
  "tokio 0.2.25",
 ]
@@ -3198,11 +3196,11 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.18.1"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d1126dcf58e93cee7d098dbda643b5f92ed724f1f6a63007c1116eed6700c81"
+checksum = "35edb675feee39aec9c99fa5ff985081995a06d594114ae14cbe797ad7b7a6d7"
 dependencies = [
- "base64 0.12.3",
+ "base64 0.13.0",
  "log",
  "ring",
  "sct",
@@ -3748,7 +3746,11 @@ dependencies = [
  "libc",
  "memchr",
  "mio 0.7.11",
+ "once_cell",
+ "parking_lot 0.11.1",
  "pin-project-lite 0.2.6",
+ "signal-hook-registry",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -4023,7 +4025,6 @@ checksum = "be8242891f2b6cbef26a2d7e8605133c2c554cd35b3e4948ea892d6d68436499"
 dependencies = [
  "bytes 0.5.6",
  "futures-core",
- "futures-io",
  "futures-sink",
  "log",
  "pin-project-lite 0.1.12",
@@ -4417,21 +4418,21 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
- "env_logger 0.8.3",
+ "env_logger",
  "log",
  "tokio 0.2.25",
 ]
 
 [[package]]
 name = "udev-video-broker"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "akri-shared",
- "env_logger 0.8.3",
+ "env_logger",
  "futures 0.1.31",
  "lazy_static",
  "log",
@@ -4701,10 +4702,10 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "actix",
- "actix-rt",
+ "actix-rt 2.2.0",
  "actix-web",
  "akri-shared",
  "clap",
@@ -4712,7 +4713,7 @@ dependencies = [
  "kube",
  "openapi",
  "openssl",
- "rustls 0.18.1",
+ "rustls 0.19.1",
  "serde",
  "serde_json",
 ]
@@ -4839,9 +4840,9 @@ dependencies = [
 
 [[package]]
 name = "yaserde"
-version = "0.3.16"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe81055b36d926da70850a7c1a9bc72eff184659da29e008ce9f2af4bfee7c89"
+checksum = "bc096efbee9ec8fee0600a15bb4fd651ccc14570cb05b6d4dd66b0325e4a0b5e"
 dependencies = [
  "log",
  "xml-rs",
@@ -4849,10 +4850,11 @@ dependencies = [
 
 [[package]]
 name = "yaserde_derive"
-version = "0.3.17"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fcdf088bb87971689cf7aef14b123c5c85ca8d71267985090369e5eab16a514"
+checksum = "9af81f1d48039716dd825cf4a7d61d39583f8b12705994abb446bae749a977bb"
 dependencies = [
+ "heck",
  "proc-macro2",
  "quote",
  "syn",

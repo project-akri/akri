@@ -1,8 +1,5 @@
 pub mod to_serialize {
     use super::common::*;
-    use std::io::Write;
-    use yaserde::YaSerialize;
-
     #[derive(Default, PartialEq, Debug, YaSerialize)]
     #[yaserde(prefix = "s", namespace = "s: http://www.w3.org/2003/05/soap-envelope")]
     pub struct Envelope {
@@ -44,8 +41,6 @@ pub mod to_serialize {
 
 pub mod to_deserialize {
     use super::common::*;
-    use std::io::Read;
-    use yaserde::YaDeserialize;
 
     #[derive(Default, PartialEq, Debug, YaDeserialize)]
     #[yaserde(prefix = "s", namespace = "s: http://www.w3.org/2003/05/soap-envelope")]
@@ -92,9 +87,6 @@ pub mod probe_types {
 }
 
 pub mod common {
-    use std::io::{Read, Write};
-    use yaserde::{YaDeserialize, YaSerialize};
-
     #[derive(Default, PartialEq, Debug, YaDeserialize, YaSerialize)]
     #[yaserde(
         prefix = "d",
