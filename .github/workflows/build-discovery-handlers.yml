@@ -3,6 +3,9 @@ name: Build Discovery Handlers
 on:
   workflow_run:
     workflows: ["Build Production Rust Code"]
+    branches:
+    - main
+    - 'v[0-9]+.[0-9]+.[0-9]+*'
     types: 
       - completed
 
