@@ -1,6 +1,6 @@
 [package]
 name = "controller"
-version = "0.6.5"
+version = "0.6.7"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -11,7 +11,7 @@ akri-shared = { path = "../shared" }
 async-std = "1.5.0"
 async-trait = "0.1.0"
 chrono = "0.4.10"
-env_logger = "0.6.1"
+env_logger = "0.8.3"
 futures = "0.3.1"
 anyhow = "1.0.38"
 kube = { version = "0.23.0", features = ["openapi"] }

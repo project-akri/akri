@@ -1,6 +1,6 @@
 [package]
 name = "akri-onvif"
-version = "0.6.5"
+version = "0.6.7"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 
@@ -26,8 +26,8 @@ tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", 
 tonic = {version = "0.1.0", features = ["tls"] }
 uuid = { version = "0.8.1", features = ["v4"] }
 xml-rs = { version = "0.8.0" }
-yaserde = "0.3.13"
-yaserde_derive = "0.3.13"
+yaserde = "0.6.0"
+yaserde_derive = "0.6.0"
 
 [dev-dependencies]
 mockall = "0.9.0"
