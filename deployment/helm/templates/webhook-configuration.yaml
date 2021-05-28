@@ -3,17 +3,18 @@ apiVersion: v1
 kind: List
 metadata:
   name: {{ .Values.webhookConfiguration.name }}
+  namespace: {{ .Values.namespace.name }}
 items:
   - apiVersion: v1
     kind: ServiceAccount
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
     rules:
     - apiGroups: [""]
       resources: ["pods"]
@@ -22,7 +23,7 @@ items:
     kind: RoleBinding
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: Role
@@ -30,11 +31,12 @@ items:
     subjects:
     - kind: ServiceAccount
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      namespace: {{ .Values.namespace.name }}
     spec:
       replicas: 1
       selector:
@@ -111,6 +113,7 @@ items:
     kind: Service
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      namespace: {{ .Values.namespace.name }}
     spec:
       selector:
         app: {{ .Values.webhookConfiguration.name }}
@@ -122,12 +125,13 @@ items:
     kind: ValidatingWebhookConfiguration
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      namespace: {{ .Values.namespace.name }}
     webhooks:
       - name: {{ .Values.webhookConfiguration.name }}.{{ .Release.Namespace }}.svc
         clientConfig:
           service:
             name: {{ .Values.webhookConfiguration.name }}
-            namespace: {{ .Release.Namespace }}
+            namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
             port: 443
             path: "/validate"
           caBundle: {{ required "please rerun helm install" .Values.webhookConfiguration.caBundle }}

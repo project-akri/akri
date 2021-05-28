@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: akri-debug-echo-discovery-daemonset
+  namespace: {{ .Values.namespace.name }}
 spec:
   selector:
     matchLabels:

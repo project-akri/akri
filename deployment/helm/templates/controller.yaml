@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: akri-controller-deployment
+  namespace: {{ .Values.namespace.name }}
 spec:
   replicas: 1
   selector:

@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ printf "%s-daemonset" .Values.custom.discovery.name }}
+  namespace: {{ .Values.namespace.name }}
 spec:
   selector:
     matchLabels:

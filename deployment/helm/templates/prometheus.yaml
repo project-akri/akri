@@ -3,7 +3,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: akri-agent-metrics
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
   labels:
     release: prometheus
 spec:
@@ -18,7 +18,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: akri-controller-metrics
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
   labels:
     release: prometheus
 spec:

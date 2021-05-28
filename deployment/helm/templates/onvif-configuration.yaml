@@ -3,6 +3,7 @@ apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
 kind: Configuration
 metadata:
   name: {{ .Values.onvif.configuration.name }}
+  namespace: {{ .Values.namespace.name }}
 spec:
   discoveryHandler:
     name: onvif
