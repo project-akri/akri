@@ -25,6 +25,11 @@ rbac:
   # enabled defines whether to apply rbac to Akri
   enabled: true
 
+# namespace is the Kubernetes namespace that will be created for storing
+# Akri related deployments
+namespace:
+  name: akri
+
 prometheus:
   # enabled defines whether metrics ports are exposed on
   # the Controller and Agent
