@@ -1,5 +1,5 @@
 # Contributing 
-This project welcomes contributions and suggestions. We are excited for you to join the Akri community!
+Want to work on Akri with us? 🎉 We are actively looking for new contributors along all stages of the contribution journey, from casual contributors to reviewers and maintainers.
 
 ## What do I need to know to help?
 Akri utilizes a variety of technologies, and different background knowledge is more or less useful depending on what you are interested in contributing. 

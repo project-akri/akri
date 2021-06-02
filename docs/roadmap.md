@@ -1,4 +1,11 @@
 # Roadmap
+Akri uses a [single project board](https://github.com/deislabs/akri/projects/3) to track issues. The board illustrates 
+what features are requested by community members, currently being investigated, and under development. We review the 
+project board each [community meeting](https://hackmd.io/@akri/S1GKJidJd) to make sure all issues are addressed 
+and categorized.
+
+The following detail a couple of the larger goals of Akri: to discover more devices and provide more deployment strategies.
+
 ## Implement additional Discovery Handlers
 There are endless sensors, controllers, and MCU class devices on the edge and each type of device has a different
 discovery protocol. Akri is an interface for helping expose those devices as resources to your Kubernetes cluster on the
@@ -23,9 +30,7 @@ Discovery Handler development document](./discovery-handler-development.md) for 
 - Zeroconf
 - Looking for community feedback for more!
 
-## Akri enhancements
-Provide new features and enhancements that build on existing Akri functionality.
-### New broker deployment strategies
+## New broker deployment strategies
 Currently, for every leaf device that is discovered by a node's Akri Agent, a single broker is deployed to that node --
 how many nodes get the broker is limited by capacity. This is a fairly specific implementation that does not support all
 users' scenarios. The [New Broker Deployment Strategies proposal](./proposals/broker-deployment-strategies.md) discusses
