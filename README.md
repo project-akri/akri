@@ -44,7 +44,7 @@ Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discove
 - Proposals for enhancements such as new Discovery Handler implementations can be found in the [proposals folder](./docs/proposals)
 
 ## Roadmap
-Akri was built to be extensible. We currently have ONVIF, udev, OPC UA Discovery Handlers, but as a community, we hope to continuously support more protocols. We have created a [Discovery Handler implementation roadmap](./docs/roadmap.md#implement-additional-discovery-handlers) in order to prioritize development of Discovery Handlers. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation!
+Akri is built to be extensible. We currently have ONVIF, udev, OPC UA Discovery Handlers, but as a community, we hope to continuously support more protocols. We have created a [Discovery Handler implementation roadmap](./docs/roadmap.md#implement-additional-discovery-handlers) in order to prioritize development of Discovery Handlers. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation!
 
 To see what else is in store for Akri, reference our [roadmap](./docs/roadmap.md).
 
