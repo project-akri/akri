@@ -232,6 +232,10 @@ jobs:
         name: Install Kubernetes
         run: |
           sudo apt-get update -y
+          sudo apt-get install -y apt-transport-https ca-certificates curl
+          sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+          echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+          sudo apt-get update
           sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
