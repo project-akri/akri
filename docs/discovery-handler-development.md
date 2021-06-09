@@ -148,24 +148,10 @@ deleted Configuration.
 Rust Discovery Handler development can be kick-started using Akri's [Discovery Handler template](https://github.com/kate-goldenring/akri-discovery-handler-template) and
 [`cargo-generate`](https://github.com/cargo-generate/cargo-generate).
 
-> NOTE: `cargo-generate` depends on `openssl-dev` and `pkg-config` and need to be installed beforehand
-
-__GNU/Linux__:
-
-```sh
-apt install -y openssl-dev pkg-config
-```
-
-__macOS__:
+Install by following the [`cargo-generate` instruction](https://github.com/cargo-generate/cargo-generate#installation) and 
+specify the name of the project with the `--name` parameter.
 
 ```sh
-brew install openssl@1.1 pkg-config
-```
-
-Proceed to install `cargo-generate` and specify the name of the project with the `--name` parameter.
-
-```sh 
-cargo install cargo-generate
 cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-discovery-handler
 ```
 This template abstracts away the work of registering with the Agent and creating the Discovery Handler service. All you
