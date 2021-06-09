@@ -9,12 +9,12 @@ items:
     kind: ServiceAccount
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
+      namespace: {{ .Values.namespace.name }}
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
+      namespace: {{ .Values.namespace.name }}
     rules:
     - apiGroups: [""]
       resources: ["pods"]
@@ -23,7 +23,7 @@ items:
     kind: RoleBinding
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
+      namespace: {{ .Values.namespace.name }}
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: Role
@@ -31,7 +31,7 @@ items:
     subjects:
     - kind: ServiceAccount
       name: {{ .Values.webhookConfiguration.name }}
-      namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
+      namespace: {{ .Values.namespace.name }}
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -131,7 +131,7 @@ items:
         clientConfig:
           service:
             name: {{ .Values.webhookConfiguration.name }}
-            namespace: {{ .Values.namespace.name }} # Previous .Release.Namespace
+            namespace: {{ .Values.namespace.name }}
             port: 443
             path: "/validate"
           caBundle: {{ required "please rerun helm install" .Values.webhookConfiguration.caBundle }}
