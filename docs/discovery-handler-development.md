@@ -146,9 +146,12 @@ deleted Configuration.
 
 ## Creating a Discovery Handler in Rust using a template
 Rust Discovery Handler development can be kick-started using Akri's [Discovery Handler template](https://github.com/kate-goldenring/akri-discovery-handler-template) and
-[`cargo-generate`](https://github.com/cargo-generate/cargo-generate). Specify the name of your project.
-```sh 
-cargo install cargo-generate
+[`cargo-generate`](https://github.com/cargo-generate/cargo-generate).
+
+Install [`cargo-generate`](https://github.com/cargo-generate/cargo-generate#installation) and 
+use the tool to pull down Akri's template, specifying the name of the project with the `--name` parameter.
+
+```sh
 cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-discovery-handler
 ```
 This template abstracts away the work of registering with the Agent and creating the Discovery Handler service. All you
