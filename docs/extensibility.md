@@ -29,8 +29,6 @@ the Agent, which hosts the `Registration` service defined in the gRPC interface.
 
 ## New DiscoveryHandler implementation
 ### Use `cargo generate` to clone the Discovery Handler template
-Pull down the [Discovery Handler template](https://github.com/kate-goldenring/akri-discovery-handler-template) using
-[`cargo-generate`](https://github.com/cargo-generate/cargo-generate). 
 
 Install [`cargo-generate`](https://github.com/cargo-generate/cargo-generate#installation) and 
 use the tool to pull down Akri's template, specifying the name of the project with the `--name` parameter.
