@@ -129,11 +129,11 @@ A more in-depth understanding of what **MQTT PUBLISH** and **MQTT SUBSCRIBE** me
 
 Since MQTT bases itself over the TCP/IP stack for networking, the specifications provide _handshaking_ mechanisms which can be leveraged
 to discover IoT Devices that communicate with the MQTT Broker. Since the only mediating entity for message exchange is the MQTT Broker,
-all client only require the IP Address and the MQTT port as a basic form of initiation of communication. Default port for unsecure MQTT
+all clients only require the IP Address and the MQTT port of the broker as a basic form of initiation of communication. Default port for unsecure MQTT
 Broker is 1883 and for a secure Broker is 8883.
 
 The Akri Discovery Handler hence needs to have the URL Information for the MQTT Brokers and particular topics that need to be subscribed to
-in a configuration file.
+in the Akri configuration (based on understanding of OPC-UA).
 
 
 ## Akri's Custom Broker Interfacing with an MQTT Broker Server
