@@ -22,6 +22,7 @@ jobs:
           - arm32v7
           - amd64
         akri-component: 
+          - coap-discovery
           - debug-echo-discovery
           - udev-discovery
           - onvif-discovery
@@ -77,6 +78,7 @@ jobs:
     strategy:
       matrix: 
         akri-component: 
+          - coap-discovery
           - debug-echo-discovery
           - udev-discovery
           - onvif-discovery
