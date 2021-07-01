@@ -1,0 +1,23 @@
+[package]
+name = "coap-discovery-handler"
+version = "0.6.8"
+authors = ["Jiayi Hu <jiayi.ghu@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# TODO: Change this to Akri main when the library is merged
+akri-discovery-utils = { path = "../../discovery-utils" }
+anyhow = "1.0.41"
+async-trait = "0.1.0"
+coap = { git = "https://github.com/Covertness/coap-rs" }
+coap-lite = "0.4.1"
+env_logger = "0.8.4"
+log = "0.4.14"
+serde = "1.0.104"
+serde_json = "1.0.45"
+serde_derive = "1.0.104"
+tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
+tonic = {version = "0.1.0", features = ["tls"] }
+
+[dev-dependencies]
+mockall = "0.9.0"

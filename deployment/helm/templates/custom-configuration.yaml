@@ -6,7 +6,19 @@ metadata:
 spec:
   discoveryHandler: 
     name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
-    discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
+    discoveryDetails: |+ 
+      multicast: {{ .Values.custom.configuration.discoveryDetails.multicast }}
+      multicastIpAddress: {{ .Values.custom.configuration.discoveryDetails.multicastIpAddress }}
+      staticIpAddresses: 
+        {{ - toYaml .Values.custom.configuration.discoveryDetails.staticIpAddresses | nindent 6 }}
+      {{- if .Values.custom.configuration.discoveryDetails.queryFilter }}
+      queryFilter:
+        name: {{ .Values.custom.configuration.discoveryDetails.queryFilter.name }}
+        value: {{ .Values.custom.configuration.discoveryDetails.queryFilter.value }}
+      {{- else }}
+      queryFilter: null
+      {{- end }}
+      discoveryTimeoutSeconds: {{ .Values.custom.configuration.discoveryDetails.discoveryTimeoutSeconds }}
   {{- if .Values.custom.configuration.brokerPod.image.repository }}
   brokerPodSpec:
     containers:
