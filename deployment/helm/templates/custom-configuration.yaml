@@ -10,7 +10,7 @@ spec:
       multicast: {{ .Values.custom.configuration.discoveryDetails.multicast }}
       multicastIpAddress: {{ .Values.custom.configuration.discoveryDetails.multicastIpAddress }}
       staticIpAddresses: 
-        {{ - toYaml .Values.custom.configuration.discoveryDetails.staticIpAddresses | nindent 6 }}
+        {{- toYaml .Values.custom.configuration.discoveryDetails.staticIpAddresses | nindent 6 }}
       {{- if .Values.custom.configuration.discoveryDetails.queryFilter }}
       queryFilter:
         name: {{ .Values.custom.configuration.discoveryDetails.queryFilter.name }}

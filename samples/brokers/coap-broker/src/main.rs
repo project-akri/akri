@@ -46,7 +46,7 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
         return Ok(response);
     }
 
-    // TODO: should some HTTP headers to set or copied to the CoAP request? E.g. 'Forwarded'
+    // TODO: should some HTTP headers copied to the CoAP request? E.g. 'Forwarded'
     let response = CoAPClient::get_with_timeout(endpoint.as_str(), Duration::from_secs(5));
 
     match response {
