@@ -313,6 +313,107 @@ debugEcho:
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
       cpuLimit: 26m
 
+coap:
+  configuration:
+    # enabled defines whether to load a coap configuration
+    enabled: false
+    # name is the Kubernetes resource name that will be created for this
+    # coap configuration
+    name: akri-coap
+    # brokerProperties is a map of properties that will be passed to any instances
+    # created as a result of applying this coap configuration
+    brokerProperties: {}
+    # capacity is the capacity for any instances created as a result of
+    # applying this coap configuration
+    capacity: 1
+    discoveryDetails:
+      multicast: true
+      multicastIpAddress: 224.0.1.187
+      staticIpAddresses: []
+      queryFilter: {}
+      discoveryTimeoutSeconds: 10
+    brokerPod:
+      # container used by coap
+      image:
+        # repository is the coap broker container reference
+        repository: eu.gcr.io/fedra-301320/coap-core-broker
+        # tag is the coap broker image tag
+        tag: v0.1.17-20210227_235612
+        # pullPolicy is the coap pull policy
+        pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 200Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 0.5
+    # createInstanceServices is specified if a service should automatically be
+    # created for each broker pod
+    createInstanceServices: true
+    instanceService:
+      # name is the description of the instance service
+      name: akri-coap-foo-instance-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+    # createConfigurationService is specified if a single service should automatically be
+    # created for all broker pods of a Configuration
+    createConfigurationService: true
+    configurationService:
+      # name is the description of the configuration service
+      name: akri-coap-configuration-service
+      # type is the service type of the instance service
+      type: ClusterIP
+      # port is the service port of the instance service
+      port: 6052
+      # targetPort is the service targetPort of the instance service
+      targetPort: 6052
+      # protocol is the service protocol of the instance service
+      protocol: TCP
+  # discovery defines a set of values for a coap discovery handler DaemonSet
+  discovery: 
+    # enabled defines whether discovery handler pods will be deployed in a slim Agent scenario
+    enabled: false
+    name: coap
+    image:
+      # repository is the container reference
+      repository: ghcr.io/deislabs/akri/coap-discovery
+      # tag is the container tag
+      # coap-configuration.yaml will default to v(AppVersion)[-dev]
+      # with `-dev` added if `useDevelopmentContainers` is specified
+      tag: v0.6.8-20210701_193232
+      # pullPolicy is the pull policy
+      pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
+    # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
+    # This can be set from the helm command line using `--set coap.discovery.nodeSelectors.label="value"`
+    nodeSelectors: {}
+    resources:
+      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      memoryRequest: 11Mi
+      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+      # for it to be scheduled by the Kubernetes Scheduler
+      cpuRequest: 10m
+      # memoryLimit defines the maximum amount of RAM this Pod can consume.
+      memoryLimit: 24Mi
+      # cpuLimit defines the maximum amount of CPU this Pod can consume.
+      cpuLimit: 26m
+
 onvif:
   configuration:
     # enabled defines whether to load a onvif configuration

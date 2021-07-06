@@ -1,0 +1,19 @@
+coap:
+  configuration:
+    enabled: true
+    discoveryDetails:
+      multicast: false
+      staticIpAddresses:
+      - 192.168.1.126
+    brokerPod:
+      image:
+        # repository is the custom broker container reference
+        repository: gcr.io/kubernetes-e2e-test-images/dnsutils
+        # tag is the custom broker image tag
+        tag: "1.3"
+    brokerProperties:
+      test: okay
+      hello: kate
+
+  discovery: 
+    enabled: true

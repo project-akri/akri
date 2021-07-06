@@ -1,0 +1,73 @@
+{{- if .Values.coap.configuration.enabled }}
+apiVersion: {{ printf "%s/%s" .Values.crds.group .Values.crds.version }}
+kind: Configuration
+metadata:
+  name: {{ .Values.coap.configuration.name }}
+spec:
+  discoveryHandler: 
+    name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.coap.configuration.discoveryHandlerName }}
+    discoveryDetails: |+ 
+      multicast: {{ .Values.coap.configuration.discoveryDetails.multicast }}
+      multicastIpAddress: {{ .Values.coap.configuration.discoveryDetails.multicastIpAddress }}
+      staticIpAddresses: 
+        {{- toYaml .Values.coap.configuration.discoveryDetails.staticIpAddresses | nindent 6 }}
+      {{- if .Values.coap.configuration.discoveryDetails.queryFilter }}
+      queryFilter:
+        name: {{ .Values.coap.configuration.discoveryDetails.queryFilter.name }}
+        value: {{ .Values.coap.configuration.discoveryDetails.queryFilter.value }}
+      {{- else }}
+      queryFilter: null
+      {{- end }}
+      discoveryTimeoutSeconds: {{ .Values.coap.configuration.discoveryDetails.discoveryTimeoutSeconds }}
+  {{- if .Values.coap.configuration.brokerPod.image.repository }}
+  brokerPodSpec:
+    containers:
+    - name: {{ .Values.coap.configuration.name }}-broker
+      image: {{ printf "%s:%s" .Values.coap.configuration.brokerPod.image.repository .Values.coap.configuration.brokerPod.image.tag | quote }}
+      {{- with .Values.coap.configuration.pullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
+      resources:
+        requests:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.coap.configuration.brokerPod.resources.memoryRequest }}
+          cpu: {{ .Values.coap.configuration.brokerPod.resources.cpuRequest }}
+        limits:
+          {{`"{{PLACEHOLDER}}"`}} : "1"
+          memory: {{ .Values.coap.configuration.brokerPod.resources.memoryLimit }}
+          cpu: {{ .Values.coap.configuration.brokerPod.resources.cpuLimit }}
+    {{- with .Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.coap.configuration.brokerPod.image.repository }}
+  {{- if .Values.coap.configuration.createInstanceServices }}
+  instanceServiceSpec:
+    type: {{ .Values.coap.configuration.instanceService.type }}
+    ports:
+    - name: {{ .Values.coap.configuration.instanceService.name }}
+      port: {{ .Values.coap.configuration.instanceService.port }}
+      protocol: {{ .Values.coap.configuration.instanceService.protocol }}
+      targetPort: {{ .Values.coap.configuration.instanceService.targetPort }}
+  {{- end }}
+  {{- if .Values.coap.configuration.createConfigurationService }}
+  configurationServiceSpec:
+    type: {{ .Values.coap.configuration.configurationService.type }}
+    ports:
+    - name: {{ .Values.coap.configuration.configurationService.name }}
+      port: {{ .Values.coap.configuration.configurationService.port }}
+      protocol: {{ .Values.coap.configuration.configurationService.protocol }}
+      targetPort: {{ .Values.coap.configuration.configurationService.port }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.coap.configuration.brokerProperties }}
+  brokerProperties:
+  {{- range $key, $val := .Values.coap.configuration.brokerProperties }}
+  {{- $key | nindent 4 }}: {{ $val | quote }}
+  {{- end }}
+  {{- else }}
+  brokerProperties: {}
+  {{- end }}
+  capacity: {{ .Values.coap.configuration.capacity }}
+{{- end }}

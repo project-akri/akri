@@ -1,0 +1,46 @@
+{{- if .Values.coap.discovery.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: akri-coap-discovery-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: akri-coap-discovery
+  template:
+    metadata:
+      labels:
+        name: akri-coap-discovery
+    spec:
+      containers:
+      - name: akri-coap-discovery
+        image: {{ printf "%s:%s" (required "A coap.discovery.image.repository is required." .Values.coap.discovery.image.repository) .Values.coap.discovery.image.tag | quote }}
+        {{- with .Values.coap.discovery.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{ .Values.coap.discovery.resources.memoryRequest }}
+            cpu: {{ .Values.coap.discovery.resources.cpuRequest }}
+          limits:
+            memory: {{ .Values.coap.discovery.resources.memoryLimit }}
+            cpu: {{ .Values.coap.discovery.resources.cpuLimit }}
+        env:
+        - name: DISCOVERY_HANDLERS_DIRECTORY
+          value: /var/lib/akri
+        volumeMounts:
+        - name: discovery-handlers
+          mountPath: /var/lib/akri
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.coap.discovery.nodeSelectors }}
+      nodeSelector:
+      {{- toYaml .Values.coap.discovery.nodeSelectors | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: discovery-handlers
+        hostPath:
+          path: {{ .Values.agent.host.discoveryHandlers }}
+{{- end }}
