@@ -5,7 +5,6 @@ authors = ["Jiayi Hu <jiayi.ghu@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-# TODO: Change this to Akri main when the library is merged
 akri-discovery-utils = { path = "../../discovery-utils" }
 anyhow = "1.0.41"
 async-trait = "0.1.0"

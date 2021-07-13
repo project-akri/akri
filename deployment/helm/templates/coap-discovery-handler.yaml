@@ -22,9 +22,6 @@ spec:
           requests:
             memory: {{ .Values.coap.discovery.resources.memoryRequest }}
             cpu: {{ .Values.coap.discovery.resources.cpuRequest }}
-          limits:
-            memory: {{ .Values.coap.discovery.resources.memoryLimit }}
-            cpu: {{ .Values.coap.discovery.resources.cpuLimit }}
         env:
         - name: DISCOVERY_HANDLERS_DIRECTORY
           value: /var/lib/akri

@@ -320,6 +320,8 @@ coap:
     # name is the Kubernetes resource name that will be created for this
     # coap configuration
     name: akri-coap
+    # discoveryHandlerName is the name of the Discovery Handler the Configuration is using
+    discoveryHandlerName: coap
     # brokerProperties is a map of properties that will be passed to any instances
     # created as a result of applying this coap configuration
     brokerProperties: {}
@@ -336,9 +338,9 @@ coap:
       # container used by coap
       image:
         # repository is the coap broker container reference
-        repository: eu.gcr.io/fedra-301320/coap-core-broker
+        repository:
         # tag is the coap broker image tag
-        tag: v0.1.17-20210227_235612
+        tag: latest
         # pullPolicy is the coap pull policy
         pullPolicy: ""
       resources:
@@ -357,7 +359,7 @@ coap:
     createInstanceServices: true
     instanceService:
       # name is the description of the instance service
-      name: akri-coap-foo-instance-service
+      name: akri-coap-instance-service
       # type is the service type of the instance service
       type: ClusterIP
       # port is the service port of the instance service
@@ -391,7 +393,7 @@ coap:
       # tag is the container tag
       # coap-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
-      tag: v0.6.8-20210701_193232
+      tag: latest
       # pullPolicy is the pull policy
       pullPolicy: ""
     # useNetworkConnection specifies whether the discovery handler should make a networked connection
@@ -409,10 +411,6 @@ coap:
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
       cpuRequest: 10m
-      # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 24Mi
-      # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 26m
 
 onvif:
   configuration:

@@ -5,7 +5,7 @@ use coap::CoAPClient;
 use coap_lite::{ContentFormat, MessageClass, Packet, ResponseType};
 use futures::{FutureExt, SinkExt, StreamExt};
 use http_coap::coap_to_http;
-use log::{debug, info};
+use log::{debug, error, info};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -35,7 +35,7 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
     let ip_address = state.ip_address.clone();
     let resource_uris = state.resource_uris.clone();
     let endpoint = format!("coap://{}:5683{}", ip_address, path);
-    info!("Proxing request to {}", endpoint);
+    info!("handle_proxy - proxing request to {}", endpoint);
 
     if !resource_uris.contains(&path.to_string()) {
         let response = Response::builder()
@@ -66,7 +66,10 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
             Ok(proxy_res)
         }
         Err(e) => {
-            info!("Error while trying to request the device {}", e);
+            info!(
+                "handle_proxy - error while trying to send the request to the device {}",
+                e
+            );
 
             let cache = state.cache.lock().unwrap();
             let cached_packet = cache.get(&path.to_string());
@@ -100,7 +103,7 @@ async fn handle_stream(
     let ip_address = state.ip_address.clone();
     let addr = format!("{}:5683", ip_address);
     let resource_uris = state.resource_uris.clone();
-    info!("Streaming from {}", addr);
+    info!("handle_stream - streaming from {}", addr);
 
     let mut client = CoAPClient::new(addr)
         .map_err(|e| anyhow::anyhow!("Invalid client address while creating the client: {}", e))?;
@@ -125,7 +128,7 @@ async fn handle_stream(
 
     tokio::task::spawn(coap_rx_stream.forward(ws_tx).map(|result| {
         if let Err(e) = result {
-            log::error!("websocket send error: {}", e);
+            error!("handle_stream - websocket send error: {}", e);
         }
     }));
 
@@ -143,7 +146,7 @@ async fn handle_stream(
                     }
                 }
                 Err(e) => {
-                    log::error!("Websocket received an error: {}", e);
+                    error!("handle_stream - websocket received an error: {}", e);
                     break;
                 }
             }
@@ -172,7 +175,7 @@ async fn handle_stream(
                 match coap_tx.send(Ok(message)) {
                     Ok(()) => {}
                     Err(e) => {
-                        log::error!("Error sending the CoAP message: {}", e);
+                        error!("handle_stream - error sending the CoAP message: {}", e);
                         unobserve(observe_state.clone(), client_id);
                     }
                 }
@@ -222,7 +225,7 @@ async fn main() {
         .collect();
 
     info!(
-        "Found device IP {} with resource types {:?}",
+        "main - found device IP {} with resource types {:?}",
         device_ip, resource_types
     );
 
@@ -249,7 +252,7 @@ async fn main() {
                 match handle_stream(path, state, websocket).await {
                     Ok(()) => {}
                     Err(e) => {
-                        log::error!("Error handling the websocket stream: {}", e);
+                        error!("main - error handling the websocket stream: {}", e);
                     }
                 }
             })

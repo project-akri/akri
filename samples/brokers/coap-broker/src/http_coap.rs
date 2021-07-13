@@ -23,7 +23,7 @@ pub fn coap_to_http(packet: Packet) -> Response<Vec<u8>> {
 /// Converts a CoAP status code to HTTP status code. The CoAP status code field is described in
 /// RFC 7252 Section 3.
 ///
-/// Put simply, a CoAP status code is 8bits, where the first 3 bits indicate the class and the
+/// Put simply, a CoAP status code is 8 bits, where the first 3 bits indicate the class and the
 /// remaining 5 bits the type. For instance a status code 0x84 is 0b100_01000, which is 4_04 aka
 /// NotFound in HTTP :)
 fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {

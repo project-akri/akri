@@ -6,7 +6,7 @@ use akri_discovery_utils::discovery::{
 };
 use async_trait::async_trait;
 use coap_lite::CoapRequest;
-use log::{error, info};
+use log::{debug, error, info};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -18,6 +18,9 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 
 pub const COAP_RESOURCE_TYPES_LABEL_ID: &str = "COAP_RESOURCE_TYPES";
 pub const COAP_IP_LABEL_ID: &str = "COAP_IP";
+
+pub const COAP_PREFIX: &str = "coap://";
+pub const COAP_PORT: u16 = 5683;
 
 /// This defines a query filter. The RFC7252 allows only one filter element.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -55,6 +58,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         &self,
         request: tonic::Request<DiscoverRequest>,
     ) -> Result<Response<Self::DiscoverStream>, Status> {
+        info!("discover - coap discovery handler started");
+
         let mut register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
         let (mut discovered_devices_sender, discovered_devices_receiver) =
@@ -63,7 +68,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
 
-        info!("Discovering config {:?}", discovery_handler_config);
+        debug!(
+            "discover - applying coap discovery config {:?}",
+            discovery_handler_config
+        );
 
         let multicast = discovery_handler_config.multicast;
         let static_addrs = discovery_handler_config.static_ip_addresses;
@@ -74,11 +82,11 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
         tokio::spawn(async move {
             loop {
-                let mut devices: Vec<Device> = vec![];
+                let mut devices: Vec<Device> = Vec::new();
 
                 // Discover devices via static IPs
-                for ip_address in &static_addrs {
-                    let coap_client = CoAPClientImpl::new((ip_address.as_str(), 5683));
+                static_addrs.iter().for_each(|ip_address| {
+                    let coap_client = CoAPClientImpl::new((ip_address.as_str(), COAP_PORT));
                     let device = discover_endpoint(
                         &coap_client,
                         &ip_address,
@@ -89,14 +97,17 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     match device {
                         Ok(device) => devices.push(device),
                         Err(e) => {
-                            info!("Discovering endpoint {} went wrong: {}", ip_address, e);
+                            info!(
+                                "discover - discovering endpoint {} went wrong: {}",
+                                ip_address, e
+                            );
                         }
                     }
-                }
+                });
 
                 // Discover devices via multicast
                 if multicast {
-                    let coap_client = CoAPClientImpl::new((multicast_addr.as_str(), 5683));
+                    let coap_client = CoAPClientImpl::new((multicast_addr.as_str(), COAP_PORT));
                     let discovered =
                         discover_multicast(&coap_client, query_filter.as_ref(), timeout);
 
@@ -126,6 +137,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             }
         });
 
+        info!("discover - coap discovery handler end");
         Ok(Response::new(discovered_devices_receiver))
     }
 }
@@ -136,9 +148,15 @@ fn discover_endpoint(
     query_filter: Option<&QueryFilter>,
     timeout: Duration,
 ) -> Result<Device, anyhow::Error> {
-    let endpoint = format!("coap://{}:5683{}", ip_address, build_path(query_filter));
+    let endpoint = format!(
+        "{}{}:{}{}",
+        COAP_PREFIX,
+        ip_address,
+        COAP_PORT,
+        build_path(query_filter)
+    );
 
-    info!("Discovering resources on endpoint {}", endpoint);
+    info!("discover - discovering resources on endpoint {}", endpoint);
 
     let response = coap_client.get_with_timeout(endpoint.as_str(), timeout);
 
@@ -146,7 +164,10 @@ fn discover_endpoint(
         Ok(response) => {
             let payload = String::from_utf8(response.message.payload)
                 .expect("Received payload is not a string");
-            info!("Device responded with {}", payload);
+            info!(
+                "discover - device {} responded to unicast request with {}",
+                ip_address, payload
+            );
 
             let parsed = parse_payload(ip_address, query_filter, &payload);
 
@@ -184,7 +205,7 @@ fn discover_multicast(
         let payload =
             String::from_utf8(response.message.payload).expect("Received payload is not a string");
         info!(
-            "Device {} responded multicast with payload {}",
+            "discover - device {} responded to the multicast request with payload {}",
             ip_addr, payload
         );
 

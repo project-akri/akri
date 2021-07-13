@@ -59,10 +59,6 @@ The Akri Configuration defines a list of IP addresses to use for resource discov
 
 The current implementation would need a controller to accept queries about available resources and return the name of the Broker's service which can communicate to the device. The device is listed as a generic `akri.sh/coap-021dd7` resource on the node, which is too generic to be useful by any application. A better label would be `akri.sh/oic.r.temperature-021dd7`, the discovered resource. This would allow using the K8s controller for scheduling pods that need the resource.
 
-- Is there any way to avoid coupling a CoAP device to any node?
-
-Akri deploys an agent to each cluster node and each agent has a running CoAP discovery handler. This behaviour results in a single CoAP device being discovered by multiple nodes and listed as multiple virtual CoAP devices. An immediate consequence is that the discovery handlers overflow the device with discovery requests, which causes the device to use more energy and maybe incur in concurrency issues, especially in the case of real-time devices.
-
 ## Feature Requests
 
 - [x] Support multicast discovery in the discovery handler

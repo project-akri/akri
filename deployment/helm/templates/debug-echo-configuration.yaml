@@ -28,8 +28,6 @@ spec:
           cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuRequest }}
         limits:
           {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryLimit }}
-          cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuLimit }}
     {{- with .Values.imagePullSecrets }}
     imagePullSecrets:
       {{- toYaml . | nindent 6 }}
