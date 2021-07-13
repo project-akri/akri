@@ -276,3 +276,213 @@ fn build_path(query_filter: Option<&QueryFilter>) -> String {
         String::from("/well-known/core")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    use super::super::discovery_utils::MockCoAPClient;
+    use super::*;
+    use akri_discovery_utils::discovery::v0::DiscoverRequest;
+    use akri_shared::akri::configuration::DiscoveryHandlerInfo;
+    use coap_lite::{CoapResponse, MessageType, Packet};
+    use mockall::predicate::eq;
+
+    fn create_core_response() -> CoapResponse {
+        let mut request = Packet::new();
+        request.header.set_type(MessageType::Confirmable);
+
+        let mut response = CoapResponse::new(&request).unwrap();
+
+        response.message.payload = br#"</sensors/temp>;rt="oic.r.temperature";if="sensor",
+                </sensors/light>;rt="oic.r.light.brightness";if="sensor""#
+            .to_vec();
+
+        response
+    }
+
+    fn configure_unicast_response(mock: &mut MockCoAPClient, timeout: Duration) {
+        mock.expect_get_with_timeout()
+            .withf(move |_url, tm| *tm == timeout)
+            .returning(|_url, _timeout| Ok(create_core_response()));
+    }
+
+    #[tokio::test]
+    async fn test_basic_discover_ok() {
+        // Set node name for generating instance id
+        std::env::set_var("AGENT_NODE_NAME", "node-1");
+        let mut mock_coap_client = MockCoAPClient::new();
+        let timeout = Duration::from_secs(5);
+        configure_unicast_response(&mut mock_coap_client, timeout);
+
+        let coap_yaml = r#"
+          name: coap
+          discoveryDetails: |+
+              multicast: false
+              multicastIpAddress: 224.0.1.187
+              staticIpAddresses: []
+              discoveryTimeoutSeconds: 10
+        "#;
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&coap_yaml).unwrap();
+        let (register_sender, _register_receiver) = tokio::sync::mpsc::channel(2);
+        let discovery_handler = DiscoveryHandlerImpl::new(register_sender);
+
+        let discover_request = tonic::Request::new(DiscoverRequest {
+            discovery_details: deserialized.discovery_details.clone(),
+        });
+        let mut stream = discovery_handler
+            .discover(discover_request)
+            .await
+            .unwrap()
+            .into_inner();
+        let devices = stream.recv().await.unwrap().unwrap().devices;
+
+        assert_eq!(0, devices.len());
+    }
+
+    #[tokio::test]
+    async fn test_discover_resources_via_ip_addresses() {
+        // Set node name for generating instance id
+        std::env::set_var("AGENT_NODE_NAME", "node-1");
+        let mut mock_coap_client = MockCoAPClient::new();
+        let timeout = Duration::from_secs(5);
+        configure_unicast_response(&mut mock_coap_client, timeout);
+
+        let ip_address = String::from("127.0.0.1");
+        let query_filter = None;
+        let result = discover_endpoint(
+            &mock_coap_client,
+            &ip_address,
+            query_filter.as_ref(),
+            timeout,
+        )
+        .unwrap();
+
+        assert_eq!(
+            result.properties.get(COAP_IP_LABEL_ID),
+            Some(&"127.0.0.1".to_string())
+        );
+        assert_eq!(
+            result.properties.get(COAP_RESOURCE_TYPES_LABEL_ID),
+            Some(&"oic.r.temperature,oic.r.light.brightness".to_string())
+        );
+        assert_eq!(
+            result.properties.get("oic.r.temperature"),
+            Some(&"/sensors/temp".to_string())
+        );
+        assert_eq!(
+            result.properties.get("oic.r.light.brightness"),
+            Some(&"/sensors/light".to_string())
+        );
+    }
+
+    fn configure_multicast_scenario(mock: &mut MockCoAPClient, timeout: Duration) {
+        mock.expect_send_all_coap()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock.expect_set_receive_timeout()
+            .with(eq(Some(timeout)))
+            .returning(|_| Ok(()));
+
+        let mut count = 0;
+
+        // Receive response from 2 devices then time out
+        mock.expect_receive_from().times(3).returning(move || {
+            count += 1;
+
+            let response = create_core_response();
+            let src = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 5683);
+
+            if count <= 2 {
+                Ok((response, src))
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "Timed out",
+                ))
+            }
+        });
+    }
+
+    #[tokio::test]
+    async fn test_discover_resources_via_multicast() {
+        // Set node name for generating instance id
+        std::env::set_var("AGENT_NODE_NAME", "node-1");
+        let mut mock_coap_client = MockCoAPClient::new();
+        let timeout = Duration::from_secs(1);
+        configure_multicast_scenario(&mut mock_coap_client, timeout.clone());
+
+        let query_filter = None;
+        let results =
+            discover_multicast(&mock_coap_client, query_filter.as_ref(), timeout.clone()).unwrap();
+
+        assert_eq!(results.len(), 2);
+    }
+
+    fn configure_query_filter_response(mock: &mut MockCoAPClient, query: &str) {
+        let pattern = format!("?{}", query);
+
+        mock.expect_get_with_timeout()
+            .withf(move |url, _tm| url.ends_with(pattern.as_str()))
+            // It's okay for the response to be the same CoRE response, devices are not required to
+            // support filtering
+            .returning(|_url, _timeout| Ok(create_core_response()));
+    }
+
+    #[tokio::test]
+    async fn test_query_filtering_href() {
+        // Set node name for generating instance id
+        std::env::set_var("AGENT_NODE_NAME", "node-1");
+        let mut mock_coap_client = MockCoAPClient::new();
+        let timeout = Duration::from_secs(5);
+        configure_query_filter_response(&mut mock_coap_client, "href=/sensors/temp");
+
+        let ip_address = String::from("127.0.0.1");
+        let query_filter = Some(QueryFilter {
+            name: String::from("href"),
+            value: String::from("/sensors/temp"),
+        });
+        let result = discover_endpoint(
+            &mock_coap_client,
+            &ip_address,
+            query_filter.as_ref(),
+            timeout,
+        )
+        .unwrap();
+
+        assert_eq!(
+            result.properties.get("oic.r.temperature"),
+            Some(&"/sensors/temp".to_string())
+        );
+        assert_eq!(result.properties.get("oic.r.light.brightness"), None);
+    }
+
+    #[tokio::test]
+    async fn test_query_filtering_resource_types() {
+        // Set node name for generating instance id
+        std::env::set_var("AGENT_NODE_NAME", "node-1");
+        let mut mock_coap_client = MockCoAPClient::new();
+        let timeout = Duration::from_secs(5);
+        configure_query_filter_response(&mut mock_coap_client, "rt=oic.r.temperature");
+
+        let ip_address = String::from("127.0.0.1");
+        let query_filter = Some(QueryFilter {
+            name: String::from("rt"),
+            value: String::from("oic.r.temperature"),
+        });
+        let result = discover_endpoint(
+            &mock_coap_client,
+            &ip_address,
+            query_filter.as_ref(),
+            timeout,
+        )
+        .unwrap();
+
+        assert_eq!(
+            result.properties.get("oic.r.temperature"),
+            Some(&"/sensors/temp".to_string())
+        );
+        assert_eq!(result.properties.get("oic.r.light.brightness"), None);
+    }
+}

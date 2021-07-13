@@ -1031,6 +1031,7 @@ name = "coap-discovery-handler"
 version = "0.6.8"
 dependencies = [
  "akri-discovery-utils",
+ "akri-shared",
  "anyhow",
  "async-trait",
  "coap",
@@ -1041,6 +1042,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "serde_yaml",
  "tokio 0.2.25",
  "tonic",
 ]
