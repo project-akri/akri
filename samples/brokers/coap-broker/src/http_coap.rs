@@ -31,9 +31,7 @@ fn coap_code_to_http_code(coap_code: MessageClass) -> u16 {
     let class = binary_code >> 5;
     let class_type = binary_code & 0b00011111;
 
-    let http_code = (class as u16) * 100 + (class_type as u16);
-
-    http_code
+    (class as u16) * 100 + (class_type as u16)
 }
 
 fn content_format_to_content_type(content_format: ContentFormat) -> String {

@@ -57,10 +57,10 @@ async fn handle_proxy(req: FullPath, state: Arc<AppState>) -> Result<impl Reply,
             // Save the response to the cache only if the response is 205 Content
             // See RFC 7252 Ch. 5.9 for cachable responses.
             if coap_status_code == MessageClass::Response(ResponseType::Content) {
-                debug!("Saving response of {} to cache", path.clone());
+                debug!("Saving response of {} to cache", path);
 
                 let mut cache = state.cache.lock().unwrap();
-                cache.insert(path.to_string(), response.message.clone());
+                cache.insert(path.to_string(), response.message);
             }
 
             Ok(proxy_res)
@@ -213,21 +213,25 @@ struct AppState {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let env_var_query = ActualEnvVarQuery {};
     let device_ip = get_device_ip(&env_var_query);
     let resource_types = get_resources_types(&env_var_query);
-    let resource_uris: Vec<String> = resource_types
-        .iter()
-        .map(|rtype| get_resource_uri(&env_var_query, rtype))
-        .collect();
+    let resource_uris: Vec<String> = resource_types.and_then(|resource_types| {
+        info!(
+            "main - found device IP {} with resource types {:?}",
+            device_ip, resource_types
+        );
 
-    info!(
-        "main - found device IP {} with resource types {:?}",
-        device_ip, resource_types
-    );
+        let uris: anyhow::Result<Vec<String>> = resource_types
+            .iter()
+            .map(|rtype| get_resource_uri(&env_var_query, rtype))
+            .collect();
+
+        uris
+    })?;
 
     let state = Arc::new(AppState {
         ip_address: device_ip,
@@ -261,6 +265,8 @@ async fn main() {
     let routes = health.or(stream).or(proxy).with(warp::log("api"));
 
     warp::serve(routes).run(([0, 0, 0, 0], 8083)).await;
+
+    Ok(())
 }
 
 fn with_state(
@@ -277,23 +283,24 @@ fn get_device_ip(env_var_query: &impl EnvVarQuery) -> String {
     ip_address
 }
 
-fn get_resources_types(env_var_query: &impl EnvVarQuery) -> Vec<String> {
-    let types_string: String = env_var_query
+fn get_resources_types(env_var_query: &impl EnvVarQuery) -> anyhow::Result<Vec<String>> {
+    let types_string: anyhow::Result<String> = env_var_query
         .get_env_var(COAP_RESOURCE_TYPES_LABEL_ID)
-        .expect("Device resource types not set in environment variable");
-    let resource_types: Vec<String> = types_string.split(",").map(|s| s.to_string()).collect();
+        .map_err(|_e| anyhow::anyhow!("Device resource types not set in environment variable"));
+    let resource_types: anyhow::Result<Vec<String>> =
+        types_string.map(|types_string| types_string.split(',').map(|s| s.to_string()).collect());
 
     resource_types
 }
 
-fn get_resource_uri(env_var_query: &impl EnvVarQuery, resource_type: &str) -> String {
-    let value = env_var_query.get_env_var(resource_type).expect(
-        format!(
+fn get_resource_uri(
+    env_var_query: &impl EnvVarQuery,
+    resource_type: &str,
+) -> anyhow::Result<String> {
+    env_var_query.get_env_var(resource_type).map_err(|_e| {
+        anyhow::anyhow!(
             "Device resource URI for type {} not set in environment variable",
             resource_type
         )
-        .as_str(),
-    );
-
-    value
+    })
 }
