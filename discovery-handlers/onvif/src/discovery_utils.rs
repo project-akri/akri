@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use futures_util::stream::TryStreamExt;
 use hyper::Request;
-use log::trace;
+use log::{error, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 use std::io::{Error, ErrorKind};
@@ -36,6 +36,7 @@ pub trait OnvifQuery {
         url: &str,
         profile_token: &str,
     ) -> Result<String, anyhow::Error>;
+    async fn is_device_responding(&self, url: &str) -> Result<(), anyhow::Error>;
 }
 
 pub struct OnvifQueryImpl {}
@@ -81,6 +82,13 @@ impl OnvifQuery for OnvifQueryImpl {
     ) -> Result<String, anyhow::Error> {
         let http = HttpRequest {};
         inner_get_device_profile_streaming_uri(url, profile_token, &http).await
+    }
+
+    /// Calls the publically accessible GetSystemDateAndTime endpoint to determine
+    /// that the camera is responsive
+    async fn is_device_responding(&self, url: &str) -> Result<(), anyhow::Error> {
+        let http = HttpRequest {};
+        inner_is_device_responding(url, &http).await
     }
 }
 
@@ -135,9 +143,17 @@ impl Http for HttpRequest {
             .header("CONTENT-TYPE", full_mime)
             .body(msg.to_string().into())
             .expect("infallible");
-        let response = hyper::Client::new().request(request).await.unwrap();
+        // terminate a request if it takes over a second
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            hyper::Client::new().request(request),
+        )
+        .await??;
         if response.status() != 200 {
-            return Err(anyhow::format_err!("failure"));
+            return Err(anyhow::format_err!(
+                "Received a response status of {}, expected 200",
+                response.status()
+            ));
         }
         let response_body = response
             .into_body()
@@ -151,7 +167,7 @@ impl Http for HttpRequest {
         match HttpRequest::handle_request_body(&response_body_str) {
             Ok(dom) => Ok(dom),
             Err(e) => {
-                trace!(
+                error!(
                     "post - failure to handle response: {:?}",
                     &response_body_str
                 );
@@ -400,12 +416,23 @@ async fn inner_get_device_profile_streaming_uri(
             Ok(stream) => stream.string(),
             Err(e) => {
                 return Err(anyhow::format_err!(
-                    "failed to get servuce uri from resoinse: {:?}",
+                    "failed to get service uri from response: {:?}",
                     e
                 ))
             }
         };
     Ok(stream_uri)
+}
+
+/// Gets the streaming uri for a given profile for an ONVIF camera
+async fn inner_is_device_responding(url: &str, http: &impl Http) -> Result<(), anyhow::Error> {
+    http.post(
+        &url,
+        &get_action(DEVICE_WSDL, "GetSystemDateAndTime"),
+        &GET_SYSTEM_DATE_AND_TIME_TEMPLATE.to_string(),
+    )
+    .await?;
+    Ok(())
 }
 
 /// Gets SOAP request body for getting the streaming uri for a specific profile for an ONVIF camera
@@ -444,12 +471,12 @@ const GET_PROFILES_TEMPLATE: &str = r#"<soap:Envelope xmlns:soap="http://www.w3.
 //         </soap:Body>
 //     </soap:Envelope>"#;
 
-//  const GET_HOSTNAME_TEMPLATE: &str = r#"<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsdl="http://www.onvif.org/ver10/device/wsdl">
-//     <soap:Header/>
-//         <soap:Body>
-//             <wsdl:GetHostname/>
-//         </soap:Body>
-//     </soap:Envelope>"#;
+const GET_SYSTEM_DATE_AND_TIME_TEMPLATE: &str = r#"<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsdl="http://www.onvif.org/ver10/device/wsdl">
+    <soap:Header/>
+        <soap:Body>
+            <wsdl:GetSystemDateAndTime/>
+        </soap:Body>
+    </soap:Envelope>"#;
 
 #[cfg(test)]
 mod tests {
@@ -647,6 +674,29 @@ mod tests {
                 .unwrap()
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_inner_is_device_responding() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut mock = MockHttp::new();
+        // empty response since do not check contents only successful response
+        let empty_response = "<tds:GetSystemDateAndTimeResponse xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\"></tds:GetSystemDateAndTimeResponse>";
+        let response = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body>{}</SOAP-ENV:Body></SOAP-ENV:Envelope>", empty_response);
+        configure_post(
+            &mut mock,
+            &"test_inner_is_device_responding-url".to_string(),
+            &get_action(DEVICE_WSDL, "GetSystemDateAndTime"),
+            &GET_SYSTEM_DATE_AND_TIME_TEMPLATE.to_string(),
+            &response,
+        );
+        assert!(inner_is_device_responding(
+            &"test_inner_is_device_responding-url".to_string(),
+            &mock
+        )
+        .await
+        .is_ok());
     }
 
     #[test]
