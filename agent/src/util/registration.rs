@@ -466,4 +466,43 @@ mod tests {
             DiscoveryHandlerEndpoint::Network("http://10.1.2.3:1000".to_string())
         );
     }
+
+    #[test]
+    fn test_case_insensitive_discovery_handler_map() {
+        let mut seq = mockall::Sequence::new();
+        // Enable debug echo and set environment variable to set whether debug echo instances are shared
+        let mut mock_env_var = MockEnvVarQuery::new();
+        mock_env_var
+            .expect_get_env_var()
+            .times(1)
+            .withf(|label: &str| label == ENABLE_DEBUG_ECHO_LABEL)
+            .in_sequence(&mut seq)
+            .returning(|_| Ok("1".to_string()));
+        mock_env_var
+            .expect_get_env_var()
+            .times(1)
+            .withf(|label: &str| label == akri_debug_echo::DEBUG_ECHO_INSTANCES_SHARED_LABEL)
+            .in_sequence(&mut seq)
+            .returning(|_| Ok("false".to_string()));
+        // Register embedded discovery handlers to map
+        let discovery_handler_map = Arc::new(Mutex::new(CaseInsensitiveHashMap::new()));
+        inner_register_embedded_discovery_handlers(discovery_handler_map.clone(), &mock_env_var)
+            .unwrap();
+        // Test that discovery handler map key is case insensitive
+        assert!(discovery_handler_map
+            .lock()
+            .unwrap()
+            .get("debugEcho")
+            .is_some());
+        assert!(discovery_handler_map
+            .lock()
+            .unwrap()
+            .get("debugecho")
+            .is_some());
+        assert!(discovery_handler_map
+            .lock()
+            .unwrap()
+            .get("DEBUGECHO")
+            .is_some());
+    }
 }
