@@ -99,7 +99,7 @@ impl DiscoveryOperator {
     pub async fn stop_all_discovery(&self) {
         let mut discovery_handler_map = self.discovery_handler_map.lock().unwrap().clone();
         if let Some(discovery_handler_details_map) =
-            discovery_handler_map.get_mut(&self.config.spec.discovery_handler.name)
+            discovery_handler_map.get_mut(self.config.spec.discovery_handler.name.clone())
         {
             for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 match dh_details.close_discovery_handler_connection.send(()) {
@@ -251,7 +251,7 @@ impl DiscoveryOperator {
         trace!("set_discovery_handler_connectivity_status - set status of {:?} for {} discovery handler at endpoint {:?}", connectivity_status, self.config.spec.discovery_handler.name, endpoint);
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
         let discovery_handler_details_map = registered_dh_map
-            .get_mut(&self.config.spec.discovery_handler.name)
+            .get_mut(self.config.spec.discovery_handler.name.clone())
             .unwrap();
         let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         dh_details.connectivity_status = connectivity_status;
@@ -271,7 +271,7 @@ impl DiscoveryOperator {
         let mut deregistered = false;
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
         let discovery_handler_details_map = registered_dh_map
-            .get_mut(&self.config.spec.discovery_handler.name)
+            .get_mut(self.config.spec.discovery_handler.name.clone())
             .unwrap();
         let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         match dh_details.connectivity_status {
@@ -645,9 +645,10 @@ pub mod start_discovery {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut discovery_tasks = Vec::new();
         let config = discovery_operator.get_config();
+        let discovery_handler_name = config.spec.discovery_handler.name.clone();
         trace!(
             "do_discover - entered for {} discovery handler",
-            config.spec.discovery_handler.name
+            discovery_handler_name
         );
         // get clone of map
         let mut discovery_handler_map = discovery_operator
@@ -660,7 +661,7 @@ pub mod start_discovery {
             discovery_handler_map
         );
         if let Some(discovery_handler_details_map) =
-            discovery_handler_map.get_mut(&config.spec.discovery_handler.name)
+            discovery_handler_map.get_mut(discovery_handler_name)
         {
             for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 trace!(
