@@ -10,6 +10,7 @@ use akri_shared::{
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
     uds::unix_stream,
 };
+use case_insensitive_hashmap::CaseInsensitiveHashMap;
 use futures::TryStreamExt;
 #[cfg(test)]
 use mock_instant::Instant;
@@ -24,10 +25,10 @@ use tonic::{transport::Server, Request, Response, Status};
 /// Discovery Handler and value is `DiscoveryDetails`.
 pub type DiscoveryHandlerDetailsMap = HashMap<DiscoveryHandlerEndpoint, DiscoveryDetails>;
 
-/// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name and value is a map of all
-/// `DiscoveryHandlers` with that name.
+/// Map of all registered `DiscoveryHandlers` where key is `DiscoveryHandler` name (case insensitive) and value is
+///  a map of all `DiscoveryHandlers` with that name.
 pub type RegisteredDiscoveryHandlerMap =
-    Arc<Mutex<HashMap<DiscoveryHandlerName, DiscoveryHandlerDetailsMap>>>;
+    Arc<Mutex<CaseInsensitiveHashMap<DiscoveryHandlerDetailsMap>>>;
 
 /// Alias illustrating that `AgentRegistration.new_discovery_handler_sender`, sends the Discovery Handler name of the
 /// newly registered Discovery Handler.
@@ -135,7 +136,7 @@ impl Registration for AgentRegistration {
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
         // Check if any DiscoveryHandlers have been registered under this name
-        if let Some(register_request_map) = registered_discovery_handlers.get_mut(&dh_name) {
+        if let Some(register_request_map) = registered_discovery_handlers.get_mut(dh_name.clone()) {
             if let Some(dh_details) = register_request_map.get(&dh_endpoint) {
                 // Check if DH at that endpoint is already registered but changed request
                 if dh_details.shared != req.shared || dh_details.endpoint != dh_endpoint {

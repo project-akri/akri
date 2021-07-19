@@ -9,10 +9,10 @@ extern crate tokio_core;
 mod util;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use case_insensitive_hashmap::CaseInsensitiveHashMap;
 use log::{info, trace};
 use prometheus::{HistogramVec, IntGaugeVec};
 use std::{
-    collections::HashMap,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         run_metrics_server().await.unwrap();
     }));
 
-    let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+    let discovery_handler_map = Arc::new(Mutex::new(CaseInsensitiveHashMap::new()));
     let discovery_handler_map_clone = discovery_handler_map.clone();
     let (new_discovery_handler_sender, _): (
         broadcast::Sender<DiscoveryHandlerName>,
