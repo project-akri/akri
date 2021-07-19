@@ -864,6 +864,7 @@ pub mod tests {
     use akri_shared::{
         akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
+    use case_insensitive_hashmap::CaseInsensitiveHashMap;
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
     use std::time::Duration;
@@ -994,7 +995,7 @@ pub mod tests {
     }
 
     fn setup_test_do_discover() -> (MockDiscoveryOperator, RegisteredDiscoveryHandlerMap) {
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         add_discovery_handler_to_map(
             "debugEcho",
             &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()),
@@ -1040,7 +1041,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_stop_all_discovery() {
         let dh_name = "debugEcho";
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         let endpoint1 = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
         add_discovery_handler_to_map(dh_name, &endpoint1, false, discovery_handler_map.clone());
         let mut close_discovery_handler_connection_receiver1 = discovery_handler_map
@@ -1227,7 +1228,7 @@ pub mod tests {
         let mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
             Arc::new(Box::new(MockKubeInterface::new()));
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
-            Arc::new(std::sync::Mutex::new(HashMap::new()));
+            Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
@@ -1328,7 +1329,7 @@ pub mod tests {
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
-            Arc::new(std::sync::Mutex::new(HashMap::new()));
+            Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         let mut visible_discovery_results = Vec::new();
 
         // Assert no action (to delete instances by mock kube interface) is taken for all online instances
@@ -1412,7 +1413,7 @@ pub mod tests {
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
-            Arc::new(std::sync::Mutex::new(HashMap::new()));
+            Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         let discovery_handler_map_clone = discovery_handler_map.clone();
         // set environment variable to set whether debug echo instances are shared
         let mut mock_env_var_shared = MockEnvVarQuery::new();
@@ -1584,7 +1585,7 @@ pub mod tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         add_discovery_handler_to_map(dh_name, endpoint, false, discovery_handler_map.clone());
         DiscoveryOperator::new(
             discovery_handler_map,
@@ -1685,7 +1686,7 @@ pub mod tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();
         add_discovery_handler_to_map(&dh_name, &endpoint, false, discovery_handler_map.clone());

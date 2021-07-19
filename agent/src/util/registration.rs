@@ -309,7 +309,7 @@ mod tests {
             .withf(|label: &str| label == akri_debug_echo::DEBUG_ECHO_INSTANCES_SHARED_LABEL)
             .in_sequence(&mut seq)
             .returning(|_| Ok("false".to_string()));
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(Mutex::new(CaseInsensitiveHashMap::new()));
         inner_register_embedded_discovery_handlers(discovery_handler_map.clone(), &mock_env_var)
             .unwrap();
         assert!(discovery_handler_map
@@ -333,7 +333,7 @@ mod tests {
             .times(1)
             .withf(|label: &str| label == ENABLE_DEBUG_ECHO_LABEL)
             .returning(|_| Err(std::env::VarError::NotPresent));
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(Mutex::new(CaseInsensitiveHashMap::new()));
         inner_register_embedded_discovery_handlers(discovery_handler_map.clone(), &mock_env_var)
             .unwrap();
         assert!(discovery_handler_map
@@ -355,7 +355,7 @@ mod tests {
             registration_socket_path.to_str().unwrap().to_string();
         let (new_discovery_handler_sender, mut new_discovery_handler_receiver) =
             broadcast::channel(4);
-        let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(Mutex::new(CaseInsensitiveHashMap::new()));
         let thread_discovery_handler_map = discovery_handler_map.clone();
 
         // Run registration service

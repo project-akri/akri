@@ -318,6 +318,7 @@ mod config_action_tests {
     use super::*;
     use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
     use akri_shared::{akri::configuration::KubeAkriConfig, k8s::MockKubeInterface};
+    use case_insensitive_hashmap::CaseInsensitiveHashMap;
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
 
@@ -490,7 +491,7 @@ mod config_action_tests {
 
         // Add Discovery Handler to map
         let dh_name = "debugEcho";
-        let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let discovery_handler_map = Arc::new(std::sync::Mutex::new(CaseInsensitiveHashMap::new()));
         add_discovery_handler_to_map(dh_name, &dh_endpoint, false, discovery_handler_map.clone());
 
         // Set up, run, and test handle_config_add
