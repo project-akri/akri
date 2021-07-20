@@ -7,10 +7,10 @@ use akri_discovery_utils::discovery::v0::{
     Empty, RegisterDiscoveryHandlerRequest,
 };
 use akri_shared::{
+    akri::case_insensitive_hashmap::CaseInsensitiveHashMap,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
     uds::unix_stream,
 };
-use case_insensitive_hashmap::CaseInsensitiveHashMap;
 use futures::TryStreamExt;
 #[cfg(test)]
 use mock_instant::Instant;
@@ -136,7 +136,7 @@ impl Registration for AgentRegistration {
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
         // Check if any DiscoveryHandlers have been registered under this name
-        if let Some(register_request_map) = registered_discovery_handlers.get_mut(dh_name.clone()) {
+        if let Some(register_request_map) = registered_discovery_handlers.get_mut(&dh_name) {
             if let Some(dh_details) = register_request_map.get(&dh_endpoint) {
                 // Check if DH at that endpoint is already registered but changed request
                 if dh_details.shared != req.shared || dh_details.endpoint != dh_endpoint {
@@ -158,7 +158,7 @@ impl Registration for AgentRegistration {
             // First Discovery Handler registered under this name
             let mut register_request_map = HashMap::new();
             register_request_map.insert(dh_endpoint, discovery_handler_details);
-            registered_discovery_handlers.insert(dh_name.clone(), register_request_map);
+            registered_discovery_handlers.insert(&dh_name, register_request_map);
         }
         // Notify of new Discovery Handler
         if self
@@ -277,7 +277,7 @@ pub fn inner_register_embedded_discovery_handlers(
         discovery_handler_map
             .lock()
             .unwrap()
-            .insert(name, register_request_map);
+            .insert(&name, register_request_map);
     });
     Ok(())
 }
@@ -504,5 +504,10 @@ mod tests {
             .unwrap()
             .get("DEBUGECHO")
             .is_some());
+        assert!(discovery_handler_map
+            .lock()
+            .unwrap()
+            .get("debug_Echo")
+            .is_none());
     }
 }

@@ -8,8 +8,9 @@ extern crate serde_derive;
 extern crate tokio_core;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
-use case_insensitive_hashmap::CaseInsensitiveHashMap;
+use akri_shared::akri::{
+    case_insensitive_hashmap::CaseInsensitiveHashMap, metrics::run_metrics_server, API_NAMESPACE,
+};
 use log::{info, trace};
 use prometheus::{HistogramVec, IntGaugeVec};
 use std::{

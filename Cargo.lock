@@ -343,7 +343,6 @@ dependencies = [
  "async-stream",
  "async-trait",
  "blake2",
- "case_insensitive_hashmap",
  "cfg-if 1.0.0",
  "chrono",
  "env_logger",
@@ -372,6 +371,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tower",
+ "unicase",
  "url 2.2.2",
  "uuid",
 ]
@@ -501,6 +501,7 @@ dependencies = [
  "tokio-signal",
  "tonic",
  "tower",
+ "unicase",
  "warp",
 ]
 
@@ -917,15 +918,6 @@ name = "cache-padded"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "631ae5198c9be5e753e5cc215e1bd73c2b466a3565173db433f52bb9d3e66dba"
-
-[[package]]
-name = "case_insensitive_hashmap"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc8a3bc53bf02f78dedee7bfb0465a52dac5342fb173d92f0341624322d15592"
-dependencies = [
- "unicase",
-]
 
 [[package]]
 name = "cc"

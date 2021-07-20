@@ -317,8 +317,10 @@ mod config_action_tests {
     };
     use super::*;
     use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
-    use akri_shared::{akri::configuration::KubeAkriConfig, k8s::MockKubeInterface};
-    use case_insensitive_hashmap::CaseInsensitiveHashMap;
+    use akri_shared::{
+        akri::{case_insensitive_hashmap::CaseInsensitiveHashMap, configuration::KubeAkriConfig},
+        k8s::MockKubeInterface,
+    };
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
 
@@ -447,7 +449,7 @@ mod config_action_tests {
         while x < 5 {
             tokio::time::delay_for(std::time::Duration::from_millis(200)).await;
             let dh_map = discovery_handler_map.lock().unwrap();
-            if let Some(dh_details_map) = dh_map.get(dh_name) {
+            if let Some(dh_details_map) = dh_map.get(&dh_name) {
                 if dh_details_map.get(dh_endpoint).unwrap().connectivity_status == dh_status {
                     break;
                 }

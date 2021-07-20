@@ -99,7 +99,7 @@ impl DiscoveryOperator {
     pub async fn stop_all_discovery(&self) {
         let mut discovery_handler_map = self.discovery_handler_map.lock().unwrap().clone();
         if let Some(discovery_handler_details_map) =
-            discovery_handler_map.get_mut(self.config.spec.discovery_handler.name.clone())
+            discovery_handler_map.get_mut(&self.config.spec.discovery_handler.name)
         {
             for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 match dh_details.close_discovery_handler_connection.send(()) {
@@ -251,7 +251,7 @@ impl DiscoveryOperator {
         trace!("set_discovery_handler_connectivity_status - set status of {:?} for {} discovery handler at endpoint {:?}", connectivity_status, self.config.spec.discovery_handler.name, endpoint);
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
         let discovery_handler_details_map = registered_dh_map
-            .get_mut(self.config.spec.discovery_handler.name.clone())
+            .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
         let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         dh_details.connectivity_status = connectivity_status;
@@ -271,7 +271,7 @@ impl DiscoveryOperator {
         let mut deregistered = false;
         let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
         let discovery_handler_details_map = registered_dh_map
-            .get_mut(self.config.spec.discovery_handler.name.clone())
+            .get_mut(&self.config.spec.discovery_handler.name)
             .unwrap();
         let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
         match dh_details.connectivity_status {
@@ -645,7 +645,7 @@ pub mod start_discovery {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut discovery_tasks = Vec::new();
         let config = discovery_operator.get_config();
-        let discovery_handler_name = config.spec.discovery_handler.name.clone();
+        let discovery_handler_name = config.spec.discovery_handler.name;
         trace!(
             "do_discover - entered for {} discovery handler",
             discovery_handler_name
@@ -661,19 +661,19 @@ pub mod start_discovery {
             discovery_handler_map
         );
         if let Some(discovery_handler_details_map) =
-            discovery_handler_map.get_mut(discovery_handler_name)
+            discovery_handler_map.get_mut(&discovery_handler_name)
         {
             for (endpoint, dh_details) in discovery_handler_details_map.clone() {
                 trace!(
                     "do_discover - for {} discovery handler at endpoint {:?}",
-                    config.spec.discovery_handler.name,
+                    discovery_handler_name,
                     endpoint
                 );
                 // Only use DiscoveryHandler if it doesn't have a client yet
                 if dh_details.connectivity_status != DiscoveryHandlerStatus::Active {
                     trace!(
                         "do_discover - {} discovery handler at endpoint {:?} doesn't have client",
-                        config.spec.discovery_handler.name,
+                        discovery_handler_name,
                         endpoint
                     );
                     let discovery_operator = discovery_operator.clone();
@@ -862,9 +862,10 @@ pub mod tests {
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
-        akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
+        akri::{case_insensitive_hashmap::CaseInsensitiveHashMap, configuration::KubeAkriConfig},
+        k8s::MockKubeInterface,
+        os::env_var::MockEnvVarQuery,
     };
-    use case_insensitive_hashmap::CaseInsensitiveHashMap;
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
     use std::time::Duration;
@@ -976,7 +977,7 @@ pub mod tests {
         registered_dh_map
             .lock()
             .unwrap()
-            .insert(dh_name.to_string(), dh_details_map);
+            .insert(dh_name, dh_details_map);
     }
 
     fn create_discovery_handler_details(
