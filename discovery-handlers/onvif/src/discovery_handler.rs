@@ -73,14 +73,14 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         tokio::spawn(async move {
-            let mut prev_cameras = Vec::new();
+            let mut previous_cameras = Vec::new();
             let mut filtered_camera_devices = HashMap::new();
             loop {
                 let mut changed_camera_list = false;
                 let onvif_query = OnvifQueryImpl {};
 
                 trace!("discover - filters:{:?}", &discovery_handler_config,);
-                let mut socket = util::get_socket().await.unwrap();
+                let mut socket = util::get_discovery_response_socket().await.unwrap();
                 let latest_cameras = util::simple_onvif_discover(
                     &mut socket,
                     discovery_handler_config.scopes.as_ref(),
@@ -90,27 +90,30 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 .unwrap();
                 trace!("discover - discovered:{:?}", &latest_cameras);
                 // Remove cameras that have gone offline
-                prev_cameras.iter().for_each(|c| {
+                previous_cameras.iter().for_each(|c| {
                     if !latest_cameras.contains(c) {
                         changed_camera_list = true;
                         filtered_camera_devices.remove(c);
                     }
                 });
 
+                let futures: Vec<_> = latest_cameras
+                    .iter()
+                    .filter(|c| !previous_cameras.contains(c))
+                    .map(|c| apply_filters(&discovery_handler_config, &c, &onvif_query))
+                    .collect();
+                let options = futures_util::future::join_all(futures).await;
                 // Insert newly discovered camera that are not filtered out
-                for c in &latest_cameras {
-                    if !prev_cameras.contains(c) {
-                        if let Some(device) =
-                            apply_filters(&discovery_handler_config, &c, &onvif_query).await
-                        {
-                            changed_camera_list = true;
-                            filtered_camera_devices.insert(c.clone(), device);
-                        }
+                options.into_iter().for_each(|o| {
+                    if let Some((service_url, d)) = o {
+                        changed_camera_list = true;
+                        filtered_camera_devices.insert(service_url, d);
                     }
-                }
-                prev_cameras = latest_cameras;
+                });
+
                 if changed_camera_list {
                     info!("discover - sending updated device list");
+                    previous_cameras = latest_cameras;
                     if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
                             devices: filtered_camera_devices.values().cloned().collect(),
@@ -138,7 +141,7 @@ async fn apply_filters(
     discovery_handler_config: &OnvifDiscoveryDetails,
     device_service_uri: &str,
     onvif_query: &impl OnvifQuery,
-) -> Option<Device> {
+) -> Option<(String, Device)> {
     info!("apply_filters - device service url {}", device_service_uri);
     let (ip_address, mac_address) = match onvif_query
         .get_device_ip_and_mac_address(&device_service_uri)
@@ -177,12 +180,15 @@ async fn apply_filters(
     properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip_address);
     properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac_address);
 
-    Some(Device {
-        id: ip_and_mac_joined,
-        properties,
-        mounts: Vec::default(),
-        device_specs: Vec::default(),
-    })
+    Some((
+        device_service_uri.to_string(),
+        Device {
+            id: ip_and_mac_joined,
+            properties,
+            mounts: Vec::default(),
+            device_specs: Vec::default(),
+        },
+    ))
 }
 
 #[cfg(test)]
@@ -220,7 +226,7 @@ mod tests {
             .returning(move |_| Ok((ip.to_string(), mac.to_string())));
     }
 
-    fn expected_device(uri: &str, ip: &str, mac: &str) -> Device {
+    fn expected_device(uri: &str, ip: &str, mac: &str) -> (String, Device) {
         let mut properties = HashMap::new();
         properties.insert(
             ONVIF_DEVICE_SERVICE_URL_LABEL_ID.to_string(),
@@ -230,12 +236,15 @@ mod tests {
         properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip.to_string());
         properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac.to_string());
 
-        Device {
-            id: format!("{}-{}", ip, mac),
-            properties,
-            mounts: Vec::default(),
-            device_specs: Vec::default(),
-        }
+        (
+            uri.to_string(),
+            Device {
+                id: format!("{}-{}", ip, mac),
+                properties,
+                mounts: Vec::default(),
+                device_specs: Vec::default(),
+            },
+        )
     }
 
     #[test]

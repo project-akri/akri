@@ -202,25 +202,25 @@ pub mod util {
             .collect::<Vec<String>>()
     }
 
-    // Accepted uris are both responsive and contain appropriate scopes
-    async fn get_qualifying_uris_from_discovery_response(
-        discovery_response: &str,
-        scopes: Option<&FilterList>,
-        onvif_query: &impl OnvifQuery,
-    ) -> Vec<String> {
-        let filtered_uris =
-            get_scope_filtered_uris_from_discovery_response(discovery_response, scopes);
-        let mut responsive_uris = Vec::new();
-        for uri in filtered_uris {
-            match onvif_query.is_device_responding(&uri).await {
-                Ok(_) => responsive_uris.push(uri),
-                Err(e) => error!(
-                    "device at uri {} is not responding to date/time request with error {}",
-                    uri, e
-                ),
-            }
-        }
-        responsive_uris
+    async fn get_responsive_uris(uris: Vec<String>, onvif_query: &impl OnvifQuery) -> Vec<String> {
+        let futures: Vec<_> = uris
+            .iter()
+            .map(|uri| onvif_query.is_device_responding(uri))
+            .collect();
+        let results = futures_util::future::join_all(futures).await;
+        results
+            .into_iter()
+            .filter_map(|r| match r {
+                Ok(uri) => Some(uri),
+                Err(e) => {
+                    trace!(
+                        "device not responding to date/time request with error {}",
+                        e
+                    );
+                    None
+                }
+            })
+            .collect()
     }
 
     pub(crate) fn execute_filter(
@@ -271,9 +271,9 @@ pub mod util {
         }
     }
 
-    pub async fn get_socket() -> Result<UdpSocket, anyhow::Error> {
+    pub async fn get_discovery_response_socket() -> Result<UdpSocket, anyhow::Error> {
         let uuid_str = format!("uuid:{}", uuid::Uuid::new_v4());
-        trace!("get_socket - for {}", &uuid_str);
+        trace!("get_discovery_response_socket - for {}", &uuid_str);
         const LOCAL_IPV4_ADDR: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
         const LOCAL_PORT: u16 = 0;
         let local_socket_addr = SocketAddr::new(IpAddr::V4(LOCAL_IPV4_ADDR), LOCAL_PORT);
@@ -284,10 +284,13 @@ pub mod util {
         const MULTI_PORT: u16 = 3702;
         let multi_socket_addr = SocketAddr::new(IpAddr::V4(MULTI_IPV4_ADDR), MULTI_PORT);
 
-        trace!("get_socket - binding to: {:?}", local_socket_addr);
+        trace!(
+            "get_discovery_response_socket - binding to: {:?}",
+            local_socket_addr
+        );
         let mut socket = UdpSocket::bind(local_socket_addr).await?;
         trace!(
-            "get_socket - joining multicast: {:?} {:?}",
+            "get_discovery_response_socket - joining multicast: {:?} {:?}",
             &MULTI_IPV4_ADDR,
             &LOCAL_IPV4_ADDR
         );
@@ -307,7 +310,7 @@ pub mod util {
         scopes_filters: Option<&FilterList>,
         timeout: Duration,
     ) -> Result<Vec<String>, anyhow::Error> {
-        let mut devices = Vec::new();
+        let mut broadcast_responses = Vec::new();
 
         let start = Instant::now();
         loop {
@@ -319,25 +322,8 @@ pub mod util {
             let time_left = timeout - elapsed;
 
             match try_recv_string(socket, time_left).await {
-                Ok(broadcast_response_as_string) => {
-                    trace!(
-                        "simple_onvif_discover - response: {:?}",
-                        broadcast_response_as_string
-                    );
-                    get_qualifying_uris_from_discovery_response(
-                        &broadcast_response_as_string,
-                        scopes_filters,
-                        &OnvifQueryImpl {},
-                    )
-                    .await
-                    .iter()
-                    .for_each(|device_uri| {
-                        trace!(
-                            "simple_onvif_discover - device_uri parsed from response: {:?}",
-                            device_uri
-                        );
-                        devices.push(device_uri.to_string());
-                    });
+                Ok(s) => {
+                    broadcast_responses.push(s);
                 }
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {
@@ -351,6 +337,22 @@ pub mod util {
             }
         }
 
+        trace!(
+            "simple_onvif_discover - uris discovered by udp broadcast {:?}",
+            broadcast_responses
+        );
+        let mut filtered_uris = Vec::new();
+        broadcast_responses.into_iter().for_each(|r| {
+            filtered_uris.extend(get_scope_filtered_uris_from_discovery_response(
+                &r,
+                scopes_filters,
+            ))
+        });
+        trace!(
+            "simple_onvif_discover - uris after filtering by scopes {:?}",
+            filtered_uris
+        );
+        let devices = get_responsive_uris(filtered_uris, &OnvifQueryImpl {}).await;
         info!("simple_onvif_discover - devices: {:?}", devices);
         Ok(devices)
     }
@@ -380,10 +382,13 @@ pub mod util {
             let thread_duration = duration.clone();
             tokio::spawn(async move {
                 let start = SystemTime::now();
-                let _ignore =
-                    simple_onvif_discover(&mut get_socket().await.unwrap(), None, timeout)
-                        .await
-                        .unwrap();
+                let _ignore = simple_onvif_discover(
+                    &mut get_discovery_response_socket().await.unwrap(),
+                    None,
+                    timeout,
+                )
+                .await
+                .unwrap();
                 let end = SystemTime::now();
                 let mut inner_duration = thread_duration.lock().unwrap();
                 *inner_duration = end.duration_since(start).unwrap();
