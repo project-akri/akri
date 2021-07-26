@@ -338,7 +338,7 @@ coap:
       # container used by coap
       image:
         # repository is the coap broker container reference
-        repository:
+        repository: ghcr.io/deislabs/akri/coap-broker
         # tag is the coap broker image tag
         tag: latest
         # pullPolicy is the coap pull policy
