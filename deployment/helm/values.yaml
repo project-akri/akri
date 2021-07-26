@@ -514,11 +514,11 @@ onvif:
       memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 300m
+      cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
       memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 1300m
+      cpuLimit: 24m
 
 opcua:
   configuration:
