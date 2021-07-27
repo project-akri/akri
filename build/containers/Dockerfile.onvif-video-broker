@@ -23,24 +23,13 @@ RUN echo "Output base image: ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PL
 
 RUN ldd /usr/lib/libOpenCvSharpExtern.so
 RUN apt-get update && apt-get -y install --no-install-recommends \
-      libtbb-dev \
-      libatlas-base-dev \
-      libgtk2.0-dev \
-      libavcodec-dev \
-      libavformat-dev \
-      libswscale-dev \
-      libdc1394-22-dev \
-      libxine2-dev \
-      libv4l-dev \
-      libtheora-dev \
-      libvorbis-dev \
-      libxvidcore-dev \
-      libopencore-amrnb-dev \
-      libopencore-amrwb-dev \
-      libavresample-dev \
-      x264 \
-      libtesseract-dev \
-      libgdiplus \
+    libgtk2.0-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libdc1394-22-dev \
+    libavresample-dev \
+    libtesseract-dev \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
 
