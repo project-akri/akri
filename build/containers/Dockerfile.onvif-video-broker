@@ -17,9 +17,32 @@ ARG DOTNET_PUBLISH_RUNTIME
 RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}"
 RUN dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "onvif-video-broker.csproj" -c Release -o /app/publish
 
-FROM ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG} AS final
+FROM ghcr.io/kate-goldenring/opencvsharp-build:0.0.7-amd64 AS final
 ARG OUTPUT_PLATFORM_TAG
 RUN echo "Output base image: ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG}"
+
+RUN ldd /usr/lib/libOpenCvSharpExtern.so
+RUN apt-get update && apt-get -y install --no-install-recommends \
+      libtbb-dev \
+      libatlas-base-dev \
+      libgtk2.0-dev \
+      libavcodec-dev \
+      libavformat-dev \
+      libswscale-dev \
+      libdc1394-22-dev \
+      libxine2-dev \
+      libv4l-dev \
+      libtheora-dev \
+      libvorbis-dev \
+      libxvidcore-dev \
+      libopencore-amrnb-dev \
+      libopencore-amrwb-dev \
+      libavresample-dev \
+      x264 \
+      libtesseract-dev \
+      libgdiplus \
+    && apt-get -y clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=publish /app/publish .
