@@ -10,7 +10,7 @@
 #
 
 ARG PLATFORM_TAG=3.1-buster-slim
-FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG} as base
+FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG} AS base
 WORKDIR /app
 
 # Link the container to the Akri repository
@@ -139,26 +139,22 @@ RUN git clone https://github.com/shimat/opencvsharp.git && \
 	git fetch --all --tags --prune && git checkout ${OPENCV_SHARP_VERSION}
 
 # Install Build the C# part of OpenCvSharp
-WORKDIR /opencvsharp/src/OpenCvSharp
-RUN cd /opencvsharp/src/OpenCvSharp
-RUN dotnet build -c Release -f netstandard2.0 
+# WORKDIR /opencvsharp/src/OpenCvSharp
+RUN cd /opencvsharp/src/OpenCvSharp && \
+    dotnet build -c Release -f netstandard2.0 
 
-WORKDIR /opencvsharp/src/OpenCvSharp.Extensions
-RUN cd /opencvsharp/src/OpenCvSharp.Extensions
-RUN dotnet build -c Release -f netstandard2.0 
+# WORKDIR /opencvsharp/src/OpenCvSharp.Extensions
+RUN cd /opencvsharp/src/OpenCvSharp.Extensions && \
+    dotnet build -c Release -f netstandard2.0 
 
-RUN mkdir /opencvsharp/build
-WORKDIR /opencvsharp/build
-RUN cp /libOpenCvSharpExtern.so .
-RUN cp /opencvsharp/src/OpenCvSharp/bin/Release/netstandard2.0/* .
-RUN cp /opencvsharp/src/OpenCvSharp.Extensions/bin/Release/netstandard2.0/* .
-RUN pwd
-RUN ls
+RUN mkdir /opencvsharp/build && \
+    cd /opencvsharp/build && \
+    # cp /libOpenCvSharpExtern.so . && \
+    cp /opencvsharp/src/OpenCvSharp/bin/Release/netstandard2.0/* . && \
+    cp /opencvsharp/src/OpenCvSharp.Extensions/bin/Release/netstandard2.0/* .
 
 # Copy over OpenCvSharp binaries and OpenCvSharpExtern shared library
 FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG}
 WORKDIR /app
 COPY --from=build-dotnet-env /opencvsharp/build ./
-RUN mv libOpenCvSharpExtern.so /usr/lib
-RUN pwd
-RUN ls
+COPY --from=build-dotnet-env /libOpenCvSharpExtern.so /usr/lib

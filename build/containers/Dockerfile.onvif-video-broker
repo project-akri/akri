@@ -14,13 +14,14 @@ RUN find . && dotnet build "onvif-video-broker.csproj" -c Release -o /app/build
 
 FROM build AS publish
 ARG DOTNET_PUBLISH_RUNTIME
-RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}"
-RUN dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "onvif-video-broker.csproj" -c Release -o /app/publish
+RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}" && \
+    dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "onvif-video-broker.csproj" -c Release -o /app/publish
 
 FROM ghcr.io/kate-goldenring/opencvsharp-build:0.0.7-amd64 AS final
 ARG OUTPUT_PLATFORM_TAG
 RUN echo "Output base image: ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG}"
 
+# Install OpenCVSharpEntern dependencies
 RUN apt-get update && apt-get -y install --no-install-recommends \
     libgtk2.0-dev \
     libavcodec-dev \
