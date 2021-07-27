@@ -10,7 +10,7 @@ CROSS_VERSION = 0.1.16
 # OPENCV: make and push the open cv intermediate images:
 #
 #    To make all platforms: `make opencv-base`
-#    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make opencv-base`
+#    To make specific platforms: `BUILD_AMD64=1 BUILD_ARM32=0 BUILD_ARM64=1 make opencv`
 #
 #
 .PHONY: opencv-base
