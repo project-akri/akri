@@ -21,7 +21,6 @@ FROM ghcr.io/kate-goldenring/opencvsharp-build:0.0.7-amd64 AS final
 ARG OUTPUT_PLATFORM_TAG
 RUN echo "Output base image: ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG}"
 
-RUN ldd /usr/lib/libOpenCvSharpExtern.so
 RUN apt-get update && apt-get -y install --no-install-recommends \
     libgtk2.0-dev \
     libavcodec-dev \
