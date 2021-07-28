@@ -109,10 +109,7 @@ RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
     -D OPENCV_ENABLE_NONFREE=ON \
     .. && make -j$(grep -c ^processor /proc/cpuinfo) && \
 	make install -j8 && \
-	ldconfig && \
-	cd && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencv_contrib-${OPENCV_VERSION}
+	ldconfig
 
 RUN cd ${OPENCV_INSTALLATION_DIR} && \
 	git clone https://github.com/shimat/opencvsharp.git opencvsharp && \
@@ -125,11 +122,7 @@ RUN cd ${OPENCV_INSTALLATION_DIR} && \
 	make -j$(grep -c ^processor /proc/cpuinfo) && \
 	make install && \
 	ldconfig && \
-	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib && \
-	cd && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencvsharp && \
-	apt remove -y git unzip wget build-essential cmake && \
-	apt autoremove -y
+	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build-dotnet-env
 WORKDIR /
