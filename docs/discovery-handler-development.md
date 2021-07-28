@@ -145,14 +145,14 @@ Handler should stop discovery and attempt to re-register with the Agent. The Age
 deleted Configuration. 
 
 ## Creating a Discovery Handler in Rust using a template
-Rust Discovery Handler development can be kick-started using Akri's [Discovery Handler template](https://github.com/kate-goldenring/akri-discovery-handler-template) and
+Rust Discovery Handler development can be kick-started using Akri's [Discovery Handler template](https://github.com/deislabs/akri-discovery-handler-template) and
 [`cargo-generate`](https://github.com/cargo-generate/cargo-generate).
 
 Install [`cargo-generate`](https://github.com/cargo-generate/cargo-generate#installation) and 
 use the tool to pull down Akri's template, specifying the name of the project with the `--name` parameter.
 
 ```sh
-cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-discovery-handler
+cargo generate --git https://github.com/deislabs/akri-discovery-handler-template.git --name akri-discovery-handler
 ```
 This template abstracts away the work of registering with the Agent and creating the Discovery Handler service. All you
 need to do is specify the Discovery Handler name, whether discovered devices are sharable, implement discovery, and
