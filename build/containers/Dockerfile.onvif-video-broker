@@ -21,18 +21,6 @@ FROM ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG} AS final
 ARG OUTPUT_PLATFORM_TAG
 RUN echo "Output base image: ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG}"
 
-# Install OpenCVSharpEntern dependencies
-RUN apt-get update && apt-get -y install --no-install-recommends \
-    libgtk2.0-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libdc1394-22-dev \
-    libavresample-dev \
-    libtesseract-dev \
-    && apt-get -y clean \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 COPY --from=publish /app/publish .
 
