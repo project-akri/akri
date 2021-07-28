@@ -148,3 +148,14 @@ FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG}
 WORKDIR /app
 COPY --from=build-dotnet-env /opencvsharp/build ./
 COPY --from=build-dotnet-env /libOpenCvSharpExtern.so /usr/lib
+# Install OpenCVSharpEntern dependencies
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    libgtk2.0-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libdc1394-22-dev \
+    libavresample-dev \
+    libtesseract-dev \
+    && apt-get -y clean \
+    && rm -rf /var/lib/apt/lists/*
