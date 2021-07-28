@@ -34,7 +34,7 @@ Install [`cargo-generate`](https://github.com/cargo-generate/cargo-generate#inst
 use the tool to pull down Akri's template, specifying the name of the project with the `--name` parameter.
 
 ```sh
-cargo generate --git https://github.com/kate-goldenring/akri-discovery-handler-template.git --name akri-http-discovery-handler
+cargo generate --git https://github.com/deislabs/akri-discovery-handler-template.git --name akri-http-discovery-handler
 ```
 ### Specify the DiscoveryHandler name and whether discovered devices are sharable
 Inside the newly created `akri-http-discovery-handler` project, navigate to `main.rs`. It contains all the logic to
