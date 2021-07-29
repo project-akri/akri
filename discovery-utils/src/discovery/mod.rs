@@ -218,7 +218,7 @@ pub mod server {
         info!("internal_run_discovery_server - entered");
 
         if discovery_endpoint.starts_with(discovery_handler_directory) {
-            tokio::fs::create_dir_all(Path::new(&discovery_endpoint[..]).parent().unwrap()).await?;
+            tokio::fs::create_dir_all(Path::new(discovery_endpoint).parent().unwrap()).await?;
             // Delete socket if it already exists
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
             let mut uds = UnixListener::bind(discovery_endpoint)?;
