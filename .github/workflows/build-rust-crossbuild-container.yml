@@ -10,6 +10,7 @@ on:
     - build/intermediate-containers.mk
     - Makefile
   pull_request:
+  types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
     branches: [ main ]
     paths:
     - .github/actions/build-intermediate/**
@@ -26,8 +27,7 @@ jobs:
 
   per-arch:
     if: >-
-      !contains(github.event.pull_request.title, '[IGNORE INTERMEDIATE BUILDS]') &&
-      !contains(github.event.commits[0].message, '[IGNORE INTERMEDIATE BUILDS]')
+      contains(github.event.pull_request.labels.*.name, 'ignore intermediate builds') == false
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,19 +43,17 @@ jobs:
 
     - name: Akri intermediate builds are LONG running and should only be run when absolutely needed
       if: >-
-        !contains(github.event.pull_request.title, '[ALLOW INTERMEDIATE BUILDS]') &&
-        !contains(github.event.commits[0].message, '[ALLOW INTERMEDIATE BUILDS]')
+        contains(github.event.pull_request.labels.*.name, 'allow intermediate builds') == false
       run: |
         echo "Akri intermediate builds are LONG running and should only be run when absolutely needed."
-        echo "Add [IGNORE INTERMEDIATE BUILDS] to first commit message to skip building intermediate containers."
-        echo "Add [ALLOW INTERMEDIATE BUILDS] to first commit message if needed."
+        echo "Add 'ignore intermediate builds' label to the PR to skip building intermediate containers."
+        echo "Add 'allow intermediate builds' label to the PR if needed."
         exit 1
 
-    # Only run build version change check if PR title and Merge commit message do NOT contain "[SAME VERSION]"
+    # Only run build version change check if PR does not have "same version" label
     - if: >-
         startsWith(github.event_name, 'pull_request') &&
-        !contains(github.event.pull_request.title, '[SAME VERSION]') &&
-        !contains(github.event.commits[0].message, '[SAME VERSION]')
+        contains(github.event.pull_request.labels.*.name, 'same version') == false
       name: Ensure that ${{ env.AKRI_COMPONENT }} version has changed
       run: |
         git fetch origin main
