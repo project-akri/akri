@@ -1,4 +1,4 @@
-<p align="center"><img src="art/logo-horizontal/akri-logo-horizontal-light.svg" alt="Akri Logo" width="300"></p>
+<p align="center"><img src="https://github.com/deislabs/akri-docs/blob/main/art/logo-horizontal/akri-logo-horizontal-dark.svg" alt="Akri Logo" width="300"></p>
 
 [![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri) 
 [![Rust Version](https://img.shields.io/badge/rustc-1.51.0-blue.svg)](https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html) 
@@ -29,29 +29,30 @@ Most importantly, Akri **was built to be extensible**. Akri currently supports O
 ## How Akri Works
 Akri’s architecture is made up of five key components: two custom resources, Discovery Handlers, an Agent (device plugin implementation), and a custom Controller. The first custom resource, the Akri Configuration, is where **you name it**. This tells Akri what kind of device it should look for. At this point, **Akri finds it**! Akri's Discovery Handlers look for the device and inform the Agent of discovered devices. The Agent then creates Akri's second custom resource, the Akri Instance, to track the availability and usage of the device. Having found your device, the Akri Controller helps **you use it**. It sees each Akri Instance (which represents a leaf device) and deploys a ("broker") Pod that knows how to connect to the resource and utilize it.
 
-<img src="./docs/media/akri-architecture.svg" alt="Akri Architecture" style="padding-bottom: 10px padding-top: 10px;
+<img src="https://github.com/deislabs/akri-docs/blob/main/media/akri-architecture.svg" alt="Akri Architecture" style="padding-bottom: 10px padding-top: 10px;
 margin-right: auto; display: block; margin-left: auto;"/>
 
 ## Quick Start with a Demo
-Try the [end to end demo](./docs/end-to-end-demo.md) of Akri to see Akri discover mock video cameras and a streaming app display the footage from those cameras. It includes instructions on K8s cluster setup. If you would like to perform the demo on a cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](./docs/end-to-end-demo-rpi4.md).
+Try the [end to end demo](https://docs.akri.sh/demos/usb-camera-demo) of Akri to see Akri discover mock video cameras and a streaming app display the footage from those cameras. It includes instructions on K8s cluster setup. If you would like to perform the demo on a cluster of Raspberry Pi 4's, see the [Raspberry Pi 4 demo](https://docs.akri.sh/demos/usb-camera-demo-rpi4).
 
 ## Documentation
-- [User guide for deploying Akri using Helm](./docs/user-guide.md) 
-- [Akri architecture in depth](./docs/architecture.md)
-- [How to build Akri](./docs/development.md)
-- [How to extend Akri for protocols that haven't been supported yet](./docs/discovery-handler-development.md).
-- [How to create a broker to leverage discovered devices](./docs/broker-development.md).
-- Proposals for enhancements such as new Discovery Handler implementations can be found in the [proposals folder](./docs/proposals)
+See Akri's [documentation site](https://docs.akri.sh/), which includes: 
+- [User guide for deploying Akri using Helm](https://docs.akri.sh/user-guide/getting-started) 
+- [Akri architecture](https://docs.akri.sh/architecture/architecture-overview)
+- [How to build Akri](https://docs.akri.sh/development/building)
+- [How to extend Akri for protocols that haven't been supported yet](https://docs.akri.sh/development/handler-development).
+- [How to create a broker to leverage discovered devices](https://docs.akri.sh/development/broker-development).
+To contribute to Akri's documentation, visit Akri's [docs repository](https://github.com/deislabs/akri-docs). 
 
 ## Roadmap
-Akri is built to be extensible. We currently have ONVIF, udev, OPC UA Discovery Handlers, but as a community, we hope to continuously support more protocols. We have created a [Discovery Handler implementation roadmap](./docs/roadmap.md#implement-additional-discovery-handlers) in order to prioritize development of Discovery Handlers. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation!
+Akri is built to be extensible. We currently have ONVIF, udev, OPC UA Discovery Handlers, but as a community, we hope to continuously support more protocols. We have created a [Discovery Handler implementation roadmap](https://docs.akri.sh/community/roadmap#implement-additional-discovery-handlers) in order to prioritize development of Discovery Handlers. If there is a protocol you feel we should prioritize, please [create an issue](https://github.com/deislabs/akri/issues/new/choose), or better yet, contribute the implementation!
 
-To see what else is in store for Akri, reference our [roadmap](./docs/roadmap.md).
+To see what else is in store for Akri, reference our [roadmap](https://docs.akri.sh/community/roadmap).
 
 ## Community, Contributing, and Support
 You can reach the Akri community via the [#akri](https://kubernetes.slack.com/messages/akri) channel in [Kubernetes Slack](https://kubernetes.slack.com) or join our [community calls](https://hackmd.io/@akri/S1GKJidJd) on the first Tuesday of the month at 9:00 AM PT. 
 
-Akri welcomes contributions, whether by [creating new issues](https://github.com/deislabs/akri/issues/new/choose) or pull requests. See our [contributing document](./docs/contributing.md) on how to get started!
+Akri welcomes contributions, whether by [creating new issues](https://github.com/deislabs/akri/issues/new/choose) or pull requests. See our [contributing document](https://docs.akri.sh/community/contributing) on how to get started!
 
 ## Licensing
 This project is released under the [MIT License](./LICENSE).
