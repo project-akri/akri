@@ -8,7 +8,7 @@ use log::{error, info, trace};
 use std::time::Duration;
 use std::{collections::HashMap, fs};
 use tokio::sync::mpsc;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -55,7 +55,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for debug echo protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut discovered_devices_sender, discovered_devices_receiver) =
+        let (discovered_devices_sender, discovered_devices_receiver) =
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: DebugEchoDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
@@ -86,7 +86,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .await
                     {
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
@@ -118,16 +118,16 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     {
                         // TODO: consider re-registering here
                         error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
     }
 }
 
@@ -194,7 +194,7 @@ mod tests {
             .discover(discover_request)
             .await
             .unwrap()
-            .into_inner();
+            .into_inner().into_inner();
         let devices = stream.recv().await.unwrap().unwrap().devices;
         assert_eq!(1, devices.len());
         assert_eq!(devices[0], device);

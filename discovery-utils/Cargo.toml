@@ -7,19 +7,21 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-prost = "0.6"
-tonic = { version = "0.1.0", features = ["tls"] }
 akri-shared = { path = "../shared" }
+async-stream = "0.3"
 anyhow = "1.0.38"
 async-trait = { version = "0.1.0", optional = true }
 futures = { version = "0.3.1", package = "futures" }
 log = "0.4"
+prost = "0.7"
 serde = "1.0"
 serde_derive = "1.0"
 serde_yaml = "0.8.11"
 tempfile = { version = "3.1.0", optional = true }
-tokio = { version = "0.2", features = ["time", "net", "sync"] }
-tower = "0.3" 
+tokio = { version = "1.0", features = ["time", "net", "sync"] }
+tokio-stream = { version =  "0.1", features = ["net"] }
+tonic = { version = "0.4.0", features = ["tls"] }
+tower = "0.4.4" 
 
 [features]
 mock-discovery-handler = ["async-trait", "tempfile"]
@@ -29,4 +31,4 @@ async-trait = "0.1.0"
 tempfile = "3.1.0"
 
 [build-dependencies]
-tonic-build = "0.1.1"
+tonic-build = "0.4.0"

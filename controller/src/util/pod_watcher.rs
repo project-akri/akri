@@ -1,6 +1,6 @@
 use akri_shared::{
     akri::{
-        configuration::KubeAkriConfig,
+        configuration::Configuration,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     },
     k8s,
@@ -12,14 +12,14 @@ use akri_shared::{
     },
 };
 use async_std::sync::Mutex;
-use futures::StreamExt;
-use k8s_openapi::api::core::v1::{PodSpec, PodStatus, ServiceSpec};
-use kube::api::{Api, Informer, Object, WatchEvent};
+use futures::{StreamExt, TryStreamExt};
+use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
+use kube::api::{Api, ListParams, WatchEvent};
+use kube_runtime::watcher::{watcher, Event};
 use log::trace;
 use std::{collections::HashMap, sync::Arc};
 
-type PodObject = Object<PodSpec, PodStatus>;
-type PodSlice = [PodObject];
+type PodSlice = [Pod];
 
 /// Pod states that BrokerPodWatcher is interested in
 ///
@@ -80,28 +80,24 @@ impl BrokerPodWatcher {
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("watch - enter");
-        let kube_interface = k8s::create_kube_interface();
-        let resource = Api::v1Pod(kube_interface.get_kube_client());
-        let informer = Informer::new(resource.clone())
-            .labels(AKRI_TARGET_NODE_LABEL_NAME)
-            .init()
-            .await?;
+        let kube_interface = k8s::KubeImpl::new().await?;
+        let resource = Api::<Pod>::all(kube_interface.get_kube_client());
+        let watcher = watcher(resource, ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME));
+        let mut informer = watcher.boxed();
         let synchronization = Arc::new(Mutex::new(()));
 
         loop {
-            let mut pods = informer.poll().await?.boxed();
-
             // Currently, this does not handle None except to break the
             // while.
-            while let Some(event) = pods.next().await {
+            while let Some(event) = informer.try_next().await? {
                 let _lock = synchronization.lock().await;
-                self.handle_pod(event?, &kube_interface).await?;
+                self.handle_pod(event, &kube_interface).await?;
             }
         }
     }
 
     /// Gets Pods phase and returns "Unknown" if no phase exists
-    fn get_pod_phase(&mut self, pod: &PodObject) -> String {
+    fn get_pod_phase(&mut self, pod: &Pod) -> String {
         if pod.status.is_some() {
             pod.status
                 .as_ref()
@@ -120,7 +116,7 @@ impl BrokerPodWatcher {
     /// ensure that the instance and configuration services are removed as needed.
     async fn handle_pod(
         &mut self,
-        event: WatchEvent<PodObject>,
+        event: Event<Pod>,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_pod - enter [event: {:?}]", event);
@@ -163,7 +159,7 @@ impl BrokerPodWatcher {
     /// any Pod as it exits the Running phase.
     async fn handle_running_pod_if_needed(
         &mut self,
-        pod: &PodObject,
+        pod: &Pod,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_running_pod_if_needed - enter");
@@ -189,7 +185,7 @@ impl BrokerPodWatcher {
     /// expected and accepted.
     async fn handle_ended_pod_if_needed(
         &mut self,
-        pod: &PodObject,
+        pod: &Pod,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_ended_pod_if_needed - enter");
@@ -215,7 +211,7 @@ impl BrokerPodWatcher {
     /// expected and accepted.
     async fn handle_deleted_pod_if_needed(
         &mut self,
-        pod: &PodObject,
+        pod: &Pod,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_deleted_pod_if_needed - enter");
@@ -239,7 +235,7 @@ impl BrokerPodWatcher {
     /// error if the annotations are not found.
     fn get_instance_and_configuration_from_pod(
         &self,
-        pod: &PodObject,
+        pod: &Pod,
     ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("get_instance_and_configuration_from_pod - enter");
         let instance_id = pod
@@ -260,7 +256,7 @@ impl BrokerPodWatcher {
     /// supported by Running broker Pods.
     async fn handle_non_running_pod(
         &self,
-        pod: &PodObject,
+        pod: &Pod,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_non_running_pod - enter");
@@ -386,7 +382,7 @@ impl BrokerPodWatcher {
     /// by the configuration.
     async fn handle_running_pod(
         &self,
-        pod: &PodObject,
+        pod: &Pod,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_running_pod - enter");
@@ -515,7 +511,7 @@ impl BrokerPodWatcher {
         instance_uid: &str,
         namespace: &str,
         configuration_name: &str,
-        configuration: &KubeAkriConfig,
+        configuration: &Configuration,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
@@ -1150,8 +1146,8 @@ mod tests {
     async fn test_create_or_update_service_successful_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let dcc_json = file::read_file_to_string("../test/json/config-a.json");
-        let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let config_json = file::read_file_to_string("../test/json/config-a.json");
+        let config: Configuration = serde_json::from_str(&config_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeInterface::new();
@@ -1180,7 +1176,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &dcc.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.instance_service_spec.unwrap().clone(),
                 true,
                 &mock,
             )
@@ -1192,8 +1188,8 @@ mod tests {
     async fn test_create_or_update_service_failed_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let dcc_json = file::read_file_to_string("../test/json/config-a.json");
-        let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let config_json = file::read_file_to_string("../test/json/config-a.json");
+        let config: Configuration = serde_json::from_str(&config_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeInterface::new();
@@ -1223,7 +1219,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &dcc.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.instance_service_spec.unwrap().clone(),
                 true,
                 &mock
             )
@@ -1235,8 +1231,8 @@ mod tests {
     async fn test_create_or_update_service_successful_create() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let dcc_json = file::read_file_to_string("../test/json/config-a.json");
-        let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let config_json = file::read_file_to_string("../test/json/config-a.json");
+        let config: Configuration = serde_json::from_str(&config_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeInterface::new();
@@ -1267,7 +1263,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &dcc.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.instance_service_spec.unwrap().clone(),
                 true,
                 &mock,
             )
@@ -1279,8 +1275,8 @@ mod tests {
     async fn test_create_or_update_service_failed_create() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let dcc_json = file::read_file_to_string("../test/json/config-a.json");
-        let dcc: KubeAkriConfig = serde_json::from_str(&dcc_json).unwrap();
+        let config_json = file::read_file_to_string("../test/json/config-a.json");
+        let config: Configuration = serde_json::from_str(&config_json).unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeInterface::new();
@@ -1307,7 +1303,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &dcc.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.instance_service_spec.unwrap().clone(),
                 true,
                 &mock
             )

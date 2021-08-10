@@ -372,7 +372,7 @@ pub mod util {
             time::{Duration, SystemTime},
         };
 
-        #[tokio::test(core_threads = 2)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_timeout_for_simple_onvif_discover() {
             let _ = env_logger::builder().is_test(true).try_init();
 

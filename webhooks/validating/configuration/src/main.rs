@@ -1,5 +1,5 @@
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use akri_shared::akri::configuration::KubeAkriConfig;
+use akri_shared::akri::configuration::Configuration;
 use clap::Arg;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use openapi::models::{
@@ -115,7 +115,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let x: RawExtension = serde_json::from_value(raw.clone())
                 .expect("Could not parse as Kubernetes RawExtension");
             let y = serde_json::to_string(&x).unwrap();
-            let config: KubeAkriConfig =
+            let config: Configuration =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");

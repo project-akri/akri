@@ -1,19 +1,19 @@
 use super::akri::{
     configuration,
-    configuration::{KubeAkriConfig, KubeAkriConfigList},
+    configuration::{Configuration, KubeAkriConfigList},
     instance,
-    instance::{Instance, KubeAkriInstance, KubeAkriInstanceList},
+    instance::{Instance, InstanceSpec, KubeAkriInstanceList},
     retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
 use futures::executor::block_on;
 use k8s_openapi::api::core::v1::{
-    NodeSpec, NodeStatus, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus,
+    Node, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus,
 };
 use kube::{
     api::{Object, ObjectList},
-    client::APIClient,
+    client::Client,
     config,
 };
 use mockall::{automock, predicate::*};
@@ -75,12 +75,12 @@ impl OwnershipInfo {
         .to_string()
     }
 
-    pub fn get_controller(&self) -> bool {
-        true
+    pub fn get_controller(&self) -> Option<bool> {
+        Some(true)
     }
 
-    pub fn get_block_owner_deletion(&self) -> bool {
-        true
+    pub fn get_block_owner_deletion(&self) -> Option<bool> {
+        Some(true)
     }
 
     pub fn get_name(&self) -> String {
@@ -95,133 +95,112 @@ impl OwnershipInfo {
 #[automock]
 #[async_trait]
 pub trait KubeInterface: Send + Sync {
-    fn get_kube_client(&self) -> APIClient;
+    fn get_kube_client(&self) -> Client;
 
     async fn find_node(
         &self,
         name: &str,
-    ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<Node, anyhow::Error>;
 
     async fn find_pods_with_label(
         &self,
         selector: &str,
     ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
+        ObjectList<Pod>,
+        anyhow::Error,
     >;
     async fn find_pods_with_field(
         &self,
         selector: &str,
     ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
+        ObjectList<Pod>,
+        anyhow::Error,
     >;
     async fn create_pod(
         &self,
         pod_to_create: &Pod,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
     async fn remove_pod(
         &self,
         pod_to_remove: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
 
     async fn find_services(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<ServiceSpec, ServiceStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    >;
+    ) -> Result<ObjectList<Service>, anyhow::Error>;
     async fn create_service(
         &self,
         svc_to_create: &Service,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
     async fn remove_service(
         &self,
         svc_to_remove: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
     async fn update_service(
         &self,
-        svc_to_update: &Object<ServiceSpec, ServiceStatus>,
+        svc_to_update: &Service,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
 
     async fn find_configuration(
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<Configuration, anyhow::Error>;
     async fn get_configurations(
         &self,
-    ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<KubeAkriConfigList, anyhow::Error>;
 
-    async fn find_instance(
-        &self,
-        name: &str,
-        namespace: &str,
-    ) -> Result<KubeAkriInstance, kube::Error>;
+    async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error>;
     async fn get_instances(
         &self,
-    ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<KubeAkriInstanceList, anyhow::Error>;
     async fn create_instance(
         &self,
-        instance_to_create: &Instance,
+        instance_to_create: &InstanceSpec,
         name: &str,
         namespace: &str,
         owner_config_name: &str,
         owner_config_uid: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
     async fn delete_instance(
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+    ) -> Result<(), anyhow::Error>;
     async fn update_instance(
         &self,
-        instance_to_update: &Instance,
+        instance_to_update: &InstanceSpec,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-}
-
-/// Create new KubeInetrace implementation
-pub fn create_kube_interface() -> impl KubeInterface {
-    KubeImpl::new()
+    ) -> Result<(), anyhow::Error>;
 }
 
 #[derive(Clone)]
-struct KubeImpl {
-    kube_configuration: kube::config::Configuration,
+pub struct KubeImpl {
+    client: kube::Client,
 }
 
 impl KubeImpl {
     /// Create new instance of KubeImpl
-    fn new() -> Self {
-        KubeImpl {
-            kube_configuration: match std::env::var("KUBERNETES_PORT") {
-                Ok(_val) => {
-                    log::trace!("Loading in-cluster config");
-                    config::incluster_config().unwrap() // pub fn incluster_config() -> Result<Configuration> {
-                }
-                Err(_e) => {
-                    log::trace!("Loading config file");
-                    block_on(config::load_kube_config()).unwrap() // pub async fn load_kube_config() -> Result<Configuration>
-                }
-            },
-        }
+    pub async fn new() -> Result<Self, anyhow::Error>  {
+        Ok(KubeImpl {
+            client: Client::try_default().await?,
+        })
     }
 }
 
 #[async_trait]
 impl KubeInterface for KubeImpl {
-    /// Create new APIClient using KubeImpl's kube::config::Configuration
-    fn get_kube_client(&self) -> APIClient {
-        APIClient::new(self.kube_configuration.clone())
+    /// Return of clone of KubeImpl's client
+    fn get_kube_client(&self) -> Client {
+        self.client.clone()
     }
 
     /// Get Kuberenetes node for specified name
@@ -234,15 +213,14 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let node = kube.find_node("node-a").await.unwrap();
     /// # }
     /// ```
     async fn find_node(
         &self,
         name: &str,
-    ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>
-    {
+    ) -> Result<Node, anyhow::Error> {
         node::find_node(name, self.get_kube_client()).await
     }
 
@@ -256,17 +234,14 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let interesting_pods = kube.find_pods_with_label("label=interesting").await.unwrap();
     /// # }
     /// ```
     async fn find_pods_with_label(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
     /// Get Kuberenetes pods with specified field selector
@@ -279,17 +254,14 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let pods_on_node_a = kube.find_pods_with_field("spec.nodeName=node-a").await.unwrap();
     /// # }
     /// ```
     async fn find_pods_with_field(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
     /// Create Kuberenetes pod
@@ -303,7 +275,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.create_pod(&Pod::default(), "pod_namespace").await.unwrap();
     /// # }
     /// ```
@@ -311,7 +283,7 @@ impl KubeInterface for KubeImpl {
         &self,
         pod_to_create: &Pod,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         pod::create_pod(pod_to_create, namespace, self.get_kube_client()).await
     }
     /// Remove Kubernetes pod
@@ -324,7 +296,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.remove_pod("pod_to_remove", "pod_namespace").await.unwrap();
     /// # }
     /// ```
@@ -332,7 +304,7 @@ impl KubeInterface for KubeImpl {
         &self,
         pod_to_remove: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
@@ -346,17 +318,14 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let interesting_services = kube.find_services("label=interesting").await.unwrap();
     /// # }
     /// ```
     async fn find_services(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<ServiceSpec, ServiceStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Service>, anyhow::Error> {
         service::find_services_with_selector(selector, self.get_kube_client()).await
     }
     /// Create Kubernetes service
@@ -370,7 +339,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.create_service(&Service::default(), "service_namespace").await.unwrap();
     /// # }
     /// ```
@@ -378,7 +347,7 @@ impl KubeInterface for KubeImpl {
         &self,
         svc_to_create: &Service,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         service::create_service(svc_to_create, namespace, self.get_kube_client()).await
     }
     /// Remove Kubernetes service
@@ -391,7 +360,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.remove_service("service_to_remove", "service_namespace").await.unwrap();
     /// # }
     /// ```
@@ -399,7 +368,7 @@ impl KubeInterface for KubeImpl {
         &self,
         svc_to_remove: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         service::remove_service(svc_to_remove, namespace, self.get_kube_client()).await
     }
     /// Update Kubernetes service
@@ -413,7 +382,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let selector = "environment=production,app=nginx";
     /// for svc in kube.find_services(&selector).await.unwrap() {
     ///     let svc_name = &svc.metadata.name.clone();
@@ -427,10 +396,10 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn update_service(
         &self,
-        svc_to_update: &Object<ServiceSpec, ServiceStatus>,
+        svc_to_update: &Service,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         service::update_service(svc_to_update, name, namespace, self.get_kube_client()).await
     }
 
@@ -444,15 +413,15 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
-    /// let dcc = kube.find_configuration("dcc-1", "dcc-namespace").await.unwrap();
+    /// let kube = k8s::KubeImpl::new().await?;
+    /// let config = kube.find_configuration("config-1", "config-namespace").await.unwrap();
     /// # }
     /// ```
     async fn find_configuration(
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<Configuration, anyhow::Error> {
         configuration::find_configuration(name, namespace, &self.get_kube_client()).await
     }
     // Get Akri Configurations with given namespace
@@ -465,13 +434,13 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let dccs = kube.get_configurations().await.unwrap();
     /// # }
     /// ```
     async fn get_configurations(
         &self,
-    ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<KubeAkriConfigList, anyhow::Error> {
         configuration::get_configurations(&self.get_kube_client()).await
     }
 
@@ -485,15 +454,11 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let instance = kube.find_instance("instance-1", "instance-namespace").await.unwrap();
     /// # }
     /// ```
-    async fn find_instance(
-        &self,
-        name: &str,
-        namespace: &str,
-    ) -> Result<KubeAkriInstance, kube::Error> {
+    async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error> {
         instance::find_instance(name, namespace, &self.get_kube_client()).await
     }
     // Get Akri Instances with given namespace
@@ -506,13 +471,13 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// let instances = kube.get_instances().await.unwrap();
     /// # }
     /// ```
     async fn get_instances(
         &self,
-    ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<KubeAkriInstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
     }
     /// Create Akri Instance
@@ -526,7 +491,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.create_instance(
     ///     &Instance{
     ///         configuration_name: "capability_configuration_name".to_string(),
@@ -544,12 +509,12 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn create_instance(
         &self,
-        instance_to_create: &Instance,
+        instance_to_create: &InstanceSpec,
         name: &str,
         namespace: &str,
         owner_config_name: &str,
         owner_config_uid: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         instance::create_instance(
             instance_to_create,
             name,
@@ -570,7 +535,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.delete_instance(
     ///     "instance-1",
     ///     "instance-namespace"
@@ -581,7 +546,7 @@ impl KubeInterface for KubeImpl {
         &self,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         instance::delete_instance(name, namespace, &self.get_kube_client()).await
     }
     /// Update Akri Instance
@@ -595,7 +560,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::create_kube_interface();
+    /// let kube = k8s::KubeImpl::new().await?;
     /// kube.update_instance(
     ///     &Instance{
     ///         configuration_name: "capability_configuration_name".to_string(),
@@ -611,10 +576,10 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn update_instance(
         &self,
-        instance_to_update: &Instance,
+        instance_to_update: &InstanceSpec,
         name: &str,
         namespace: &str,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         instance::update_instance(instance_to_update, name, namespace, &self.get_kube_client())
             .await
     }
@@ -626,7 +591,7 @@ pub async fn try_delete_instance(
     kube_interface: &dyn KubeInterface,
     instance_name: &str,
     instance_namespace: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<(), anyhow::Error> {
     for x in 0..MAX_INSTANCE_UPDATE_TRIES {
         match kube_interface
             .delete_instance(instance_name, &instance_namespace)
@@ -642,8 +607,9 @@ pub async fn try_delete_instance(
                     .find_instance(&instance_name, &instance_namespace)
                     .await
                 {
-                    Err(kube::Error::Api(ae)) => {
-                        if ae.code == ERROR_NOT_FOUND {
+                    Err(e) => {
+                        if let Some(kube::Error::Api(ae)) = e.downcast_ref::<kube::Error>() {
+                            if ae.code == ERROR_NOT_FOUND {
                             log::trace!(
                                 "try_delete_instance - discovered Instance {} already deleted",
                                 instance_name
@@ -651,10 +617,11 @@ pub async fn try_delete_instance(
                             break;
                         }
                         log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
+                        }
                     }
-                    Err(e) => {
-                        log::error!("try_delete_instance - when looking up Instance {}, got kube error: {:?}. {} retries left.", instance_name, e, MAX_INSTANCE_UPDATE_TRIES - x - 1);
-                    }
+                    // Err(e) => {
+                    //     log::error!("try_delete_instance - when looking up Instance {}, got kube error: {:?}. {} retries left.", instance_name, e, MAX_INSTANCE_UPDATE_TRIES - x - 1);
+                    // }
                     Ok(_) => {
                         log::error!(
                             "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",

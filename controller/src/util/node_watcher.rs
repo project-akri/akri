@@ -1,18 +1,17 @@
 use akri_shared::{
     akri::{
-        instance::{Instance, KubeAkriInstance},
+        instance::{Instance, InstanceSpec},
+        NODE_VERSION,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     },
     k8s,
     k8s::KubeInterface,
 };
 use futures::StreamExt;
-use k8s_openapi::api::core::v1::{NodeSpec, NodeStatus};
-use kube::api::{Api, Informer, Object, WatchEvent};
+use k8s_openapi::api::core::v1::{Node, NodeStatus};
+use kube::api::{Api, ListParams, WatchEvent};
 use log::trace;
 use std::collections::HashMap;
-
-type NodeObject = Object<NodeSpec, NodeStatus>;
 
 /// Node states that NodeWatcher is interested in
 ///
@@ -54,12 +53,11 @@ impl NodeWatcher {
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("watch - enter");
-        let kube_interface = k8s::create_kube_interface();
-        let resource = Api::v1Node(kube_interface.get_kube_client());
-        let inf = Informer::new(resource.clone()).init().await?;
+        let kube_interface = k8s::KubeImpl::new().await?;
+        let nodes_api = Api::<Node>::all(kube_interface.get_kube_client());
 
         loop {
-            let mut nodes = inf.poll().await?.boxed();
+            let mut nodes = nodes_api.watch(&ListParams::default(), NODE_VERSION).await?.boxed();
 
             // Currently, this does not handle None except to break the
             // while.
@@ -89,7 +87,7 @@ impl NodeWatcher {
     /// non-Running Node.
     async fn handle_node(
         &mut self,
-        event: WatchEvent<NodeObject>,
+        event: WatchEvent<Node>,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_node - enter");
@@ -98,10 +96,10 @@ impl NodeWatcher {
                 trace!("handle_node - Added: {:?}", &node.metadata.name);
                 if self.is_node_ready(&node) {
                     self.known_nodes
-                        .insert(node.metadata.name, NodeState::Running);
+                        .insert(node.metadata.name.unwrap(), NodeState::Running);
                 } else {
                     self.known_nodes
-                        .insert(node.metadata.name, NodeState::Known);
+                        .insert(node.metadata.name.unwrap(), NodeState::Known);
                 }
             }
             WatchEvent::Modified(node) => {
@@ -113,7 +111,7 @@ impl NodeWatcher {
                 );
                 if self.is_node_ready(&node) {
                     self.known_nodes
-                        .insert(node.metadata.name.clone(), NodeState::Running);
+                        .insert(node.metadata.name.unwrap(), NodeState::Running);
                 } else {
                     self.call_handle_node_disappearance_if_needed(&node, kube_interface)
                         .await?;
@@ -136,16 +134,17 @@ impl NodeWatcher {
     /// only once for any Node as it disappears.
     async fn call_handle_node_disappearance_if_needed(
         &mut self,
-        node: &NodeObject,
+        node: &Node,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let node_name = node.metadata.name.clone().unwrap();
         trace!(
             "call_handle_node_disappearance_if_needed - enter: {:?}",
             &node.metadata.name
         );
         let last_known_state = self
             .known_nodes
-            .get(&node.metadata.name)
+            .get(&node_name)
             .unwrap_or(&NodeState::Running);
         trace!(
             "call_handle_node_disappearance_if_needed - last_known_state: {:?}",
@@ -161,24 +160,22 @@ impl NodeWatcher {
                 "call_handle_node_disappearance_if_needed - call handle_node_disappearance: {:?}",
                 &node.metadata.name
             );
-            self.handle_node_disappearance(&node.metadata.name, kube_interface)
+            self.handle_node_disappearance(&node_name, kube_interface)
                 .await?;
             self.known_nodes
-                .insert(node.metadata.name.clone(), NodeState::InstancesCleaned);
+                .insert(node_name, NodeState::InstancesCleaned);
         }
         Ok(())
     }
 
     /// This determines if a node is in the Ready state.
-    fn is_node_ready(&self, k8s_node: &NodeObject) -> bool {
+    fn is_node_ready(&self, k8s_node: &Node) -> bool {
         trace!("is_node_ready - for node {:?}", k8s_node.metadata.name);
         k8s_node
             .status
             .as_ref()
             .unwrap_or(&NodeStatus::default())
             .conditions
-            .as_ref()
-            .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|condition| {
                 if condition.type_ == "Ready" {
@@ -200,7 +197,7 @@ impl NodeWatcher {
         &self,
         vanished_node_name: &str,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         trace!(
             "handle_node_disappearance - enter vanished_node_name={:?}",
             vanished_node_name,
@@ -212,11 +209,11 @@ impl NodeWatcher {
             instances.items.len()
         );
         for instance in instances.items {
-            let instance_name = instance.metadata.name.clone();
-            let instance_namespace = instance.metadata.namespace.as_ref().ok_or(format!(
-                "Namespace not found for instance: {}",
+            let instance_name = instance.metadata.name.clone().unwrap();
+            let instance_namespace = instance.metadata.namespace.as_ref().ok_or(anyhow::Error::msg(format!(
+                "Namespace not found for instance: {:?}",
                 instance_name
-            ))?;
+            )))?;
 
             trace!(
                 "handle_node_disappearance - make sure node is not referenced here: {:?}",
@@ -270,9 +267,9 @@ impl NodeWatcher {
         vanished_node_name: &str,
         instance_name: &str,
         instance_namespace: &str,
-        instance: &KubeAkriInstance,
+        instance: &Instance,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> Result<(), anyhow::Error> {
         trace!(
             "try_remove_nodes_from_instance - vanished_node_name: {:?}",
             &vanished_node_name
@@ -302,7 +299,7 @@ impl NodeWatcher {
             .collect::<HashMap<String, String>>();
 
         // Save the instance
-        let modified_instance = Instance {
+        let modified_instance = InstanceSpec {
             configuration_name: instance.spec.configuration_name.clone(),
             broker_properties: instance.spec.broker_properties.clone(),
             shared: instance.spec.shared,
@@ -331,7 +328,7 @@ mod tests {
 
     #[derive(Clone)]
     struct UpdateInstance {
-        instance_to_update: Instance,
+        instance_to_update: InstanceSpec,
         instance_name: &'static str,
         instance_namespace: &'static str,
     }
@@ -368,7 +365,7 @@ mod tests {
     async fn test_handle_node_added_unready() {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
-        let node: NodeObject = serde_json::from_str(&node_json).unwrap();
+        let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
             .handle_node(WatchEvent::Added(node), &MockKubeInterface::new())
@@ -388,7 +385,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let node_json = file::read_file_to_string("../test/json/node-a.json");
-        let node: NodeObject = serde_json::from_str(&node_json).unwrap();
+        let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
             .handle_node(WatchEvent::Added(node), &MockKubeInterface::new())
@@ -408,12 +405,12 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let node_json = file::read_file_to_string("../test/json/node-b-not-ready.json");
-        let node: NodeObject = serde_json::from_str(&node_json).unwrap();
+        let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
 
         let instance_file = "../test/json/shared-instance-update.json";
         let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: KubeAkriInstance = serde_json::from_str(&instance_json).unwrap();
+        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
         let mut instance = kube_object_instance.spec;
         instance.nodes.clear();
         instance
@@ -452,7 +449,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let node_json = file::read_file_to_string("../test/json/node-b.json");
-        let node: NodeObject = serde_json::from_str(&node_json).unwrap();
+        let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
 
         let mock = MockKubeInterface::new();
@@ -474,12 +471,12 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let node_json = file::read_file_to_string("../test/json/node-b-not-ready.json");
-        let node: NodeObject = serde_json::from_str(&node_json).unwrap();
+        let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
 
         let instance_file = "../test/json/shared-instance-update.json";
         let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: KubeAkriInstance = serde_json::from_str(&instance_json).unwrap();
+        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
         let mut instance = kube_object_instance.spec;
         instance.nodes.clear();
         instance
@@ -544,14 +541,14 @@ mod tests {
         mock.expect_update_instance()
             .times(MAX_INSTANCE_UPDATE_TRIES as usize)
             .withf(move |_instance, n, ns| n == "config-a-359973" && ns == "config-a-namespace")
-            .returning(move |_, _, _| Err(None.ok_or("failure")?));
+            .returning(move |_, _, _| Err(None.ok_or(anyhow::anyhow!("failure"))?));
         mock.expect_find_instance()
             .times((MAX_INSTANCE_UPDATE_TRIES - 1) as usize)
             .withf(move |n, ns| n == "config-a-359973" && ns == "config-a-namespace")
             .returning(move |_, _| {
                 let instance_file = "../test/json/shared-instance-update.json";
                 let instance_json = file::read_file_to_string(instance_file);
-                let instance: KubeAkriInstance = serde_json::from_str(&instance_json).unwrap();
+                let instance: Instance = serde_json::from_str(&instance_json).unwrap();
                 Ok(instance)
             });
 
@@ -568,7 +565,7 @@ mod tests {
 
         let instance_file = "../test/json/shared-instance-update.json";
         let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: KubeAkriInstance = serde_json::from_str(&instance_json).unwrap();
+        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
 
         let mut mock = MockKubeInterface::new();
         mock.expect_update_instance()
@@ -625,7 +622,7 @@ mod tests {
             );
 
             let node_json = file::read_file_to_string(node_file);
-            let kube_object_node: Object<NodeSpec, NodeStatus> =
+            let kube_object_node: Node =
                 serde_json::from_str(&node_json).unwrap();
 
             let node_watcher = NodeWatcher::new();

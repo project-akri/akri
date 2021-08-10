@@ -3,10 +3,10 @@ pub struct RegisterDiscoveryHandlerRequest {
     /// Name of the `DiscoveryHandler`. This name is specified in an
     /// Akri Configuration, to request devices discovered by this `DiscoveryHandler`.
     #[prost(string, tag = "1")]
-    pub name: std::string::String,
+    pub name: ::prost::alloc::string::String,
     /// Endpoint for the registering `DiscoveryHandler`
     #[prost(string, tag = "2")]
-    pub endpoint: std::string::String,
+    pub endpoint: ::prost::alloc::string::String,
     #[prost(
         enumeration = "register_discovery_handler_request::EndpointType",
         tag = "3"
@@ -17,6 +17,7 @@ pub struct RegisterDiscoveryHandlerRequest {
     #[prost(bool, tag = "4")]
     pub shared: bool,
 }
+/// Nested message and enum types in `RegisterDiscoveryHandlerRequest`.
 pub mod register_discovery_handler_request {
     /// Specifies the type of endpoint.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -33,30 +34,31 @@ pub struct DiscoverRequest {
     /// String containing all the details (such as filtering options)
     /// the `DiscoveryHandler` needs to find a set of devices.
     #[prost(string, tag = "1")]
-    pub discovery_details: std::string::String,
+    pub discovery_details: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverResponse {
     /// List of discovered devices
     #[prost(message, repeated, tag = "1")]
-    pub devices: ::std::vec::Vec<Device>,
+    pub devices: ::prost::alloc::vec::Vec<Device>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Device {
     /// Identifier for this device
     #[prost(string, tag = "1")]
-    pub id: std::string::String,
+    pub id: ::prost::alloc::string::String,
     /// Properties that identify the device. These are stored in the device's instance
     /// and set as environment variables in the device's broker Pods. May be information
     /// about where to find the device such as an RTSP URL or a device node (e.g. `/dev/video1`)
     #[prost(map = "string, string", tag = "2")]
-    pub properties: ::std::collections::HashMap<std::string::String, std::string::String>,
+    pub properties:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Optionally specify mounts for Pods that request this device as a resource
     #[prost(message, repeated, tag = "3")]
-    pub mounts: ::std::vec::Vec<Mount>,
+    pub mounts: ::prost::alloc::vec::Vec<Mount>,
     /// Optionally specify device information to be mounted for Pods that request this device as a resource
     #[prost(message, repeated, tag = "4")]
-    pub device_specs: ::std::vec::Vec<DeviceSpec>,
+    pub device_specs: ::prost::alloc::vec::Vec<DeviceSpec>,
 }
 /// From Device Plugin  API
 /// Mount specifies a host volume to mount into a container.
@@ -65,10 +67,10 @@ pub struct Device {
 pub struct Mount {
     /// Path of the mount within the container.
     #[prost(string, tag = "1")]
-    pub container_path: std::string::String,
+    pub container_path: ::prost::alloc::string::String,
     /// Path of the mount on the host.
     #[prost(string, tag = "2")]
-    pub host_path: std::string::String,
+    pub host_path: ::prost::alloc::string::String,
     /// If set, the mount is read-only.
     #[prost(bool, tag = "3")]
     pub read_only: bool,
@@ -79,16 +81,16 @@ pub struct Mount {
 pub struct DeviceSpec {
     /// Path of the device within the container.
     #[prost(string, tag = "1")]
-    pub container_path: std::string::String,
+    pub container_path: ::prost::alloc::string::String,
     /// Path of the device on the host.
     #[prost(string, tag = "2")]
-    pub host_path: std::string::String,
+    pub host_path: ::prost::alloc::string::String,
     /// Cgroups permissions of the device, candidates are one or more of
     /// * r - allows container to read from the specified device.
     /// * w - allows container to write to the specified device.
     /// * m - allows container to create device files that do not yet exist.
     #[prost(string, tag = "3")]
-    pub permissions: std::string::String,
+    pub permissions: ::prost::alloc::string::String,
 }
 #[doc = r" Generated client implementations."]
 pub mod registration_client {
@@ -146,6 +148,11 @@ pub mod registration_client {
             Self {
                 inner: self.inner.clone(),
             }
+        }
+    }
+    impl<T> std::fmt::Debug for RegistrationClient<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "RegistrationClient {{ ... }}")
         }
     }
 }
@@ -207,6 +214,11 @@ pub mod discovery_handler_client {
             }
         }
     }
+    impl<T> std::fmt::Debug for DiscoveryHandlerClient<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "DiscoveryHandlerClient {{ ... }}")
+        }
+    }
 }
 #[doc = r" Generated server implementations."]
 pub mod registration_server {
@@ -223,7 +235,6 @@ pub mod registration_server {
     #[doc = " Registration is the service advertised by the Akri Agent."]
     #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
     #[derive(Debug)]
-    #[doc(hidden)]
     pub struct RegistrationServer<T: Registration> {
         inner: _Inner<T>,
     }
@@ -240,17 +251,23 @@ pub mod registration_server {
             Self { inner }
         }
     }
-    impl<T: Registration> Service<http::Request<HyperBody>> for RegistrationServer<T> {
+    impl<T, B> Service<http::Request<B>> for RegistrationServer<T>
+    where
+        T: Registration,
+        B: HttpBody + Send + Sync + 'static,
+        B::Error: Into<StdError> + Send + 'static,
+    {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
-        fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
                 "/v0.Registration/RegisterDiscoveryHandler" => {
+                    #[allow(non_camel_case_types)]
                     struct RegisterDiscoveryHandlerSvc<T: Registration>(pub Arc<T>);
                     impl<T: Registration>
                         tonic::server::UnaryService<super::RegisterDiscoveryHandlerRequest>
@@ -264,7 +281,7 @@ pub mod registration_server {
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut =
-                                async move { inner.register_discovery_handler(request).await };
+                                async move { (*inner).register_discovery_handler(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -288,6 +305,7 @@ pub mod registration_server {
                     Ok(http::Response::builder()
                         .status(200)
                         .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
                         .body(tonic::body::BoxBody::empty())
                         .unwrap())
                 }),
@@ -322,7 +340,7 @@ pub mod discovery_handler_server {
     #[async_trait]
     pub trait DiscoveryHandler: Send + Sync + 'static {
         #[doc = "Server streaming response type for the Discover method."]
-        type DiscoverStream: Stream<Item = Result<super::DiscoverResponse, tonic::Status>>
+        type DiscoverStream: futures_core::Stream<Item = Result<super::DiscoverResponse, tonic::Status>>
             + Send
             + Sync
             + 'static;
@@ -332,7 +350,6 @@ pub mod discovery_handler_server {
         ) -> Result<tonic::Response<Self::DiscoverStream>, tonic::Status>;
     }
     #[derive(Debug)]
-    #[doc(hidden)]
     pub struct DiscoveryHandlerServer<T: DiscoveryHandler> {
         inner: _Inner<T>,
     }
@@ -349,17 +366,23 @@ pub mod discovery_handler_server {
             Self { inner }
         }
     }
-    impl<T: DiscoveryHandler> Service<http::Request<HyperBody>> for DiscoveryHandlerServer<T> {
+    impl<T, B> Service<http::Request<B>> for DiscoveryHandlerServer<T>
+    where
+        T: DiscoveryHandler,
+        B: HttpBody + Send + Sync + 'static,
+        B::Error: Into<StdError> + Send + 'static,
+    {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
-        fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
                 "/v0.DiscoveryHandler/Discover" => {
+                    #[allow(non_camel_case_types)]
                     struct DiscoverSvc<T: DiscoveryHandler>(pub Arc<T>);
                     impl<T: DiscoveryHandler>
                         tonic::server::ServerStreamingService<super::DiscoverRequest>
@@ -374,7 +397,7 @@ pub mod discovery_handler_server {
                             request: tonic::Request<super::DiscoverRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.discover(request).await };
+                            let fut = async move { (*inner).discover(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -398,6 +421,7 @@ pub mod discovery_handler_server {
                     Ok(http::Response::builder()
                         .status(200)
                         .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
                         .body(tonic::body::BoxBody::empty())
                         .unwrap())
                 }),

@@ -1,5 +1,7 @@
 /// Akri API Version
 pub const API_VERSION: &str = "v0";
+/// Akri API Version
+pub const NODE_VERSION: &str = "v1";
 /// Akri CRD Namespace
 pub const API_NAMESPACE: &str = "akri.sh";
 /// Akri Configuration CRD name
@@ -30,6 +32,6 @@ pub mod retry {
     pub async fn random_delay() {
         let random_decimal: f32 = random::<f32>();
         let random_delay_0_to_200: u64 = (200_f32 * random_decimal) as u64;
-        time::delay_for(Duration::from_millis(random_delay_0_to_200)).await;
+        time::sleep(Duration::from_millis(random_delay_0_to_200)).await;
     }
 }

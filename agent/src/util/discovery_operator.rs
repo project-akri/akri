@@ -19,7 +19,7 @@ use akri_discovery_utils::discovery::v0::{
     discovery_handler_client::DiscoveryHandlerClient, Device, DiscoverRequest, DiscoverResponse,
 };
 use akri_shared::{
-    akri::configuration::KubeAkriConfig,
+    akri::configuration::Configuration,
     k8s,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
@@ -62,7 +62,7 @@ pub struct DiscoveryOperator {
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     /// The Akri Configuration associated with this `DiscoveryOperator`.
     /// The Configuration tells the `DiscoveryOperator` what to look for.
-    config: KubeAkriConfig,
+    config: Configuration,
     /// Map of Akri Instances discovered by this `DiscoveryOperator`
     instance_map: InstanceMap,
 }
@@ -71,7 +71,7 @@ pub struct DiscoveryOperator {
 impl DiscoveryOperator {
     pub fn new(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
-        config: KubeAkriConfig,
+        config: Configuration,
         instance_map: InstanceMap,
     ) -> Self {
         DiscoveryOperator {
@@ -87,7 +87,7 @@ impl DiscoveryOperator {
     }
     /// Returns config field. Allows the struct to be mocked.
     #[allow(dead_code)]
-    pub fn get_config(&self) -> KubeAkriConfig {
+    pub fn get_config(&self) -> Configuration {
         self.config.clone()
     }
     /// Returns instance_map field. Allows the struct to be mocked.
@@ -125,9 +125,9 @@ impl DiscoveryOperator {
                             self.config.spec.discovery_handler.name
                         );
                         match discovery_handler.discover(discover_request).await {
-                            Ok(device_update_receiver) => {
-                                Some(StreamType::Embedded(device_update_receiver.into_inner()))
-                            }
+                            Ok(device_update_receiver) => Some(StreamType::Embedded(
+                                device_update_receiver.into_inner().into_inner(),
+                            )),
                             Err(e) => {
                                 error!("get_stream - could not connect to DiscoveryHandler at endpoint {:?} with error {}", endpoint, e);
                                 None
@@ -298,7 +298,7 @@ impl DiscoveryOperator {
         kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
-            "delete_offline_instances - entered for configuration {}",
+            "delete_offline_instances - entered for configuration {:?}",
             self.config.metadata.name
         );
         let kube_interface_clone = kube_interface.clone();
@@ -340,21 +340,22 @@ impl DiscoveryOperator {
         shared: bool,
         device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let config_name = self.config.metadata.name.clone().unwrap();
         trace!(
             "handle_discovery_results - for config {} with discovery results {:?}",
-            self.config.metadata.name,
+            config_name,
             discovery_results
         );
         let currently_visible_instances: HashMap<String, Device> = discovery_results
             .iter()
             .map(|discovery_result| {
                 let id = generate_instance_digest(&discovery_result.id, shared);
-                let instance_name = get_device_instance_name(&id, &self.config.metadata.name);
+                let instance_name = get_device_instance_name(&id, &config_name);
                 (instance_name, discovery_result.clone())
             })
             .collect();
         INSTANCE_COUNT_METRIC
-            .with_label_values(&[&self.config.metadata.name, &shared.to_string()])
+            .with_label_values(&[&config_name, &shared.to_string()])
             .set(currently_visible_instances.len() as i64);
         // Update the connectivity status of instances and return list of visible instances that don't have Instance CRs
         let instance_map = self.instance_map.lock().await.clone();
@@ -375,7 +376,7 @@ impl DiscoveryOperator {
         if !new_discovery_results.is_empty() {
             for discovery_result in new_discovery_results {
                 let id = generate_instance_digest(&discovery_result.id, shared);
-                let instance_name = get_device_instance_name(&id, &self.config.metadata.name);
+                let instance_name = get_device_instance_name(&id, &config_name);
                 trace!(
                     "handle_discovery_results - new instance {} came online",
                     instance_name
@@ -541,7 +542,7 @@ pub mod start_discovery {
             "start_discovery - entered for {} discovery handler",
             config.spec.discovery_handler.name
         );
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);
 
@@ -606,7 +607,7 @@ pub mod start_discovery {
         loop {
             tokio::select! {
                 _ = stop_all_discovery_receiver.recv() => {
-                    trace!("listen_for_new_discovery_handlers - received message to stop discovery for configuration {}", discovery_operator.get_config().metadata.name);
+                    trace!("listen_for_new_discovery_handlers - received message to stop discovery for configuration {:?}", discovery_operator.get_config().metadata.name);
                     discovery_operator.stop_all_discovery().await;
                     break;
                 },
@@ -614,10 +615,10 @@ pub mod start_discovery {
                     // Check if it is one of this Configuration's discovery handlers
                     if let Ok(discovery_handler_name) = result {
                         if discovery_handler_name == discovery_operator.get_config().spec.discovery_handler.name {
-                            trace!("listen_for_new_discovery_handlers - received new registered discovery handler for configuration {}", discovery_operator.get_config().metadata.name);
+                            trace!("listen_for_new_discovery_handlers - received new registered discovery handler for configuration {:?}", discovery_operator.get_config().metadata.name);
                             let new_discovery_operator = discovery_operator.clone();
                             discovery_tasks.push(tokio::spawn(async move {
-                                do_discover(new_discovery_operator, Arc::new(Box::new(k8s::create_kube_interface()))).await.unwrap();
+                                do_discover(new_discovery_operator, Arc::new(Box::new(k8s::KubeImpl::new().await.unwrap()))).await.unwrap();
                             }));
                         }
                     }
@@ -861,7 +862,7 @@ pub mod tests {
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
-        akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
+        akri::configuration::Configuration, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
@@ -869,7 +870,7 @@ pub mod tests {
     use tokio::sync::broadcast;
 
     pub async fn build_instance_map(
-        config: &KubeAkriConfig,
+        config: &Configuration,
         visible_discovery_results: &mut Vec<Device>,
         list_and_watch_message_receivers: &mut Vec<
             broadcast::Receiver<device_plugin_service::ListAndWatchMessageKind>,
@@ -928,7 +929,7 @@ pub mod tests {
 
     fn create_mock_discovery_operator(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
-        config: KubeAkriConfig,
+        config: Configuration,
         instance_map: InstanceMap,
     ) -> MockDiscoveryOperator {
         let ctx = MockDiscoveryOperator::new_context();
@@ -1004,7 +1005,7 @@ pub mod tests {
         // Build discovery operator
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
@@ -1064,7 +1065,7 @@ pub mod tests {
             .subscribe();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
@@ -1229,7 +1230,7 @@ pub mod tests {
             Arc::new(std::sync::Mutex::new(HashMap::new()));
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         INSTANCE_COUNT_METRIC
             .with_label_values(&[&config_name, "true"])
@@ -1324,7 +1325,7 @@ pub mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
             Arc::new(std::sync::Mutex::new(HashMap::new()));
@@ -1401,12 +1402,12 @@ pub mod tests {
     // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
     // 2: InstanceConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: InstanceConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
-    #[tokio::test(core_threads = 2)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_update_instance_connectivity_status_factory() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let config_name = config.metadata.name.clone();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
@@ -1554,7 +1555,7 @@ pub mod tests {
     }
 
     async fn run_update_instance_connectivity_status(
-        config: KubeAkriConfig,
+        config: Configuration,
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
         instance_map: InstanceMap,
@@ -1582,7 +1583,7 @@ pub mod tests {
     ) -> DiscoveryOperator {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         add_discovery_handler_to_map(dh_name, endpoint, false, discovery_handler_map.clone());
         DiscoveryOperator::new(
@@ -1683,7 +1684,7 @@ pub mod tests {
         std::env::set_var(super::super::constants::ENABLE_DEBUG_ECHO_LABEL, "yes");
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();

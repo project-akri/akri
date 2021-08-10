@@ -1,5 +1,5 @@
 use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
-use akri_shared::{akri::instance::Instance, k8s::KubeInterface};
+use akri_shared::{akri::instance::InstanceSpec, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
 #[cfg(test)]
@@ -140,8 +140,6 @@ impl DevicePluginSlotReconciler {
                 .as_ref()
                 .unwrap_or(&PodStatus::default())
                 .conditions
-                .as_ref()
-                .unwrap_or(&Vec::new())
                 .iter()
                 .any(|condition| condition.type_ == "ContainersReady" && condition.status != "True")
         });
@@ -249,7 +247,7 @@ impl DevicePluginSlotReconciler {
                         )
                     })
                     .collect::<HashMap<String, String>>();
-                let modified_instance = Instance {
+                let modified_instance = InstanceSpec {
                     configuration_name: instance.spec.configuration_name.clone(),
                     broker_properties: instance.spec.broker_properties.clone(),
                     shared: instance.spec.shared,
@@ -261,7 +259,7 @@ impl DevicePluginSlotReconciler {
                 match kube_interface
                     .update_instance(
                         &modified_instance,
-                        &instance.metadata.name,
+                        &instance.metadata.name.unwrap(),
                         &instance.metadata.namespace.unwrap(),
                     )
                     .await
@@ -311,7 +309,7 @@ pub async fn periodic_slot_reconciliation(
     slot_grace_period: std::time::Duration,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("periodic_slot_reconciliation - start");
-    let kube_interface = akri_shared::k8s::create_kube_interface();
+    let kube_interface = akri_shared::k8s::KubeImpl::new().await?;
     let node_name = std::env::var("AGENT_NODE_NAME").unwrap();
     let crictl_path = std::env::var("HOST_CRICTL_PATH").unwrap();
     let runtime_endpoint = std::env::var("HOST_RUNTIME_ENDPOINT").unwrap();
@@ -327,8 +325,8 @@ pub async fn periodic_slot_reconciliation(
     };
 
     loop {
-        trace!("periodic_slot_reconciliation - iteration pre delay_for");
-        tokio::time::delay_for(std::time::Duration::from_secs(
+        trace!("periodic_slot_reconciliation - iteration pre sleep");
+        tokio::time::sleep(std::time::Duration::from_secs(
             SLOT_RECONCILIATION_CHECK_DELAY_SECS,
         ))
         .await;

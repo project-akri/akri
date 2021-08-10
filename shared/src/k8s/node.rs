@@ -1,7 +1,7 @@
-use k8s_openapi::api::core::v1::{NodeSpec, NodeStatus};
+use k8s_openapi::api::core::v1::Node;
 use kube::{
     api::{Api, Object},
-    client::APIClient,
+    client::Client,
 };
 use log::trace;
 
@@ -11,22 +11,22 @@ use log::trace;
 ///
 /// ```no_run
 /// use akri_shared::k8s::node;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let node = node::find_node("node-a", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn find_node(
     name: &str,
-    kube_client: APIClient,
-) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: Client,
+) -> Result<Node, anyhow::Error> {
     trace!("find_node with name={:?}", &name);
-    let nodes = Api::v1Node(kube_client);
+    let nodes: Api<Node> = Api::all(kube_client);
     trace!("find_node PRE nodes.get(...).await?");
     let result = nodes.get(&name).await;
     trace!("find_node return");

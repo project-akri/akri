@@ -11,4 +11,4 @@ akri-discovery-utils = { path = "../../discovery-utils" }
 akri-onvif = { path = "../../discovery-handlers/onvif" }
 env_logger = "0.8.3"
 log = "0.4"
-tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
+tokio = { version = "1.0" }

@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use log::{error, info, trace};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -147,10 +147,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
     }
 }
 

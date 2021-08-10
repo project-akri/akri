@@ -1,15 +1,15 @@
-use super::{API_INSTANCES, API_NAMESPACE, API_VERSION};
+use super::{API_NAMESPACE, API_VERSION};
 use kube::{
-    api::{
-        DeleteParams, ListParams, Object, ObjectList, ObjectMeta, OwnerReference, PatchParams,
-        PostParams, RawApi, TypeMeta, Void,
-    },
-    client::APIClient,
+    api::{Api, DeleteParams, ListParams, ObjectList, ObjectMeta, Patch, PatchParams, PostParams},
+    Client, CustomResource,
 };
+
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1beta1 as apiexts;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
+use schemars::JsonSchema;
 use std::collections::HashMap;
 
-pub type KubeAkriInstance = Object<Instance, Void>;
-pub type KubeAkriInstanceList = ObjectList<Object<Instance, Void>>;
+pub type KubeAkriInstanceList = ObjectList<Instance>;
 
 /// Defines the information in the Instance CRD
 ///
@@ -17,9 +17,12 @@ pub type KubeAkriInstanceList = ObjectList<Object<Instance, Void>>;
 /// a Configuration.  For example, a Configuration
 /// may describe many cameras, each camera will be represented by a
 /// Instance.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct Instance {
+// group = API_NAMESPACE and version = API_VERSION
+#[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
+#[kube(apiextensions = "v1")]
+pub struct InstanceSpec {
     /// This contains the name of the corresponding Configuration
     pub configuration_name: String,
 
@@ -56,35 +59,26 @@ pub struct Instance {
 ///
 /// ```no_run
 /// use akri_shared::akri::instance;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let instances = instance::get_instances(&api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn get_instances(
-    kube_client: &APIClient,
-) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: &Client,
+) -> Result<KubeAkriInstanceList, anyhow::Error> {
     log::trace!("get_instances enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION);
-
-    log::trace!("get_instances kube_client.request::<KubeAkriInstanceList>(akri_instance_type.list(...)?).await?");
-
-    let instance_list_params = ListParams {
-        ..Default::default()
-    };
-    match kube_client
-        .request::<KubeAkriInstanceList>(akri_instance_type.list(&instance_list_params)?)
-        .await
-    {
-        Ok(configs_retrieved) => {
+    // TODO kagold: pass in namespace and use Api::namespaced
+    let instances_client: Api<Instance> = Api::all(kube_client.clone());
+    let lp = ListParams::default();
+    match instances_client.list(&lp).await {
+        Ok(instances_retrieved) => {
             log::trace!("get_instances return");
-            Ok(configs_retrieved)
+            Ok(instances_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
             log::trace!(
@@ -106,14 +100,14 @@ pub async fn get_instances(
 ///
 /// ```no_run
 /// use akri_shared::akri::instance;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let instance = instance::find_instance(
-///     "dcc-1",
+///     "config-1",
 ///     "default",
 ///     &api_client).await.unwrap();
 /// # }
@@ -121,25 +115,19 @@ pub async fn get_instances(
 pub async fn find_instance(
     name: &str,
     namespace: &str,
-    kube_client: &APIClient,
-) -> Result<KubeAkriInstance, kube::Error> {
+    kube_client: &Client,
+    // TODO kagold: dont use boxed
+) -> Result<Instance, anyhow::Error> {
     log::trace!("find_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    // TODO kagold: pass in namespace
+    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
 
-    log::trace!(
-        "find_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.get(...)?).await?"
-    );
+    log::trace!("find_instance getting instance with name {}", name);
 
-    match kube_client
-        .request::<KubeAkriInstance>(akri_instance_type.get(&name)?)
-        .await
-    {
-        Ok(config_retrieved) => {
+    match instances_client.get(&name).await {
+        Ok(instance_retrieved) => {
             log::trace!("find_instance return");
-            Ok(config_retrieved)
+            Ok(instance_retrieved)
         }
         Err(e) => match e {
             kube::Error::Api(ae) => {
@@ -147,11 +135,11 @@ pub async fn find_instance(
                     "find_instance kube_client.request returned kube error: {:?}",
                     ae
                 );
-                Err(kube::Error::Api(ae))
+                Err(anyhow::anyhow!(ae))
             }
             _ => {
                 log::trace!("find_instance kube_client.request error: {:?}", e);
-                Err(e)
+                Err(anyhow::anyhow!(e))
             }
         },
     }
@@ -164,12 +152,12 @@ pub async fn find_instance(
 /// ```no_run
 /// use akri_shared::akri::instance::Instance;
 /// use akri_shared::akri::instance;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let instance = instance::create_instance(
 ///     &Instance {
 ///         configuration_name: "capability_configuration_name".to_string(),
@@ -186,48 +174,34 @@ pub async fn find_instance(
 /// # }
 /// ```
 pub async fn create_instance(
-    instance_to_create: &Instance,
+    instance_to_create: &InstanceSpec,
     name: &str,
     namespace: &str,
     owner_config_name: &str,
     owner_config_uid: &str,
-    kube_client: &APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: &Client,
+) -> Result<(), anyhow::Error> {
     log::trace!("create_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
 
-    let kube_instance = KubeAkriInstance {
-        metadata: ObjectMeta {
-            name: name.to_string(),
-            ownerReferences: vec![OwnerReference {
-                apiVersion: format!("{}/{}", API_NAMESPACE, API_VERSION),
-                kind: "Configuration".to_string(),
-                controller: true,
-                blockOwnerDeletion: true,
-                name: owner_config_name.to_string(),
-                uid: owner_config_uid.to_string(),
-            }],
-            ..Default::default()
-        },
-        spec: instance_to_create.clone(),
-        status: None,
-        types: TypeMeta {
-            apiVersion: Some(format!("{}/{}", API_NAMESPACE, API_VERSION)),
-            kind: Some("Instance".to_string()),
-        },
+    let mut instance = Instance::new(name, instance_to_create.clone());
+    instance.metadata = ObjectMeta {
+        name: Some(name.to_string()),
+        owner_references: vec![OwnerReference {
+            api_version: format!("{}/{}", API_NAMESPACE, API_VERSION),
+            kind: "Configuration".to_string(),
+            controller: Some(true),
+            block_owner_deletion: Some(true),
+            name: owner_config_name.to_string(),
+            uid: owner_config_uid.to_string(),
+        }],
+        ..Default::default()
     };
-    let binary_instance = serde_json::to_vec(&kube_instance)?;
-    log::trace!("create_instance akri_instance_type.create");
-    let instance_create_params = PostParams::default();
-    let create_request = akri_instance_type
-        .create(&instance_create_params, binary_instance)
-        .expect("failed to create request");
-    log::trace!("create_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.create(...)?).await?");
-    match kube_client
-        .request::<KubeAkriInstance>(create_request)
+    log::trace!(
+        "create_instance instances_client.create(&PostParams::default(), &instance).await?"
+    );
+    match instances_client
+        .create(&PostParams::default(), &instance)
         .await
     {
         Ok(_instance_created) => {
@@ -254,12 +228,12 @@ pub async fn create_instance(
 ///
 /// ```no_run
 /// use akri_shared::akri::instance;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let instance = instance::delete_instance(
 ///     "instance-1",
 ///     "default",
@@ -269,21 +243,13 @@ pub async fn create_instance(
 pub async fn delete_instance(
     name: &str,
     namespace: &str,
-    kube_client: &APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: &Client,
+) -> Result<(), anyhow::Error> {
     log::trace!("delete_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
-
-    log::trace!("delete_instance akri_instance_type.delete");
+    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
     let instance_delete_params = DeleteParams::default();
-    let delete_request = akri_instance_type
-        .delete(name, &instance_delete_params)
-        .expect("failed to delete request");
-    log::trace!("delete_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.delete(...)?).await?");
-    match kube_client.request::<Void>(delete_request).await {
+    log::trace!("delete_instance instances_client.delete(name, &instance_delete_params).await?");
+    match instances_client.delete(name, &instance_delete_params).await {
         Ok(_void_response) => {
             log::trace!("delete_instance return");
             Ok(())
@@ -309,12 +275,12 @@ pub async fn delete_instance(
 /// ```no_run
 /// use akri_shared::akri::instance::Instance;
 /// use akri_shared::akri::instance;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let instance = instance::update_instance(
 ///     &Instance {
 ///         configuration_name: "capability_configuration_name".to_string(),
@@ -329,37 +295,21 @@ pub async fn delete_instance(
 /// # }
 /// ```
 pub async fn update_instance(
-    instance_to_update: &Instance,
+    instance_to_update: &InstanceSpec,
     name: &str,
     namespace: &str,
-    kube_client: &APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: &Client,
+) -> Result<(), anyhow::Error> {
     log::trace!("update_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
-
-    let existing_kube_akri_instance_type = find_instance(name, namespace, kube_client).await?;
-    let modified_kube_instance = KubeAkriInstance {
-        metadata: existing_kube_akri_instance_type.metadata,
-        spec: instance_to_update.clone(),
-        status: existing_kube_akri_instance_type.status,
-        types: existing_kube_akri_instance_type.types,
-    };
-    log::trace!(
-        "update_instance wrapped_instance: {:?}",
-        serde_json::to_string(&modified_kube_instance).unwrap()
-    );
-    let binary_instance = serde_json::to_vec(&modified_kube_instance)?;
-
-    log::trace!("update_instance akri_instance_type.patch");
+    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
+    let instance_json = serde_json::json!(instance_to_update);
+    let patch = Patch::Apply(&instance_json);
     let instance_patch_params = PatchParams::default();
-    let patch_request = akri_instance_type
-        .patch(name, &instance_patch_params, binary_instance)
-        .expect("failed to create request");
-    log::trace!("update_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.patch(...)?).await?");
-    match kube_client.request::<KubeAkriInstance>(patch_request).await {
+    log::trace!("update_instance instances_client.patch(name, &instance_patch_params, instance_to_update).await?");
+    match instances_client
+        .patch(name, &instance_patch_params, &patch)
+        .await
+    {
         Ok(_instance_modified) => {
             log::trace!("update_instance return");
             Ok(())
@@ -388,22 +338,13 @@ mod crd_serializeation_tests {
     use super::*;
     use env_logger;
 
-    #[derive(Serialize, Deserialize, Clone, Debug)]
-    #[serde(rename_all = "camelCase")]
-    struct InstanceCRD {
-        api_version: String,
-        kind: String,
-        metadata: HashMap<String, String>,
-        spec: Instance,
-    }
-
     #[test]
     #[should_panic]
     fn test_instance_no_class_name_failure() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"{}"#;
-        let _: Instance = serde_json::from_str(json).unwrap();
+        let _: InstanceSpec = serde_json::from_str(json).unwrap();
     }
 
     #[test]
@@ -411,7 +352,7 @@ mod crd_serializeation_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"{"configurationName": "foo"}"#;
-        let deserialized: Instance = serde_json::from_str(json).unwrap();
+        let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(default_shared(), deserialized.shared);
@@ -430,7 +371,7 @@ mod crd_serializeation_tests {
         let json = r#"
         configurationName: foo
         "#;
-        let deserialized: Instance = serde_yaml::from_str(json).unwrap();
+        let deserialized: InstanceSpec = serde_yaml::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(default_shared(), deserialized.shared);
@@ -447,7 +388,7 @@ mod crd_serializeation_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
-        let deserialized: Instance = serde_json::from_str(json).unwrap();
+        let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("blah".to_string(), deserialized.configuration_name);
         assert_eq!(1, deserialized.broker_properties.len());
         assert_eq!(true, deserialized.shared);
@@ -467,7 +408,7 @@ mod crd_serializeation_tests {
         ];
         for file in &files {
             let yaml = file::read_file_to_string(&file);
-            let deserialized: InstanceCRD = serde_yaml::from_str(&yaml).unwrap();
+            let deserialized: Instance = serde_yaml::from_str(&yaml).unwrap();
             let _ = serde_json::to_string(&deserialized).unwrap();
         }
     }

@@ -1,12 +1,13 @@
 /// Module to enable UDS with tonic grpc.
 /// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
+/// Module to enable UDS with tonic grpc.
+/// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
 use std::{
-    convert::TryFrom,
     pin::Pin,
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::io::{AsyncRead, AsyncWrite};
+
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tonic::transport::server::Connected;
 
 #[derive(Debug)]
@@ -18,8 +19,8 @@ impl AsyncRead for UnixStream {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.0).poll_read(cx, buf)
     }
 }
@@ -37,12 +38,18 @@ impl AsyncWrite for UnixStream {
         Pin::new(&mut self.0).poll_flush(cx)
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.0).poll_shutdown(cx)
     }
 }
 
 pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
+    use std::convert::TryFrom;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
     // Test that server is running, trying for at most 10 seconds
     // Similar to grpc.timeout, which is yet to be implemented for tonic
     // See issue: https://github.com/hyperium/tonic/issues/75
@@ -71,7 +78,7 @@ pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
         {
             connected = true
         } else {
-            tokio::time::delay_for(Duration::from_secs(1)).await
+            tokio::time::sleep(Duration::from_secs(1)).await
         }
     }
     if connected {

@@ -11,7 +11,7 @@ use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
     api::{Api, DeleteParams, ListParams, Object, ObjectList, PostParams},
-    client::APIClient,
+    client::Client,
 };
 use log::{error, info, trace};
 use std::collections::BTreeMap;
@@ -28,13 +28,13 @@ pub const AKRI_TARGET_NODE_LABEL_NAME: &str = "akri.sh/target-node";
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// for pod in pod::find_pods_with_selector(label_selector, None, api_client).await.unwrap() {
 ///     println!("found pod: {}", pod.metadata.name)
 /// }
@@ -43,13 +43,13 @@ pub const AKRI_TARGET_NODE_LABEL_NAME: &str = "akri.sh/target-node";
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
 /// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// for pod in pod::find_pods_with_selector(None, field_selector, api_client).await.unwrap() {
 ///     println!("found pod: {}", pod.metadata.name)
 /// }
@@ -58,17 +58,14 @@ pub const AKRI_TARGET_NODE_LABEL_NAME: &str = "akri.sh/target-node";
 pub async fn find_pods_with_selector(
     label_selector: Option<String>,
     field_selector: Option<String>,
-    kube_client: APIClient,
-) -> Result<
-    ObjectList<Object<PodSpec, PodStatus>>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+    kube_client: Client,
+) -> Result<ObjectList<Pod>, anyhow::Error> {
     trace!(
         "find_pods_with_selector with label_selector={:?} field_selector={:?}",
         &label_selector,
         &field_selector
     );
-    let pods = Api::v1Pod(kube_client);
+    let pods: Api<Pod> = Api::all(kube_client);
     let pod_list_params = ListParams {
         label_selector,
         field_selector,
@@ -127,11 +124,11 @@ type ResourceQuantityType = BTreeMap<String, Quantity>;
 ///     OwnershipType,
 ///     pod
 /// };
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 /// use k8s_openapi::api::core::v1::PodSpec;
 ///
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// let svc = pod::create_new_pod_from_spec(
 ///     "pod_namespace",
 ///     "capability_instance",
@@ -183,8 +180,8 @@ pub fn create_new_pod_from_spec(
     let owner_references: Vec<OwnerReference> = vec![OwnerReference {
         api_version: ownership.get_api_version(),
         kind: ownership.get_kind(),
-        controller: Some(ownership.get_controller()),
-        block_owner_deletion: Some(ownership.get_block_owner_deletion()),
+        controller: ownership.get_controller(),
+        block_owner_deletion: ownership.get_block_owner_deletion(),
         name: ownership.get_name(),
         uid: ownership.get_uid(),
     }];
@@ -192,35 +189,27 @@ pub fn create_new_pod_from_spec(
     let mut modified_pod_spec = pod_spec.clone();
 
     for container in &mut modified_pod_spec.containers {
-        let mut incoming_limits: Option<ResourceQuantityType> = None;
-        let mut incoming_requests: Option<ResourceQuantityType> = None;
+        let mut incoming_limits: ResourceQuantityType = BTreeMap::new();
+        let mut incoming_requests: ResourceQuantityType = BTreeMap::new();
 
         if let Some(resources) = container.resources.as_ref() {
-            if let Some(limits) = resources.limits.as_ref() {
-                let mut modified_limits = limits.clone();
-                if modified_limits.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_limits
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
-                    modified_limits.insert(resource_limit_name.to_string(), placeholder_value);
-                    modified_limits.remove(RESOURCE_REQUIREMENTS_KEY);
-                }
-
-                incoming_limits = Some(modified_limits);
+            incoming_limits = resources.limits.clone();
+            if incoming_limits.contains_key(RESOURCE_REQUIREMENTS_KEY) {
+                let placeholder_value = incoming_limits
+                    .get(RESOURCE_REQUIREMENTS_KEY)
+                    .unwrap()
+                    .clone();
+                incoming_limits.insert(resource_limit_name.to_string(), placeholder_value);
+                incoming_limits.remove(RESOURCE_REQUIREMENTS_KEY);
             }
-            if let Some(requests) = resources.requests.as_ref() {
-                let mut modified_requests = requests.clone();
-                if modified_requests.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_requests
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
-                    modified_requests.insert(resource_limit_name.to_string(), placeholder_value);
-                    modified_requests.remove(RESOURCE_REQUIREMENTS_KEY);
-                }
-
-                incoming_requests = Some(modified_requests);
+            incoming_requests = resources.requests.clone();
+            if incoming_requests.contains_key(RESOURCE_REQUIREMENTS_KEY) {
+                let placeholder_value = incoming_requests
+                    .get(RESOURCE_REQUIREMENTS_KEY)
+                    .unwrap()
+                    .clone();
+                incoming_requests.insert(resource_limit_name.to_string(), placeholder_value);
+                incoming_requests.remove(RESOURCE_REQUIREMENTS_KEY);
             }
         };
 
@@ -244,23 +233,23 @@ pub fn create_new_pod_from_spec(
         })
         .node_selector_terms
         .push(NodeSelectorTerm {
-            match_fields: Some(vec![NodeSelectorRequirement {
+            match_fields: vec![NodeSelectorRequirement {
                 key: OBJECT_NAME_FIELD.to_string(),
                 operator: NODE_SELECTOR_OP_IN.to_string(), // need to find if there is an equivalent to: v1.NODE_SELECTOR_OP_IN,
-                values: Some(vec![node_to_run_pod_on.to_string()]),
-            }]),
+                values: vec![node_to_run_pod_on.to_string()],
+            }],
             ..Default::default()
         });
 
     let result = Pod {
         spec: Some(modified_pod_spec),
-        metadata: Some(ObjectMeta {
+        metadata: ObjectMeta {
             name: Some(app_name),
             namespace: Some(pod_namespace.to_string()),
-            labels: Some(labels),
-            owner_references: Some(owner_references),
+            labels: labels,
+            owner_references: owner_references,
             ..Default::default()
-        }),
+        },
         ..Default::default()
     };
 
@@ -350,8 +339,8 @@ mod broker_podspec_tests {
             vec![Container {
                 image: Some(image.clone()),
                 resources: Some(ResourceRequirements {
-                    limits: Some(placeholder_limits),
-                    requests: Some(placeholder_requests),
+                    limits: placeholder_limits,
+                    requests: placeholder_requests,
                 }),
                 ..Default::default()
             }],
@@ -374,16 +363,16 @@ mod broker_podspec_tests {
                 Container {
                     image: Some("image1".to_string()),
                     resources: Some(ResourceRequirements {
-                        limits: Some(placeholder_limits1),
-                        requests: Some(placeholder_requests1),
+                        limits: placeholder_limits1,
+                        requests: placeholder_requests1,
                     }),
                     ..Default::default()
                 },
                 Container {
                     image: Some("image2".to_string()),
                     resources: Some(ResourceRequirements {
-                        limits: Some(placeholder_limits2),
-                        requests: Some(placeholder_requests2),
+                        limits: placeholder_limits2,
+                        requests: placeholder_requests2,
                     }),
                     ..Default::default()
                 },
@@ -401,11 +390,11 @@ mod broker_podspec_tests {
                 node_affinity: Some(NodeAffinity {
                     required_during_scheduling_ignored_during_execution: Some(NodeSelector {
                         node_selector_terms: vec![NodeSelectorTerm {
-                            match_fields: Some(vec![NodeSelectorRequirement {
+                            match_fields: vec![NodeSelectorRequirement {
                                 key: "do-not-change-this".to_string(),
                                 operator: NODE_SELECTOR_OP_IN.to_string(), // need to find if there is an equivalent to: v1.NODE_SELECTOR_OP_IN,
-                                values: Some(vec!["existing-node-affinity".to_string()]),
-                            }]),
+                                values: vec!["existing-node-affinity".to_string()],
+                            }],
                             ..Default::default()
                         }],
                         //..Default::default()
@@ -448,30 +437,19 @@ mod broker_podspec_tests {
             );
 
             // Validate the metadata name/namesapce
-            assert_eq!(&app_name, &pod.metadata.clone().unwrap().name.unwrap());
-            assert_eq!(
-                &pod_namespace,
-                &pod.metadata.clone().unwrap().namespace.unwrap()
-            );
+            assert_eq!(&app_name, &pod.metadata.clone().name.unwrap());
+            assert_eq!(&pod_namespace, &pod.metadata.clone().namespace.unwrap());
 
             // Validate the labels added
             assert_eq!(
                 &&app_name,
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(APP_LABEL_ID)
-                    .unwrap()
+                &pod.metadata.clone().labels.get(APP_LABEL_ID).unwrap()
             );
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
-                    .unwrap()
                     .get(CONTROLLER_LABEL_ID)
                     .unwrap()
             );
@@ -479,9 +457,7 @@ mod broker_podspec_tests {
                 &&configuration_name,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
-                    .unwrap()
                     .get(AKRI_CONFIGURATION_LABEL_NAME)
                     .unwrap()
             );
@@ -489,9 +465,7 @@ mod broker_podspec_tests {
                 &&instance_name,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
-                    .unwrap()
                     .get(AKRI_INSTANCE_LABEL_NAME)
                     .unwrap()
             );
@@ -499,9 +473,7 @@ mod broker_podspec_tests {
                 &&node_to_run_pod_on,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
-                    .unwrap()
                     .get(AKRI_TARGET_NODE_LABEL_NAME)
                     .unwrap()
             );
@@ -509,44 +481,21 @@ mod broker_podspec_tests {
             // Validate ownerReference
             assert_eq!(
                 instance_name,
-                pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .name
+                pod.metadata.clone().owner_references.get(0).unwrap().name
             );
             assert_eq!(
                 instance_uid,
-                pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .uid
+                pod.metadata.clone().owner_references.get(0).unwrap().uid
             );
             assert_eq!(
                 "Instance",
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .kind
+                &pod.metadata.clone().owner_references.get(0).unwrap().kind
             );
             assert_eq!(
                 &format!("{}/{}", API_NAMESPACE, API_VERSION),
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .owner_references
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .api_version
@@ -554,9 +503,7 @@ mod broker_podspec_tests {
             assert!(pod
                 .metadata
                 .clone()
-                .unwrap()
                 .owner_references
-                .unwrap()
                 .get(0)
                 .unwrap()
                 .controller
@@ -564,9 +511,7 @@ mod broker_podspec_tests {
             assert!(pod
                 .metadata
                 .clone()
-                .unwrap()
                 .owner_references
-                .unwrap()
                 .get(0)
                 .unwrap()
                 .block_owner_deletion
@@ -604,8 +549,6 @@ mod broker_podspec_tests {
                     .get(0)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .key
@@ -625,8 +568,6 @@ mod broker_podspec_tests {
                     .get(0)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .operator
@@ -646,13 +587,9 @@ mod broker_podspec_tests {
                     .get(0)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .values
-                    .as_ref()
-                    .unwrap()
             );
 
             // Validate the affinity added
@@ -671,8 +608,6 @@ mod broker_podspec_tests {
                     .get(1)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .key
@@ -692,8 +627,6 @@ mod broker_podspec_tests {
                     .get(1)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .operator
@@ -713,13 +646,9 @@ mod broker_podspec_tests {
                     .get(1)
                     .unwrap()
                     .match_fields
-                    .as_ref()
-                    .unwrap()
                     .get(0)
                     .unwrap()
                     .values
-                    .as_ref()
-                    .unwrap()
             );
 
             // Validate image name remanes unchanged
@@ -750,8 +679,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .limits
-                        .as_ref()
-                        .unwrap()
                         .contains_key("do-not-change-this")
                 );
                 assert_eq!(
@@ -766,8 +693,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .requests
-                        .as_ref()
-                        .unwrap()
                         .contains_key("do-not-change-this")
                 );
                 // Validate the limits/requires added
@@ -783,8 +708,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .limits
-                        .as_ref()
-                        .unwrap()
                         .contains_key(RESOURCE_REQUIREMENTS_KEY)
                 );
                 assert_eq!(
@@ -799,8 +722,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .requests
-                        .as_ref()
-                        .unwrap()
                         .contains_key(RESOURCE_REQUIREMENTS_KEY)
                 );
                 assert_eq!(
@@ -815,8 +736,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .limits
-                        .as_ref()
-                        .unwrap()
                         .contains_key(&resource_limit_name.clone())
                 );
                 assert_eq!(
@@ -831,8 +750,6 @@ mod broker_podspec_tests {
                         .as_ref()
                         .unwrap()
                         .requests
-                        .as_ref()
-                        .unwrap()
                         .contains_key(&resource_limit_name.clone())
                 );
             }
@@ -846,26 +763,25 @@ mod broker_podspec_tests {
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 /// use k8s_openapi::api::core::v1::Pod;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// pod::create_pod(&Pod::default(), "pod_namespace", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn create_pod(
     pod_to_create: &Pod,
     namespace: &str,
-    kube_client: APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
     trace!("create_pod enter");
-    let pods = Api::v1Pod(kube_client.clone()).within(&namespace);
-    let pod_as_u8 = serde_json::to_vec(&pod_to_create)?;
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
     info!("create_pod pods.create(...).await?:");
-    match pods.create(&PostParams::default(), pod_as_u8).await {
+    match pods.create(&PostParams::default(), pod_to_create).await {
         Ok(created_pod) => {
             info!(
                 "create_pod pods.create return: {:?}",
@@ -883,7 +799,7 @@ pub async fn create_pod(
                     serde_json::to_string(&pod_to_create),
                     ae
                 );
-                Err(ae.into())
+                Err(anyhow::anyhow!(ae))
             }
         }
         Err(e) => {
@@ -892,7 +808,7 @@ pub async fn create_pod(
                 serde_json::to_string(&pod_to_create),
                 e
             );
-            Err(e.into())
+            Err(anyhow::anyhow!(e))
         }
     }
 }
@@ -903,22 +819,22 @@ pub async fn create_pod(
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::new(config::incluster_config().unwrap());
 /// pod::remove_pod("pod_to_remove", "pod_namespace", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn remove_pod(
     pod_to_remove: &str,
     namespace: &str,
-    kube_client: APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
     trace!("remove_pod enter");
-    let pods = Api::v1Pod(kube_client.clone()).within(&namespace);
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
     info!("remove_pod pods.delete(...).await?:");
     match pods.delete(pod_to_remove, &DeleteParams::default()).await {
         Ok(deleted_pod) => match deleted_pod {
@@ -940,7 +856,7 @@ pub async fn remove_pod(
                     "remove_pod pods.delete [{:?}] returned kube error: {:?}",
                     &pod_to_remove, ae
                 );
-                Err(ae.into())
+                Err(anyhow::anyhow!(ae))
             }
         }
         Err(e) => {
@@ -948,7 +864,7 @@ pub async fn remove_pod(
                 "remove_pod pods.delete [{:?}] error: {:?}",
                 &pod_to_remove, e
             );
-            Err(e.into())
+            Err(anyhow::anyhow!(e))
         }
     }
 }

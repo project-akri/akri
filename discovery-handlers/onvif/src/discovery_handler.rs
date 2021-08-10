@@ -16,7 +16,7 @@ use akri_discovery_utils::{
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::{collections::HashMap, time::Duration};
-use tokio::{sync::mpsc, time::delay_for};
+use tokio::{sync::mpsc, time::sleep};
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -130,10 +130,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
     }
 }
 

@@ -14,7 +14,7 @@ akri-opcua = { path = "../discovery-handlers/opcua", optional = true }
 akri-udev = { path = "../discovery-handlers/udev", optional = true }
 akri-shared = { path = "../shared" }
 anyhow = "1.0.38"
-async-stream = "0.2"
+async-stream = "0.3"
 async-trait = "0.1.0"
 blake2 = "0.9.0"
 chrono = "0.4.10"
@@ -23,29 +23,32 @@ env_logger = "0.8.3"
 futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
-hyper = "0.13.10"
-h2 = "=0.2.6"
-kube = { version = "0.23.0", features = ["openapi"] }
-k8s-openapi = { version = "0.6.0", features = ["v1_16"] }
+hyper = "0.14.2"
+h2 = "0.3.0"
+kube = { version = "0.57.0",  features = ["derive"] }
+kube-runtime = "0.57.0"
+k8s-openapi = { version = "0.12.0", default-features = false, features = ["v1_16"] }
 lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.2.0"
-prometheus = { version = "0.12.0", features = ["process"] }
-prost = "0.6"
-rand = "0.8.3"
+prometheus = { version = "0.11.0", features = ["process"] }
+prost = "0.7"
+prost-types = "0.7"
+rand = "0.8.2"
 serde = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
-tokio = { version = "0.2", features = ["full"] }
-tokio-core = "0.1"
-tonic = "0.1"
-tower = "0.3" 
-url = "2.2.0"
+tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
+tokio-stream = { version =  "0.1", features = ["net"] }
+tonic = "0.4.0"
+# TODO kagold maybe dont need tower
+tower = "0.4.4" 
+url = "2.1.0"
 uuid = { version = "0.8.1", features = ["v4"] }
 
 [build-dependencies]
-tonic-build = "0.1.1"
+tonic-build = "0.4.0"
 
 [dev-dependencies]
 # for testing using a simple discovery handler

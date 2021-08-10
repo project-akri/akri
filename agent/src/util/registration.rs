@@ -10,7 +10,7 @@ use akri_shared::{
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
     uds::unix_stream,
 };
-use futures::TryStreamExt;
+use futures::TryFutureExt;
 #[cfg(test)]
 use mock_instant::Instant;
 use std::collections::HashMap;
@@ -199,11 +199,19 @@ pub async fn internal_run_registration_server(
     );
     // Delete socket in case previously created/used
     std::fs::remove_file(&socket_path).unwrap_or(());
-    let mut uds =
-        tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
+    let incoming = {
+        let uds =
+            tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
+
+        async_stream::stream! {
+            while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
+                yield item;
+            }
+        }
+    };
     Server::builder()
         .add_service(RegistrationServer::new(registration))
-        .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
+        .serve_with_incoming(incoming)
         .await?;
     trace!(
         "internal_run_registration_server - gracefully shutdown ... deleting socket {}",

@@ -22,8 +22,9 @@ serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
 sxd-document = "0.3.0"
 sxd-xpath = "0.4.0"
-tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
-tonic = {version = "0.1.0", features = ["tls"] }
+tokio = { version = "1.0", features = ["time", "net", "sync"] }
+tokio-stream = { version =  "0.1", features = ["net"] }
+tonic = { version = "0.4.0", features = ["tls"] }
 uuid = { version = "0.8.1", features = ["v4"] }
 xml-rs = { version = "0.8.0" }
 yaserde = "0.6.0"
