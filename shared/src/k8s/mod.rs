@@ -7,14 +7,12 @@ use super::akri::{
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
-use futures::executor::block_on;
 use k8s_openapi::api::core::v1::{
-    Node, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus,
+    Node, Pod, Service,
 };
 use kube::{
-    api::{Object, ObjectList},
+    api::ObjectList,
     client::Client,
-    config,
 };
 use mockall::{automock, predicate::*};
 
@@ -213,7 +211,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let node = kube.find_node("node-a").await.unwrap();
     /// # }
     /// ```
@@ -234,7 +232,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let interesting_pods = kube.find_pods_with_label("label=interesting").await.unwrap();
     /// # }
     /// ```
@@ -254,7 +252,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let pods_on_node_a = kube.find_pods_with_field("spec.nodeName=node-a").await.unwrap();
     /// # }
     /// ```
@@ -275,7 +273,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.create_pod(&Pod::default(), "pod_namespace").await.unwrap();
     /// # }
     /// ```
@@ -296,7 +294,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.remove_pod("pod_to_remove", "pod_namespace").await.unwrap();
     /// # }
     /// ```
@@ -318,7 +316,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let interesting_services = kube.find_services("label=interesting").await.unwrap();
     /// # }
     /// ```
@@ -339,7 +337,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.create_service(&Service::default(), "service_namespace").await.unwrap();
     /// # }
     /// ```
@@ -360,7 +358,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.remove_service("service_to_remove", "service_namespace").await.unwrap();
     /// # }
     /// ```
@@ -382,10 +380,10 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let selector = "environment=production,app=nginx";
     /// for svc in kube.find_services(&selector).await.unwrap() {
-    ///     let svc_name = &svc.metadata.name.clone();
+    ///     let svc_name = &svc.metadata.name.clone().unwrap();
     ///     let svc_namespace = &svc.metadata.namespace.as_ref().unwrap().clone();
     ///     let updated_svc = kube.update_service(
     ///         &svc,
@@ -413,7 +411,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let config = kube.find_configuration("config-1", "config-namespace").await.unwrap();
     /// # }
     /// ```
@@ -434,7 +432,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let dccs = kube.get_configurations().await.unwrap();
     /// # }
     /// ```
@@ -454,7 +452,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let instance = kube.find_instance("instance-1", "instance-namespace").await.unwrap();
     /// # }
     /// ```
@@ -471,7 +469,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let instances = kube.get_instances().await.unwrap();
     /// # }
     /// ```
@@ -487,13 +485,13 @@ impl KubeInterface for KubeImpl {
     /// ```no_run
     /// use akri_shared::k8s;
     /// use akri_shared::k8s::KubeInterface;
-    /// use akri_shared::akri::instance::Instance;
+    /// use akri_shared::akri::instance::InstanceSpec;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.create_instance(
-    ///     &Instance{
+    ///     &InstanceSpec{
     ///         configuration_name: "capability_configuration_name".to_string(),
     ///         shared: true,
     ///         nodes: Vec::new(),
@@ -535,7 +533,7 @@ impl KubeInterface for KubeImpl {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.delete_instance(
     ///     "instance-1",
     ///     "instance-namespace"
@@ -556,13 +554,13 @@ impl KubeInterface for KubeImpl {
     /// ```no_run
     /// use akri_shared::k8s;
     /// use akri_shared::k8s::KubeInterface;
-    /// use akri_shared::akri::instance::Instance;
+    /// use akri_shared::akri::instance::InstanceSpec;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await?;
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// kube.update_instance(
-    ///     &Instance{
+    ///     &InstanceSpec{
     ///         configuration_name: "capability_configuration_name".to_string(),
     ///         shared: true,
     ///         nodes: Vec::new(),
@@ -657,8 +655,8 @@ pub mod test_ownership {
             ownership.get_api_version()
         );
         assert_eq!("Configuration", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller());
-        assert_eq!(true, ownership.get_block_owner_deletion());
+        assert_eq!(true, ownership.get_controller().unwrap());
+        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -673,8 +671,8 @@ pub mod test_ownership {
             ownership.get_api_version()
         );
         assert_eq!("Instance", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller());
-        assert_eq!(true, ownership.get_block_owner_deletion());
+        assert_eq!(true, ownership.get_controller().unwrap());
+        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -685,8 +683,8 @@ pub mod test_ownership {
         let ownership = OwnershipInfo::new(OwnershipType::Pod, name.to_string(), uid.to_string());
         assert_eq!("core/v1", ownership.get_api_version());
         assert_eq!("Pod", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller());
-        assert_eq!(true, ownership.get_block_owner_deletion());
+        assert_eq!(true, ownership.get_controller().unwrap());
+        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -698,8 +696,8 @@ pub mod test_ownership {
             OwnershipInfo::new(OwnershipType::Service, name.to_string(), uid.to_string());
         assert_eq!("core/v1", ownership.get_api_version());
         assert_eq!("Service", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller());
-        assert_eq!(true, ownership.get_block_owner_deletion());
+        assert_eq!(true, ownership.get_controller().unwrap());
+        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }

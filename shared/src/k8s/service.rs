@@ -6,10 +6,10 @@ use super::{
     OwnershipInfo, ERROR_NOT_FOUND,
 };
 use either::Either;
-use k8s_openapi::api::core::v1::{Service, ServiceSpec, ServiceStatus};
+use k8s_openapi::api::core::v1::{Service, ServiceSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
-    api::{Api, DeleteParams, ListParams, Object, ObjectList, Patch, PatchParams, PostParams},
+    api::{Api, DeleteParams, ListParams, ObjectList, Patch, PatchParams, PostParams},
     client::Client,
 };
 use log::{error, info, trace};
@@ -27,9 +27,9 @@ use std::collections::BTreeMap;
 /// # #[tokio::main]
 /// # async fn main() {
 /// let selector = "environment=production,app=nginx";
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// for svc in service::find_services_with_selector(&selector, api_client).await.unwrap() {
-///     println!("found svc: {}", svc.metadata.name)
+///     println!("found svc: {}", svc.metadata.name.unwrap())
 /// }
 /// # }
 /// ```
@@ -94,7 +94,9 @@ pub fn create_service_app_name(
 /// use kube::config;
 /// use k8s_openapi::api::core::v1::ServiceSpec;
 ///
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
 /// let svc = service::create_new_service_from_spec(
 ///     "svc_namespace",
 ///     "capability_instance",
@@ -106,6 +108,7 @@ pub fn create_service_app_name(
 ///     ),
 ///     &ServiceSpec::default(),
 ///     true).unwrap();
+/// # }
 /// ```
 pub fn create_new_service_from_spec(
     svc_namespace: &str,
@@ -146,8 +149,7 @@ pub fn create_new_service_from_spec(
     }];
 
     let mut spec = svc_spec.clone();
-    let mut modified_selector: BTreeMap<String, String>;
-    modified_selector = spec.selector;
+    let mut modified_selector: BTreeMap<String, String> = spec.selector.unwrap_or(BTreeMap::new());
     modified_selector.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     if node_specific_svc {
         modified_selector.insert(
@@ -160,15 +162,15 @@ pub fn create_new_service_from_spec(
             configuration_name.to_string(),
         );
     }
-    spec.selector = modified_selector;
+    spec.selector = Some(modified_selector);
 
     let new_svc = Service {
         spec: Some(spec),
         metadata: ObjectMeta {
             name: Some(app_name),
             namespace: Some(svc_namespace.to_string()),
-            labels,
-            owner_references,
+            labels: Some(labels),
+            owner_references: Some(owner_references),
             ..Default::default()
         },
         ..Default::default()
@@ -193,7 +195,7 @@ pub fn create_new_service_from_spec(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let selector = "environment=production,app=nginx";
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// for svc in service::find_services_with_selector(&selector, api_client).await.unwrap() {
 ///     let mut svc = svc;
 ///     service::update_ownership(
@@ -209,7 +211,7 @@ pub fn create_new_service_from_spec(
 /// # }
 /// ```
 pub fn update_ownership(
-    svc_to_update: &mut Object<ServiceSpec, ServiceStatus>,
+    svc_to_update: &mut Service,
     ownership: OwnershipInfo,
     replace_references: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -221,19 +223,19 @@ pub fn update_ownership(
         name: ownership.get_name(),
         uid: ownership.get_uid(),
     };
-    if replace_references {
+    if replace_references || svc_to_update.metadata.owner_references.is_none() {
         // Replace all existing ownerReferences with specified ownership
-        svc_to_update.metadata.owner_references = vec![ownership_ref];
+        svc_to_update.metadata.owner_references = Some(vec![ownership_ref]);
     } else {
         // Add ownership to list IFF the UID doesn't already exist
         if !svc_to_update
-            .metadata
-            .owner_references
-            .iter()
-            .any(|x| x.uid == ownership.get_uid())
-        {
-            svc_to_update.metadata.owner_references.push(ownership_ref);
-        }
+        .metadata
+        .owner_references.as_ref().unwrap().iter()
+                    .any(|x| x.uid == ownership.get_uid()) {
+                        svc_to_update
+                    .metadata
+                    .owner_references.as_mut().unwrap().push(ownership_ref);
+                    }   
     }
     Ok(())
 }
@@ -244,8 +246,8 @@ mod svcspec_tests {
     use super::*;
     use env_logger;
 
-    use kube::api::{Object, ObjectMeta};
-    pub type TestServiceObject = Object<ServiceSpec, ServiceStatus>;
+    use kube::api::ObjectMeta;
+    use k8s_openapi::api::core::v1::ServiceStatus;
 
     #[test]
     fn test_create_service_app_name() {
@@ -294,15 +296,13 @@ mod svcspec_tests {
     fn test_update_ownership_replace() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let svc = TestServiceObject {
+        let mut svc = Service {
             metadata: ObjectMeta::default(),
-            spec: ServiceSpec::default(),
+            spec: Some(ServiceSpec::default()),
             status: Some(ServiceStatus::default()),
-            types: None,
         };
 
-        assert_eq!(0, svc.metadata.owner_references.len());
-        let mut svc = svc;
+        assert!(svc.metadata.owner_references.is_none());
         update_ownership(
             &mut svc,
             OwnershipInfo {
@@ -313,9 +313,9 @@ mod svcspec_tests {
             true,
         )
         .unwrap();
-        assert_eq!(1, svc.metadata.owner_references.len());
-        assert_eq!("object1", &svc.metadata.owner_references[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references[0].uid);
+        assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
+        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
+        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
 
         update_ownership(
             &mut svc,
@@ -327,23 +327,22 @@ mod svcspec_tests {
             true,
         )
         .unwrap();
-        assert_eq!(1, svc.metadata.owner_references.len());
-        assert_eq!("object2", &svc.metadata.owner_references[0].name);
-        assert_eq!("uid2", &svc.metadata.owner_references[0].uid);
+        assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
+        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
+        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
     }
 
     #[test]
     fn test_update_ownership_append() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let svc = TestServiceObject {
+        let svc = Service {
             metadata: ObjectMeta::default(),
-            spec: ServiceSpec::default(),
+            spec: Some(ServiceSpec::default()),
             status: Some(ServiceStatus::default()),
-            types: None,
         };
 
-        assert_eq!(0, svc.metadata.owner_references.len());
+        assert!(svc.metadata.owner_references.is_none());
         let mut svc = svc;
         update_ownership(
             &mut svc,
@@ -355,9 +354,9 @@ mod svcspec_tests {
             false,
         )
         .unwrap();
-        assert_eq!(1, svc.metadata.owner_references.len());
-        assert_eq!("object1", &svc.metadata.owner_references[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references[0].uid);
+        assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
+        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
+        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
 
         update_ownership(
             &mut svc,
@@ -369,11 +368,11 @@ mod svcspec_tests {
             false,
         )
         .unwrap();
-        assert_eq!(2, svc.metadata.owner_references.len());
-        assert_eq!("object1", &svc.metadata.owner_references[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references[0].uid);
-        assert_eq!("object2", &svc.metadata.owner_references[1].name);
-        assert_eq!("uid2", &svc.metadata.owner_references[1].uid);
+        assert_eq!(2, svc.metadata.owner_references.as_ref().unwrap().len());
+        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
+        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
+        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[1].name);
+        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[1].uid);
 
         // Test that trying to add the same UID doesn't result in
         // duplicate
@@ -387,11 +386,11 @@ mod svcspec_tests {
             false,
         )
         .unwrap();
-        assert_eq!(2, svc.metadata.owner_references.len());
-        assert_eq!("object1", &svc.metadata.owner_references[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references[0].uid);
-        assert_eq!("object2", &svc.metadata.owner_references[1].name);
-        assert_eq!("uid2", &svc.metadata.owner_references[1].uid);
+        assert_eq!(2, svc.metadata.owner_references.as_ref().unwrap().len());
+        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
+        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
+        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[1].name);
+        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[1].uid);
     }
 
     #[test]
@@ -412,7 +411,7 @@ mod svcspec_tests {
                 "this-node-selector".to_string(),
             );
             let svc_spec = ServiceSpec {
-                selector: preexisting_selector,
+                selector: Some(preexisting_selector),
                 ..Default::default()
             };
 
@@ -440,13 +439,14 @@ mod svcspec_tests {
             // Validate the labels added
             assert_eq!(
                 &&app_name,
-                &svc.metadata.clone().labels.get(APP_LABEL_ID).unwrap()
+                &svc.metadata.clone().labels.unwrap().get(APP_LABEL_ID).unwrap()
             );
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
                 &svc.metadata
                     .clone()
                     .labels
+                    .unwrap()
                     .get(CONTROLLER_LABEL_ID)
                     .unwrap()
             );
@@ -456,6 +456,7 @@ mod svcspec_tests {
                     &svc.metadata
                         .clone()
                         .labels
+                        .unwrap()
                         .get(AKRI_INSTANCE_LABEL_NAME)
                         .unwrap()
                 );
@@ -465,6 +466,7 @@ mod svcspec_tests {
                     &svc.metadata
                         .clone()
                         .labels
+                        .unwrap()
                         .get(AKRI_CONFIGURATION_LABEL_NAME)
                         .unwrap()
                 );
@@ -473,21 +475,22 @@ mod svcspec_tests {
             // Validate ownerReference
             assert_eq!(
                 object_name,
-                svc.metadata.clone().owner_references.get(0).unwrap().name
+                svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().name
             );
             assert_eq!(
                 object_uid,
-                svc.metadata.clone().owner_references.get(0).unwrap().uid
+                svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().uid
             );
             assert_eq!(
                 "Pod",
-                &svc.metadata.clone().owner_references.get(0).unwrap().kind
+                &svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().kind
             );
             assert_eq!(
                 "core/v1",
                 &svc.metadata
                     .clone()
                     .owner_references
+                    .unwrap()
                     .get(0)
                     .unwrap()
                     .api_version
@@ -496,6 +499,7 @@ mod svcspec_tests {
                 .metadata
                 .clone()
                 .owner_references
+                .unwrap()
                 .get(0)
                 .unwrap()
                 .controller
@@ -504,6 +508,7 @@ mod svcspec_tests {
                 .metadata
                 .clone()
                 .owner_references
+                .unwrap()
                 .get(0)
                 .unwrap()
                 .block_owner_deletion
@@ -515,7 +520,8 @@ mod svcspec_tests {
                 &svc.spec
                     .as_ref()
                     .unwrap()
-                    .selector
+                    .selector.as_ref()
+                    .unwrap()
                     .get("do-not-change")
                     .unwrap()
             );
@@ -525,7 +531,8 @@ mod svcspec_tests {
                 &svc.spec
                     .as_ref()
                     .unwrap()
-                    .selector
+                    .selector.as_ref()
+                    .unwrap()
                     .get(CONTROLLER_LABEL_ID)
                     .unwrap()
             );
@@ -535,7 +542,8 @@ mod svcspec_tests {
                     &svc.spec
                         .as_ref()
                         .unwrap()
-                        .selector
+                        .selector.as_ref()
+                        .unwrap()
                         .get(AKRI_INSTANCE_LABEL_NAME)
                         .unwrap()
                 );
@@ -545,7 +553,8 @@ mod svcspec_tests {
                     &svc.spec
                         .as_ref()
                         .unwrap()
-                        .selector
+                        .selector.as_ref()
+                        .unwrap()
                         .get(AKRI_CONFIGURATION_LABEL_NAME)
                         .unwrap()
                 );
@@ -566,7 +575,7 @@ mod svcspec_tests {
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// service::create_service(&Service::default(), "svc_namespace", api_client).await.unwrap();
 /// # }
 /// ```
@@ -616,7 +625,7 @@ pub async fn create_service(
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// service::remove_service("svc_to_remove", "svc_namespace", api_client).await.unwrap();
 /// # }
 /// ```
@@ -676,11 +685,11 @@ pub async fn remove_service(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let selector = "environment=production,app=nginx";
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// for svc in service::find_services_with_selector(&selector, api_client).await.unwrap() {
-///     let svc_name = &svc.metadata.name.clone();
+///     let svc_name = &svc.metadata.name.clone().unwrap();
 ///     let svc_namespace = &svc.metadata.namespace.as_ref().unwrap().clone();
-///     let loop_api_client = Client::new(config::incluster_config().unwrap());
+///     let loop_api_client = Client::try_default().await.unwrap();
 ///     let updated_svc = service::update_service(
 ///         &svc,
 ///         &svc_name,

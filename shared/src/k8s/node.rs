@@ -1,6 +1,6 @@
 use k8s_openapi::api::core::v1::Node;
 use kube::{
-    api::{Api, Object},
+    api::Api,
     client::Client,
 };
 use log::trace;
@@ -17,7 +17,7 @@ use log::trace;
 /// # #[tokio::main]
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let node = node::find_node("node-a", api_client).await.unwrap();
 /// # }
 /// ```

@@ -178,10 +178,8 @@ fn determine_action_for_pod(
 
     // Early exits above ensure unwrap will not panic
     let pod_phase = k8s_pod.status.as_ref().unwrap().phase.as_ref().unwrap();
-
-    if k8s_pod
-        .metadata
-        .labels
+    let labels = k8s_pod.metadata.labels.as_ref().or(Some(&std::collections::BTreeMap::new())).unwrap();
+    if labels
         .get(AKRI_TARGET_NODE_LABEL_NAME)
         .is_none()
     {
@@ -193,15 +191,11 @@ fn determine_action_for_pod(
     }
 
     // Early exits above ensure unwrap will not panic
-    let node_to_run_pod_on = k8s_pod
-        .metadata
-        .labels
+    let node_to_run_pod_on = labels
         .get(AKRI_TARGET_NODE_LABEL_NAME)
         .unwrap();
 
-    if k8s_pod
-        .metadata
-        .labels
+    if labels
         .get(AKRI_INSTANCE_LABEL_NAME)
         .is_none()
     {

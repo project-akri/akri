@@ -176,6 +176,7 @@ impl NodeWatcher {
             .as_ref()
             .unwrap_or(&NodeStatus::default())
             .conditions
+            .unwrap()
             .iter()
             .filter_map(|condition| {
                 if condition.type_ == "Ready" {

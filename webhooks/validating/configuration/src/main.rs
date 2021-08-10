@@ -680,10 +680,10 @@ mod tests {
     }
 
     // Akri Configuration schema tests
-    use kube::api::{Object, Void};
+    use kube::api::{NotUsed, Object};
     #[test]
     fn test_creationtimestamp_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_deletiontimestamp_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -701,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_managedfields_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -710,7 +710,7 @@ mod tests {
 
     #[test]
     fn test_generation_becomes_f64() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);

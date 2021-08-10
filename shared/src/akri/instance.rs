@@ -4,7 +4,6 @@ use kube::{
     Client, CustomResource,
 };
 
-use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1beta1 as apiexts;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use schemars::JsonSchema;
 use std::collections::HashMap;
@@ -64,7 +63,7 @@ pub struct InstanceSpec {
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let instances = instance::get_instances(&api_client).await.unwrap();
 /// # }
 /// ```
@@ -105,7 +104,7 @@ pub async fn get_instances(
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let instance = instance::find_instance(
 ///     "config-1",
 ///     "default",
@@ -150,16 +149,16 @@ pub async fn find_instance(
 /// Example:
 ///
 /// ```no_run
-/// use akri_shared::akri::instance::Instance;
+/// use akri_shared::akri::instance::InstanceSpec;
 /// use akri_shared::akri::instance;
 /// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let instance = instance::create_instance(
-///     &Instance {
+///     &InstanceSpec {
 ///         configuration_name: "capability_configuration_name".to_string(),
 ///         shared: true,
 ///         nodes: Vec::new(),
@@ -187,14 +186,14 @@ pub async fn create_instance(
     let mut instance = Instance::new(name, instance_to_create.clone());
     instance.metadata = ObjectMeta {
         name: Some(name.to_string()),
-        owner_references: vec![OwnerReference {
+        owner_references: Some(vec![OwnerReference {
             api_version: format!("{}/{}", API_NAMESPACE, API_VERSION),
             kind: "Configuration".to_string(),
             controller: Some(true),
             block_owner_deletion: Some(true),
             name: owner_config_name.to_string(),
             uid: owner_config_uid.to_string(),
-        }],
+        }]),
         ..Default::default()
     };
     log::trace!(
@@ -233,7 +232,7 @@ pub async fn create_instance(
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let instance = instance::delete_instance(
 ///     "instance-1",
 ///     "default",
@@ -273,16 +272,16 @@ pub async fn delete_instance(
 /// Example:
 ///
 /// ```no_run
-/// use akri_shared::akri::instance::Instance;
+/// use akri_shared::akri::instance::InstanceSpec;
 /// use akri_shared::akri::instance;
 /// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let instance = instance::update_instance(
-///     &Instance {
+///     &InstanceSpec {
 ///         configuration_name: "capability_configuration_name".to_string(),
 ///         shared: true,
 ///         nodes: Vec::new(),

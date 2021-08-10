@@ -4,13 +4,8 @@
 // in favor of camelCase)
 //
 #![allow(non_camel_case_types)]
-
-use super::API_CONFIGURATIONS;
-use super::API_NAMESPACE;
-use super::API_VERSION;
 use k8s_openapi::api::core::v1::PodSpec;
 use k8s_openapi::api::core::v1::ServiceSpec;
-use k8s_openapi::Schema;
 use kube::CustomResource;
 use kube::{
     api::{Api, ListParams, ObjectList},
@@ -39,9 +34,6 @@ pub struct DiscoveryHandlerInfo {
 /// capabilities.  For any specific capability found that is described by this
 /// configuration, an Instance
 /// is created.
-// TODO: use kube-rs's CustomResource utility as done in instance.rs once
-// k8s-openapi has added added support for JsonSchema on K8s objects.
-// Issue to track: https://github.com/Arnavion/k8s-openapi/issues/86
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(group = "akri.sh", version = "v0", kind = "Configuration", namespaced)]
@@ -61,7 +53,6 @@ pub struct ConfigurationSpec {
     /// node that can access any capability described by this
     /// configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "pod_spec_schema")]
     pub broker_pod_spec: Option<PodSpec>,
 
     /// This defines a service that should be created to access
@@ -70,7 +61,6 @@ pub struct ConfigurationSpec {
     /// can be found.  For each Instance, there is at most 1
     /// instance service.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "service_spec_schema")]
     pub instance_service_spec: Option<ServiceSpec>,
 
     /// This defines a service that should be created to access
@@ -78,7 +68,6 @@ pub struct ConfigurationSpec {
     /// configuration. For each Configuration, there is at most
     /// 1 device capability service.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "service_spec_schema")]
     pub configuration_service_spec: Option<ServiceSpec>,
 
     /// This defines some properties that will be set as
@@ -88,14 +77,6 @@ pub struct ConfigurationSpec {
     /// that represent the discovered resources.
     #[serde(default)]
     pub broker_properties: HashMap<String, String>,
-}
-
-fn pod_spec_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    serde_json::from_value(PodSpec::schema()).unwrap()
-}
-
-fn service_spec_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    serde_json::from_value(ServiceSpec::schema()).unwrap()
 }
 
 /// Get Configurations for a given namespace
@@ -109,7 +90,7 @@ fn service_spec_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::sche
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let dccs = configuration::get_configurations(&api_client).await.unwrap();
 /// # }
 /// ```
@@ -149,7 +130,7 @@ pub async fn get_configurations(
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = Client::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// let config = configuration::find_configuration(
 ///     "config-1",
 ///     "default",

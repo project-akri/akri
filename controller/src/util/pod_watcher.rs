@@ -121,14 +121,14 @@ impl BrokerPodWatcher {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_pod - enter [event: {:?}]", event);
         match event {
-            WatchEvent::Added(pod) | WatchEvent::Modified(pod) => {
+            Event::Applied(pod) => {
                 trace!("handle_pod - pod name {:?}", &pod.metadata.name);
                 let phase = self.get_pod_phase(&pod);
                 trace!("handle_pod - pod phase {:?}", &phase);
                 match phase.as_str() {
                     "Unknown" | "Pending" => {
                         self.known_pods
-                            .insert(pod.metadata.name.clone(), PodState::Pending);
+                            .insert(pod.metadata.name.clone().ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?, PodState::Pending);
                     }
                     "Running" => {
                         self.handle_running_pod_if_needed(&pod, kube_interface)
@@ -143,13 +143,13 @@ impl BrokerPodWatcher {
                     }
                 }
             }
-            WatchEvent::Deleted(pod) => {
+            Event::Deleted(pod) => {
                 trace!("handle_pod - Deleted: {:?}", &pod.metadata.name);
                 self.handle_deleted_pod_if_needed(&pod, kube_interface)
                     .await?;
             }
-            WatchEvent::Error(err) => {
-                trace!("handle_pod - error for Pod: {}", err);
+            Event::Restarted(pods) => {
+                trace!("handle_pod - pod watcher restarted. Pods are : {:?}", pods);
             }
         };
         Ok(())
@@ -163,7 +163,8 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_running_pod_if_needed - enter");
-        let pod_name = pod.metadata.name.clone();
+        let pod_name = pod.metadata.name.clone().ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
+        // map_err(|_| anyhow::format_err!("could not parse url"))?
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_running_pod_if_needed - last_known_state: {:?}",
@@ -189,7 +190,7 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_ended_pod_if_needed - enter");
-        let pod_name = pod.metadata.name.clone();
+        let pod_name = pod.metadata.name.clone().ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_ended_pod_if_needed - last_known_state: {:?}",
@@ -215,7 +216,7 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_deleted_pod_if_needed - enter");
-        let pod_name = pod.metadata.name.clone();
+        let pod_name = pod.metadata.name.clone().ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_deleted_pod_if_needed - last_known_state: {:?}",
@@ -238,14 +239,11 @@ impl BrokerPodWatcher {
         pod: &Pod,
     ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("get_instance_and_configuration_from_pod - enter");
-        let instance_id = pod
-            .metadata
-            .labels
+        let labels = pod.metadata.labels.as_ref().ok_or("Pod doesn't have labels")?;
+        let instance_id = labels
             .get(AKRI_INSTANCE_LABEL_NAME)
             .ok_or("No configuration name found.")?;
-        let config_name = pod
-            .metadata
-            .labels
+        let config_name = labels
             .get(AKRI_CONFIGURATION_LABEL_NAME)
             .ok_or("No instance id found.")?;
         Ok((instance_id.to_string(), config_name.to_string()))
@@ -261,7 +259,7 @@ impl BrokerPodWatcher {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_non_running_pod - enter");
         let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {}",
+            "Namespace not found for pod: {:?}",
             &pod.metadata.name
         ))?;
         let (instance_id, config_name) = self.get_instance_and_configuration_from_pod(pod)?;
@@ -387,7 +385,7 @@ impl BrokerPodWatcher {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_running_pod - enter");
         let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {}",
+            "Namespace not found for pod: {:?}",
             &pod.metadata.name
         ))?;
         let (instance_name, configuration_name) =
@@ -466,7 +464,7 @@ impl BrokerPodWatcher {
         {
             for existing_svc in existing_svcs {
                 let mut existing_svc = existing_svc.clone();
-                let svc_name = existing_svc.metadata.name.clone();
+                let svc_name = existing_svc.metadata.name.clone().ok_or(anyhow::format_err!("Service {:?} does not have name", existing_svc))?;
                 let svc_namespace = existing_svc.metadata.namespace.as_ref().unwrap().clone();
                 trace!(
                     "create_or_update_service - Update existing svc={:?}",
@@ -598,7 +596,7 @@ mod tests {
     use super::super::shared_test_utils::config_for_tests::PodList;
     use super::*;
     use akri_shared::{k8s::MockKubeInterface, os::file};
-    use kube::ErrorResponse;
+    use kube::error::ErrorResponse;
 
     fn create_pods_with_phase(result_file: &'static str, specified_phase: &'static str) -> PodList {
         let pods_json = file::read_file_to_string(result_file);
