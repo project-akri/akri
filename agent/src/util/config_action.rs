@@ -286,7 +286,7 @@ pub async fn delete_all_instances_in_map(
             .send(device_plugin_service::ListAndWatchMessageKind::End)
             .unwrap();
         instance_map_locked.remove(&instance_name);
-        try_delete_instance(kube_interface, &instance_name, &namespace).await?;
+        try_delete_instance(kube_interface, &instance_name, namespace).await?;
     }
     Ok(())
 }

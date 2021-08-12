@@ -60,7 +60,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 let mut devpaths: HashSet<String> = HashSet::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
-                    let paths = do_parse_and_find(enumerator, &rule).unwrap();
+                    let paths = do_parse_and_find(enumerator, rule).unwrap();
                     paths.into_iter().for_each(|path| {
                         devpaths.insert(path);
                     });

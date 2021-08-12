@@ -118,12 +118,8 @@ pub fn create_new_service_from_spec(
     svc_spec: &ServiceSpec,
     node_specific_svc: bool,
 ) -> Result<Service, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let app_name = create_service_app_name(
-        configuration_name,
-        instance_name,
-        "svc",
-        node_specific_svc,
-    );
+    let app_name =
+        create_service_app_name(configuration_name, instance_name, "svc", node_specific_svc);
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     labels.insert(APP_LABEL_ID.to_string(), app_name.clone());
     labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());

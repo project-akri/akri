@@ -404,7 +404,7 @@ mod crd_serializeation_tests {
             "../test/yaml/akri-instance-usb-camera.yaml",
         ];
         for file in &files {
-            let yaml = file::read_file_to_string(&file);
+            let yaml = file::read_file_to_string(file);
             let deserialized: Instance = serde_yaml::from_str(&yaml).unwrap();
             let _ = serde_json::to_string(&deserialized).unwrap();
         }

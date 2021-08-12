@@ -174,7 +174,7 @@ mod tests {
               descriptions:
               - "foo1"
         "#;
-        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(debug_echo_yaml).unwrap();
         let discovery_handler = DiscoveryHandlerImpl::new(None);
         let properties: HashMap<String, String> = [(
             super::super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),

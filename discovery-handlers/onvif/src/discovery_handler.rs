@@ -209,9 +209,9 @@ mod tests {
         if let Some(ip_and_mac_) = ip_and_mac {
             configure_get_device_ip_and_mac_address(
                 mock,
-                &ip_and_mac_.mock_uri,
-                &ip_and_mac_.mock_ip,
-                &ip_and_mac_.mock_mac,
+                ip_and_mac_.mock_uri,
+                ip_and_mac_.mock_ip,
+                ip_and_mac_.mock_mac,
             )
         }
     }

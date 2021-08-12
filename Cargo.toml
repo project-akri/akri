@@ -9,7 +9,7 @@ members = [
     "agent", 
     "controller", 
     "samples/brokers/udev-video-broker", 
-    "webhooks/validating/configuration",
+    # "webhooks/validating/configuration",
     "discovery-utils", 
     "discovery-handlers/debug-echo", 
     "discovery-handlers/onvif", 

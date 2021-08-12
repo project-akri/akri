@@ -396,7 +396,7 @@ async fn try_update_instance_device_usage(
     for x in 0..MAX_INSTANCE_UPDATE_TRIES {
         // Grab latest instance
         match kube_interface
-            .find_instance(&instance_name, &instance_namespace)
+            .find_instance(instance_name, instance_namespace)
             .await
         {
             Ok(instance_object) => instance = instance_object.spec,
@@ -424,7 +424,7 @@ async fn try_update_instance_device_usage(
             .insert(device_usage_id.to_string(), value.clone());
 
         match kube_interface
-            .update_instance(&instance, &instance_name, &instance_namespace)
+            .update_instance(&instance, instance_name, instance_namespace)
             .await
         {
             Ok(()) => {

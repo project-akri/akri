@@ -235,7 +235,7 @@ mod crd_serialization_tests {
         ];
         for file in &files {
             log::trace!("test file: {}", &file);
-            let yaml = file::read_file_to_string(&file);
+            let yaml = file::read_file_to_string(file);
             log::trace!("test file contents: {}", &yaml);
             let deserialized: Configuration = serde_yaml::from_str(&yaml).unwrap();
             log::trace!("test file deserialized: {:?}", &deserialized);

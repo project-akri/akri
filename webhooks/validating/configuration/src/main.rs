@@ -27,7 +27,7 @@ fn check(
     match v {
         serde_json::Value::Object(o) => {
             for (key, value) in o {
-                if let Err(e) = check(&value, &deserialized[key]) {
+                if let Err(e) = check(value, &deserialized[key]) {
                     return Err(None.ok_or(format!(
                         "input key ({:?}) not equal to parsed: ({:?})",
                         key, e
@@ -179,7 +179,7 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
     match &rqst.request {
         Some(rqst) => {
             println!("Handler received: AdmissionRequest");
-            let resp = validate_configuration(&rqst);
+            let resp = validate_configuration(rqst);
             let resp: AdmissionReview = AdmissionReview {
                 api_version: Some("admission.k8s.io/v1".to_owned()),
                 kind: Some("AdmissionReview".to_owned()),
@@ -187,11 +187,11 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
                 response: Some(resp),
             };
             let body = serde_json::to_string(&resp).expect("Valid AdmissionReview");
-            return HttpResponse::Ok().body(body);
+            HttpResponse::Ok().body(body)
         }
         None => {
             println!("Handler received: Nothing");
-            return HttpResponse::BadRequest().body("");
+            HttpResponse::BadRequest().body("")
         }
     }
 }

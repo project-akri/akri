@@ -704,11 +704,11 @@ pub mod start_discovery {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         loop {
             let deregistered;
-            match discovery_operator.get_stream(&endpoint).await {
+            match discovery_operator.get_stream(endpoint).await {
                 Some(stream_type) => {
                     // Since connection was established, be sure that the Discovery Handler is marked as having a client
                     discovery_operator.set_discovery_handler_connectivity_status(
-                        &endpoint,
+                        endpoint,
                         DiscoveryHandlerStatus::Active,
                     );
                     match stream_type {
@@ -716,14 +716,14 @@ pub mod start_discovery {
                             match discovery_operator
                                 .internal_do_discover(
                                     kube_interface.clone(),
-                                    &dh_details,
+                                    dh_details,
                                     &mut stream,
                                 )
                                 .await
                             {
                                 Ok(_) => {
                                     discovery_operator.set_discovery_handler_connectivity_status(
-                                        &endpoint,
+                                        endpoint,
                                         DiscoveryHandlerStatus::Waiting,
                                     );
                                     break;
@@ -740,7 +740,7 @@ pub mod start_discovery {
                                             )
                                             .await?;
                                         deregistered = discovery_operator
-                                            .mark_offline_or_deregister_discovery_handler(&endpoint)
+                                            .mark_offline_or_deregister_discovery_handler(endpoint)
                                             .await
                                             .unwrap();
                                     } else {
@@ -756,7 +756,7 @@ pub mod start_discovery {
                                             .await?;
                                         discovery_operator
                                             .set_discovery_handler_connectivity_status(
-                                                &endpoint,
+                                                endpoint,
                                                 DiscoveryHandlerStatus::Waiting,
                                             );
                                         break;
@@ -768,13 +768,13 @@ pub mod start_discovery {
                             discovery_operator
                                 .internal_do_discover(
                                     kube_interface.clone(),
-                                    &dh_details,
+                                    dh_details,
                                     &mut stream,
                                 )
                                 .await
                                 .unwrap();
                             discovery_operator.set_discovery_handler_connectivity_status(
-                                &endpoint,
+                                endpoint,
                                 DiscoveryHandlerStatus::Waiting,
                             );
                             break;
@@ -783,7 +783,7 @@ pub mod start_discovery {
                 }
                 None => {
                     deregistered = discovery_operator
-                        .mark_offline_or_deregister_discovery_handler(&endpoint)
+                        .mark_offline_or_deregister_discovery_handler(endpoint)
                         .await
                         .unwrap();
                 }

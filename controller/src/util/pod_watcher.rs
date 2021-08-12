@@ -187,7 +187,7 @@ impl BrokerPodWatcher {
         // per transition into the Running state
         if last_known_state != &PodState::Running {
             trace!("handle_running_pod_if_needed - call handle_running_pod");
-            self.handle_running_pod(&pod, kube_interface).await?;
+            self.handle_running_pod(pod, kube_interface).await?;
             self.known_pods.insert(pod_name, PodState::Running);
         }
         Ok(())
@@ -217,7 +217,7 @@ impl BrokerPodWatcher {
         // per transition into the Ended state
         if last_known_state != &PodState::Ended {
             trace!("handle_ended_pod_if_needed - call handle_non_running_pod");
-            self.handle_non_running_pod(&pod, kube_interface).await?;
+            self.handle_non_running_pod(pod, kube_interface).await?;
             self.known_pods.insert(pod_name, PodState::Ended);
         }
         Ok(())
@@ -247,7 +247,7 @@ impl BrokerPodWatcher {
         // per transition into the Deleted state
         if last_known_state != &PodState::Deleted {
             trace!("handle_deleted_pod_if_needed - call handle_non_running_pod");
-            self.handle_non_running_pod(&pod, kube_interface).await?;
+            self.handle_non_running_pod(pod, kube_interface).await?;
             self.known_pods.insert(pod_name, PodState::Deleted);
         }
         Ok(())
@@ -291,7 +291,7 @@ impl BrokerPodWatcher {
         self.find_pods_and_cleanup_svc_if_unsupported(
             &instance_id,
             &config_name,
-            &namespace,
+            namespace,
             true,
             kube_interface,
         )
@@ -299,14 +299,14 @@ impl BrokerPodWatcher {
         self.find_pods_and_cleanup_svc_if_unsupported(
             &instance_id,
             &config_name,
-            &namespace,
+            namespace,
             false,
             kube_interface,
         )
         .await?;
 
         // Make sure instance has required Pods
-        if let Ok(instance) = kube_interface.find_instance(&instance_id, &namespace).await {
+        if let Ok(instance) = kube_interface.find_instance(&instance_id, namespace).await {
             super::instance_action::handle_instance_change(
                 &instance,
                 &super::instance_action::InstanceAction::Update,
@@ -349,8 +349,8 @@ impl BrokerPodWatcher {
         );
 
         let svc_name = service::create_service_app_name(
-            &configuration_name,
-            &instance_id,
+            configuration_name,
+            instance_id,
             &"svc".to_string(),
             handle_instance_svc,
         );
@@ -393,7 +393,7 @@ impl BrokerPodWatcher {
                 &svc_name, &svc_namespace
             );
             kube_interface
-                .remove_service(&svc_name, &svc_namespace)
+                .remove_service(svc_name, svc_namespace)
                 .await?;
             trace!("cleanup_svc_if_unsupported - service::remove_service succeeded");
         }
@@ -416,7 +416,7 @@ impl BrokerPodWatcher {
         let (instance_name, configuration_name) =
             self.get_instance_and_configuration_from_pod(pod)?;
         let configuration = match kube_interface
-            .find_configuration(&configuration_name, &namespace)
+            .find_configuration(&configuration_name, namespace)
             .await
         {
             Ok(config) => config,
@@ -431,7 +431,7 @@ impl BrokerPodWatcher {
             }
         };
         let instance = match kube_interface
-            .find_instance(&instance_name, &namespace)
+            .find_instance(&instance_name, namespace)
             .await
         {
             Ok(instance) => instance,
@@ -452,8 +452,8 @@ impl BrokerPodWatcher {
             .ok_or(format!("UID not found for instance: {}", instance_name))?;
         self.add_instance_and_configuration_services(
             &instance_name,
-            &instance_uid,
-            &namespace,
+            instance_uid,
+            namespace,
             &configuration_name,
             &configuration,
             kube_interface,
@@ -514,9 +514,9 @@ impl BrokerPodWatcher {
 
         if create_new_service {
             let new_instance_svc = service::create_new_service_from_spec(
-                &namespace,
-                &instance_name,
-                &configuration_name,
+                namespace,
+                instance_name,
+                configuration_name,
                 ownership.clone(),
                 service_spec,
                 is_instance_service,
@@ -527,7 +527,7 @@ impl BrokerPodWatcher {
             );
 
             kube_interface
-                .create_service(&new_instance_svc, &namespace)
+                .create_service(&new_instance_svc, namespace)
                 .await?;
             trace!("create_or_update_service - service::create_service succeeded");
         }
@@ -1485,11 +1485,11 @@ mod tests {
 
     fn configure_for_handle_pod(mock: &mut MockKubeInterface, handle_pod: &HandlePod) {
         if let Some(running) = &handle_pod.running {
-            configure_for_running_pod_work(mock, &running);
+            configure_for_running_pod_work(mock, running);
         }
 
         if let Some(ended) = &handle_pod.ended {
-            configure_for_cleanup_broker_and_configuration_svcs(mock, &ended);
+            configure_for_cleanup_broker_and_configuration_svcs(mock, ended);
         }
     }
 }

@@ -183,7 +183,7 @@ pub mod util {
         scopes: Option<&FilterList>,
     ) -> Vec<String> {
         let response_envelope =
-            yaserde::de::from_str::<to_deserialize::Envelope>(&discovery_response);
+            yaserde::de::from_str::<to_deserialize::Envelope>(discovery_response);
         // The response envelope follows this format:
         //   <Envelope><Body><ProbeMatches><ProbeMatch><XAddrs>
         //       https://10.0.0.1:5357/svc
@@ -288,7 +288,7 @@ pub mod util {
             "get_discovery_response_socket - binding to: {:?}",
             local_socket_addr
         );
-        let mut socket = UdpSocket::bind(local_socket_addr).await?;
+        let socket = UdpSocket::bind(local_socket_addr).await?;
         trace!(
             "get_discovery_response_socket - joining multicast: {:?} {:?}",
             &MULTI_IPV4_ADDR,

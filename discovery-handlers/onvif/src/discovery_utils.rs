@@ -100,7 +100,7 @@ struct HttpRequest {}
 impl HttpRequest {
     /// This converts an http response body into an sxd_document::Package
     fn handle_request_body(body: &str) -> Result<Package, anyhow::Error> {
-        let xml_as_tree = match parser::parse(&body) {
+        let xml_as_tree = match parser::parse(body) {
             Ok(xml_as_tree) => xml_as_tree,
             Err(e) => return Err(Error::new(ErrorKind::InvalidData, e).into()),
         };
@@ -157,7 +157,7 @@ impl Http for HttpRequest {
             .await?
             .freeze();
         let response_body_str = std::str::from_utf8(&response_body)?;
-        match HttpRequest::handle_request_body(&response_body_str) {
+        match HttpRequest::handle_request_body(response_body_str) {
             Ok(dom) => Ok(dom),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e).into()),
         }
@@ -244,7 +244,7 @@ async fn inner_get_device_service_uri(
 ) -> Result<String, anyhow::Error> {
     let services_xml = match http
         .post(
-            &url,
+            url,
             &get_action(DEVICE_WSDL, "GetServices"),
             &GET_SERVICES_TEMPLATE.to_string(),
         )
@@ -296,7 +296,7 @@ async fn inner_get_device_profiles(
 ) -> Result<Vec<String>, anyhow::Error> {
     let action = get_action(MEDIA_WSDL, "GetProfiles");
     let message = GET_PROFILES_TEMPLATE.to_string();
-    let profiles_xml = match http.post(&url, &action, &message).await {
+    let profiles_xml = match http.post(url, &action, &message).await {
         Ok(xml) => xml,
         Err(e) => {
             return Err(anyhow::format_err!(
@@ -332,9 +332,9 @@ async fn inner_get_device_profile_streaming_uri(
     profile_token: &str,
     http: &impl Http,
 ) -> Result<String, anyhow::Error> {
-    let stream_soap = get_stream_uri_message(&profile_token);
+    let stream_soap = get_stream_uri_message(profile_token);
     let stream_uri_xml = match http
-        .post(&url, &get_action(MEDIA_WSDL, "GetStreamUri"), &stream_soap)
+        .post(url, &get_action(MEDIA_WSDL, "GetStreamUri"), &stream_soap)
         .await
     {
         Ok(xml) => xml,

@@ -1,6 +1,6 @@
-use super::constants::{
-    CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY, ENABLE_DEBUG_ECHO_LABEL,
-};
+use super::constants::CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY;
+#[cfg(any(test, feature = "agent-full"))]
+use super::constants::ENABLE_DEBUG_ECHO_LABEL;
 use akri_discovery_utils::discovery::v0::{
     register_discovery_handler_request::EndpointType,
     registration_server::{Registration, RegistrationServer},

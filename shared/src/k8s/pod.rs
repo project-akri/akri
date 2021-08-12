@@ -342,7 +342,7 @@ mod broker_podspec_tests {
         do_pod_spec_creation_test(
             vec![image.clone()],
             vec![Container {
-                image: Some(image.clone()),
+                image: Some(image),
                 resources: Some(ResourceRequirements {
                     limits: Some(placeholder_limits),
                     requests: Some(placeholder_requests),

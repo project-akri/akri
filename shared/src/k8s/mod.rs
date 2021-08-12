@@ -525,7 +525,7 @@ pub async fn try_delete_instance(
 ) -> Result<(), anyhow::Error> {
     for x in 0..MAX_INSTANCE_UPDATE_TRIES {
         match kube_interface
-            .delete_instance(instance_name, &instance_namespace)
+            .delete_instance(instance_name, instance_namespace)
             .await
         {
             Ok(()) => {
@@ -535,7 +535,7 @@ pub async fn try_delete_instance(
             Err(e) => {
                 // Check if already was deleted else return error
                 match kube_interface
-                    .find_instance(&instance_name, &instance_namespace)
+                    .find_instance(instance_name, instance_namespace)
                     .await
                 {
                     Err(e) => {

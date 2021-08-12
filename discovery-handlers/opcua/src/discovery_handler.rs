@@ -167,7 +167,7 @@ mod tests {
             opcuaDiscoveryMethod: 
               standard: {}
         "#;
-        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(&yaml).unwrap();
+        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}"#;
         assert_eq!(expected_deserialized, serialized);
@@ -186,7 +186,7 @@ mod tests {
               items: 
               - "Some application name" 
         "#;
-        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(&yaml).unwrap();
+        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_serialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
         assert_eq!(expected_serialized, serialized);

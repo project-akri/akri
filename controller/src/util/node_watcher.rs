@@ -227,21 +227,21 @@ impl NodeWatcher {
             for x in 0..MAX_INSTANCE_UPDATE_TRIES {
                 match if x == 0 {
                     self.try_remove_nodes_from_instance(
-                        &vanished_node_name,
+                        vanished_node_name,
                         &instance_name,
-                        &instance_namespace,
+                        instance_namespace,
                         &instance,
                         kube_interface,
                     )
                     .await
                 } else {
                     let retry_instance = kube_interface
-                        .find_instance(&instance_name, &instance_namespace)
+                        .find_instance(&instance_name, instance_namespace)
                         .await?;
                     self.try_remove_nodes_from_instance(
-                        &vanished_node_name,
+                        vanished_node_name,
                         &instance_name,
-                        &instance_namespace,
+                        instance_namespace,
                         &retry_instance,
                         kube_interface,
                     )
@@ -318,7 +318,7 @@ impl NodeWatcher {
         );
 
         kube_interface
-            .update_instance(&modified_instance, &instance_name, &instance_namespace)
+            .update_instance(&modified_instance, instance_name, instance_namespace)
             .await
     }
 }
@@ -561,7 +561,7 @@ mod tests {
 
         let node_watcher = NodeWatcher::new();
         assert!(node_watcher
-            .handle_node_disappearance(&"foo-a", &mock,)
+            .handle_node_disappearance("foo-a", &mock)
             .await
             .is_err());
     }

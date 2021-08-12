@@ -258,7 +258,7 @@ async fn handle_deletion_work(
         &"pod".to_string()
     );
     let pod_app_name = pod::create_pod_app_name(
-        &instance_name,
+        instance_name,
         context_node_name,
         instance_shared,
         &"pod".to_string(),
@@ -269,7 +269,7 @@ async fn handle_deletion_work(
         &context_namespace
     );
     kube_interface
-        .remove_pod(&pod_app_name, &context_namespace)
+        .remove_pod(&pod_app_name, context_namespace)
         .await?;
     trace!("handle_deletion_work - pod::remove_pod succeeded",);
     BROKER_POD_COUNT_METRIC
@@ -348,9 +348,9 @@ async fn handle_addition_work(
     if let Some(broker_pod_spec) = &instance_configuration.spec.broker_pod_spec {
         let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
         let new_pod = pod::create_new_pod_from_spec(
-            &instance_namespace,
-            &instance_name,
-            &instance_class_name,
+            instance_namespace,
+            instance_name,
+            instance_class_name,
             OwnershipInfo::new(
                 OwnershipType::Instance,
                 instance_name.to_string(),
@@ -359,13 +359,13 @@ async fn handle_addition_work(
             &capability_id,
             &new_node.to_string(),
             instance_shared,
-            &broker_pod_spec,
+            broker_pod_spec,
         )?;
 
         trace!("handle_addition_work - New pod spec={:?}", new_pod);
 
         kube_interface
-            .create_pod(&new_pod, &instance_namespace)
+            .create_pod(&new_pod, instance_namespace)
             .await?;
         trace!("handle_addition_work - pod::create_pod succeeded",);
         BROKER_POD_COUNT_METRIC
@@ -483,7 +483,7 @@ pub async fn handle_instance_change(
             &instance.spec.configuration_name
         );
         let instance_configuration = match kube_interface
-            .find_configuration(&instance.spec.configuration_name, &instance_namespace)
+            .find_configuration(&instance.spec.configuration_name, instance_namespace)
             .await
         {
             Ok(config) => config,
@@ -511,12 +511,12 @@ pub async fn handle_instance_change(
     for new_node in nodes_to_add {
         handle_addition_work(
             &instance_name,
-            &instance_uid,
-            &instance_namespace,
+            instance_uid,
+            instance_namespace,
             &instance.spec.configuration_name,
             instance.spec.shared,
             &new_node,
-            &instance_configuration_option.as_ref().unwrap(),
+            instance_configuration_option.as_ref().unwrap(),
             kube_interface,
         )
         .await?;
@@ -969,7 +969,7 @@ mod handle_instance_tests {
                 )),
             },
         );
-        run_handle_instance_change_test(&mut mock, &instance_file, &InstanceAction::Update).await;
+        run_handle_instance_change_test(&mut mock, instance_file, &InstanceAction::Update).await;
     }
 
     /// Checks that the BROKER_POD_COUNT_METRIC is appropriately incremented
