@@ -25,4 +25,4 @@ Alternatively, Akri can be configured using specific parameters (find the availa
 helm install akri akri-helm-charts/akri --set 'param=value' ...
 ```
 
-For more details on using parameters, check out the [documentation about modifying an Akri installation](https://github.com/deislabs/akri/blob/main/docs/modifying-akri-installation.md).
+For more information on installing Akri, see Akri's [user guide](https://docs.akri.sh/user-guide/getting-started).
