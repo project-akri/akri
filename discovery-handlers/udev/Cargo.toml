@@ -1,6 +1,6 @@
 [package]
 name = "akri-udev"
-version = "0.6.10"
+version = "0.6.12"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 
