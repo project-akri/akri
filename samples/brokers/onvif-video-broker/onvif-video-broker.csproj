@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Json.NET" Version="1.0.18" />
-    <PackageReference Include="KubernetesClient" Version="1.6.27" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.9.10" />
     <PackageReference Include="Google.Protobuf" Version="3.11.3" />
     <PackageReference Include="Grpc" Version="2.27.0" />
