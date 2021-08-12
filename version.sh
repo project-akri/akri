@@ -26,7 +26,12 @@ check_twoline_version()
     VERSION_STRING=$3
 
     echo "Check $FILE ($LINE1_PATTERN :: $VERSION_STRING)"
-    
+    SKIP_SOURCE=$(grep "$LINE1_PATTERN" -A 2 $FILE | grep "source =")
+    if [ "$SKIP_SOURCE" != "" ]; then
+    echo "    Skipping check: $LINE1_PATTERN"
+    return 0
+    fi
+
     CORRECT_VERSION=$(grep "$LINE1_PATTERN" -A 1 $FILE | grep "$VERSION_STRING")
     if [ "$CORRECT_VERSION" == "" ]; then
     echo "    Needs upate: $FILE"
@@ -59,6 +64,12 @@ update_twoline_version()
     NEW_LINE2=$5
 
     echo "Update $FILE [$LINE1_PATTERN, $LINE2_PATTERN] => [$NEW_LINE1, $NEW_LINE2]"
+    SKIP_SOURCE=$(grep "$LINE1_PATTERN" -A 2 $FILE | grep "source =")
+    if [ "$SKIP_SOURCE" != "" ]; then
+    echo "    Skipping Update: $LINE1_PATTERN"
+    return 0
+    fi
+
     sed -i "/$LINE1_PATTERN/ {n;/$LINE2_PATTERN/ {s/$LINE2_PATTERN/$NEW_LINE2/;p;d;}}" $FILE
     return $?
 }
