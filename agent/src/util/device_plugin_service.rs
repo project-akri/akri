@@ -821,7 +821,7 @@ mod device_plugin_service_tests {
                     NodeName::ThisNode => "node-a",
                     NodeName::OtherNode => "other",
                 };
-                instance_json = instance_json.replace("node-a", &host_name);
+                instance_json = instance_json.replace("node-a", host_name);
                 instance_json = instance_json.replace("config-a-b494b6", &instance_name_clone);
                 instance_json =
                     instance_json.replace("\":\"\"", &format!("\":\"{}\"", device_usage_node));

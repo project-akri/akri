@@ -1,7 +1,9 @@
 /// Akri API Version
 pub const API_VERSION: &str = "v0";
-/// Akri API Version
-pub const NODE_VERSION: &str = "v1";
+/// Akri API Version Number
+pub const API_VERSION_NUMBER: &str = "0";
+/// Version of Pods that the Controller watches for
+pub const POD_VERSION_NUMBER: &str = "1";
 /// Akri CRD Namespace
 pub const API_NAMESPACE: &str = "akri.sh";
 /// Akri Configuration CRD name

@@ -12,8 +12,7 @@ use akri_shared::{
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{watcher, Event};
+use kube::api::{Api, ListParams, WatchEvent};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -79,11 +78,16 @@ async fn internal_do_instance_watch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("internal_do_instance_watch - enter");
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
-    let watcher = watcher(resource, ListParams::default());
-    let mut informer = watcher.boxed();
+    let mut stream = resource
+        .watch(
+            &ListParams::default(),
+            akri_shared::akri::API_VERSION_NUMBER,
+        )
+        .await?
+        .boxed();
     // Currently, this does not handle None except to break the
     // while.
-    while let Some(event) = informer.try_next().await? {
+    while let Some(event) = stream.try_next().await? {
         // Aquire lock to ensure cleanup_instance_and_configuration_svcs and the
         // inner loop handle_instance call in internal_do_instance_watch
         // cannot execute at the same time.
@@ -97,21 +101,20 @@ async fn internal_do_instance_watch(
 /// This takes an event off the Instance stream and delegates it to the
 /// correct function based on the event type.
 async fn handle_instance(
-    event: Event<Instance>,
+    event: WatchEvent<Instance>,
     kube_interface: &impl KubeInterface,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_instance - enter");
     match event {
-        Event::Applied(instance) => {
+        WatchEvent::Added(instance) => {
             info!(
-                "handle_instance - added or modified Akri Instance {:?}: {:?}",
+                "handle_instance - added Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
             );
-            // TODO: rename `InstanceAction::Add` to reflect that this could also be an Update event.
             handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await?;
             Ok(())
         }
-        Event::Deleted(instance) => {
+        WatchEvent::Deleted(instance) => {
             info!(
                 "handle_instance - deleted Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
@@ -119,11 +122,19 @@ async fn handle_instance(
             handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
             Ok(())
         }
-        Event::Restarted(_instances) => {
-            // TODO: determine whether this can be handled. For now, bubble up error to restart controller.
-            // TODO: use anyhow!
-            None.ok_or("Instance watcher restarted due to watch stream dropping")?
+        WatchEvent::Modified(instance) => {
+            info!(
+                "handle_instance - modified Akri Instance {:?}: {:?}",
+                instance.metadata.name, instance.spec
+            );
+            handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await?;
+            Ok(())
         }
+        WatchEvent::Error(ref e) => {
+            trace!("handle_instance - error for Akri Instance: {}", e);
+            Ok(())
+        }
+        WatchEvent::Bookmark(_) => Ok(()),
     }
 }
 
@@ -773,9 +784,9 @@ mod handle_instance_tests {
         let instance: Instance = serde_json::from_str(&instance_json).unwrap();
         handle_instance(
             match action {
-                InstanceAction::Add => Event::Applied(instance),
-                InstanceAction::Update => Event::Applied(instance),
-                InstanceAction::Remove => Event::Deleted(instance),
+                InstanceAction::Add => WatchEvent::Added(instance),
+                InstanceAction::Update => WatchEvent::Modified(instance),
+                InstanceAction::Remove => WatchEvent::Deleted(instance),
             },
             mock,
         )

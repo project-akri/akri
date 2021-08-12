@@ -313,7 +313,7 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender,
-                &kubelet_socket_str
+                kubelet_socket_str
             )
             .await
             .is_ok());
@@ -335,7 +335,7 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender.clone(),
-                &kubelet_socket_str
+                kubelet_socket_str
             )
             .await
             .is_err());
@@ -359,7 +359,7 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender,
-                &kubelet_socket_str
+                kubelet_socket_str
             )
             .await
             .is_ok());

@@ -14,8 +14,7 @@ use akri_shared::{
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
-use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{watcher, Event};
+use kube::api::{Api, ListParams, WatchEvent};
 use log::trace;
 use std::{collections::HashMap, sync::Arc};
 
@@ -82,15 +81,17 @@ impl BrokerPodWatcher {
         trace!("watch - enter");
         let kube_interface = k8s::KubeImpl::new().await?;
         let resource = Api::<Pod>::all(kube_interface.get_kube_client());
-        let watcher = watcher(
-            resource,
-            ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME),
-        );
-        let mut informer = watcher.boxed();
+        let mut stream = resource
+            .watch(
+                &ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME),
+                akri_shared::akri::POD_VERSION_NUMBER,
+            )
+            .await?
+            .boxed();
         let synchronization = Arc::new(Mutex::new(()));
         // Currently, this does not handle None except to break the
         // while.
-        while let Some(event) = informer.try_next().await? {
+        while let Some(event) = stream.try_next().await? {
             let _lock = synchronization.lock().await;
             self.handle_pod(event, &kube_interface).await?;
         }
@@ -117,24 +118,19 @@ impl BrokerPodWatcher {
     /// ensure that the instance and configuration services are removed as needed.
     async fn handle_pod(
         &mut self,
-        event: Event<Pod>,
+        event: WatchEvent<Pod>,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_pod - enter [event: {:?}]", event);
         match event {
-            Event::Applied(pod) => {
-                trace!("handle_pod - pod name {:?}", &pod.metadata.name);
+            WatchEvent::Added(pod) | WatchEvent::Modified(pod) => {
+                trace!("handle_pod - pod name {:?}", pod.metadata.name);
                 let phase = self.get_pod_phase(&pod);
-                trace!("handle_pod - pod phase {:?}", &phase);
+                trace!("handle_pod - pod phase {:?}", phase);
                 match phase.as_str() {
                     "Unknown" | "Pending" => {
-                        self.known_pods.insert(
-                            pod.metadata
-                                .name
-                                .clone()
-                                .ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?,
-                            PodState::Pending,
-                        );
+                        self.known_pods
+                            .insert(pod.metadata.name.unwrap(), PodState::Pending);
                     }
                     "Running" => {
                         self.handle_running_pod_if_needed(&pod, kube_interface)
@@ -145,22 +141,19 @@ impl BrokerPodWatcher {
                             .await?;
                     }
                     _ => {
-                        trace!("handle_pod - Unknown phase: {:?}", &phase);
+                        trace!("handle_pod - Unknown phase: {:?}", phase);
                     }
                 }
             }
-            Event::Deleted(pod) => {
-                trace!("handle_pod - Deleted: {:?}", &pod.metadata.name);
+            WatchEvent::Deleted(pod) => {
+                trace!("handle_pod - Deleted: {:?}", pod.metadata.name);
                 self.handle_deleted_pod_if_needed(&pod, kube_interface)
                     .await?;
             }
-            Event::Restarted(_pods) => {
-                // TODO: determine whether this can be handled by looking through `pods` which is the list of
-                // previously `Applied` events and reconciling. Also, would need to handle missed `Deleted` events.
-                // For now, bubble up error to restart controller.
-                // TODO: use anyhow!
-                None.ok_or("Pod watcher restarted due to watch stream dropping")?;
+            WatchEvent::Error(err) => {
+                trace!("handle_pod - error for Pod: {}", err);
             }
+            WatchEvent::Bookmark(_) => {}
         };
         Ok(())
     }
@@ -177,7 +170,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_running_pod_if_needed - last_known_state: {:?}",
@@ -207,7 +200,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_ended_pod_if_needed - last_known_state: {:?}",
@@ -237,7 +230,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or(anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_deleted_pod_if_needed - last_known_state: {:?}",
@@ -489,14 +482,9 @@ impl BrokerPodWatcher {
         {
             for existing_svc in existing_svcs {
                 let mut existing_svc = existing_svc.clone();
-                let svc_name = existing_svc
-                    .metadata
-                    .name
-                    .clone()
-                    .ok_or(anyhow::format_err!(
-                        "Service {:?} does not have name",
-                        existing_svc
-                    ))?;
+                let svc_name = existing_svc.metadata.name.clone().ok_or_else(|| {
+                    anyhow::format_err!("Service {:?} does not have name", existing_svc)
+                })?;
                 let svc_namespace = existing_svc.metadata.namespace.as_ref().unwrap().clone();
                 trace!(
                     "create_or_update_service - Update existing svc={:?}",
@@ -644,10 +632,18 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = BrokerPodWatcher::new();
         trace!("test_handle_pod_error WatchEvent::Error");
-        assert!(pod_watcher
-            .handle_pod(Event::Restarted(Vec::new()), &MockKubeInterface::new(),)
+        pod_watcher
+            .handle_pod(
+                WatchEvent::Error(kube::error::ErrorResponse {
+                    status: "status".to_string(),
+                    message: "message".to_string(),
+                    reason: "reason".to_string(),
+                    code: 0,
+                }),
+                &MockKubeInterface::new(),
+            )
             .await
-            .is_err());
+            .unwrap();
         assert_eq!(0, pod_watcher.known_pods.len());
     }
 
@@ -667,7 +663,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(WatchEvent::Added(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -701,7 +697,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(WatchEvent::Modified(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -760,7 +756,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(WatchEvent::Modified(pod), &mock)
             .await
             .unwrap();
         trace!(
@@ -818,7 +814,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(WatchEvent::Modified(pod), &mock)
             .await
             .unwrap();
         trace!(
@@ -880,7 +876,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(WatchEvent::Modified(pod), &mock)
             .await
             .unwrap();
         trace!(
@@ -942,7 +938,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Deleted(pod), &mock)
+            .handle_pod(WatchEvent::Deleted(pod), &mock)
             .await
             .unwrap();
         trace!(
@@ -976,7 +972,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(WatchEvent::Added(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
@@ -997,7 +993,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(WatchEvent::Modified(pod), &MockKubeInterface::new())
                 .await
                 .unwrap();
             trace!(
