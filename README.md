@@ -1,4 +1,4 @@
-<p align="center"><img src="https://github.com/deislabs/akri-docs/blob/main/art/logo-horizontal/akri-logo-horizontal-dark.svg" alt="Akri Logo" width="300"></p>
+<p align="center"><img src="https://github.com/deislabs/akri-docs/blob/main/art/logo-horizontal/akri-logo-horizontal-light.svg" alt="Akri Logo" width="300"></p>
 
 [![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri) 
 [![Rust Version](https://img.shields.io/badge/rustc-1.51.0-blue.svg)](https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html) 
