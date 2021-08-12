@@ -38,7 +38,6 @@ pub async fn find_services_with_selector(
     kube_client: Client,
 ) -> Result<ObjectList<Service>, anyhow::Error> {
     trace!("find_services_with_selector with selector={:?}", &selector);
-    // TODO kagold: make namespaced
     let svc_client: Api<Service> = Api::all(kube_client);
     let svc_list_params = ListParams {
         label_selector: Some(selector.to_string()),

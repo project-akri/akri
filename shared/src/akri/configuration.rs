@@ -95,7 +95,6 @@ pub struct ConfigurationSpec {
 /// # }
 /// ```
 pub async fn get_configurations(kube_client: &Client) -> Result<KubeAkriConfigList, anyhow::Error> {
-    // TODO kagold: pass in namespace and use Api::namespaced
     let configurations_client: Api<Configuration> = Api::all(kube_client.clone());
     let lp = ListParams::default();
     match configurations_client.list(&lp).await {
@@ -141,7 +140,6 @@ pub async fn find_configuration(
     kube_client: &Client,
 ) -> Result<Configuration, anyhow::Error> {
     log::trace!("find_configuration enter");
-    // TODO kagold: pass in namespace
     let configurations_client: Api<Configuration> = Api::namespaced(kube_client.clone(), namespace);
 
     log::trace!("find_configuration getting instance with name {}", name);

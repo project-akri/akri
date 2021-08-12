@@ -537,7 +537,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tokio 1.9.0",
- "tokio-stream",
  "tonic 0.5.2",
  "tower 0.4.8",
  "warp 0.3.1",
