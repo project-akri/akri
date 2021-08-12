@@ -119,9 +119,9 @@ pub fn create_new_service_from_spec(
     node_specific_svc: bool,
 ) -> Result<Service, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let app_name = create_service_app_name(
-        &configuration_name,
-        &instance_name,
-        &"svc".to_string(),
+        configuration_name,
+        instance_name,
+        "svc",
         node_specific_svc,
     );
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
@@ -149,7 +149,7 @@ pub fn create_new_service_from_spec(
     }];
 
     let mut spec = svc_spec.clone();
-    let mut modified_selector: BTreeMap<String, String> = spec.selector.unwrap_or(BTreeMap::new());
+    let mut modified_selector: BTreeMap<String, String> = spec.selector.unwrap_or_default();
     modified_selector.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     if node_specific_svc {
         modified_selector.insert(
@@ -229,13 +229,20 @@ pub fn update_ownership(
     } else {
         // Add ownership to list IFF the UID doesn't already exist
         if !svc_to_update
-        .metadata
-        .owner_references.as_ref().unwrap().iter()
-                    .any(|x| x.uid == ownership.get_uid()) {
-                        svc_to_update
-                    .metadata
-                    .owner_references.as_mut().unwrap().push(ownership_ref);
-                    }   
+            .metadata
+            .owner_references
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|x| x.uid == ownership.get_uid())
+        {
+            svc_to_update
+                .metadata
+                .owner_references
+                .as_mut()
+                .unwrap()
+                .push(ownership_ref);
+        }
     }
     Ok(())
 }
@@ -246,8 +253,8 @@ mod svcspec_tests {
     use super::*;
     use env_logger;
 
-    use kube::api::ObjectMeta;
     use k8s_openapi::api::core::v1::ServiceStatus;
+    use kube::api::ObjectMeta;
 
     #[test]
     fn test_create_service_app_name() {
@@ -314,8 +321,14 @@ mod svcspec_tests {
         )
         .unwrap();
         assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
-        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
+        assert_eq!(
+            "object1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].name
+        );
+        assert_eq!(
+            "uid1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].uid
+        );
 
         update_ownership(
             &mut svc,
@@ -328,8 +341,14 @@ mod svcspec_tests {
         )
         .unwrap();
         assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
-        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
-        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
+        assert_eq!(
+            "object2",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].name
+        );
+        assert_eq!(
+            "uid2",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].uid
+        );
     }
 
     #[test]
@@ -355,8 +374,14 @@ mod svcspec_tests {
         )
         .unwrap();
         assert_eq!(1, svc.metadata.owner_references.as_ref().unwrap().len());
-        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
+        assert_eq!(
+            "object1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].name
+        );
+        assert_eq!(
+            "uid1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].uid
+        );
 
         update_ownership(
             &mut svc,
@@ -369,10 +394,22 @@ mod svcspec_tests {
         )
         .unwrap();
         assert_eq!(2, svc.metadata.owner_references.as_ref().unwrap().len());
-        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
-        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[1].name);
-        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[1].uid);
+        assert_eq!(
+            "object1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].name
+        );
+        assert_eq!(
+            "uid1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].uid
+        );
+        assert_eq!(
+            "object2",
+            &svc.metadata.owner_references.as_ref().unwrap()[1].name
+        );
+        assert_eq!(
+            "uid2",
+            &svc.metadata.owner_references.as_ref().unwrap()[1].uid
+        );
 
         // Test that trying to add the same UID doesn't result in
         // duplicate
@@ -387,10 +424,22 @@ mod svcspec_tests {
         )
         .unwrap();
         assert_eq!(2, svc.metadata.owner_references.as_ref().unwrap().len());
-        assert_eq!("object1", &svc.metadata.owner_references.as_ref().unwrap()[0].name);
-        assert_eq!("uid1", &svc.metadata.owner_references.as_ref().unwrap()[0].uid);
-        assert_eq!("object2", &svc.metadata.owner_references.as_ref().unwrap()[1].name);
-        assert_eq!("uid2", &svc.metadata.owner_references.as_ref().unwrap()[1].uid);
+        assert_eq!(
+            "object1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].name
+        );
+        assert_eq!(
+            "uid1",
+            &svc.metadata.owner_references.as_ref().unwrap()[0].uid
+        );
+        assert_eq!(
+            "object2",
+            &svc.metadata.owner_references.as_ref().unwrap()[1].name
+        );
+        assert_eq!(
+            "uid2",
+            &svc.metadata.owner_references.as_ref().unwrap()[1].uid
+        );
     }
 
     #[test]
@@ -439,7 +488,12 @@ mod svcspec_tests {
             // Validate the labels added
             assert_eq!(
                 &&app_name,
-                &svc.metadata.clone().labels.unwrap().get(APP_LABEL_ID).unwrap()
+                &svc.metadata
+                    .clone()
+                    .labels
+                    .unwrap()
+                    .get(APP_LABEL_ID)
+                    .unwrap()
             );
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
@@ -475,15 +529,36 @@ mod svcspec_tests {
             // Validate ownerReference
             assert_eq!(
                 object_name,
-                svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().name
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .as_ref()
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .name
             );
             assert_eq!(
                 object_uid,
-                svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().uid
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .as_ref()
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .uid
             );
             assert_eq!(
                 "Pod",
-                &svc.metadata.clone().owner_references.as_ref().unwrap().get(0).unwrap().kind
+                &svc.metadata
+                    .clone()
+                    .owner_references
+                    .as_ref()
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .kind
             );
             assert_eq!(
                 "core/v1",
@@ -520,7 +595,8 @@ mod svcspec_tests {
                 &svc.spec
                     .as_ref()
                     .unwrap()
-                    .selector.as_ref()
+                    .selector
+                    .as_ref()
                     .unwrap()
                     .get("do-not-change")
                     .unwrap()
@@ -531,7 +607,8 @@ mod svcspec_tests {
                 &svc.spec
                     .as_ref()
                     .unwrap()
-                    .selector.as_ref()
+                    .selector
+                    .as_ref()
                     .unwrap()
                     .get(CONTROLLER_LABEL_ID)
                     .unwrap()
@@ -542,7 +619,8 @@ mod svcspec_tests {
                     &svc.spec
                         .as_ref()
                         .unwrap()
-                        .selector.as_ref()
+                        .selector
+                        .as_ref()
                         .unwrap()
                         .get(AKRI_INSTANCE_LABEL_NAME)
                         .unwrap()
@@ -553,7 +631,8 @@ mod svcspec_tests {
                     &svc.spec
                         .as_ref()
                         .unwrap()
-                        .selector.as_ref()
+                        .selector
+                        .as_ref()
                         .unwrap()
                         .get(AKRI_CONFIGURATION_LABEL_NAME)
                         .unwrap()

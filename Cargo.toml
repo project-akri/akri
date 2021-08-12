@@ -3,23 +3,20 @@
 # [patch.crates-io]
 # h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master" }
 
-# [patch.crates-io]
-# k8s-openapi = { git = "https://github.com/kazk/k8s-openapi", branch = "add-schema" }
-
 [workspace]
 members = [
     "shared", 
-    # "agent", 
-    # "controller", 
-    # "samples/brokers/udev-video-broker", 
-    # "webhooks/validating/configuration",
-    # "discovery-utils", 
-    # "discovery-handlers/debug-echo", 
-    # "discovery-handlers/onvif", 
-    # "discovery-handlers/opcua", 
-    # "discovery-handlers/udev", 
-    # "discovery-handler-modules/debug-echo-discovery-handler", 
-    # "discovery-handler-modules/onvif-discovery-handler", 
-    # "discovery-handler-modules/opcua-discovery-handler", 
-    # "discovery-handler-modules/udev-discovery-handler",
+    "agent", 
+    "controller", 
+    "samples/brokers/udev-video-broker", 
+    "webhooks/validating/configuration",
+    "discovery-utils", 
+    "discovery-handlers/debug-echo", 
+    "discovery-handlers/onvif", 
+    "discovery-handlers/opcua", 
+    "discovery-handlers/udev", 
+    "discovery-handler-modules/debug-echo-discovery-handler", 
+    "discovery-handler-modules/onvif-discovery-handler", 
+    "discovery-handler-modules/opcua-discovery-handler", 
+    "discovery-handler-modules/udev-discovery-handler",
 ]

@@ -127,7 +127,9 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 
@@ -194,7 +196,8 @@ mod tests {
             .discover(discover_request)
             .await
             .unwrap()
-            .into_inner().into_inner();
+            .into_inner()
+            .into_inner();
         let devices = stream.recv().await.unwrap().unwrap().devices;
         assert_eq!(1, devices.len());
         assert_eq!(devices[0], device);

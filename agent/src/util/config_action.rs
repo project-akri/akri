@@ -9,12 +9,13 @@ use super::{
     registration::RegisteredDiscoveryHandlerMap,
 };
 use akri_shared::{
-    akri::{configuration::Configuration, API_CONFIGURATIONS, API_NAMESPACE, API_VERSION},
+    akri::configuration::Configuration,
     k8s,
     k8s::{try_delete_instance, KubeInterface},
 };
 use futures::{StreamExt, TryStreamExt};
-use kube::api::{Api, ListParams, WatchEvent};
+use kube::api::{Api, ListParams};
+use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
@@ -90,45 +91,52 @@ async fn watch_for_config_changes(
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("watch_for_config_changes - start");
-    let configurations_api = Api::<Configuration>::all(kube_interface.get_kube_client());
-    loop {
-        let mut stream = configurations_api
-            .watch(&ListParams::default(), API_VERSION)
-            .await?
-            .boxed();
-
-        // Currently, this does not handle None except to break the
-        // while.
-        while let Some(event) = stream.try_next().await? {
-            let new_discovery_handler_sender = new_discovery_handler_sender.clone();
-            handle_config(
-                kube_interface,
-                event,
-                config_map.clone(),
-                discovery_handler_map.clone(),
-                new_discovery_handler_sender,
-            )
-            .await?
-        }
+    let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
+    let watcher = watcher(resource, ListParams::default());
+    let mut informer = watcher.boxed();
+    // Currently, this does not handle None except to break the
+    // while.
+    while let Some(event) = informer.try_next().await? {
+        let new_discovery_handler_sender = new_discovery_handler_sender.clone();
+        handle_config(
+            kube_interface,
+            event,
+            config_map.clone(),
+            discovery_handler_map.clone(),
+            new_discovery_handler_sender,
+        )
+        .await?
     }
+    Ok(())
 }
 
 /// This takes an event off the Configuration stream and delegates it to the
 /// correct function based on the event type.
 async fn handle_config(
     kube_interface: &impl KubeInterface,
-    event: WatchEvent<Configuration>,
+    event: Event<Configuration>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_config - something happened to a configuration");
     match event {
-        WatchEvent::Added(config) => {
+        Event::Applied(config) => {
             info!(
-                "handle_config - added Configuration {:?}",
-                config.metadata.name
+                "handle_config - applied Configuration {:?}",
+                config.metadata.name,
             );
+            // Applied events can either be newly added Configurations or modified Configurations.
+            // If modified delete all associated instances and device plugins and then recreate them to reflect updated config
+            // TODO: more gracefully handle modified Configurations by determining what changed rather than delete/re-add
+            if config_map
+                .lock()
+                .await
+                .contains_key(config.metadata.name.as_ref().unwrap())
+            {
+                handle_config_delete(kube_interface, &config, config_map.clone()).await?;
+            }
+
             tokio::spawn(async move {
                 handle_config_add(
                     Arc::new(Box::new(k8s::KubeImpl::new().await.unwrap())),
@@ -142,7 +150,7 @@ async fn handle_config(
             });
             Ok(())
         }
-        WatchEvent::Deleted(config) => {
+        Event::Deleted(config) => {
             info!(
                 "handle_config - deleted Configuration {:?}",
                 config.metadata.name,
@@ -150,29 +158,10 @@ async fn handle_config(
             handle_config_delete(kube_interface, &config, config_map).await?;
             Ok(())
         }
-        // If a config is updated, delete all associated instances and device plugins and then recreate them to reflect updated config
-        WatchEvent::Modified(config) => {
-            info!(
-                "handle_config - modified Configuration {:?}",
-                config.metadata.name,
-            );
-            handle_config_delete(kube_interface, &config, config_map.clone()).await?;
-            tokio::spawn(async move {
-                handle_config_add(
-                    Arc::new(Box::new(k8s::KubeImpl::new().await.unwrap())),
-                    &config,
-                    config_map,
-                    discovery_handler_map,
-                    new_discovery_handler_sender,
-                )
-                .await
-                .unwrap();
-            });
-            Ok(())
-        }
-        WatchEvent::Error(ref e) => {
-            error!("handle_config - error for Configuration: {}", e);
-            Ok(())
+        Event::Restarted(_configs) => {
+            // TODO: determine whether this can be handled. For now, bubble up error to restart controller.
+            // TODO: use anyhow!
+            None.ok_or("Configuration watcher restarted due to watch stream dropping")?
         }
     }
 }
@@ -322,7 +311,7 @@ mod config_action_tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
         let mut mock = MockKubeInterface::new();
@@ -334,7 +323,7 @@ mod config_action_tests {
         )
         .await;
         let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
-        let (mut finished_discovery_sender, finished_discovery_receiver) = mpsc::channel(2);
+        let (finished_discovery_sender, finished_discovery_receiver) = mpsc::channel(2);
         let mut map: HashMap<String, ConfigInfo> = HashMap::new();
         map.insert(
             config_name.clone(),
@@ -409,10 +398,11 @@ mod config_action_tests {
         });
 
         // Loop until the Configuration and single discovered Instance are added to the ConfigMap
+        let config_name = config.metadata.name.unwrap();
         let mut x: i8 = 0;
         while x < 5 {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            if let Some(config_info) = config_map.lock().await.get(&config.metadata.name) {
+            if let Some(config_info) = config_map.lock().await.get(&config_name) {
                 if config_info.instance_map.lock().await.len() == 1 {
                     break;
                 }
@@ -493,7 +483,7 @@ mod config_action_tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
         let first_add_handle = run_and_test_handle_config_add(
             discovery_handler_map.clone(),

@@ -895,7 +895,7 @@ pub mod tests {
             discovery_results,
             list_and_watch_message_receivers,
             connectivity_status,
-            &config.metadata.name,
+            config.metadata.name.as_ref().unwrap(),
         )
     }
 
@@ -1231,7 +1231,7 @@ pub mod tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         INSTANCE_COUNT_METRIC
             .with_label_values(&[&config_name, "true"])
             .set(0);
@@ -1291,7 +1291,7 @@ pub mod tests {
         for _x in 0..tries {
             println!("try number {}", _x);
             keep_looping = false;
-            tokio::time::delay_for(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             let unwrapped_instance_map = instance_map.lock().await.clone();
             if check_empty && unwrapped_instance_map.is_empty() {
                 map_is_empty = true;
@@ -1408,7 +1408,7 @@ pub mod tests {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =

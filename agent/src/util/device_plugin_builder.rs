@@ -13,7 +13,6 @@ use akri_shared::{
     uds::unix_stream,
 };
 use async_trait::async_trait;
-use futures::stream::TryStreamExt;
 use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
@@ -174,7 +173,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         capability_id: &str,
         socket_name: &str,
         instance_name: &str,
-        mut server_ender_sender: mpsc::Sender<()>,
+        server_ender_sender: mpsc::Sender<()>,
         kubelet_socket: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!(
@@ -288,7 +287,8 @@ pub mod tests {
     async fn test_register() {
         let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
         let kubelet_socket = device_plugins_dirs.path().join("kubelet.sock");
-        let kubelet_socket_str = kubelet_socket.clone().to_str().unwrap();
+        let kubelet_socket_clone = kubelet_socket.clone();
+        let kubelet_socket_str = kubelet_socket_clone.to_str().unwrap();
 
         // Start kubelet registration server
         let registration = MockRegistration {
@@ -325,7 +325,8 @@ pub mod tests {
         let (server_ender_sender, mut server_ender_receiver) = mpsc::channel(1);
         let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
         let kubelet_socket = device_plugins_dirs.path().join("kubelet.sock");
-        let kubelet_socket_str = kubelet_socket.clone().to_str().unwrap();
+        let kubelet_socket_clone = kubelet_socket.clone();
+        let kubelet_socket_str = kubelet_socket_clone.to_str().unwrap();
 
         // Try to register when no registration service exists
         assert!(device_plugin_builder
@@ -340,8 +341,6 @@ pub mod tests {
             .is_err());
 
         // Start kubelet registration server
-        let mut uds =
-            UnixListener::bind(kubelet_socket.clone()).expect("Failed to bind to socket path");
         let registration = MockRegistration { return_error: true };
         let service = RegistrationServer::new(registration);
         task::spawn(async move {

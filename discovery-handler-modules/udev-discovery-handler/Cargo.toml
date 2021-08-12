@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 akri-discovery-utils = { path = "../../discovery-utils" }
 akri-udev = { path = "../../discovery-handlers/udev" }
-env_logger = "0.8.3"
+env_logger = "0.9.0"
 log = "0.4"
-tokio = { version = "1.0" }
+tokio = { version = "1.0.1" }

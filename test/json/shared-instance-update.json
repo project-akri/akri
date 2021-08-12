@@ -1,4 +1,6 @@
 {
+    "apiVersion": "v0",
+    "kind": "Instance",
     "metadata": {
         "name": "config-a-359973",
         "namespace": "config-a-namespace",

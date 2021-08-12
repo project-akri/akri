@@ -6,10 +6,9 @@ use akri_discovery_utils::discovery::v0::{
     registration_server::{Registration, RegistrationServer},
     Empty, RegisterDiscoveryHandlerRequest,
 };
-use akri_shared::{
-    os::env_var::{ActualEnvVarQuery, EnvVarQuery},
-    uds::unix_stream,
-};
+#[cfg(any(test, feature = "agent-full"))]
+use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
+use akri_shared::uds::unix_stream;
 use futures::TryFutureExt;
 #[cfg(test)]
 use mock_instant::Instant;

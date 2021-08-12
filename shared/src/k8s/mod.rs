@@ -7,13 +7,8 @@ use super::akri::{
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
-use k8s_openapi::api::core::v1::{
-    Node, Pod, Service,
-};
-use kube::{
-    api::ObjectList,
-    client::Client,
-};
+use k8s_openapi::api::core::v1::{Node, Pod, Service};
+use kube::{api::ObjectList, client::Client};
 use mockall::{automock, predicate::*};
 
 pub mod node;
@@ -95,40 +90,14 @@ impl OwnershipInfo {
 pub trait KubeInterface: Send + Sync {
     fn get_kube_client(&self) -> Client;
 
-    async fn find_node(
-        &self,
-        name: &str,
-    ) -> Result<Node, anyhow::Error>;
+    async fn find_node(&self, name: &str) -> Result<Node, anyhow::Error>;
 
-    async fn find_pods_with_label(
-        &self,
-        selector: &str,
-    ) -> Result<
-        ObjectList<Pod>,
-        anyhow::Error,
-    >;
-    async fn find_pods_with_field(
-        &self,
-        selector: &str,
-    ) -> Result<
-        ObjectList<Pod>,
-        anyhow::Error,
-    >;
-    async fn create_pod(
-        &self,
-        pod_to_create: &Pod,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error>;
-    async fn remove_pod(
-        &self,
-        pod_to_remove: &str,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error>;
+    async fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error>;
+    async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error>;
+    async fn create_pod(&self, pod_to_create: &Pod, namespace: &str) -> Result<(), anyhow::Error>;
+    async fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
 
-    async fn find_services(
-        &self,
-        selector: &str,
-    ) -> Result<ObjectList<Service>, anyhow::Error>;
+    async fn find_services(&self, selector: &str) -> Result<ObjectList<Service>, anyhow::Error>;
     async fn create_service(
         &self,
         svc_to_create: &Service,
@@ -151,14 +120,10 @@ pub trait KubeInterface: Send + Sync {
         name: &str,
         namespace: &str,
     ) -> Result<Configuration, anyhow::Error>;
-    async fn get_configurations(
-        &self,
-    ) -> Result<KubeAkriConfigList, anyhow::Error>;
+    async fn get_configurations(&self) -> Result<KubeAkriConfigList, anyhow::Error>;
 
     async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error>;
-    async fn get_instances(
-        &self,
-    ) -> Result<KubeAkriInstanceList, anyhow::Error>;
+    async fn get_instances(&self) -> Result<KubeAkriInstanceList, anyhow::Error>;
     async fn create_instance(
         &self,
         instance_to_create: &InstanceSpec,
@@ -167,11 +132,7 @@ pub trait KubeInterface: Send + Sync {
         owner_config_name: &str,
         owner_config_uid: &str,
     ) -> Result<(), anyhow::Error>;
-    async fn delete_instance(
-        &self,
-        name: &str,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error>;
+    async fn delete_instance(&self, name: &str, namespace: &str) -> Result<(), anyhow::Error>;
     async fn update_instance(
         &self,
         instance_to_update: &InstanceSpec,
@@ -187,7 +148,7 @@ pub struct KubeImpl {
 
 impl KubeImpl {
     /// Create new instance of KubeImpl
-    pub async fn new() -> Result<Self, anyhow::Error>  {
+    pub async fn new() -> Result<Self, anyhow::Error> {
         Ok(KubeImpl {
             client: Client::try_default().await?,
         })
@@ -215,10 +176,7 @@ impl KubeInterface for KubeImpl {
     /// let node = kube.find_node("node-a").await.unwrap();
     /// # }
     /// ```
-    async fn find_node(
-        &self,
-        name: &str,
-    ) -> Result<Node, anyhow::Error> {
+    async fn find_node(&self, name: &str) -> Result<Node, anyhow::Error> {
         node::find_node(name, self.get_kube_client()).await
     }
 
@@ -236,10 +194,7 @@ impl KubeInterface for KubeImpl {
     /// let interesting_pods = kube.find_pods_with_label("label=interesting").await.unwrap();
     /// # }
     /// ```
-    async fn find_pods_with_label(
-        &self,
-        selector: &str,
-    ) -> Result<ObjectList<Pod>, anyhow::Error> {
+    async fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
     /// Get Kuberenetes pods with specified field selector
@@ -256,10 +211,7 @@ impl KubeInterface for KubeImpl {
     /// let pods_on_node_a = kube.find_pods_with_field("spec.nodeName=node-a").await.unwrap();
     /// # }
     /// ```
-    async fn find_pods_with_field(
-        &self,
-        selector: &str,
-    ) -> Result<ObjectList<Pod>, anyhow::Error> {
+    async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
     /// Create Kuberenetes pod
@@ -277,11 +229,7 @@ impl KubeInterface for KubeImpl {
     /// kube.create_pod(&Pod::default(), "pod_namespace").await.unwrap();
     /// # }
     /// ```
-    async fn create_pod(
-        &self,
-        pod_to_create: &Pod,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error> {
+    async fn create_pod(&self, pod_to_create: &Pod, namespace: &str) -> Result<(), anyhow::Error> {
         pod::create_pod(pod_to_create, namespace, self.get_kube_client()).await
     }
     /// Remove Kubernetes pod
@@ -298,11 +246,7 @@ impl KubeInterface for KubeImpl {
     /// kube.remove_pod("pod_to_remove", "pod_namespace").await.unwrap();
     /// # }
     /// ```
-    async fn remove_pod(
-        &self,
-        pod_to_remove: &str,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error> {
+    async fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error> {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
@@ -320,10 +264,7 @@ impl KubeInterface for KubeImpl {
     /// let interesting_services = kube.find_services("label=interesting").await.unwrap();
     /// # }
     /// ```
-    async fn find_services(
-        &self,
-        selector: &str,
-    ) -> Result<ObjectList<Service>, anyhow::Error> {
+    async fn find_services(&self, selector: &str) -> Result<ObjectList<Service>, anyhow::Error> {
         service::find_services_with_selector(selector, self.get_kube_client()).await
     }
     /// Create Kubernetes service
@@ -436,9 +377,7 @@ impl KubeInterface for KubeImpl {
     /// let dccs = kube.get_configurations().await.unwrap();
     /// # }
     /// ```
-    async fn get_configurations(
-        &self,
-    ) -> Result<KubeAkriConfigList, anyhow::Error> {
+    async fn get_configurations(&self) -> Result<KubeAkriConfigList, anyhow::Error> {
         configuration::get_configurations(&self.get_kube_client()).await
     }
 
@@ -473,9 +412,7 @@ impl KubeInterface for KubeImpl {
     /// let instances = kube.get_instances().await.unwrap();
     /// # }
     /// ```
-    async fn get_instances(
-        &self,
-    ) -> Result<KubeAkriInstanceList, anyhow::Error> {
+    async fn get_instances(&self) -> Result<KubeAkriInstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
     }
     /// Create Akri Instance
@@ -540,11 +477,7 @@ impl KubeInterface for KubeImpl {
     /// ).await.unwrap();
     /// # }
     /// ```
-    async fn delete_instance(
-        &self,
-        name: &str,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error> {
+    async fn delete_instance(&self, name: &str, namespace: &str) -> Result<(), anyhow::Error> {
         instance::delete_instance(name, namespace, &self.get_kube_client()).await
     }
     /// Update Akri Instance
@@ -608,13 +541,13 @@ pub async fn try_delete_instance(
                     Err(e) => {
                         if let Some(kube::Error::Api(ae)) = e.downcast_ref::<kube::Error>() {
                             if ae.code == ERROR_NOT_FOUND {
-                            log::trace!(
-                                "try_delete_instance - discovered Instance {} already deleted",
-                                instance_name
-                            );
-                            break;
-                        }
-                        log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
+                                log::trace!(
+                                    "try_delete_instance - discovered Instance {} already deleted",
+                                    instance_name
+                                );
+                                break;
+                            }
+                            log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
                         }
                     }
                     // Err(e) => {

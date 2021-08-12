@@ -140,6 +140,8 @@ impl DevicePluginSlotReconciler {
                 .as_ref()
                 .unwrap_or(&PodStatus::default())
                 .conditions
+                .as_ref()
+                .unwrap_or(&Vec::new())
                 .iter()
                 .any(|condition| condition.type_ == "ContainersReady" && condition.status != "True")
         });
@@ -344,8 +346,8 @@ pub async fn periodic_slot_reconciliation(
 mod reconcile_tests {
     use super::*;
     use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
-    use k8s_openapi::api::core::v1::{PodSpec, PodStatus};
-    use kube::api::{Object, ObjectList};
+    use k8s_openapi::api::core::v1::Pod;
+    use kube::api::ObjectList;
 
     fn configure_get_node_slots(mock: &mut MockSlotQuery, result: HashSet<String>, error: bool) {
         mock.expect_get_node_slots().times(1).returning(move || {
@@ -376,8 +378,7 @@ mod reconcile_tests {
             .withf(move |s| s == selector)
             .returning(move |_| {
                 let pods_json = file::read_file_to_string(result_file);
-                let pods: ObjectList<Object<PodSpec, PodStatus>> =
-                    serde_json::from_str(&pods_json).unwrap();
+                let pods: ObjectList<Pod> = serde_json::from_str(&pods_json).unwrap();
                 Ok(pods)
             });
     }

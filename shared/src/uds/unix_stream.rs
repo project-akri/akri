@@ -1,9 +1,8 @@
 /// Module to enable UDS with tonic grpc.
 /// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
-/// Module to enable UDS with tonic grpc.
-/// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
 use std::{
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -13,7 +12,22 @@ use tonic::transport::server::Connected;
 #[derive(Debug)]
 pub struct UnixStream(pub tokio::net::UnixStream);
 
-impl Connected for UnixStream {}
+impl Connected for UnixStream {
+    type ConnectInfo = UdsConnectInfo;
+
+    fn connect_info(&self) -> Self::ConnectInfo {
+        UdsConnectInfo {
+            peer_addr: self.0.peer_addr().ok().map(Arc::new),
+            peer_cred: self.0.peer_cred().ok(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UdsConnectInfo {
+    pub peer_addr: Option<Arc<tokio::net::unix::SocketAddr>>,
+    pub peer_cred: Option<tokio::net::unix::UCred>,
+}
 
 impl AsyncRead for UnixStream {
     fn poll_read(
@@ -38,10 +52,7 @@ impl AsyncWrite for UnixStream {
         Pin::new(&mut self.0).poll_flush(cx)
     }
 
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.0).poll_shutdown(cx)
     }
 }

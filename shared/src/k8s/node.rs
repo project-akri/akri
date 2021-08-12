@@ -1,8 +1,5 @@
 use k8s_openapi::api::core::v1::Node;
-use kube::{
-    api::Api,
-    client::Client,
-};
+use kube::{api::Api, client::Client};
 use log::trace;
 
 /// Get Kubernetes Node with a given name
@@ -21,14 +18,11 @@ use log::trace;
 /// let node = node::find_node("node-a", api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn find_node(
-    name: &str,
-    kube_client: Client,
-) -> Result<Node, anyhow::Error> {
-    trace!("find_node with name={:?}", &name);
+pub async fn find_node(name: &str, kube_client: Client) -> Result<Node, anyhow::Error> {
+    trace!("find_node with name={}", name);
     let nodes: Api<Node> = Api::all(kube_client);
     trace!("find_node PRE nodes.get(...).await?");
-    let result = nodes.get(&name).await;
+    let result = nodes.get(name).await;
     trace!("find_node return");
     Ok(result?)
 }

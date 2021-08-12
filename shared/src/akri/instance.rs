@@ -67,9 +67,7 @@ pub struct InstanceSpec {
 /// let instances = instance::get_instances(&api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn get_instances(
-    kube_client: &Client,
-) -> Result<KubeAkriInstanceList, anyhow::Error> {
+pub async fn get_instances(kube_client: &Client) -> Result<KubeAkriInstanceList, anyhow::Error> {
     log::trace!("get_instances enter");
     // TODO kagold: pass in namespace and use Api::namespaced
     let instances_client: Api<Instance> = Api::all(kube_client.clone());
@@ -123,7 +121,7 @@ pub async fn find_instance(
 
     log::trace!("find_instance getting instance with name {}", name);
 
-    match instances_client.get(&name).await {
+    match instances_client.get(name).await {
         Ok(instance_retrieved) => {
             log::trace!("find_instance return");
             Ok(instance_retrieved)

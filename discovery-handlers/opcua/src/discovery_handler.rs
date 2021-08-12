@@ -79,7 +79,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for OPC UA protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut discovered_devices_sender, discovered_devices_receiver) =
+        let (discovered_devices_sender, discovered_devices_receiver) =
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: OpcuaDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
@@ -141,7 +141,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             "discover - for OPC UA failed to send discovery response with error {}",
                             e
                         );
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
@@ -150,7 +150,9 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 

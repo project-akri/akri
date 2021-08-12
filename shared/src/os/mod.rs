@@ -1,5 +1,4 @@
 pub mod env_var;
-// pub mod signal;
 
 /// Provide file operations
 pub mod file {

@@ -121,7 +121,9 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 

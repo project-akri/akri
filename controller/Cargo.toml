@@ -11,7 +11,7 @@ akri-shared = { path = "../shared" }
 async-std = "1.5.0"
 async-trait = "0.1.0"
 chrono = "0.4.10"
-env_logger = "0.8.3"
+env_logger = "0.9.0"
 futures = "0.3.1"
 anyhow = "1.0.38"
 kube = { version = "0.59.0",  features = ["derive"] }
@@ -27,4 +27,4 @@ serde_yaml = "0.8.11"
 tokio = { version = "1.0.2", features = ["full"] }
 
 [dev-dependencies]
-mockall = "0.9.0"
+mockall = "0.10.2"

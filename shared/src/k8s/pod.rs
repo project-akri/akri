@@ -191,12 +191,9 @@ pub fn create_new_pod_from_spec(
 
     let mut modified_pod_spec = pod_spec.clone();
 
-    let insert_akri_resources = | map: &mut ResourceQuantityType | {
+    let insert_akri_resources = |map: &mut ResourceQuantityType| {
         if map.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-            let placeholder_value = map
-            .get(RESOURCE_REQUIREMENTS_KEY)
-            .unwrap()
-            .clone();
+            let placeholder_value = map.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
             map.insert(resource_limit_name.to_string(), placeholder_value);
             map.remove(RESOURCE_REQUIREMENTS_KEY);
         }
@@ -210,8 +207,8 @@ pub fn create_new_pod_from_spec(
                         Some(mut map) => {
                             insert_akri_resources(&mut map);
                             Some(map)
-                        },
-                        None => None
+                        }
+                        None => None,
                     }
                 },
                 requests: {
@@ -219,14 +216,12 @@ pub fn create_new_pod_from_spec(
                         Some(mut map) => {
                             insert_akri_resources(&mut map);
                             Some(map)
-                        },
-                        None => None
+                        }
+                        None => None,
                     }
                 },
             });
         };
-
-
     }
 
     // Ensure that the modified PodSpec has the required Affinity settings
@@ -453,13 +448,19 @@ mod broker_podspec_tests {
             // Validate the labels added
             assert_eq!(
                 &&app_name,
-                &pod.metadata.clone().labels.unwrap().get(APP_LABEL_ID).unwrap()
+                &pod.metadata
+                    .clone()
+                    .labels
+                    .unwrap()
+                    .get(APP_LABEL_ID)
+                    .unwrap()
             );
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
                 &pod.metadata
                     .clone()
-                    .labels.unwrap()
+                    .labels
+                    .unwrap()
                     .get(CONTROLLER_LABEL_ID)
                     .unwrap()
             );
@@ -467,7 +468,8 @@ mod broker_podspec_tests {
                 &&configuration_name,
                 &pod.metadata
                     .clone()
-                    .labels.unwrap()
+                    .labels
+                    .unwrap()
                     .get(AKRI_CONFIGURATION_LABEL_NAME)
                     .unwrap()
             );
@@ -475,7 +477,8 @@ mod broker_podspec_tests {
                 &&instance_name,
                 &pod.metadata
                     .clone()
-                    .labels.unwrap()
+                    .labels
+                    .unwrap()
                     .get(AKRI_INSTANCE_LABEL_NAME)
                     .unwrap()
             );
@@ -483,7 +486,8 @@ mod broker_podspec_tests {
                 &&node_to_run_pod_on,
                 &pod.metadata
                     .clone()
-                    .labels.unwrap()
+                    .labels
+                    .unwrap()
                     .get(AKRI_TARGET_NODE_LABEL_NAME)
                     .unwrap()
             );
@@ -491,15 +495,33 @@ mod broker_podspec_tests {
             // Validate ownerReference
             assert_eq!(
                 instance_name,
-                pod.metadata.clone(). owner_references.unwrap().get(0).unwrap().name
+                pod.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .name
             );
             assert_eq!(
                 instance_uid,
-                pod.metadata.clone(). owner_references.unwrap().get(0).unwrap().uid
+                pod.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .uid
             );
             assert_eq!(
                 "Instance",
-                &pod.metadata.clone(). owner_references.unwrap().get(0).unwrap().kind
+                &pod.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .kind
             );
             assert_eq!(
                 &format!("{}/{}", API_NAMESPACE, API_VERSION),
@@ -561,7 +583,8 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(0)
                     .unwrap()
-                    .match_fields.as_ref()
+                    .match_fields
+                    .as_ref()
                     .unwrap()
                     .get(0)
                     .unwrap()
@@ -581,7 +604,8 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(0)
                     .unwrap()
-                    .match_fields.as_ref()
+                    .match_fields
+                    .as_ref()
                     .unwrap()
                     .get(0)
                     .unwrap()
@@ -601,10 +625,14 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(0)
                     .unwrap()
-                    .match_fields.as_ref().unwrap()
+                    .match_fields
+                    .as_ref()
+                    .unwrap()
                     .get(0)
                     .unwrap()
-                    .values.as_ref().unwrap()
+                    .values
+                    .as_ref()
+                    .unwrap()
             );
 
             // Validate the affinity added
@@ -622,7 +650,9 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(1)
                     .unwrap()
-                    .match_fields.as_ref().unwrap()
+                    .match_fields
+                    .as_ref()
+                    .unwrap()
                     .get(0)
                     .unwrap()
                     .key
@@ -641,7 +671,9 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(1)
                     .unwrap()
-                    .match_fields.as_ref().unwrap()
+                    .match_fields
+                    .as_ref()
+                    .unwrap()
                     .get(0)
                     .unwrap()
                     .operator
@@ -660,10 +692,14 @@ mod broker_podspec_tests {
                     .node_selector_terms
                     .get(1)
                     .unwrap()
-                    .match_fields.as_ref().unwrap()
+                    .match_fields
+                    .as_ref()
+                    .unwrap()
                     .get(0)
                     .unwrap()
-                    .values.as_ref().unwrap()
+                    .values
+                    .as_ref()
+                    .unwrap()
             );
 
             // Validate image name remanes unchanged
@@ -693,7 +729,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .limits.as_ref().unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
                         .contains_key("do-not-change-this")
                 );
                 assert_eq!(
@@ -707,7 +745,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .requests.as_ref().unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
                         .contains_key("do-not-change-this")
                 );
                 // Validate the limits/requires added
@@ -722,7 +762,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .limits.as_ref().unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
                         .contains_key(RESOURCE_REQUIREMENTS_KEY)
                 );
                 assert_eq!(
@@ -736,7 +778,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .requests.as_ref().unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
                         .contains_key(RESOURCE_REQUIREMENTS_KEY)
                 );
                 assert_eq!(
@@ -750,7 +794,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .limits.as_ref().unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
                         .contains_key(&resource_limit_name.clone())
                 );
                 assert_eq!(
@@ -764,7 +810,9 @@ mod broker_podspec_tests {
                         .resources
                         .as_ref()
                         .unwrap()
-                        .requests.as_ref().unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
                         .contains_key(&resource_limit_name.clone())
                 );
             }

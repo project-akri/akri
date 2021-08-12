@@ -18,30 +18,18 @@ use akri_shared::{
     k8s,
     k8s::KubeInterface,
 };
-use futures::{Stream, TryFutureExt};
+use futures::Stream;
 use log::{error, info, trace};
 #[cfg(test)]
 use mock_instant::Instant;
 #[cfg(not(test))]
 use std::time::Instant;
-use std::{
-    collections::HashMap,
-    convert::TryFrom,
-    env,
-    path::Path,
-    pin::Pin,
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, mpsc, Mutex},
-    task,
-    time::{sleep, timeout},
+    time::timeout,
 };
-use tonic::{
-    transport::{Endpoint, Server, Uri},
-    Code, Request, Response, Status,
-};
+use tonic::{Code, Request, Response, Status};
 
 /// Message sent in channel to `list_and_watch`.
 /// Dictates what action `list_and_watch` should take upon being awoken.
@@ -151,7 +139,7 @@ impl DevicePlugin for DevicePluginService {
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
         // Create a channel that list_and_watch can periodically send updates to kubelet on
-        let (mut kubelet_update_sender, kubelet_update_receiver) =
+        let (kubelet_update_sender, kubelet_update_receiver) =
             mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
@@ -850,8 +838,8 @@ mod device_plugin_service_tests {
         let kube_akri_config_yaml =
             fs::read_to_string(path_to_config).expect("Unable to read file");
         let kube_akri_config: Configuration = serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
-        let device_instance_name =
-            get_device_instance_name("b494b6", &kube_akri_config.metadata.name);
+        let config_name = kube_akri_config.metadata.name.as_ref().unwrap();
+        let device_instance_name = get_device_instance_name("b494b6", config_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
         let device_endpoint: String = format!(
             "{}-{}.sock",
@@ -883,7 +871,7 @@ mod device_plugin_service_tests {
             instance_name: device_instance_name,
             endpoint: device_endpoint,
             config: kube_akri_config.spec.clone(),
-            config_name: kube_akri_config.metadata.name,
+            config_name: config_name.to_string(),
             config_uid: kube_akri_config.metadata.uid.unwrap(),
             config_namespace: kube_akri_config.metadata.namespace.unwrap(),
             shared: false,
@@ -918,7 +906,7 @@ mod device_plugin_service_tests {
 
     fn get_kube_not_found_error() -> kube::Error {
         // Mock error thrown when instance not found
-        kube::Error::Api(kube::ErrorResponse {
+        kube::Error::Api(kube::error::ErrorResponse {
             status: "Failure".to_string(),
             message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
             reason: "NotFound".to_string(),
@@ -1000,7 +988,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| Err(get_kube_not_found_error()));
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1114,7 +1102,7 @@ mod device_plugin_service_tests {
             })
             .returning(move |_, _| {
                 let error = Error::new(ErrorKind::InvalidInput, "Configuration doesn't exist");
-                Err(Box::new(error))
+                Err(error.into())
             });
         assert!(
             try_create_instance(Arc::new(device_plugin_service), Arc::new(mock))
@@ -1144,7 +1132,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == config_namespace && name == instance_name
             })
-            .returning(move |_, _| Err(get_kube_not_found_error()));
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
         let instance_name = device_plugin_service.instance_name.clone();
         let config_namespace = device_plugin_service.config_namespace.clone();
         mock.expect_create_instance()
@@ -1156,7 +1144,7 @@ mod device_plugin_service_tests {
                     && owner_name == config_name
                     && owner_uid == config_uid
             })
-            .returning(move |_, _, _, _, _| Err(None.ok_or("failure")?));
+            .returning(move |_, _, _, _, _| Err(anyhow::anyhow!("failure")));
 
         let dps = Arc::new(device_plugin_service);
         assert!(try_create_instance(dps.clone(), Arc::new(mock))
@@ -1305,7 +1293,7 @@ mod device_plugin_service_tests {
             .withf(move |name: &str, namespace: &str| {
                 namespace == instance_namespace && name == instance_name
             })
-            .returning(move |_, _| Err(get_kube_not_found_error()));
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
         let devices =
             build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
                 .await
