@@ -38,9 +38,9 @@ pub mod config_for_tests {
                         }
                     )))
                 } else {
-                    let dci_json = file::read_file_to_string(result_file);
-                    let dci: Instance = serde_json::from_str(&dci_json).unwrap();
-                    Ok(dci)
+                    let instance_json = file::read_file_to_string(result_file);
+                    let instance: Instance = serde_json::from_str(&instance_json).unwrap();
+                    Ok(instance)
                 }
             });
     }

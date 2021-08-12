@@ -118,7 +118,6 @@ impl DevicePlugin for DevicePluginService {
 
     type ListAndWatchStream =
         Pin<Box<dyn Stream<Item = Result<ListAndWatchResponse, Status>> + Send + Sync + 'static>>;
-    // type ListAndWatchStream = mpsc::Receiver<Result<ListAndWatchResponse, Status>>;
 
     /// Called by Kubelet right after the DevicePluginService registers with Kubelet.
     /// Returns a stream of List of "virtual" Devices over a channel.

@@ -126,6 +126,8 @@ impl DiscoveryOperator {
                         );
                         match discovery_handler.discover(discover_request).await {
                             Ok(device_update_receiver) => Some(StreamType::Embedded(
+                                // `discover` returns `Result<tonic::Response<Self::DiscoverStream>, tonic::Status>`
+                                // Get the `Receiver` from the `DiscoverStream` wrapper
                                 device_update_receiver.into_inner().into_inner(),
                             )),
                             Err(e) => {

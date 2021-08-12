@@ -15,7 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub type KubeAkriConfigList = ObjectList<Configuration>;
+pub type ConfigurationList = ObjectList<Configuration>;
 
 /// This specifies which `DiscoveryHandler` should be used for discovery
 /// and any details that need to be sent to the `DiscoveryHandler`.
@@ -91,10 +91,10 @@ pub struct ConfigurationSpec {
 /// # #[tokio::main]
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
-/// let dccs = configuration::get_configurations(&api_client).await.unwrap();
+/// let configs = configuration::get_configurations(&api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn get_configurations(kube_client: &Client) -> Result<KubeAkriConfigList, anyhow::Error> {
+pub async fn get_configurations(kube_client: &Client) -> Result<ConfigurationList, anyhow::Error> {
     let configurations_client: Api<Configuration> = Api::all(kube_client.clone());
     let lp = ListParams::default();
     match configurations_client.list(&lp).await {

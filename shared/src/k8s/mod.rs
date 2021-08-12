@@ -1,6 +1,6 @@
 use super::akri::{
     configuration,
-    configuration::{Configuration, KubeAkriConfigList},
+    configuration::{Configuration, ConfigurationList},
     instance,
     instance::{Instance, InstanceSpec, KubeAkriInstanceList},
     retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
@@ -120,7 +120,7 @@ pub trait KubeInterface: Send + Sync {
         name: &str,
         namespace: &str,
     ) -> Result<Configuration, anyhow::Error>;
-    async fn get_configurations(&self) -> Result<KubeAkriConfigList, anyhow::Error>;
+    async fn get_configurations(&self) -> Result<ConfigurationList, anyhow::Error>;
 
     async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error>;
     async fn get_instances(&self) -> Result<KubeAkriInstanceList, anyhow::Error>;
@@ -374,10 +374,10 @@ impl KubeInterface for KubeImpl {
     /// # #[tokio::main]
     /// # async fn main() {
     /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let dccs = kube.get_configurations().await.unwrap();
+    /// let configs = kube.get_configurations().await.unwrap();
     /// # }
     /// ```
-    async fn get_configurations(&self) -> Result<KubeAkriConfigList, anyhow::Error> {
+    async fn get_configurations(&self) -> Result<ConfigurationList, anyhow::Error> {
         configuration::get_configurations(&self.get_kube_client()).await
     }
 
@@ -550,9 +550,6 @@ pub async fn try_delete_instance(
                             log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
                         }
                     }
-                    // Err(e) => {
-                    //     log::error!("try_delete_instance - when looking up Instance {}, got kube error: {:?}. {} retries left.", instance_name, e, MAX_INSTANCE_UPDATE_TRIES - x - 1);
-                    // }
                     Ok(_) => {
                         log::error!(
                             "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",

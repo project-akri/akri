@@ -412,11 +412,6 @@ mod tests {
         let node_json = file::read_file_to_string("../test/json/node-b-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
-        // Add Node to known_nodes with original Running state
-        node_watcher
-            .known_nodes
-            .insert("node-b".to_string(), NodeState::Running);
-
         let instance_file = "../test/json/shared-instance-update.json";
         let instance_json = file::read_file_to_string(instance_file);
         let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
