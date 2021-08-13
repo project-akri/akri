@@ -14,8 +14,8 @@ RUN find . && dotnet build "onvif-video-broker.csproj" -c Release -o /app/build
 
 FROM build AS publish
 ARG DOTNET_PUBLISH_RUNTIME
-RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}"
-RUN dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "onvif-video-broker.csproj" -c Release -o /app/publish
+RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}" && \
+    dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "onvif-video-broker.csproj" -c Release -o /app/publish
 
 FROM ghcr.io/deislabs/akri/opencvsharp-build:${OUTPUT_PLATFORM_TAG} AS final
 ARG OUTPUT_PLATFORM_TAG

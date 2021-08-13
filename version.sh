@@ -141,10 +141,6 @@ if [ "$CHECK" == "1" ]; then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    CRD_VERSION="v$(echo $VERSION | awk -F '.' '{print $1}')"
-    check_file_version "$BASEDIR/samples/brokers/onvif-video-broker/Akri.cs" "private const string VERSION = \"akri.sh/" "$CRD_VERSION"
-    if [ "$?" -eq "1" ]; then exit 1; fi
-
     check_file_version "$BASEDIR/shared/src/akri/mod.rs" "^pub const API_VERSION" "$CRD_VERSION"
     if [ "$?" -eq "1" ]; then exit 1; fi
 
@@ -206,11 +202,6 @@ then
     done
 
     CRD_VERSION="v$(echo $NEW_VERSION | awk -F '.' '{print $1}')"
-
-    CS_AKRI_VERSION_PATTERN="^private const string VERSION = \"akri.sh\/.*"
-    CS_AKRI_VERSION_LINE="private const string VERSION = \"akri.sh\/$CRD_VERSION\";"
-    update_file_version "$BASEDIR/samples/brokers/onvif-video-broker/Akri.cs" "$CS_AKRI_VERSION_PATTERN" "$CS_AKRI_VERSION_LINE"
-    if [ "$?" -eq "1" ]; then exit 1; fi
 
     RS_AKRI_VERSION_PATTERN="^pub const API_VERSION: &str.*"
     RS_AKRI_VERSION_LINE="pub const API_VERSION: \&str = \"$CRD_VERSION\";"
