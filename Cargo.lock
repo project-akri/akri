@@ -998,7 +998,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77d8f903accdde8a0d15a641b54874db940bad70284b2315f425f229ccb6f586"
 dependencies = [
  "bytes 1.0.1",
- "coap-lite 0.5.1",
+ "coap-lite",
  "futures 0.3.16",
  "log",
  "num-derive",
@@ -1017,7 +1017,7 @@ version = "0.11.1"
 source = "git+https://github.com/Covertness/coap-rs#02012abe3aa00fc2c96aaacff91449d71fd8980f"
 dependencies = [
  "bytes 1.0.1",
- "coap-lite 0.5.1",
+ "coap-lite",
  "futures 0.3.16",
  "log",
  "num-derive",
@@ -1037,7 +1037,7 @@ dependencies = [
  "akri-shared",
  "anyhow",
  "coap 0.11.1 (git+https://github.com/Covertness/coap-rs)",
- "coap-lite 0.4.1",
+ "coap-lite",
  "env_logger",
  "futures 0.3.16",
  "log",
@@ -1051,7 +1051,7 @@ name = "coap-device"
 version = "0.1.0"
 dependencies = [
  "coap 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "coap-lite 0.5.1",
+ "coap-lite",
  "tokio 1.9.0",
 ]
 
@@ -1064,8 +1064,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "coap 0.11.1 (git+https://github.com/Covertness/coap-rs)",
- "coap-lite 0.4.1",
+ "coap-lite",
  "env_logger",
+ "futures 0.3.16",
  "log",
  "mockall",
  "serde",
@@ -1075,12 +1076,6 @@ dependencies = [
  "tokio 0.2.25",
  "tonic",
 ]
-
-[[package]]
-name = "coap-lite"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d15e8642b7913b70e905e3d9bc1e01ff25ddcb650344d83e90ebbba9d2a4e03b"
 
 [[package]]
 name = "coap-lite"

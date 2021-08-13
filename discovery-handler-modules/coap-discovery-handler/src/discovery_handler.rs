@@ -6,11 +6,12 @@ use akri_discovery_utils::discovery::{
 };
 use async_trait::async_trait;
 use coap_lite::CoapRequest;
+use futures::future::join_all;
 use log::{debug, error, info};
-use std::collections::HashMap;
-use std::time::Duration;
-use tokio::sync::mpsc;
+use std::{collections::HashMap, sync::Arc};
+use std::{sync::Mutex, time::Duration};
 use tokio::time::delay_for;
+use tokio::{sync::mpsc, task::JoinHandle};
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -82,28 +83,40 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
         tokio::spawn(async move {
             loop {
-                let mut devices: Vec<Device> = Vec::new();
+                let shared_devices: Arc<Mutex<Vec<Device>>> = Arc::new(Mutex::new(Vec::new()));
 
                 // Discover devices via static IPs
-                static_addrs.iter().for_each(|ip_address| {
-                    let coap_client = CoAPClientImpl::new((ip_address.as_str(), COAP_PORT));
-                    let device = discover_endpoint(
-                        &coap_client,
-                        &ip_address,
-                        query_filter.as_ref(),
-                        timeout,
-                    );
+                let requests: Vec<JoinHandle<_>> = static_addrs
+                    .clone()
+                    .into_iter()
+                    .map(|ip_address| {
+                        let shared_devices = shared_devices.clone();
+                        let query_filter = query_filter.clone();
 
-                    match device {
-                        Ok(device) => devices.push(device),
-                        Err(e) => {
-                            info!(
-                                "discover - discovering endpoint {} went wrong: {}",
-                                ip_address, e
+                        tokio::task::spawn_blocking(move || {
+                            let mut shared_devices = shared_devices.lock().unwrap();
+                            let coap_client = CoAPClientImpl::new((ip_address.as_str(), COAP_PORT));
+                            let device = discover_endpoint(
+                                &coap_client,
+                                &ip_address,
+                                query_filter.as_ref(),
+                                timeout,
                             );
-                        }
-                    }
-                });
+
+                            match device {
+                                Ok(device) => shared_devices.push(device),
+                                Err(e) => {
+                                    info!(
+                                        "discover - discovering endpoint {} went wrong: {}",
+                                        ip_address, e
+                                    );
+                                }
+                            }
+                        })
+                    })
+                    .collect();
+
+                join_all(requests).await;
 
                 // Discover devices via multicast
                 if multicast {
@@ -113,13 +126,16 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
                     match discovered {
                         Ok(mut discovered) => {
-                            devices.append(&mut discovered);
+                            shared_devices.lock().unwrap().append(&mut discovered);
                         }
                         Err(e) => {
                             error!("Error while discovering devices via multicast {}", e);
                         }
                     }
                 }
+
+                let lock = Arc::try_unwrap(shared_devices).expect("Lock still has multiple owners");
+                let devices = lock.into_inner().expect("Mutex cannot be locked");
 
                 if let Err(e) = discovered_devices_sender
                     .send(Ok(DiscoverResponse { devices }))
