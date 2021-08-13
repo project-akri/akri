@@ -1,4 +1,4 @@
-# Configuring Akri to Discover Devices via ONVIF
+# Configuring Akri to Discover Devices via CoAP
 
 The Constrained Application Protocol (CoAP) is a specialized web transfer protocol for use with constrained nodes and constrained (e.g., low-power, lossy) networks. More information about the protocol is available in [RFC7252](https://datatracker.ietf.org/doc/html/rfc7252). 
 

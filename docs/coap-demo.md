@@ -1,12 +1,12 @@
 # CoAP demo
 
-The Constrained Application Protocol (CoAP) is a specialized web transfer protocol for use with constrained nodes and constrained (e.g., low-power, lossy) networks. This demo will show how Akri can discover CoAP devices and allow cluster applications to communicate with them. To do so, the built-in Akri CoAP Broker exposes CoAP resources as REST resources via HTTP.
+The Constrained Application Protocol (CoAP) is a specialized web transfer protocol with constrained nodes and constrained (e.g., low-power, lossy) networks. This demo will show how Akri can discover CoAP devices and allow cluster applications to communicate with them. To do so, the built-in Akri CoAP Broker exposes CoAP resources as REST resources via HTTP.
 
 The demo consists of the following steps:
 
 1. Initialize a CoAP device with two resources: temperature and light brightness.
 2. Start an Akri installation
-3. Deploy a Kubernetes application which requests the temperature via HTTP
+3. Deploy a Kubernetes application that requests the temperature via HTTP
 
 ## Creating CoAP devices
 
@@ -93,7 +93,7 @@ We will use Rust and [coap-rs](https://github.com/Covertness/coap-rs) in this se
   cargo run
   ```
 
-It's not necessary, but you can check if the server is correctly up-and-running creating a separate Rust project for a CoAP client with the following `main.rs`:
+It's not necessary, but you can check if the server is correctly up and running creating a separate Rust project for a CoAP client with the following `main.rs`:
 
 ```rs
 use coap::CoAPClient;
@@ -109,7 +109,7 @@ fn main() {
 
 Now it is time to install the Akri using Helm. When installing Akri, we can specify that we want to deploy the CoAP Discovery Handlers by setting the helm value `coap.discovery.enabled=true`. We also specify that we want to create a CoAP Configuration with `--set coap.configuration.enabled=true`.
 
-In the Configuration, we need to specify our CoAP server's static IP address since otherwise the the Discovery Handler's default behaviour is to use the broadcast method: `--set coap.configuration.discoveryDetails.staticIpAddresses[0] = "192.168.1.126"`.
+In the Configuration, we need to specify our CoAP server's static IP address. Otherwise, the Discovery Handler's default behaviour is to use the broadcast method: `--set coap.configuration.discoveryDetails.staticIpAddresses[0] = "192.168.1.126"`.
 
 The final CLI commands should look like this:
 
