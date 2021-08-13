@@ -8,6 +8,7 @@ members = [
     "shared", 
     "agent", 
     "controller", 
+    "samples/apps/coap-device",
     "samples/brokers/coap-broker",
     "samples/brokers/udev-video-broker", 
     "webhooks/validating/configuration",
