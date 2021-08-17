@@ -297,7 +297,7 @@ pub async fn update_instance(
     log::trace!("update_instance enter");
     let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
     let instance_json = serde_json::json!(instance_to_update);
-    let patch = Patch::Apply(&instance_json);
+    let patch = Patch::Strategic(&instance_json);
     let instance_patch_params = PatchParams::default();
     log::trace!("update_instance instances_client.patch(name, &instance_patch_params, instance_to_update).await?");
     match instances_client
