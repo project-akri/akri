@@ -359,8 +359,7 @@ pub mod util {
 
     async fn try_recv_string(s: &mut UdpSocket, timeout: Duration) -> std::io::Result<String> {
         let mut buf = vec![0; 16 * 1024];
-        // TODO: use `try_recv_from` when update tokio
-        let (len, _src) = time::timeout(timeout, s.recv_from(&mut buf)).await??;
+        let len = time::timeout(timeout, s.recv(&mut buf)).await??;
         Ok(String::from_utf8_lossy(&buf[..len]).to_string())
     }
 
