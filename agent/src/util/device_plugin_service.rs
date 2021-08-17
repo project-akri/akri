@@ -18,17 +18,17 @@ use akri_shared::{
     k8s,
     k8s::KubeInterface,
 };
-use futures::Stream;
 use log::{error, info, trace};
 #[cfg(test)]
 use mock_instant::Instant;
 #[cfg(not(test))]
 use std::time::Instant;
-use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, mpsc, Mutex},
     time::timeout,
 };
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Code, Request, Response, Status};
 
 /// Message sent in channel to `list_and_watch`.
@@ -116,8 +116,7 @@ impl DevicePlugin for DevicePluginService {
         Ok(Response::new(resp))
     }
 
-    type ListAndWatchStream =
-        Pin<Box<dyn Stream<Item = Result<ListAndWatchResponse, Status>> + Send + Sync + 'static>>;
+    type ListAndWatchStream = ReceiverStream<Result<ListAndWatchResponse, Status>>;
 
     /// Called by Kubelet right after the DevicePluginService registers with Kubelet.
     /// Returns a stream of List of "virtual" Devices over a channel.
@@ -232,9 +231,7 @@ impl DevicePlugin for DevicePluginService {
             trace!("list_and_watch - for Instance {} ending", dps.instance_name);
         });
 
-        Ok(Response::new(Box::pin(
-            tokio_stream::wrappers::ReceiverStream::new(kubelet_update_receiver),
-        )))
+        Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
     }
 
     /// Kubelet calls allocate during pod creation.
