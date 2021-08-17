@@ -24,7 +24,7 @@ futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
 hyper = "0.14.2"
-h2 = "0.3.0"
+h2 = "=0.3.3"
 kube = { version = "0.59.0",  features = ["derive"] }
 kube-runtime = "0.59.0"
 k8s-openapi = { version = "0.13.0", default-features = false, features = ["schemars", "v1_16"] }
