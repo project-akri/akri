@@ -1,0 +1,21 @@
+# This is a workflow that runs periodically to mark issues with no recent activity as stale, it also closes/removes-label based on following activities
+
+name: Close stale issues
+on:
+  schedule:
+  - cron: '0 0 * * *' # runs daily at 12:00 am UTC
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v4
+        with:
+          stale-issue-label: stale
+          days-before-stale: 30
+          days-before-close: 5
+          remove-issue-stale-when-updated: true
+          stale-issue-message: 'This issue is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 7 days.'
+          close-issue-message: 'This issue was closed because it has been stalled for 5 days with no activity.'
+          days-before-pr-close: -1  # do not close PRs
+          token: ${{ secrets.GITHUB_TOKEN }}
