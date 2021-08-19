@@ -8,7 +8,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use schemars::JsonSchema;
 use std::collections::HashMap;
 
-pub type KubeAkriInstanceList = ObjectList<Instance>;
+pub type InstanceList = ObjectList<Instance>;
 
 /// Defines the information in the Instance CRD
 ///
@@ -67,7 +67,7 @@ pub struct InstanceSpec {
 /// let instances = instance::get_instances(&api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn get_instances(kube_client: &Client) -> Result<KubeAkriInstanceList, anyhow::Error> {
+pub async fn get_instances(kube_client: &Client) -> Result<InstanceList, anyhow::Error> {
     log::trace!("get_instances enter");
     let instances_client: Api<Instance> = Api::all(kube_client.clone());
     let lp = ListParams::default();

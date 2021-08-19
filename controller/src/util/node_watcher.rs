@@ -329,7 +329,7 @@ impl NodeWatcher {
 mod tests {
     use super::super::shared_test_utils::config_for_tests;
     use super::*;
-    use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
+    use akri_shared::{akri::instance::InstanceList, k8s::MockKubeInterface, os::file};
 
     #[derive(Clone)]
     struct UpdateInstance {
@@ -539,7 +539,7 @@ mod tests {
             let instance_file = "../test/json/shared-instance-update.json";
             let instance_json = file::read_file_to_string(instance_file);
             let instance_list_json = listify_node(&instance_json);
-            let list: KubeAkriInstanceList = serde_json::from_str(&instance_list_json).unwrap();
+            let list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
             Ok(list)
         });
         mock.expect_update_instance()

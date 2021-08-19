@@ -3,7 +3,7 @@ pub mod config_for_tests {
     use akri_shared::{
         akri::{
             configuration::Configuration,
-            instance::{Instance, InstanceSpec, KubeAkriInstanceList},
+            instance::{Instance, InstanceList, InstanceSpec},
         },
         k8s::MockKubeInterface,
         os::file,
@@ -74,7 +74,7 @@ pub mod config_for_tests {
             } else {
                 json
             };
-            let list: KubeAkriInstanceList = serde_json::from_str(&instance_list_json).unwrap();
+            let list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
             Ok(list)
         });
     }

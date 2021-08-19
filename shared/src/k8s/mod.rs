@@ -2,7 +2,7 @@ use super::akri::{
     configuration,
     configuration::{Configuration, ConfigurationList},
     instance,
-    instance::{Instance, InstanceSpec, KubeAkriInstanceList},
+    instance::{Instance, InstanceList, InstanceSpec},
     retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     API_NAMESPACE, API_VERSION,
 };
@@ -123,7 +123,7 @@ pub trait KubeInterface: Send + Sync {
     async fn get_configurations(&self) -> Result<ConfigurationList, anyhow::Error>;
 
     async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error>;
-    async fn get_instances(&self) -> Result<KubeAkriInstanceList, anyhow::Error>;
+    async fn get_instances(&self) -> Result<InstanceList, anyhow::Error>;
     async fn create_instance(
         &self,
         instance_to_create: &InstanceSpec,
@@ -412,7 +412,7 @@ impl KubeInterface for KubeImpl {
     /// let instances = kube.get_instances().await.unwrap();
     /// # }
     /// ```
-    async fn get_instances(&self) -> Result<KubeAkriInstanceList, anyhow::Error> {
+    async fn get_instances(&self) -> Result<InstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
     }
     /// Create Akri Instance

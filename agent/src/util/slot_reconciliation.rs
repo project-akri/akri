@@ -345,7 +345,7 @@ pub async fn periodic_slot_reconciliation(
 #[cfg(test)]
 mod reconcile_tests {
     use super::*;
-    use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
+    use akri_shared::{akri::instance::InstanceList, k8s::MockKubeInterface, os::file};
     use k8s_openapi::api::core::v1::Pod;
     use kube::api::ObjectList;
 
@@ -362,8 +362,7 @@ mod reconcile_tests {
     fn configure_get_instances(mock: &mut MockKubeInterface, result_file: &'static str) {
         mock.expect_get_instances().times(1).returning(move || {
             let instance_list_json = file::read_file_to_string(result_file);
-            let instance_list: KubeAkriInstanceList =
-                serde_json::from_str(&instance_list_json).unwrap();
+            let instance_list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
             Ok(instance_list)
         });
     }
