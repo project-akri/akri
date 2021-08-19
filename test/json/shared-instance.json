@@ -1,5 +1,5 @@
 {
-    "apiVersion": "v0",
+    "apiVersion": "akri.sh/v0",
     "kind": "Instance",
     "metadata": {
         "name": "config-a-359973",
