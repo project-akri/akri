@@ -1,6 +1,6 @@
 # This is a workflow that runs periodically to mark issues/prs with no recent activity as stale, it also closes/removes-label based on following activity
 
-name: Close stale issues
+name: Mark and close stale issues/PRs
 on:
   schedule:
   - cron: '0 0 * * *' # runs daily at 12:00 am UTC
@@ -19,7 +19,6 @@ jobs:
           stale-issue-message: > 
             Issue has been automatically marked as stale because it has been open for 45 days with no activity. Issue will be closed if no further activity occurs.
             Thank you for your contributions.
-          close-issue-message: 'This issue was closed because it has been stalled with no activity.'
           stale-pr-message: > 
             PR has been automatically marked as stale because it has been open for 45 days with no activity. PR will be closed if no further activity occurs.
             Thank you for your contributions.
