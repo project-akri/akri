@@ -1,9 +1,8 @@
 /// Akri API Version
 pub const API_VERSION: &str = "v0";
-/// Akri API Version Number
-pub const API_VERSION_NUMBER: &str = "0";
-/// Version of Pods that the Controller watches for
-pub const POD_VERSION_NUMBER: &str = "1";
+/// Version for kube:Api::watch
+/// TODO: use kube_runtime::watcher::watcher to avoid managing version
+pub const WATCH_VERSION: &str = "0";
 /// Akri CRD Namespace
 pub const API_NAMESPACE: &str = "akri.sh";
 /// Akri Configuration CRD name

@@ -191,9 +191,6 @@ pub async fn create_instance(
         }]),
         ..Default::default()
     };
-    log::trace!(
-        "create_instance instances_client.create(&PostParams::default(), &instance).await?"
-    );
     match instances_client
         .create(&PostParams::default(), &instance)
         .await
@@ -296,12 +293,13 @@ pub async fn update_instance(
 ) -> Result<(), anyhow::Error> {
     log::trace!("update_instance enter");
     let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
-    log::trace!("update_instance instances_client.patch(name, &instance_patch_params, instance_to_update).await?");
     let modified_instance = Instance::new(name, instance_to_update.clone());
-    // Force the apply, ignoring conflicts and ensuring this updated Instance overwrites the previous
-    let patch_params = PatchParams::apply("akri").force();
     match instances_client
-        .patch(name, &patch_params, &Patch::Apply(&modified_instance))
+        .patch(
+            name,
+            &PatchParams::default(),
+            &Patch::Merge(&modified_instance),
+        )
         .await
     {
         Ok(_instance_modified) => {

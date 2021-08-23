@@ -84,7 +84,7 @@ impl BrokerPodWatcher {
         let mut stream = resource
             .watch(
                 &ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME),
-                akri_shared::akri::POD_VERSION_NUMBER,
+                akri_shared::akri::WATCH_VERSION,
             )
             .await?
             .boxed();

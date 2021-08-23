@@ -92,10 +92,7 @@ async fn watch_for_config_changes(
     trace!("watch_for_config_changes - start");
     let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
     let mut stream = resource
-        .watch(
-            &ListParams::default(),
-            akri_shared::akri::API_VERSION_NUMBER,
-        )
+        .watch(&ListParams::default(), akri_shared::akri::WATCH_VERSION)
         .await?
         .boxed();
     // Currently, this does not handle None except to break the

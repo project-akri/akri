@@ -784,11 +784,10 @@ pub async fn update_service(
         &namespace
     );
     let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
-    let svc_as_u8 = serde_json::to_vec(svc_to_update)?;
 
     info!("remove_service svcs.patch(...).await?:");
     match svcs
-        .patch(name, &PatchParams::default(), &Patch::Apply(&svc_as_u8))
+        .patch(name, &PatchParams::default(), &Patch::Merge(&svc_to_update))
         .await
     {
         Ok(_service_modified) => {

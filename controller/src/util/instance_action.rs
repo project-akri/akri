@@ -79,10 +79,7 @@ async fn internal_do_instance_watch(
     trace!("internal_do_instance_watch - enter");
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
     let mut stream = resource
-        .watch(
-            &ListParams::default(),
-            akri_shared::akri::API_VERSION_NUMBER,
-        )
+        .watch(&ListParams::default(), akri_shared::akri::WATCH_VERSION)
         .await?
         .boxed();
     // Currently, this does not handle None except to break the
