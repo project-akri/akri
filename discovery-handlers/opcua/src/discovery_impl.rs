@@ -161,7 +161,7 @@ fn get_discovery_url_from_application_description(
 
 /// This returns a socket address for the OPC UA DiscoveryURL else an error if not properly formatted
 fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
-    let url = Url::parse(&url).map_err(|_| anyhow::format_err!("could not parse url"))?;
+    let url = Url::parse(url).map_err(|_| anyhow::format_err!("could not parse url"))?;
     if url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
             "format of OPC UA url {} is not valid",

@@ -17,7 +17,7 @@ struct CriCtlContainer {
 
 /// This gets the usage slots for an instance by getting the annotations that were stored at id `AKRI_SLOT_ANNOTATION_NAME` during allocate.
 pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
-    match serde_json::from_str::<CriCtlOutput>(&crictl_output) {
+    match serde_json::from_str::<CriCtlOutput>(crictl_output) {
         Ok(crictl_output_parsed) => crictl_output_parsed
             .containers
             .iter()

@@ -19,7 +19,7 @@ use akri_discovery_utils::discovery::v0::{
     discovery_handler_client::DiscoveryHandlerClient, Device, DiscoverRequest, DiscoverResponse,
 };
 use akri_shared::{
-    akri::configuration::KubeAkriConfig,
+    akri::configuration::Configuration,
     k8s,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
@@ -62,7 +62,7 @@ pub struct DiscoveryOperator {
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     /// The Akri Configuration associated with this `DiscoveryOperator`.
     /// The Configuration tells the `DiscoveryOperator` what to look for.
-    config: KubeAkriConfig,
+    config: Configuration,
     /// Map of Akri Instances discovered by this `DiscoveryOperator`
     instance_map: InstanceMap,
 }
@@ -71,7 +71,7 @@ pub struct DiscoveryOperator {
 impl DiscoveryOperator {
     pub fn new(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
-        config: KubeAkriConfig,
+        config: Configuration,
         instance_map: InstanceMap,
     ) -> Self {
         DiscoveryOperator {
@@ -87,7 +87,7 @@ impl DiscoveryOperator {
     }
     /// Returns config field. Allows the struct to be mocked.
     #[allow(dead_code)]
-    pub fn get_config(&self) -> KubeAkriConfig {
+    pub fn get_config(&self) -> Configuration {
         self.config.clone()
     }
     /// Returns instance_map field. Allows the struct to be mocked.
@@ -125,9 +125,11 @@ impl DiscoveryOperator {
                             self.config.spec.discovery_handler.name
                         );
                         match discovery_handler.discover(discover_request).await {
-                            Ok(device_update_receiver) => {
-                                Some(StreamType::Embedded(device_update_receiver.into_inner()))
-                            }
+                            Ok(device_update_receiver) => Some(StreamType::Embedded(
+                                // `discover` returns `Result<tonic::Response<Self::DiscoverStream>, tonic::Status>`
+                                // Get the `Receiver` from the `DiscoverStream` wrapper
+                                device_update_receiver.into_inner().into_inner(),
+                            )),
                             Err(e) => {
                                 error!("get_stream - could not connect to DiscoveryHandler at endpoint {:?} with error {}", endpoint, e);
                                 None
@@ -204,7 +206,7 @@ impl DiscoveryOperator {
     #[allow(dead_code)]
     pub async fn internal_do_discover<'a>(
         &'a self,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
         dh_details: &'a DiscoveryDetails,
         stream: &'a mut dyn StreamingExt,
     ) -> Result<(), Status> {
@@ -295,10 +297,10 @@ impl DiscoveryOperator {
     /// the associated Device Plugin and Instance are terminated and deleted, respectively.
     pub async fn delete_offline_instances(
         &self,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!(
-            "delete_offline_instances - entered for configuration {}",
+            "delete_offline_instances - entered for configuration {:?}",
             self.config.metadata.name
         );
         let kube_interface_clone = kube_interface.clone();
@@ -318,7 +320,7 @@ impl DiscoveryOperator {
                     .await
                     .unwrap();
                     k8s::try_delete_instance(
-                        (*kube_interface_clone).as_ref(),
+                        kube_interface_clone.as_ref(),
                         &instance,
                         self.config.metadata.namespace.as_ref().unwrap(),
                     )
@@ -335,26 +337,27 @@ impl DiscoveryOperator {
     /// of the instance or deletes it if it is a local device.
     pub async fn handle_discovery_results(
         &self,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
         discovery_results: Vec<Device>,
         shared: bool,
         device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let config_name = self.config.metadata.name.clone().unwrap();
         trace!(
             "handle_discovery_results - for config {} with discovery results {:?}",
-            self.config.metadata.name,
+            config_name,
             discovery_results
         );
         let currently_visible_instances: HashMap<String, Device> = discovery_results
             .iter()
             .map(|discovery_result| {
                 let id = generate_instance_digest(&discovery_result.id, shared);
-                let instance_name = get_device_instance_name(&id, &self.config.metadata.name);
+                let instance_name = get_device_instance_name(&id, &config_name);
                 (instance_name, discovery_result.clone())
             })
             .collect();
         INSTANCE_COUNT_METRIC
-            .with_label_values(&[&self.config.metadata.name, &shared.to_string()])
+            .with_label_values(&[&config_name, &shared.to_string()])
             .set(currently_visible_instances.len() as i64);
         // Update the connectivity status of instances and return list of visible instances that don't have Instance CRs
         let instance_map = self.instance_map.lock().await.clone();
@@ -375,7 +378,7 @@ impl DiscoveryOperator {
         if !new_discovery_results.is_empty() {
             for discovery_result in new_discovery_results {
                 let id = generate_instance_digest(&discovery_result.id, shared);
-                let instance_name = get_device_instance_name(&id, &self.config.metadata.name);
+                let instance_name = get_device_instance_name(&id, &config_name);
                 trace!(
                     "handle_discovery_results - new instance {} came online",
                     instance_name
@@ -406,7 +409,7 @@ impl DiscoveryOperator {
     /// (A) non-local Instance is still not visible after 5 minutes or (B) local instance is still not visible.
     pub async fn update_instance_connectivity_status(
         &self,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -495,7 +498,7 @@ impl DiscoveryOperator {
                     .await
                     .unwrap();
                     k8s::try_delete_instance(
-                        (*kube_interface).as_ref(),
+                        kube_interface.as_ref(),
                         &instance,
                         self.config.metadata.namespace.as_ref().unwrap(),
                     )
@@ -534,14 +537,14 @@ pub mod start_discovery {
         new_discovery_handler_sender: broadcast::Sender<String>,
         stop_all_discovery_sender: broadcast::Sender<()>,
         finished_all_discovery_sender: &mut mpsc::Sender<()>,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
             "start_discovery - entered for {} discovery handler",
             config.spec.discovery_handler.name
         );
-        let config_name = config.metadata.name.clone();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);
 
@@ -606,7 +609,7 @@ pub mod start_discovery {
         loop {
             tokio::select! {
                 _ = stop_all_discovery_receiver.recv() => {
-                    trace!("listen_for_new_discovery_handlers - received message to stop discovery for configuration {}", discovery_operator.get_config().metadata.name);
+                    trace!("listen_for_new_discovery_handlers - received message to stop discovery for configuration {:?}", discovery_operator.get_config().metadata.name);
                     discovery_operator.stop_all_discovery().await;
                     break;
                 },
@@ -614,10 +617,10 @@ pub mod start_discovery {
                     // Check if it is one of this Configuration's discovery handlers
                     if let Ok(discovery_handler_name) = result {
                         if discovery_handler_name == discovery_operator.get_config().spec.discovery_handler.name {
-                            trace!("listen_for_new_discovery_handlers - received new registered discovery handler for configuration {}", discovery_operator.get_config().metadata.name);
+                            trace!("listen_for_new_discovery_handlers - received new registered discovery handler for configuration {:?}", discovery_operator.get_config().metadata.name);
                             let new_discovery_operator = discovery_operator.clone();
                             discovery_tasks.push(tokio::spawn(async move {
-                                do_discover(new_discovery_operator, Arc::new(Box::new(k8s::create_kube_interface()))).await.unwrap();
+                                do_discover(new_discovery_operator, Arc::new(k8s::KubeImpl::new().await.unwrap())).await.unwrap();
                             }));
                         }
                     }
@@ -641,7 +644,7 @@ pub mod start_discovery {
     /// Removes the discovery handler from the `RegisteredDiscoveryHandlerMap` if it has been offline for longer than the grace period.
     pub async fn do_discover(
         discovery_operator: Arc<DiscoveryOperator>,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut discovery_tasks = Vec::new();
         let config = discovery_operator.get_config();
@@ -697,17 +700,17 @@ pub mod start_discovery {
     /// Try to connect to discovery handler until connection has been established or grace period has passed
     async fn do_discover_on_discovery_handler<'a>(
         discovery_operator: Arc<DiscoveryOperator>,
-        kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
         endpoint: &'a DiscoveryHandlerEndpoint,
         dh_details: &'a DiscoveryDetails,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         loop {
             let deregistered;
-            match discovery_operator.get_stream(&endpoint).await {
+            match discovery_operator.get_stream(endpoint).await {
                 Some(stream_type) => {
                     // Since connection was established, be sure that the Discovery Handler is marked as having a client
                     discovery_operator.set_discovery_handler_connectivity_status(
-                        &endpoint,
+                        endpoint,
                         DiscoveryHandlerStatus::Active,
                     );
                     match stream_type {
@@ -715,14 +718,14 @@ pub mod start_discovery {
                             match discovery_operator
                                 .internal_do_discover(
                                     kube_interface.clone(),
-                                    &dh_details,
+                                    dh_details,
                                     &mut stream,
                                 )
                                 .await
                             {
                                 Ok(_) => {
                                     discovery_operator.set_discovery_handler_connectivity_status(
-                                        &endpoint,
+                                        endpoint,
                                         DiscoveryHandlerStatus::Waiting,
                                     );
                                     break;
@@ -739,7 +742,7 @@ pub mod start_discovery {
                                             )
                                             .await?;
                                         deregistered = discovery_operator
-                                            .mark_offline_or_deregister_discovery_handler(&endpoint)
+                                            .mark_offline_or_deregister_discovery_handler(endpoint)
                                             .await
                                             .unwrap();
                                     } else {
@@ -755,7 +758,7 @@ pub mod start_discovery {
                                             .await?;
                                         discovery_operator
                                             .set_discovery_handler_connectivity_status(
-                                                &endpoint,
+                                                endpoint,
                                                 DiscoveryHandlerStatus::Waiting,
                                             );
                                         break;
@@ -767,13 +770,13 @@ pub mod start_discovery {
                             discovery_operator
                                 .internal_do_discover(
                                     kube_interface.clone(),
-                                    &dh_details,
+                                    dh_details,
                                     &mut stream,
                                 )
                                 .await
                                 .unwrap();
                             discovery_operator.set_discovery_handler_connectivity_status(
-                                &endpoint,
+                                endpoint,
                                 DiscoveryHandlerStatus::Waiting,
                             );
                             break;
@@ -782,7 +785,7 @@ pub mod start_discovery {
                 }
                 None => {
                     deregistered = discovery_operator
-                        .mark_offline_or_deregister_discovery_handler(&endpoint)
+                        .mark_offline_or_deregister_discovery_handler(endpoint)
                         .await
                         .unwrap();
                 }
@@ -861,7 +864,7 @@ pub mod tests {
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
-        akri::configuration::KubeAkriConfig, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
+        akri::configuration::Configuration, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
@@ -869,7 +872,7 @@ pub mod tests {
     use tokio::sync::broadcast;
 
     pub async fn build_instance_map(
-        config: &KubeAkriConfig,
+        config: &Configuration,
         visible_discovery_results: &mut Vec<Device>,
         list_and_watch_message_receivers: &mut Vec<
             broadcast::Receiver<device_plugin_service::ListAndWatchMessageKind>,
@@ -894,7 +897,7 @@ pub mod tests {
             discovery_results,
             list_and_watch_message_receivers,
             connectivity_status,
-            &config.metadata.name,
+            config.metadata.name.as_ref().unwrap(),
         )
     }
 
@@ -913,7 +916,7 @@ pub mod tests {
                     let (list_and_watch_message_sender, list_and_watch_message_receiver) =
                         broadcast::channel(2);
                     list_and_watch_message_receivers.push(list_and_watch_message_receiver);
-                    let instance_name = get_device_instance_name(&device.id, &config_name);
+                    let instance_name = get_device_instance_name(&device.id, config_name);
                     (
                         instance_name,
                         InstanceInfo {
@@ -928,7 +931,7 @@ pub mod tests {
 
     fn create_mock_discovery_operator(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
-        config: KubeAkriConfig,
+        config: Configuration,
         instance_map: InstanceMap,
     ) -> MockDiscoveryOperator {
         let ctx = MockDiscoveryOperator::new_context();
@@ -946,8 +949,7 @@ pub mod tests {
                 .returning(move || instance_map_clone.clone());
             mock
         });
-        let mock = MockDiscoveryOperator::new(discovery_handler_map, config, instance_map);
-        mock
+        MockDiscoveryOperator::new(discovery_handler_map, config, instance_map)
     }
 
     // Creates a discovery handler with specified properties and adds it to the RegisteredDiscoveryHandlerMap.
@@ -987,7 +989,7 @@ pub mod tests {
             name: name.to_string(),
             endpoint,
             shared,
-            close_discovery_handler_connection: close_discovery_handler_connection.clone(),
+            close_discovery_handler_connection: close_discovery_handler_connection,
             connectivity_status: DiscoveryHandlerStatus::Waiting,
         }
     }
@@ -1004,7 +1006,7 @@ pub mod tests {
         // Build discovery operator
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
@@ -1064,7 +1066,7 @@ pub mod tests {
             .subscribe();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
@@ -1114,8 +1116,7 @@ pub mod tests {
             .get(&DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()))
             .unwrap()
             .clone()
-            .close_discovery_handler_connection
-            .clone();
+            .close_discovery_handler_connection;
         mock_discovery_operator
             .expect_stop_all_discovery()
             .times(1)
@@ -1128,8 +1129,7 @@ pub mod tests {
             tokio::sync::mpsc::channel(2);
         let thread_new_dh_sender = new_dh_sender.clone();
         let thread_stop_all_discovery_sender = stop_all_discovery_sender.clone();
-        let mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
-            Arc::new(Box::new(MockKubeInterface::new()));
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
         let handle = tokio::spawn(async move {
             start_discovery::start_discovery(
                 mock_discovery_operator,
@@ -1211,8 +1211,7 @@ pub mod tests {
             .times(1)
             .returning(|_, _| ())
             .in_sequence(&mut discovery_handler_status_seq);
-        let mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
-            Arc::new(Box::new(MockKubeInterface::new()));
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
         start_discovery::do_discover(Arc::new(mock_discovery_operator), mock_kube_interface)
             .await
             .unwrap();
@@ -1223,14 +1222,13 @@ pub mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         // Set node name for generating instance id
         std::env::set_var("AGENT_NODE_NAME", "node-a");
-        let mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
-            Arc::new(Box::new(MockKubeInterface::new()));
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
             Arc::new(std::sync::Mutex::new(HashMap::new()));
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_name = config.metadata.name.clone().unwrap();
         INSTANCE_COUNT_METRIC
             .with_label_values(&[&config_name, "true"])
             .set(0);
@@ -1290,7 +1288,7 @@ pub mod tests {
         for _x in 0..tries {
             println!("try number {}", _x);
             keep_looping = false;
-            tokio::time::delay_for(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             let unwrapped_instance_map = instance_map.lock().await.clone();
             if check_empty && unwrapped_instance_map.is_empty() {
                 map_is_empty = true;
@@ -1324,7 +1322,7 @@ pub mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
             Arc::new(std::sync::Mutex::new(HashMap::new()));
@@ -1345,7 +1343,7 @@ pub mod tests {
             instance_map,
         ));
         discovery_operator
-            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .delete_offline_instances(Arc::new(mock))
             .await
             .unwrap();
 
@@ -1366,7 +1364,7 @@ pub mod tests {
             instance_map,
         ));
         discovery_operator
-            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .delete_offline_instances(Arc::new(mock))
             .await
             .unwrap();
 
@@ -1390,7 +1388,7 @@ pub mod tests {
             instance_map.clone(),
         ));
         discovery_operator
-            .delete_offline_instances(Arc::new(Box::new(mock)))
+            .delete_offline_instances(Arc::new(mock))
             .await
             .unwrap();
         // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
@@ -1401,13 +1399,13 @@ pub mod tests {
     // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
     // 2: InstanceConnectivityStatus of shared instances that come back online in under 5 minutes is changed from Offline to Online
     // 3: InstanceConnectivityStatus of unshared instances that come back online before next periodic discovery is changed from Offline to Online
-    #[tokio::test(core_threads = 2)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_update_instance_connectivity_status_factory() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
         let discovery_handler_map: RegisteredDiscoveryHandlerMap =
@@ -1554,7 +1552,7 @@ pub mod tests {
     }
 
     async fn run_update_instance_connectivity_status(
-        config: KubeAkriConfig,
+        config: Configuration,
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
         instance_map: InstanceMap,
@@ -1568,7 +1566,7 @@ pub mod tests {
         ));
         discovery_operator
             .update_instance_connectivity_status(
-                Arc::new(Box::new(mock)),
+                Arc::new(mock),
                 currently_visible_instances,
                 shared,
             )
@@ -1582,7 +1580,7 @@ pub mod tests {
     ) -> DiscoveryOperator {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         add_discovery_handler_to_map(dh_name, endpoint, false, discovery_handler_map.clone());
         DiscoveryOperator::new(
@@ -1624,13 +1622,10 @@ pub mod tests {
         let endpoint = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
         let discovery_operator = setup_non_mocked_dh(discovery_handler_name, &endpoint);
         // Test that an online discovery handler is marked offline
-        assert_eq!(
-            discovery_operator
-                .mark_offline_or_deregister_discovery_handler(&endpoint)
-                .await
-                .unwrap(),
-            false
-        );
+        assert!(!discovery_operator
+            .mark_offline_or_deregister_discovery_handler(&endpoint)
+            .await
+            .unwrap());
         if let DiscoveryHandlerStatus::Offline(_) = discovery_operator
             .discovery_handler_map
             .lock()
@@ -1648,13 +1643,10 @@ pub mod tests {
             panic!("DiscoveryHandlerStatus should be changed to offline");
         }
         // Test that an offline discovery handler IS NOT deregistered if the time has not passed
-        assert_eq!(
-            discovery_operator
-                .mark_offline_or_deregister_discovery_handler(&endpoint)
-                .await
-                .unwrap(),
-            false
-        );
+        assert!(!discovery_operator
+            .mark_offline_or_deregister_discovery_handler(&endpoint)
+            .await
+            .unwrap());
 
         // Test that an offline discovery handler IS deregistered if the time has passed
         let mock_now = Instant::now();
@@ -1668,13 +1660,10 @@ pub mod tests {
             .get_mut(&endpoint)
             .unwrap()
             .connectivity_status = DiscoveryHandlerStatus::Offline(mock_now);
-        assert_eq!(
-            discovery_operator
-                .mark_offline_or_deregister_discovery_handler(&endpoint)
-                .await
-                .unwrap(),
-            true
-        );
+        assert!(discovery_operator
+            .mark_offline_or_deregister_discovery_handler(&endpoint)
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -1683,7 +1672,7 @@ pub mod tests {
         std::env::set_var(super::super::constants::ENABLE_DEBUG_ECHO_LABEL, "yes");
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let endpoint = DiscoveryHandlerEndpoint::Embedded;
         let dh_name = akri_debug_echo::DISCOVERY_HANDLER_NAME.to_string();
@@ -1720,7 +1709,7 @@ pub mod tests {
         )
         .await;
         // Make sure registration server has started
-        akri_shared::uds::unix_stream::try_connect(&endpoint)
+        akri_shared::uds::unix_stream::try_connect(endpoint)
             .await
             .unwrap();
         discovery_operator

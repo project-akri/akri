@@ -3,14 +3,11 @@ mod util;
 extern crate lazy_static;
 use akri_shared::{
     akri::{metrics::run_metrics_server, API_NAMESPACE},
-    os::{
-        env_var::{ActualEnvVarQuery, EnvVarQuery},
-        signal,
-    },
+    os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
-use futures::Future;
 use log::{info, trace};
 use prometheus::IntCounter;
+use tokio::signal;
 use util::{camera_capturer, camera_service};
 
 lazy_static! {
@@ -36,13 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         run_metrics_server().await.unwrap();
     });
 
-    // Set up shutdown channel
-    let (exit_tx, exit_rx) = std::sync::mpsc::channel::<()>();
-    let _shutdown_signal = signal::shutdown().then(|_| {
-        trace!("{} Udev Broker shutdown signal received", API_NAMESPACE);
-        exit_tx.send(())
-    });
-
     let env_var_query = ActualEnvVarQuery {};
     let devnode = get_video_devnode(&env_var_query);
 
@@ -51,9 +41,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         .await
         .unwrap();
 
-    trace!("Waiting for shutdown signal");
-    // wait for exit signal
-    exit_rx.recv().unwrap();
+    trace!("Waiting for ctrl C shutdown signal");
+    // Wait for exit signal
+    signal::ctrl_c().await?;
 
     trace!("Udev broker ending");
     Ok(())

@@ -183,7 +183,7 @@ pub mod util {
         scopes: Option<&FilterList>,
     ) -> Vec<String> {
         let response_envelope =
-            yaserde::de::from_str::<to_deserialize::Envelope>(&discovery_response);
+            yaserde::de::from_str::<to_deserialize::Envelope>(discovery_response);
         // The response envelope follows this format:
         //   <Envelope><Body><ProbeMatches><ProbeMatch><XAddrs>
         //       https://10.0.0.1:5357/svc
@@ -288,7 +288,7 @@ pub mod util {
             "get_discovery_response_socket - binding to: {:?}",
             local_socket_addr
         );
-        let mut socket = UdpSocket::bind(local_socket_addr).await?;
+        let socket = UdpSocket::bind(local_socket_addr).await?;
         trace!(
             "get_discovery_response_socket - joining multicast: {:?} {:?}",
             &MULTI_IPV4_ADDR,
@@ -359,8 +359,7 @@ pub mod util {
 
     async fn try_recv_string(s: &mut UdpSocket, timeout: Duration) -> std::io::Result<String> {
         let mut buf = vec![0; 16 * 1024];
-        // TODO: use `try_recv_from` when update tokio
-        let (len, _src) = time::timeout(timeout, s.recv_from(&mut buf)).await??;
+        let len = time::timeout(timeout, s.recv(&mut buf)).await??;
         Ok(String::from_utf8_lossy(&buf[..len]).to_string())
     }
 
@@ -372,7 +371,7 @@ pub mod util {
             time::{Duration, SystemTime},
         };
 
-        #[tokio::test(core_threads = 2)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_timeout_for_simple_onvif_discover() {
             let _ = env_logger::builder().is_test(true).try_init();
 

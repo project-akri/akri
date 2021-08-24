@@ -1,25 +1,40 @@
 /// Module to enable UDS with tonic grpc.
 /// This is unix only since the underlying UnixStream and UnixListener libraries are unix only.
 use std::{
-    convert::TryFrom,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::io::{AsyncRead, AsyncWrite};
+
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tonic::transport::server::Connected;
 
 #[derive(Debug)]
 pub struct UnixStream(pub tokio::net::UnixStream);
 
-impl Connected for UnixStream {}
+impl Connected for UnixStream {
+    type ConnectInfo = UdsConnectInfo;
+
+    fn connect_info(&self) -> Self::ConnectInfo {
+        UdsConnectInfo {
+            peer_addr: self.0.peer_addr().ok().map(Arc::new),
+            peer_cred: self.0.peer_cred().ok(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UdsConnectInfo {
+    pub peer_addr: Option<Arc<tokio::net::unix::SocketAddr>>,
+    pub peer_cred: Option<tokio::net::unix::UCred>,
+}
 
 impl AsyncRead for UnixStream {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<std::io::Result<usize>> {
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.0).poll_read(cx, buf)
     }
 }
@@ -43,6 +58,9 @@ impl AsyncWrite for UnixStream {
 }
 
 pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
+    use std::convert::TryFrom;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
     // Test that server is running, trying for at most 10 seconds
     // Similar to grpc.timeout, which is yet to be implemented for tonic
     // See issue: https://github.com/hyperium/tonic/issues/75
@@ -71,7 +89,7 @@ pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
         {
             connected = true
         } else {
-            tokio::time::delay_for(Duration::from_secs(1)).await
+            tokio::time::sleep(Duration::from_secs(1)).await
         }
     }
     if connected {

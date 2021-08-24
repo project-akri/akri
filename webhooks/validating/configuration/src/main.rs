@@ -1,5 +1,5 @@
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use akri_shared::akri::configuration::KubeAkriConfig;
+use akri_shared::akri::configuration::Configuration;
 use clap::Arg;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use openapi::models::{
@@ -27,7 +27,7 @@ fn check(
     match v {
         serde_json::Value::Object(o) => {
             for (key, value) in o {
-                if let Err(e) = check(&value, &deserialized[key]) {
+                if let Err(e) = check(value, &deserialized[key]) {
                     return Err(None.ok_or(format!(
                         "input key ({:?}) not equal to parsed: ({:?})",
                         key, e
@@ -103,7 +103,7 @@ fn filter_configuration(mut v: Value) -> Value {
     metadata.remove("managedFields");
 
     let generation = metadata.get_mut("generation").unwrap();
-    *generation = json!(generation.as_f64().unwrap());
+    *generation = json!(generation.as_u64().unwrap());
 
     v
 }
@@ -115,7 +115,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let x: RawExtension = serde_json::from_value(raw.clone())
                 .expect("Could not parse as Kubernetes RawExtension");
             let y = serde_json::to_string(&x).unwrap();
-            let config: KubeAkriConfig =
+            let config: Configuration =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
@@ -179,7 +179,7 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
     match &rqst.request {
         Some(rqst) => {
             println!("Handler received: AdmissionRequest");
-            let resp = validate_configuration(&rqst);
+            let resp = validate_configuration(rqst);
             let resp: AdmissionReview = AdmissionReview {
                 api_version: Some("admission.k8s.io/v1".to_owned()),
                 kind: Some("AdmissionReview".to_owned()),
@@ -187,11 +187,11 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
                 response: Some(resp),
             };
             let body = serde_json::to_string(&resp).expect("Valid AdmissionReview");
-            return HttpResponse::Ok().body(body);
+            HttpResponse::Ok().body(body)
         }
         None => {
             println!("Handler received: Nothing");
-            return HttpResponse::BadRequest().body("");
+            HttpResponse::BadRequest().body("")
         }
     }
 }
@@ -200,25 +200,25 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let matches = clap::App::new("Akri Webhook")
         .arg(
-            Arg::new("crt_file")
+            Arg::with_name("crt_file")
                 .long("tls-crt-file")
                 .takes_value(true)
                 .required(true)
-                .about("TLS certificate file"),
+                .help("TLS certificate file"),
         )
         .arg(
-            Arg::new("key_file")
+            Arg::with_name("key_file")
                 .long("tls-key-file")
                 .takes_value(true)
                 .required(true)
-                .about("TLS private key file"),
+                .help("TLS private key file"),
         )
         .arg(
-            Arg::new("port")
+            Arg::with_name("port")
                 .long("port")
                 .takes_value(true)
                 .required(true)
-                .about("port"),
+                .help("port"),
         )
         .get_matches();
 
@@ -680,10 +680,10 @@ mod tests {
     }
 
     // Akri Configuration schema tests
-    use kube::api::{Object, Void};
+    use kube::api::{NotUsed, Object};
     #[test]
     fn test_creationtimestamp_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_deletiontimestamp_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -701,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_managedfields_is_filtered() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
@@ -709,12 +709,12 @@ mod tests {
     }
 
     #[test]
-    fn test_generation_becomes_f64() {
-        let t: Object<Void, Void> = serde_json::from_str(METADATA).expect("Valid Metadata");
+    fn test_generation_becomes_u64() {
+        let t: Object<NotUsed, NotUsed> = serde_json::from_str(METADATA).expect("Valid Metadata");
         let reserialized = serde_json::to_string(&t).expect("bytes");
         let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
         let v = filter_configuration(deserialized);
-        assert!(v["metadata"].get("generation").unwrap().is_f64());
+        assert!(v["metadata"].get("generation").unwrap().is_u64());
     }
 
     #[test]

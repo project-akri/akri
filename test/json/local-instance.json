@@ -1,4 +1,6 @@
 {
+    "apiVersion": "akri.sh/v0",
+    "kind": "Instance",
     "metadata": {
         "name": "config-a-b494b6",
         "namespace": "config-a-namespace",

@@ -41,9 +41,9 @@ pub fn build_and_start_camera_capturer(devnode: &str) -> RsCamera {
         .collect();
     let format_string = get_format(&env_var_query, format_options);
     let format = format_string[..].as_bytes();
-    let resolution_info = camera_capturer.resolutions(&format).unwrap();
+    let resolution_info = camera_capturer.resolutions(format).unwrap();
     let resolution = get_resolution(&env_var_query, resolution_info);
-    let interval_info = camera_capturer.intervals(&format, resolution).unwrap();
+    let interval_info = camera_capturer.intervals(format, resolution).unwrap();
     let interval = get_interval(&env_var_query, interval_info);
     trace!("build_and_start_camera_capturer - before starting camera");
     camera_capturer
