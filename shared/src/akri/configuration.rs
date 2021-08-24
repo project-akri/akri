@@ -4,24 +4,22 @@
 // in favor of camelCase)
 //
 #![allow(non_camel_case_types)]
-
-use super::API_CONFIGURATIONS;
-use super::API_NAMESPACE;
-use super::API_VERSION;
 use k8s_openapi::api::core::v1::PodSpec;
 use k8s_openapi::api::core::v1::ServiceSpec;
+use kube::CustomResource;
 use kube::{
-    api::{ListParams, Object, ObjectList, RawApi, Void},
-    client::APIClient,
+    api::{Api, ListParams, ObjectList},
+    client::Client,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub type KubeAkriConfig = Object<Configuration, Void>;
-pub type KubeAkriConfigList = ObjectList<Object<Configuration, Void>>;
+pub type ConfigurationList = ObjectList<Configuration>;
 
 /// This specifies which `DiscoveryHandler` should be used for discovery
 /// and any details that need to be sent to the `DiscoveryHandler`.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryHandlerInfo {
     pub name: String,
@@ -36,9 +34,12 @@ pub struct DiscoveryHandlerInfo {
 /// capabilities.  For any specific capability found that is described by this
 /// configuration, an Instance
 /// is created.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
+// group = API_NAMESPACE and version = API_VERSION
+#[kube(group = "akri.sh", version = "v0", kind = "Configuration", namespaced)]
+#[kube(apiextensions = "v1")]
 #[serde(rename_all = "camelCase")]
-pub struct Configuration {
+pub struct ConfigurationSpec {
     /// This defines the `DiscoveryHandler` that should be used to
     /// discover the capability and any information needed by the `DiscoveryHandler`.
     pub discovery_handler: DiscoveryHandlerInfo,
@@ -84,35 +85,22 @@ pub struct Configuration {
 ///
 /// ```no_run
 /// use akri_shared::akri::configuration;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
-/// let dccs = configuration::get_configurations(&api_client).await.unwrap();
+/// let api_client = Client::try_default().await.unwrap();
+/// let configs = configuration::get_configurations(&api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn get_configurations(
-    kube_client: &APIClient,
-) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    log::trace!("get_configurations enter");
-    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
-        .group(API_NAMESPACE)
-        .version(API_VERSION);
-
-    log::trace!("get_configurations kube_client.request::<KubeAkriInstanceList>(akri_config_type.list(...)?).await?");
-
-    let dcc_list_params = ListParams {
-        ..Default::default()
-    };
-    match kube_client
-        .request::<KubeAkriConfigList>(akri_config_type.list(&dcc_list_params)?)
-        .await
-    {
-        Ok(configs_retrieved) => {
+pub async fn get_configurations(kube_client: &Client) -> Result<ConfigurationList, anyhow::Error> {
+    let configurations_client: Api<Configuration> = Api::all(kube_client.clone());
+    let lp = ListParams::default();
+    match configurations_client.list(&lp).await {
+        Ok(configurations_retrieved) => {
             log::trace!("get_configurations return");
-            Ok(configs_retrieved)
+            Ok(configurations_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
             log::trace!(
@@ -134,14 +122,14 @@ pub async fn get_configurations(
 ///
 /// ```no_run
 /// use akri_shared::akri::configuration;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
-/// let dcc = configuration::find_configuration(
-///     "dcc-1",
+/// let api_client = Client::try_default().await.unwrap();
+/// let config = configuration::find_configuration(
+///     "config-1",
 ///     "default",
 ///     &api_client).await.unwrap();
 /// # }
@@ -149,38 +137,33 @@ pub async fn get_configurations(
 pub async fn find_configuration(
     name: &str,
     namespace: &str,
-    kube_client: &APIClient,
-) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: &Client,
+) -> Result<Configuration, anyhow::Error> {
     log::trace!("find_configuration enter");
-    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let configurations_client: Api<Configuration> = Api::namespaced(kube_client.clone(), namespace);
 
-    log::trace!("find_configuration kube_client.request::<KubeAkriConfig>(akri_config_type.get(...)?).await?");
+    log::trace!("find_configuration getting instance with name {}", name);
 
-    match kube_client
-        .request::<KubeAkriConfig>(akri_config_type.get(&name)?)
-        .await
-    {
-        Ok(config_retrieved) => {
+    match configurations_client.get(name).await {
+        Ok(configuration_retrieved) => {
             log::trace!("find_configuration return");
-            Ok(config_retrieved)
+            Ok(configuration_retrieved)
         }
-        Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_configuration kube_client.request returned kube error: {:?}",
-                ae
-            );
-            Err(ae.into())
-        }
-        Err(e) => {
-            log::trace!("find_configuration kube_client.request error: {:?}", e);
-            Err(e.into())
-        }
+        Err(e) => match e {
+            kube::Error::Api(ae) => {
+                log::trace!(
+                    "find_configuration kube_client.request returned kube error: {:?}",
+                    ae
+                );
+                Err(anyhow::anyhow!(ae))
+            }
+            _ => {
+                log::trace!("find_configuration kube_client.request error: {:?}", e);
+                Err(anyhow::anyhow!(e))
+            }
+        },
     }
 }
-
 fn default_capacity() -> i32 {
     1
 }
@@ -191,38 +174,29 @@ mod crd_serialization_tests {
     use super::*;
     use env_logger;
 
-    #[derive(Serialize, Deserialize, Clone, Debug)]
-    #[serde(rename_all = "camelCase")]
-    struct ConfigurationCRD {
-        api_version: String,
-        kind: String,
-        metadata: HashMap<String, String>,
-        spec: Configuration,
-    }
-
     #[test]
     fn test_config_defaults_with_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        if serde_json::from_str::<Configuration>(r#"{}"#).is_ok() {
+        if serde_json::from_str::<ConfigurationSpec>(r#"{}"#).is_ok() {
             panic!("discovery handler is required");
         }
 
-        serde_json::from_str::<Configuration>(
+        serde_json::from_str::<ConfigurationSpec>(
             r#"{"discoveryHandler":{"name":"random", "discoveryDetails":"serialized details"}}"#,
         )
         .unwrap();
-        if serde_json::from_str::<Configuration>(r#"{"discoveryHandler":{"name":"random"}}"#)
+        if serde_json::from_str::<ConfigurationSpec>(r#"{"discoveryHandler":{"name":"random"}}"#)
             .is_err()
         {
             panic!("discovery details are not required");
         }
-        if serde_json::from_str::<Configuration>(r#"{"discoveryHandler":{}}"#).is_ok() {
+        if serde_json::from_str::<ConfigurationSpec>(r#"{"discoveryHandler":{}}"#).is_ok() {
             panic!("discovery handler name is required");
         }
 
         let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":"{\"onvif\":{}}"}}"#;
-        let deserialized: Configuration = serde_json::from_str(json).unwrap();
+        let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
@@ -235,7 +209,7 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "capacity":4}"#;
-        let deserialized: Configuration = serde_json::from_str(json).unwrap();
+        let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
         assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
@@ -259,9 +233,9 @@ mod crd_serialization_tests {
         ];
         for file in &files {
             log::trace!("test file: {}", &file);
-            let yaml = file::read_file_to_string(&file);
+            let yaml = file::read_file_to_string(file);
             log::trace!("test file contents: {}", &yaml);
-            let deserialized: ConfigurationCRD = serde_yaml::from_str(&yaml).unwrap();
+            let deserialized: Configuration = serde_yaml::from_str(&yaml).unwrap();
             log::trace!("test file deserialized: {:?}", &deserialized);
             let reserialized = serde_json::to_string(&deserialized).unwrap();
             log::trace!("test file reserialized: {:?}", &reserialized);
@@ -324,7 +298,7 @@ mod crd_serialization_tests {
                 }
             }
         "#;
-        let deserialized: Configuration = serde_json::from_str(json).unwrap();
+        let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(deserialized.discovery_handler.name, "random".to_string());
         assert!(deserialized.discovery_handler.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);

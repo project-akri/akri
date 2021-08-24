@@ -1,7 +1,7 @@
 # Patch to allow invalid authority headers provided by grpc-go / kubelet
 # Issue to track: https://github.com/grpc/grpc-go/issues/2628
 [patch.crates-io]
-h2 = { git = "https://github.com/kate-goldenring/h2", branch = "master" }
+h2 = { git = "https://github.com/kate-goldenring/h2", branch = "v0.3.3-patch" }
 
 [workspace]
 members = [

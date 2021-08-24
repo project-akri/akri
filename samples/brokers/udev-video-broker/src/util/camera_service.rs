@@ -98,7 +98,7 @@ pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), Strin
             }
             Err(e) => {
                 trace!("Unable to connect to server, continue polling: {:?}", e);
-                tokio::time::delay_for(Duration::from_secs(1)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
                 false
             }
         };

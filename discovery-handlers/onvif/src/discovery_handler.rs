@@ -16,7 +16,7 @@ use akri_discovery_utils::{
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::{collections::HashMap, time::Duration};
-use tokio::{sync::mpsc, time::delay_for};
+use tokio::{sync::mpsc, time::sleep};
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -67,7 +67,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for ONVIF protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut discovered_devices_sender, discovered_devices_receiver) =
+        let (discovered_devices_sender, discovered_devices_receiver) =
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: OnvifDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
@@ -124,16 +124,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             "discover - for ONVIF failed to send discovery response with error {}",
                             e
                         );
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 
@@ -207,9 +209,9 @@ mod tests {
         if let Some(ip_and_mac_) = ip_and_mac {
             configure_get_device_ip_and_mac_address(
                 mock,
-                &ip_and_mac_.mock_uri,
-                &ip_and_mac_.mock_ip,
-                &ip_and_mac_.mock_mac,
+                ip_and_mac_.mock_uri,
+                ip_and_mac_.mock_ip,
+                ip_and_mac_.mock_mac,
             )
         }
     }

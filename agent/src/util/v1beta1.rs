@@ -8,17 +8,17 @@ pub struct DevicePluginOptions {
 pub struct RegisterRequest {
     /// Version of the API the Device Plugin was built against
     #[prost(string, tag = "1")]
-    pub version: std::string::String,
+    pub version: ::prost::alloc::string::String,
     /// Name of the unix socket the device plugin is listening on
     /// PATH = path.Join(DevicePluginPath, endpoint)
     #[prost(string, tag = "2")]
-    pub endpoint: std::string::String,
+    pub endpoint: ::prost::alloc::string::String,
     /// Schedulable resource name. As of now it's expected to be a DNS Label
     #[prost(string, tag = "3")]
-    pub resource_name: std::string::String,
+    pub resource_name: ::prost::alloc::string::String,
     /// Options to be communicated with Device Manager
     #[prost(message, optional, tag = "4")]
-    pub options: ::std::option::Option<DevicePluginOptions>,
+    pub options: ::core::option::Option<DevicePluginOptions>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
@@ -28,7 +28,7 @@ pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListAndWatchResponse {
     #[prost(message, repeated, tag = "1")]
-    pub devices: ::std::vec::Vec<Device>,
+    pub devices: ::prost::alloc::vec::Vec<Device>,
 }
 /// E.g:
 /// struct Device {
@@ -41,10 +41,10 @@ pub struct Device {
     /// to identify devices during the communication
     /// Max length of this field is 63 characters
     #[prost(string, tag = "1")]
-    pub id: std::string::String,
+    pub id: ::prost::alloc::string::String,
     /// Health of the device, can be healthy or unhealthy, see constants.go
     #[prost(string, tag = "2")]
-    pub health: std::string::String,
+    pub health: ::prost::alloc::string::String,
 }
 /// - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.
 /// - PreStartContainer allows kubelet to pass reinitialized devices to containers.
@@ -53,7 +53,7 @@ pub struct Device {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PreStartContainerRequest {
     #[prost(string, repeated, tag = "1")]
-    pub devices_i_ds: ::std::vec::Vec<std::string::String>,
+    pub devices_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// PreStartContainerResponse will be send by plugin in response to PreStartContainerRequest
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -67,12 +67,12 @@ pub struct PreStartContainerResponse {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllocateRequest {
     #[prost(message, repeated, tag = "1")]
-    pub container_requests: ::std::vec::Vec<ContainerAllocateRequest>,
+    pub container_requests: ::prost::alloc::vec::Vec<ContainerAllocateRequest>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContainerAllocateRequest {
     #[prost(string, repeated, tag = "1")]
-    pub devices_i_ds: ::std::vec::Vec<std::string::String>,
+    pub devices_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// AllocateResponse includes the artifacts that needs to be injected into
 /// a container for accessing 'deviceIDs' that were mentioned as part of
@@ -85,22 +85,24 @@ pub struct ContainerAllocateRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllocateResponse {
     #[prost(message, repeated, tag = "1")]
-    pub container_responses: ::std::vec::Vec<ContainerAllocateResponse>,
+    pub container_responses: ::prost::alloc::vec::Vec<ContainerAllocateResponse>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ContainerAllocateResponse {
     /// List of environment variable to be set in the container to access one of more devices.
     #[prost(map = "string, string", tag = "1")]
-    pub envs: ::std::collections::HashMap<std::string::String, std::string::String>,
+    pub envs:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Mounts for the container.
     #[prost(message, repeated, tag = "2")]
-    pub mounts: ::std::vec::Vec<Mount>,
+    pub mounts: ::prost::alloc::vec::Vec<Mount>,
     /// Devices for the container.
     #[prost(message, repeated, tag = "3")]
-    pub devices: ::std::vec::Vec<DeviceSpec>,
+    pub devices: ::prost::alloc::vec::Vec<DeviceSpec>,
     /// Container annotations to pass to the container runtime
     #[prost(map = "string, string", tag = "4")]
-    pub annotations: ::std::collections::HashMap<std::string::String, std::string::String>,
+    pub annotations:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
 }
 /// Mount specifies a host volume to mount into a container.
 /// where device library or tools are installed on host and container
@@ -108,10 +110,10 @@ pub struct ContainerAllocateResponse {
 pub struct Mount {
     /// Path of the mount within the container.
     #[prost(string, tag = "1")]
-    pub container_path: std::string::String,
+    pub container_path: ::prost::alloc::string::String,
     /// Path of the mount on the host.
     #[prost(string, tag = "2")]
-    pub host_path: std::string::String,
+    pub host_path: ::prost::alloc::string::String,
     /// If set, the mount is read-only.
     #[prost(bool, tag = "3")]
     pub read_only: bool,
@@ -121,20 +123,20 @@ pub struct Mount {
 pub struct DeviceSpec {
     /// Path of the device within the container.
     #[prost(string, tag = "1")]
-    pub container_path: std::string::String,
+    pub container_path: ::prost::alloc::string::String,
     /// Path of the device on the host.
     #[prost(string, tag = "2")]
-    pub host_path: std::string::String,
+    pub host_path: ::prost::alloc::string::String,
     /// Cgroups permissions of the device, candidates are one or more of
     /// * r - allows container to read from the specified device.
     /// * w - allows container to write to the specified device.
     /// * m - allows container to create device files that do not yet exist.
     #[prost(string, tag = "3")]
-    pub permissions: std::string::String,
+    pub permissions: ::prost::alloc::string::String,
 }
 #[doc = r" Generated client implementations."]
 pub mod registration_client {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = " Registration is the service advertised by the Kubelet"]
     #[doc = " Only when Kubelet answers with a success code to a Register Request"]
@@ -142,6 +144,7 @@ pub mod registration_client {
     #[doc = " Registration may fail when device plugin version is not supported by"]
     #[doc = " Kubelet or the registered resourceName is already taken by another"]
     #[doc = " active device plugin. Device plugin is expected to terminate upon registration failure"]
+    #[derive(Debug, Clone)]
     pub struct RegistrationClient<T> {
         inner: tonic::client::Grpc<T>,
     }
@@ -159,17 +162,43 @@ pub mod registration_client {
     impl<T> RegistrationClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + HttpBody + Send + 'static,
+        T::ResponseBody: Body + Send + Sync + 'static,
         T::Error: Into<StdError>,
-        <T::ResponseBody as HttpBody>::Error: Into<StdError> + Send,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = tonic::client::Grpc::with_interceptor(inner, interceptor);
-            Self { inner }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> RegistrationClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
+        {
+            RegistrationClient::new(InterceptedService::new(inner, interceptor))
+        }
+        #[doc = r" Compress requests with `gzip`."]
+        #[doc = r""]
+        #[doc = r" This requires the server to support it otherwise it might respond with an"]
+        #[doc = r" error."]
+        pub fn send_gzip(mut self) -> Self {
+            self.inner = self.inner.send_gzip();
+            self
+        }
+        #[doc = r" Enable decompressing responses with `gzip`."]
+        pub fn accept_gzip(mut self) -> Self {
+            self.inner = self.inner.accept_gzip();
+            self
         }
         pub async fn register(
             &mut self,
@@ -186,19 +215,13 @@ pub mod registration_client {
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
-    impl<T: Clone> Clone for RegistrationClient<T> {
-        fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
-        }
-    }
 }
 #[doc = r" Generated client implementations."]
 pub mod device_plugin_client {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = " DevicePlugin is the service advertised by Device Plugins"]
+    #[derive(Debug, Clone)]
     pub struct DevicePluginClient<T> {
         inner: tonic::client::Grpc<T>,
     }
@@ -216,17 +239,43 @@ pub mod device_plugin_client {
     impl<T> DevicePluginClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
-        T::ResponseBody: Body + HttpBody + Send + 'static,
+        T::ResponseBody: Body + Send + Sync + 'static,
         T::Error: Into<StdError>,
-        <T::ResponseBody as HttpBody>::Error: Into<StdError> + Send,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = tonic::client::Grpc::with_interceptor(inner, interceptor);
-            Self { inner }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> DevicePluginClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
+        {
+            DevicePluginClient::new(InterceptedService::new(inner, interceptor))
+        }
+        #[doc = r" Compress requests with `gzip`."]
+        #[doc = r""]
+        #[doc = r" This requires the server to support it otherwise it might respond with an"]
+        #[doc = r" error."]
+        pub fn send_gzip(mut self) -> Self {
+            self.inner = self.inner.send_gzip();
+            self
+        }
+        #[doc = r" Enable decompressing responses with `gzip`."]
+        pub fn accept_gzip(mut self) -> Self {
+            self.inner = self.inner.accept_gzip();
+            self
         }
         #[doc = " GetDevicePluginOptions returns options to be communicated with Device"]
         #[doc = " Manager"]
@@ -304,17 +353,10 @@ pub mod device_plugin_client {
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
-    impl<T: Clone> Clone for DevicePluginClient<T> {
-        fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
-        }
-    }
 }
 #[doc = r" Generated server implementations."]
 pub mod registration_server {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with RegistrationServer."]
     #[async_trait]
@@ -331,34 +373,46 @@ pub mod registration_server {
     #[doc = " Kubelet or the registered resourceName is already taken by another"]
     #[doc = " active device plugin. Device plugin is expected to terminate upon registration failure"]
     #[derive(Debug)]
-    #[doc(hidden)]
     pub struct RegistrationServer<T: Registration> {
         inner: _Inner<T>,
+        accept_compression_encodings: (),
+        send_compression_encodings: (),
     }
-    struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
+    struct _Inner<T>(Arc<T>);
     impl<T: Registration> RegistrationServer<T> {
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
-            let inner = _Inner(inner, None);
-            Self { inner }
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+            }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, Some(interceptor.into()));
-            Self { inner }
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
         }
     }
-    impl<T: Registration> Service<http::Request<HyperBody>> for RegistrationServer<T> {
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for RegistrationServer<T>
+    where
+        T: Registration,
+        B: Body + Send + Sync + 'static,
+        B::Error: Into<StdError> + Send + 'static,
+    {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
-        fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
                 "/v1beta1.Registration/Register" => {
+                    #[allow(non_camel_case_types)]
                     struct RegisterSvc<T: Registration>(pub Arc<T>);
                     impl<T: Registration> tonic::server::UnaryService<super::RegisterRequest> for RegisterSvc<T> {
                         type Response = super::Empty;
@@ -368,21 +422,21 @@ pub mod registration_server {
                             request: tonic::Request<super::RegisterRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.register(request).await };
+                            let fut = async move { (*inner).register(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = RegisterSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -392,7 +446,8 @@ pub mod registration_server {
                     Ok(http::Response::builder()
                         .status(200)
                         .header("grpc-status", "12")
-                        .body(tonic::body::BoxBody::empty())
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
                         .unwrap())
                 }),
             }
@@ -401,12 +456,16 @@ pub mod registration_server {
     impl<T: Registration> Clone for RegistrationServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner }
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+            }
         }
     }
     impl<T: Registration> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone(), self.1.clone())
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
@@ -420,7 +479,7 @@ pub mod registration_server {
 }
 #[doc = r" Generated server implementations."]
 pub mod device_plugin_server {
-    #![allow(unused_variables, dead_code, missing_docs)]
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with DevicePluginServer."]
     #[async_trait]
@@ -432,7 +491,7 @@ pub mod device_plugin_server {
             request: tonic::Request<super::Empty>,
         ) -> Result<tonic::Response<super::DevicePluginOptions>, tonic::Status>;
         #[doc = "Server streaming response type for the ListAndWatch method."]
-        type ListAndWatchStream: Stream<Item = Result<super::ListAndWatchResponse, tonic::Status>>
+        type ListAndWatchStream: futures_core::Stream<Item = Result<super::ListAndWatchResponse, tonic::Status>>
             + Send
             + Sync
             + 'static;
@@ -460,61 +519,75 @@ pub mod device_plugin_server {
     }
     #[doc = " DevicePlugin is the service advertised by Device Plugins"]
     #[derive(Debug)]
-    #[doc(hidden)]
     pub struct DevicePluginServer<T: DevicePlugin> {
         inner: _Inner<T>,
+        accept_compression_encodings: (),
+        send_compression_encodings: (),
     }
-    struct _Inner<T>(Arc<T>, Option<tonic::Interceptor>);
+    struct _Inner<T>(Arc<T>);
     impl<T: DevicePlugin> DevicePluginServer<T> {
         pub fn new(inner: T) -> Self {
             let inner = Arc::new(inner);
-            let inner = _Inner(inner, None);
-            Self { inner }
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+            }
         }
-        pub fn with_interceptor(inner: T, interceptor: impl Into<tonic::Interceptor>) -> Self {
-            let inner = Arc::new(inner);
-            let inner = _Inner(inner, Some(interceptor.into()));
-            Self { inner }
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
         }
     }
-    impl<T: DevicePlugin> Service<http::Request<HyperBody>> for DevicePluginServer<T> {
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for DevicePluginServer<T>
+    where
+        T: DevicePlugin,
+        B: Body + Send + Sync + 'static,
+        B::Error: Into<StdError> + Send + 'static,
+    {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = Never;
         type Future = BoxFuture<Self::Response, Self::Error>;
         fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
-        fn call(&mut self, req: http::Request<HyperBody>) -> Self::Future {
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
                 "/v1beta1.DevicePlugin/GetDevicePluginOptions" => {
+                    #[allow(non_camel_case_types)]
                     struct GetDevicePluginOptionsSvc<T: DevicePlugin>(pub Arc<T>);
                     impl<T: DevicePlugin> tonic::server::UnaryService<super::Empty> for GetDevicePluginOptionsSvc<T> {
                         type Response = super::DevicePluginOptions;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.get_device_plugin_options(request).await };
+                            let fut =
+                                async move { (*inner).get_device_plugin_options(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = GetDevicePluginOptionsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
                 "/v1beta1.DevicePlugin/ListAndWatch" => {
+                    #[allow(non_camel_case_types)]
                     struct ListAndWatchSvc<T: DevicePlugin>(pub Arc<T>);
                     impl<T: DevicePlugin> tonic::server::ServerStreamingService<super::Empty> for ListAndWatchSvc<T> {
                         type Response = super::ListAndWatchResponse;
@@ -523,27 +596,28 @@ pub mod device_plugin_server {
                             BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.list_and_watch(request).await };
+                            let fut = async move { (*inner).list_and_watch(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1;
                         let inner = inner.0;
                         let method = ListAndWatchSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
                 "/v1beta1.DevicePlugin/Allocate" => {
+                    #[allow(non_camel_case_types)]
                     struct AllocateSvc<T: DevicePlugin>(pub Arc<T>);
                     impl<T: DevicePlugin> tonic::server::UnaryService<super::AllocateRequest> for AllocateSvc<T> {
                         type Response = super::AllocateResponse;
@@ -553,27 +627,28 @@ pub mod device_plugin_server {
                             request: tonic::Request<super::AllocateRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.allocate(request).await };
+                            let fut = async move { (*inner).allocate(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = AllocateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
                 "/v1beta1.DevicePlugin/PreStartContainer" => {
+                    #[allow(non_camel_case_types)]
                     struct PreStartContainerSvc<T: DevicePlugin>(pub Arc<T>);
                     impl<T: DevicePlugin>
                         tonic::server::UnaryService<super::PreStartContainerRequest>
@@ -586,21 +661,21 @@ pub mod device_plugin_server {
                             request: tonic::Request<super::PreStartContainerRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { inner.pre_start_container(request).await };
+                            let fut = async move { (*inner).pre_start_container(request).await };
                             Box::pin(fut)
                         }
                     }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let interceptor = inner.1.clone();
                         let inner = inner.0;
                         let method = PreStartContainerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = if let Some(interceptor) = interceptor {
-                            tonic::server::Grpc::with_interceptor(codec, interceptor)
-                        } else {
-                            tonic::server::Grpc::new(codec)
-                        };
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -610,7 +685,8 @@ pub mod device_plugin_server {
                     Ok(http::Response::builder()
                         .status(200)
                         .header("grpc-status", "12")
-                        .body(tonic::body::BoxBody::empty())
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
                         .unwrap())
                 }),
             }
@@ -619,12 +695,16 @@ pub mod device_plugin_server {
     impl<T: DevicePlugin> Clone for DevicePluginServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
-            Self { inner }
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+            }
         }
     }
     impl<T: DevicePlugin> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone(), self.1.clone())
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {

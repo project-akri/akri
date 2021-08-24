@@ -1,6 +1,6 @@
 [package]
 name = "onvif-discovery-handler"
-version = "0.6.12"
+version = "0.6.13"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 
@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 akri-discovery-utils = { path = "../../discovery-utils" }
 akri-onvif = { path = "../../discovery-handlers/onvif" }
-env_logger = "0.8.3"
+env_logger = "0.9.0"
 log = "0.4"
-tokio = { version = "0.2", features = ["rt-threaded", "sync", "time", "stream", "fs", "macros", "uds"] }
+tokio = { version = "1.0.1" }

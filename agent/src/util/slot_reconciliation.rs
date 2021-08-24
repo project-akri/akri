@@ -1,5 +1,5 @@
 use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
-use akri_shared::{akri::instance::Instance, k8s::KubeInterface};
+use akri_shared::{akri::instance::InstanceSpec, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
 #[cfg(test)]
@@ -249,7 +249,7 @@ impl DevicePluginSlotReconciler {
                         )
                     })
                     .collect::<HashMap<String, String>>();
-                let modified_instance = Instance {
+                let modified_instance = InstanceSpec {
                     configuration_name: instance.spec.configuration_name.clone(),
                     broker_properties: instance.spec.broker_properties.clone(),
                     shared: instance.spec.shared,
@@ -261,7 +261,7 @@ impl DevicePluginSlotReconciler {
                 match kube_interface
                     .update_instance(
                         &modified_instance,
-                        &instance.metadata.name,
+                        &instance.metadata.name.unwrap(),
                         &instance.metadata.namespace.unwrap(),
                     )
                     .await
@@ -311,7 +311,7 @@ pub async fn periodic_slot_reconciliation(
     slot_grace_period: std::time::Duration,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("periodic_slot_reconciliation - start");
-    let kube_interface = akri_shared::k8s::create_kube_interface();
+    let kube_interface = akri_shared::k8s::KubeImpl::new().await?;
     let node_name = std::env::var("AGENT_NODE_NAME").unwrap();
     let crictl_path = std::env::var("HOST_CRICTL_PATH").unwrap();
     let runtime_endpoint = std::env::var("HOST_RUNTIME_ENDPOINT").unwrap();
@@ -327,8 +327,8 @@ pub async fn periodic_slot_reconciliation(
     };
 
     loop {
-        trace!("periodic_slot_reconciliation - iteration pre delay_for");
-        tokio::time::delay_for(std::time::Duration::from_secs(
+        trace!("periodic_slot_reconciliation - iteration pre sleep");
+        tokio::time::sleep(std::time::Duration::from_secs(
             SLOT_RECONCILIATION_CHECK_DELAY_SECS,
         ))
         .await;
@@ -345,9 +345,9 @@ pub async fn periodic_slot_reconciliation(
 #[cfg(test)]
 mod reconcile_tests {
     use super::*;
-    use akri_shared::{akri::instance::KubeAkriInstanceList, k8s::MockKubeInterface, os::file};
-    use k8s_openapi::api::core::v1::{PodSpec, PodStatus};
-    use kube::api::{Object, ObjectList};
+    use akri_shared::{akri::instance::InstanceList, k8s::MockKubeInterface, os::file};
+    use k8s_openapi::api::core::v1::Pod;
+    use kube::api::ObjectList;
 
     fn configure_get_node_slots(mock: &mut MockSlotQuery, result: HashSet<String>, error: bool) {
         mock.expect_get_node_slots().times(1).returning(move || {
@@ -362,8 +362,7 @@ mod reconcile_tests {
     fn configure_get_instances(mock: &mut MockKubeInterface, result_file: &'static str) {
         mock.expect_get_instances().times(1).returning(move || {
             let instance_list_json = file::read_file_to_string(result_file);
-            let instance_list: KubeAkriInstanceList =
-                serde_json::from_str(&instance_list_json).unwrap();
+            let instance_list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
             Ok(instance_list)
         });
     }
@@ -378,8 +377,7 @@ mod reconcile_tests {
             .withf(move |s| s == selector)
             .returning(move |_| {
                 let pods_json = file::read_file_to_string(result_file);
-                let pods: ObjectList<Object<PodSpec, PodStatus>> =
-                    serde_json::from_str(&pods_json).unwrap();
+                let pods: ObjectList<Pod> = serde_json::from_str(&pods_json).unwrap();
                 Ok(pods)
             });
     }
