@@ -10,7 +10,7 @@ on:
     - build/intermediate-containers.mk
     - Makefile
   pull_request:
-  types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
+    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
     branches: [ main ]
     paths:
     - .github/actions/build-intermediate/**
