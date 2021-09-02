@@ -24,10 +24,11 @@ jobs:
         echo "Run apt update and apt install the following dependencies: $apt_dependencies"
         sudo apt update
         sudo apt install -y $apt_dependencies
+        cargo install cargo-edit
     
     - name: Check for dependency updates
       uses: romoh/dependencies-autoupdate@v1.1
       with:  
         token: ${{ secrets.AKRI_BOT_TOKEN }}
-        update-command: "'cargo update && cargo test'"
+        update-command: "'cargo update && cargo test && cargo upgrade --to-lockfile --workspace'"
         on-changes-command: "'./version.sh -u -p'"
