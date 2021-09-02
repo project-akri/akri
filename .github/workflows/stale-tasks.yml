@@ -21,5 +21,4 @@ jobs:
           stale-pr-message: > 
             PR has been automatically marked as stale due to inactivity for 45 days. Update the PR to remove label, otherwise it will be automatically closed."
           exempt-issue-labels: keep-alive
-          token: ${{ secrets.GITHUB_TOKEN }}
-          debug-only: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
