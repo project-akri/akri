@@ -34,6 +34,9 @@ lazy_static! {
     pub static ref DISCOVERY_RESPONSE_TIME_METRIC: HistogramVec = prometheus::register_histogram_vec!("akri_discovery_response_time", "Akri Discovery Response Time", &["configuration"]).unwrap();
 }
 
+/// Environment variable name for setting metrics port
+const METRICS_PORT_LABEL: &str = "METRICS_PORT";
+
 /// This is the entry point for the Akri Agent.
 /// It must be built on unix systems, since the underlying libraries for the `DevicePluginService` unix socket connection are unix only.
 #[cfg(unix)]
@@ -53,9 +56,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     let mut tasks = Vec::new();
 
+    let port = match std::env::var(METRICS_PORT_LABEL) {
+        Ok(p) => p.parse::<u16>()?,
+        Err(_) => 8080,
+    };
+
     // Start server for Prometheus metrics
     tasks.push(tokio::spawn(async move {
-        run_metrics_server().await.unwrap();
+        run_metrics_server(port).await.unwrap();
     }));
 
     let discovery_handler_map = Arc::new(Mutex::new(HashMap::new()));
