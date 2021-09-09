@@ -80,7 +80,7 @@ async fn internal_do_instance_watch(
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
     let watcher = watcher(resource, ListParams::default());
     let mut informer = watcher.boxed();
-    let mut first_action = true;
+    let mut first_event = true;
     // Currently, this does not handle None except to break the
     // while.
     while let Some(event) = informer.try_next().await? {
@@ -89,7 +89,7 @@ async fn internal_do_instance_watch(
         // cannot execute at the same time.
         let _lock = synchronization.lock().await;
         trace!("internal_do_instance_watch - aquired sync lock");
-        handle_instance(event, kube_interface, &mut first_action).await?;
+        handle_instance(event, kube_interface, &mut first_event).await?;
     }
     Ok(())
 }
@@ -99,7 +99,7 @@ async fn internal_do_instance_watch(
 async fn handle_instance(
     event: Event<Instance>,
     kube_interface: &impl KubeInterface,
-    first_action: &mut bool,
+    first_event: &mut bool,
 ) -> anyhow::Result<()> {
     trace!("handle_instance - enter");
     match event {
@@ -121,7 +121,7 @@ async fn handle_instance(
             handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
         }
         Event::Restarted(_instances) => {
-            if *first_action {
+            if *first_event {
                 info!("handle_instance - watcher started");
             } else {
                 return Err(anyhow::anyhow!(
@@ -130,8 +130,8 @@ async fn handle_instance(
             }
         }
     }
-    if *first_action {
-        *first_action = false;
+    if *first_event {
+        *first_event = false;
     }
     Ok(())
 }
@@ -803,19 +803,19 @@ mod handle_instance_tests {
     #[tokio::test]
     async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let mut first_action = true;
+        let mut first_event = true;
         assert!(handle_instance(
             Event::Restarted(Vec::new()),
             &MockKubeInterface::new(),
-            &mut first_action
+            &mut first_event
         )
         .await
         .is_ok());
-        first_action = false;
+        first_event = false;
         assert!(handle_instance(
             Event::Restarted(Vec::new()),
             &MockKubeInterface::new(),
-            &mut first_action
+            &mut first_event
         )
         .await
         .is_err());

@@ -98,7 +98,7 @@ async fn watch_for_config_changes(
     let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
     let watcher = watcher(resource, ListParams::default());
     let mut informer = watcher.boxed();
-    let mut first_action = true;
+    let mut first_event = true;
     // Currently, this does not handle None except to break the
     // while.
     while let Some(event) = informer.try_next().await? {
@@ -109,7 +109,7 @@ async fn watch_for_config_changes(
             config_map.clone(),
             discovery_handler_map.clone(),
             new_discovery_handler_sender,
-            &mut first_action,
+            &mut first_event,
         )
         .await?
     }
@@ -124,7 +124,7 @@ async fn handle_config(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
-    first_action: &mut bool,
+    first_event: &mut bool,
 ) -> anyhow::Result<()> {
     trace!("handle_config - something happened to a configuration");
     match event {
@@ -176,7 +176,7 @@ async fn handle_config(
             handle_config_delete(kube_interface, &config, config_map).await?;
         }
         Event::Restarted(_configs) => {
-            if *first_action {
+            if *first_event {
                 info!("handle_config - watcher started");
             } else {
                 return Err(anyhow::anyhow!(
@@ -185,8 +185,8 @@ async fn handle_config(
             }
         }
     }
-    if *first_action {
-        *first_action = false;
+    if *first_event {
+        *first_event = false;
     }
     Ok(())
 }
@@ -360,25 +360,25 @@ mod config_action_tests {
         let config_map = Arc::new(Mutex::new(HashMap::new()));
         let dh_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let (tx, mut _rx1) = broadcast::channel(1);
-        let mut first_action = true;
+        let mut first_event = true;
         assert!(handle_config(
             &MockKubeInterface::new(),
             Event::Restarted(Vec::new()),
             config_map.clone(),
             dh_map.clone(),
             tx.clone(),
-            &mut first_action
+            &mut first_event
         )
         .await
         .is_ok());
-        first_action = false;
+        first_event = false;
         assert!(handle_config(
             &MockKubeInterface::new(),
             Event::Restarted(Vec::new()),
             config_map,
             dh_map,
             tx,
-            &mut first_action
+            &mut first_event
         )
         .await
         .is_err());

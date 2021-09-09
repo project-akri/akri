@@ -57,12 +57,12 @@ impl NodeWatcher {
         let resource = Api::<Node>::all(kube_interface.get_kube_client());
         let watcher = watcher(resource, ListParams::default());
         let mut informer = watcher.boxed();
-        let mut first_action = true;
+        let mut first_event = true;
 
         // Currently, this does not handle None except to break the
         // while.
         while let Some(event) = informer.try_next().await? {
-            self.handle_node(event, &kube_interface, &mut first_action)
+            self.handle_node(event, &kube_interface, &mut first_event)
                 .await?;
         }
 
@@ -91,7 +91,7 @@ impl NodeWatcher {
         &mut self,
         event: Event<Node>,
         kube_interface: &impl KubeInterface,
-        first_action: &mut bool,
+        first_event: &mut bool,
     ) -> anyhow::Result<()> {
         trace!("handle_node - enter");
         match event {
@@ -116,15 +116,15 @@ impl NodeWatcher {
                     .await?;
             }
             Event::Restarted(_nodes) => {
-                if *first_action {
+                if *first_event {
                     info!("handle_node - watcher started");
                 } else {
                     return Err(anyhow::anyhow!("Node watcher restarted - throwing error"));
                 }
             }
         };
-        if *first_action {
-            *first_action = false;
+        if *first_event {
+            *first_event = false;
         }
         Ok(())
     }
@@ -367,21 +367,21 @@ mod tests {
     async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = NodeWatcher::new();
-        let mut first_action = true;
+        let mut first_event = true;
         assert!(pod_watcher
             .handle_node(
                 Event::Restarted(Vec::new()),
                 &MockKubeInterface::new(),
-                &mut first_action
+                &mut first_event
             )
             .await
             .is_ok());
-        first_action = false;
+        first_event = false;
         assert!(pod_watcher
             .handle_node(
                 Event::Restarted(Vec::new()),
                 &MockKubeInterface::new(),
-                &mut first_action
+                &mut first_event
             )
             .await
             .is_err());

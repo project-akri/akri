@@ -88,14 +88,14 @@ impl BrokerPodWatcher {
         );
         let mut informer = watcher.boxed();
         let synchronization = Arc::new(Mutex::new(()));
-        let mut first_action = true;
+        let mut first_event = true;
 
         loop {
             // Currently, this does not handle None except to break the
             // while.
             while let Some(event) = informer.try_next().await? {
                 let _lock = synchronization.lock().await;
-                self.handle_pod(event, &kube_interface, &mut first_action)
+                self.handle_pod(event, &kube_interface, &mut first_event)
                     .await?;
             }
         }
@@ -123,7 +123,7 @@ impl BrokerPodWatcher {
         &mut self,
         event: Event<Pod>,
         kube_interface: &impl KubeInterface,
-        first_action: &mut bool,
+        first_event: &mut bool,
     ) -> anyhow::Result<()> {
         trace!("handle_pod - enter [event: {:?}]", event);
         match event {
@@ -162,7 +162,7 @@ impl BrokerPodWatcher {
                     .await?;
             }
             Event::Restarted(pods) => {
-                if *first_action {
+                if *first_event {
                     info!(
                         "handle_pod - pod watcher [re]started. Pods are : {:?}",
                         pods
@@ -172,8 +172,8 @@ impl BrokerPodWatcher {
                 }
             }
         };
-        if *first_action {
-            *first_action = false;
+        if *first_event {
+            *first_event = false;
         }
         Ok(())
     }
@@ -649,21 +649,21 @@ mod tests {
     async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = BrokerPodWatcher::new();
-        let mut first_action = true;
+        let mut first_event = true;
         assert!(pod_watcher
             .handle_pod(
                 Event::Restarted(Vec::new()),
                 &MockKubeInterface::new(),
-                &mut first_action
+                &mut first_event
             )
             .await
             .is_ok());
-        first_action = false;
+        first_event = false;
         assert!(pod_watcher
             .handle_pod(
                 Event::Restarted(Vec::new()),
                 &MockKubeInterface::new(),
-                &mut first_action
+                &mut first_event
             )
             .await
             .is_err());
