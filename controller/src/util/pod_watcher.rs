@@ -88,13 +88,15 @@ impl BrokerPodWatcher {
         );
         let mut informer = watcher.boxed();
         let synchronization = Arc::new(Mutex::new(()));
+        let mut first_action = true;
 
         loop {
             // Currently, this does not handle None except to break the
             // while.
             while let Some(event) = informer.try_next().await? {
                 let _lock = synchronization.lock().await;
-                self.handle_pod(event, &kube_interface).await?;
+                self.handle_pod(event, &kube_interface, &mut first_action)
+                    .await?;
             }
         }
     }
@@ -121,7 +123,8 @@ impl BrokerPodWatcher {
         &mut self,
         event: Event<Pod>,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        first_action: &mut bool,
+    ) -> anyhow::Result<()> {
         trace!("handle_pod - enter [event: {:?}]", event);
         match event {
             Event::Applied(pod) => {
@@ -159,12 +162,19 @@ impl BrokerPodWatcher {
                     .await?;
             }
             Event::Restarted(pods) => {
-                info!(
-                    "handle_pod - pod watcher [re]started. Pods are : {:?}",
-                    pods
-                );
+                if *first_action {
+                    info!(
+                        "handle_pod - pod watcher [re]started. Pods are : {:?}",
+                        pods
+                    );
+                } else {
+                    return Err(anyhow::anyhow!("Pod watcher restarted - throwing error"));
+                }
             }
         };
+        if *first_action {
+            *first_action = false;
+        }
         Ok(())
     }
 
@@ -174,7 +184,7 @@ impl BrokerPodWatcher {
         &mut self,
         pod: &Pod,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("handle_running_pod_if_needed - enter");
         let pod_name = pod
             .metadata
@@ -204,7 +214,7 @@ impl BrokerPodWatcher {
         &mut self,
         pod: &Pod,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("handle_ended_pod_if_needed - enter");
         let pod_name = pod
             .metadata
@@ -234,7 +244,7 @@ impl BrokerPodWatcher {
         &mut self,
         pod: &Pod,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("handle_deleted_pod_if_needed - enter");
         let pod_name = pod
             .metadata
@@ -261,19 +271,19 @@ impl BrokerPodWatcher {
     fn get_instance_and_configuration_from_pod(
         &self,
         pod: &Pod,
-    ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<(String, String)> {
         trace!("get_instance_and_configuration_from_pod - enter");
         let labels = pod
             .metadata
             .labels
             .as_ref()
-            .ok_or("Pod doesn't have labels")?;
+            .ok_or_else(|| anyhow::anyhow!("Pod doesn't have labels"))?;
         let instance_id = labels
             .get(AKRI_INSTANCE_LABEL_NAME)
-            .ok_or("No configuration name found.")?;
+            .ok_or_else(|| anyhow::anyhow!("No configuration name found."))?;
         let config_name = labels
             .get(AKRI_CONFIGURATION_LABEL_NAME)
-            .ok_or("No instance id found.")?;
+            .ok_or_else(|| anyhow::anyhow!("No instance id found."))?;
         Ok((instance_id.to_string(), config_name.to_string()))
     }
 
@@ -284,12 +294,11 @@ impl BrokerPodWatcher {
         &self,
         pod: &Pod,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("handle_non_running_pod - enter");
-        let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {:?}",
-            &pod.metadata.name
-        ))?;
+        let namespace = pod.metadata.namespace.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Namespace not found for pod: {:?}", &pod.metadata.name)
+        })?;
         let (instance_id, config_name) = self.get_instance_and_configuration_from_pod(pod)?;
         self.find_pods_and_cleanup_svc_if_unsupported(
             &instance_id,
@@ -331,7 +340,7 @@ impl BrokerPodWatcher {
         namespace: &str,
         handle_instance_svc: bool,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("find_pods_and_cleanup_svc_if_unsupported - enter");
         let (label, value) = if handle_instance_svc {
             (AKRI_INSTANCE_LABEL_NAME, instance_id)
@@ -370,7 +379,7 @@ impl BrokerPodWatcher {
         svc_name: &str,
         svc_namespace: &str,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         // Find the number of non-Terminating pods, if there aren't any (the only pods that exist are Terminating), we should remove the device capability service
         let num_non_terminating_pods = pods.iter().filter(|&x|
             match &x.status {
@@ -410,12 +419,11 @@ impl BrokerPodWatcher {
         &self,
         pod: &Pod,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!("handle_running_pod - enter");
-        let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {:?}",
-            &pod.metadata.name
-        ))?;
+        let namespace = pod.metadata.namespace.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Namespace not found for pod: {:?}", &pod.metadata.name)
+        })?;
         let (instance_name, configuration_name) =
             self.get_instance_and_configuration_from_pod(pod)?;
         let configuration = match kube_interface
@@ -452,7 +460,7 @@ impl BrokerPodWatcher {
             .metadata
             .uid
             .as_ref()
-            .ok_or(format!("UID not found for instance: {}", instance_name))?;
+            .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", instance_name))?;
         self.add_instance_and_configuration_services(
             &instance_name,
             instance_uid,
@@ -478,7 +486,7 @@ impl BrokerPodWatcher {
         service_spec: &ServiceSpec,
         is_instance_service: bool,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!(
             "create_or_update_service - instance={:?} with ownership:{:?}",
             instance_name,
@@ -541,7 +549,7 @@ impl BrokerPodWatcher {
         configuration_name: &str,
         configuration: &Configuration,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         trace!(
             "add_instance_and_configuration_services - instance={:?}",
             instance_name
@@ -581,10 +589,9 @@ impl BrokerPodWatcher {
         }
 
         if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
-            let configuration_uid = configuration.metadata.uid.as_ref().ok_or(format!(
-                "UID not found for configuration: {}",
-                configuration_name
-            ))?;
+            let configuration_uid = configuration.metadata.uid.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("UID not found for configuration: {}", configuration_name)
+            })?;
             let ownership = OwnershipInfo::new(
                 OwnershipType::Configuration,
                 configuration_name.to_string(),
@@ -637,16 +644,29 @@ mod tests {
         pods
     }
 
+    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
     #[tokio::test]
-    async fn test_handle_pod_error() {
+    async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = BrokerPodWatcher::new();
-        trace!("test_handle_pod_error WatchEvent::Error");
-        pod_watcher
-            .handle_pod(Event::Restarted(Vec::new()), &MockKubeInterface::new())
+        let mut first_action = true;
+        assert!(pod_watcher
+            .handle_pod(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_action
+            )
             .await
-            .unwrap();
-        assert_eq!(0, pod_watcher.known_pods.len());
+            .is_ok());
+        first_action = false;
+        assert!(pod_watcher
+            .handle_pod(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_action
+            )
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -665,7 +685,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -699,7 +719,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -758,7 +778,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(Event::Applied(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -816,7 +836,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(Event::Applied(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -878,7 +898,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock)
+            .handle_pod(Event::Applied(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -940,7 +960,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Deleted(pod), &mock)
+            .handle_pod(Event::Deleted(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -974,7 +994,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -995,7 +1015,7 @@ mod tests {
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new())
+                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(

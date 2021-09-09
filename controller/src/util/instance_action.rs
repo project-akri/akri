@@ -80,6 +80,7 @@ async fn internal_do_instance_watch(
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
     let watcher = watcher(resource, ListParams::default());
     let mut informer = watcher.boxed();
+    let mut first_action = true;
     // Currently, this does not handle None except to break the
     // while.
     while let Some(event) = informer.try_next().await? {
@@ -88,7 +89,7 @@ async fn internal_do_instance_watch(
         // cannot execute at the same time.
         let _lock = synchronization.lock().await;
         trace!("internal_do_instance_watch - aquired sync lock");
-        handle_instance(event, kube_interface).await?;
+        handle_instance(event, kube_interface, &mut first_action).await?;
     }
     Ok(())
 }
@@ -98,7 +99,8 @@ async fn internal_do_instance_watch(
 async fn handle_instance(
     event: Event<Instance>,
     kube_interface: &impl KubeInterface,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    first_action: &mut bool,
+) -> anyhow::Result<()> {
     trace!("handle_instance - enter");
     match event {
         Event::Applied(instance) => {
@@ -110,7 +112,6 @@ async fn handle_instance(
             // to reflect that this could also be an Update event. Or as we do more specific
             // inspection in future, delineation may be useful.
             handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await?;
-            Ok(())
         }
         Event::Deleted(instance) => {
             info!(
@@ -118,13 +119,21 @@ async fn handle_instance(
                 instance.metadata.name, instance.spec
             );
             handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
-            Ok(())
         }
         Event::Restarted(_instances) => {
-            info!("handle_instance - watcher [re]started");
-            Ok(())
+            if *first_action {
+                info!("handle_instance - watcher started");
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Instance watcher restarted - throwing error"
+                ));
+            }
         }
     }
+    if *first_action {
+        *first_action = false;
+    }
+    Ok(())
 }
 
 /// PodContext stores a set of details required to track/create/delete broker
@@ -240,15 +249,21 @@ async fn handle_deletion_work(
     node_to_delete_pod: &str,
     context: &PodContext,
     kube_interface: &impl KubeInterface,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let context_node_name = context.node_name.as_ref().ok_or(format!(
-        "handle_deletion_work - Context node_name is missing for {}: {:?}",
-        node_to_delete_pod, context
-    ))?;
-    let context_namespace = context.namespace.as_ref().ok_or(format!(
-        "handle_deletion_work - Context namespace is missing for {}: {:?}",
-        node_to_delete_pod, context
-    ))?;
+) -> anyhow::Result<()> {
+    let context_node_name = context.node_name.as_ref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "handle_deletion_work - Context node_name is missing for {}: {:?}",
+            node_to_delete_pod,
+            context
+        )
+    })?;
+    let context_namespace = context.namespace.as_ref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "handle_deletion_work - Context namespace is missing for {}: {:?}",
+            node_to_delete_pod,
+            context
+        )
+    })?;
 
     trace!(
         "handle_deletion_work - pod::create_pod_app_name({:?}, {:?}, {:?}, {:?})",
@@ -339,7 +354,7 @@ async fn handle_addition_work(
     new_node: &str,
     instance_configuration: &Configuration,
     kube_interface: &impl KubeInterface,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
     trace!(
         "handle_addition_work - Create new Pod for Node={:?}",
         new_node
@@ -383,19 +398,19 @@ pub async fn handle_instance_change(
     instance: &Instance,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
     trace!("handle_instance_change - enter {:?}", action);
 
     let instance_name = instance.metadata.name.clone().unwrap();
-    let instance_namespace = instance.metadata.namespace.as_ref().ok_or(format!(
-        "Namespace not found for instance: {}",
-        &instance_name
-    ))?;
+    let instance_namespace =
+        instance.metadata.namespace.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Namespace not found for instance: {}", &instance_name)
+        })?;
     let instance_uid = instance
         .metadata
         .uid
         .as_ref()
-        .ok_or(format!("UID not found for instance: {}", &instance_name))?;
+        .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
 
     // If InstanceAction::Remove, assume all nodes require PodAction::NoAction (reflect that there is no running Pod unless we find one)
     // Otherwise, assume all nodes require PodAction::Add (reflect that there is no running Pod, unless we find one)
@@ -777,10 +792,33 @@ mod handle_instance_tests {
                 InstanceAction::Remove => Event::Deleted(instance),
             },
             mock,
+            &mut false,
         )
         .await
         .unwrap();
         trace!("run_handle_instance_change_test exit");
+    }
+
+    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
+    #[tokio::test]
+    async fn test_handle_watcher_restart() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut first_action = true;
+        assert!(handle_instance(
+            Event::Restarted(Vec::new()),
+            &MockKubeInterface::new(),
+            &mut first_action
+        )
+        .await
+        .is_ok());
+        first_action = false;
+        assert!(handle_instance(
+            Event::Restarted(Vec::new()),
+            &MockKubeInterface::new(),
+            &mut first_action
+        )
+        .await
+        .is_err());
     }
 
     #[tokio::test]

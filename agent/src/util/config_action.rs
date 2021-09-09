@@ -98,6 +98,7 @@ async fn watch_for_config_changes(
     let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
     let watcher = watcher(resource, ListParams::default());
     let mut informer = watcher.boxed();
+    let mut first_action = true;
     // Currently, this does not handle None except to break the
     // while.
     while let Some(event) = informer.try_next().await? {
@@ -108,6 +109,7 @@ async fn watch_for_config_changes(
             config_map.clone(),
             discovery_handler_map.clone(),
             new_discovery_handler_sender,
+            &mut first_action,
         )
         .await?
     }
@@ -122,7 +124,8 @@ async fn handle_config(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    first_action: &mut bool,
+) -> anyhow::Result<()> {
     trace!("handle_config - something happened to a configuration");
     match event {
         Event::Applied(config) => {
@@ -164,7 +167,6 @@ async fn handle_config(
                 .await
                 .unwrap();
             });
-            Ok(())
         }
         Event::Deleted(config) => {
             info!(
@@ -172,13 +174,21 @@ async fn handle_config(
                 config.metadata.name,
             );
             handle_config_delete(kube_interface, &config, config_map).await?;
-            Ok(())
         }
         Event::Restarted(_configs) => {
-            info!("handle_config - watcher [re]started");
-            Ok(())
+            if *first_action {
+                info!("handle_config - watcher started");
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Configuration watcher restarted - throwing error"
+                ));
+            }
         }
     }
+    if *first_action {
+        *first_action = false;
+    }
+    Ok(())
 }
 
 /// This handles added Configuration by creating a new ConfigInfo for it and adding it to the ConfigMap.
@@ -234,7 +244,7 @@ async fn handle_config_delete(
     kube_interface: &impl KubeInterface,
     config: &Configuration,
     config_map: ConfigMap,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
     let name = config.metadata.name.clone().unwrap();
     trace!(
         "handle_config_delete - for config {} telling do_periodic_discovery to end",
@@ -309,7 +319,7 @@ pub async fn delete_all_instances_in_map(
     kube_interface: &impl k8s::KubeInterface,
     instance_map: InstanceMap,
     config: &Configuration,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
     let mut instance_map_locked = instance_map.lock().await;
     let instances_to_delete_map = instance_map_locked.clone();
     let namespace = config.metadata.namespace.as_ref().unwrap();
@@ -342,6 +352,37 @@ mod config_action_tests {
     use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface};
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
+
+    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
+    #[tokio::test]
+    async fn test_handle_watcher_restart() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let config_map = Arc::new(Mutex::new(HashMap::new()));
+        let dh_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let (tx, mut _rx1) = broadcast::channel(1);
+        let mut first_action = true;
+        assert!(handle_config(
+            &MockKubeInterface::new(),
+            Event::Restarted(Vec::new()),
+            config_map.clone(),
+            dh_map.clone(),
+            tx.clone(),
+            &mut first_action
+        )
+        .await
+        .is_ok());
+        first_action = false;
+        assert!(handle_config(
+            &MockKubeInterface::new(),
+            Event::Restarted(Vec::new()),
+            config_map,
+            dh_map,
+            tx,
+            &mut first_action
+        )
+        .await
+        .is_err());
+    }
 
     #[tokio::test]
     async fn test_handle_config_delete() {

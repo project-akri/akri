@@ -57,10 +57,13 @@ impl NodeWatcher {
         let resource = Api::<Node>::all(kube_interface.get_kube_client());
         let watcher = watcher(resource, ListParams::default());
         let mut informer = watcher.boxed();
+        let mut first_action = true;
+
         // Currently, this does not handle None except to break the
         // while.
         while let Some(event) = informer.try_next().await? {
-            self.handle_node(event, &kube_interface).await?;
+            self.handle_node(event, &kube_interface, &mut first_action)
+                .await?;
         }
 
         Ok(())
@@ -88,7 +91,8 @@ impl NodeWatcher {
         &mut self,
         event: Event<Node>,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        first_action: &mut bool,
+    ) -> anyhow::Result<()> {
         trace!("handle_node - enter");
         match event {
             Event::Applied(node) => {
@@ -96,12 +100,14 @@ impl NodeWatcher {
                 info!("handle_node - Added or modified: {}", node_name);
                 if self.is_node_ready(&node) {
                     self.known_nodes.insert(node_name, NodeState::Running);
-                } else if self.known_nodes.contains_key(&node_name) {
+                } else if let std::collections::hash_map::Entry::Vacant(e) =
+                    self.known_nodes.entry(node_name)
+                {
+                    e.insert(NodeState::Known);
+                } else {
                     // Node Modified
                     self.call_handle_node_disappearance_if_needed(&node, kube_interface)
                         .await?;
-                } else {
-                    self.known_nodes.insert(node_name, NodeState::Known);
                 }
             }
             Event::Deleted(node) => {
@@ -110,9 +116,16 @@ impl NodeWatcher {
                     .await?;
             }
             Event::Restarted(_nodes) => {
-                info!("handle_node - watcher [re]started");
+                if *first_action {
+                    info!("handle_node - watcher started");
+                } else {
+                    return Err(anyhow::anyhow!("Node watcher restarted - throwing error"));
+                }
             }
         };
+        if *first_action {
+            *first_action = false;
+        }
         Ok(())
     }
 
@@ -123,7 +136,7 @@ impl NodeWatcher {
         &mut self,
         node: &Node,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         let node_name = node.metadata.name.clone().unwrap();
         trace!(
             "call_handle_node_disappearance_if_needed - enter: {:?}",
@@ -186,7 +199,7 @@ impl NodeWatcher {
         &self,
         vanished_node_name: &str,
         kube_interface: &impl KubeInterface,
-    ) -> Result<(), anyhow::Error> {
+    ) -> anyhow::Result<()> {
         trace!(
             "handle_node_disappearance - enter vanished_node_name={:?}",
             vanished_node_name,
@@ -349,6 +362,31 @@ mod tests {
         }
     }
 
+    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
+    #[tokio::test]
+    async fn test_handle_watcher_restart() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut pod_watcher = NodeWatcher::new();
+        let mut first_action = true;
+        assert!(pod_watcher
+            .handle_node(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_action
+            )
+            .await
+            .is_ok());
+        first_action = false;
+        assert!(pod_watcher
+            .handle_node(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_action
+            )
+            .await
+            .is_err());
+    }
+
     #[tokio::test]
     async fn test_handle_node_added_unready() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -356,7 +394,7 @@ mod tests {
         let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new())
+            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
             .await
             .unwrap();
 
@@ -376,7 +414,7 @@ mod tests {
         let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new())
+            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
             .await
             .unwrap();
 
@@ -422,7 +460,7 @@ mod tests {
             .known_nodes
             .insert(node.metadata.name.clone().unwrap(), NodeState::Running);
         node_watcher
-            .handle_node(Event::Applied(node), &mock)
+            .handle_node(Event::Applied(node), &mock, &mut false)
             .await
             .unwrap();
 
@@ -444,7 +482,7 @@ mod tests {
 
         let mock = MockKubeInterface::new();
         node_watcher
-            .handle_node(Event::Applied(node), &mock)
+            .handle_node(Event::Applied(node), &mock, &mut false)
             .await
             .unwrap();
 
@@ -488,7 +526,7 @@ mod tests {
         );
 
         node_watcher
-            .handle_node(Event::Deleted(node), &mock)
+            .handle_node(Event::Deleted(node), &mock, &mut false)
             .await
             .unwrap();
 
