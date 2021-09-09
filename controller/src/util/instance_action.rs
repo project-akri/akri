@@ -12,7 +12,8 @@ use akri_shared::{
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use kube::api::{Api, ListParams, WatchEvent};
+use kube::api::{Api, ListParams};
+use kube_runtime::watcher::{watcher, Event};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -71,20 +72,17 @@ async fn internal_handle_existing_instances(
     Ok(())
 }
 
-/// This watches for Instance events
 async fn internal_do_instance_watch(
     synchronization: &Arc<Mutex<()>>,
     kube_interface: &impl KubeInterface,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("internal_do_instance_watch - enter");
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
-    let mut stream = resource
-        .watch(&ListParams::default(), akri_shared::akri::WATCH_VERSION)
-        .await?
-        .boxed();
+    let watcher = watcher(resource, ListParams::default());
+    let mut informer = watcher.boxed();
     // Currently, this does not handle None except to break the
     // while.
-    while let Some(event) = stream.try_next().await? {
+    while let Some(event) = informer.try_next().await? {
         // Aquire lock to ensure cleanup_instance_and_configuration_svcs and the
         // inner loop handle_instance call in internal_do_instance_watch
         // cannot execute at the same time.
@@ -98,20 +96,23 @@ async fn internal_do_instance_watch(
 /// This takes an event off the Instance stream and delegates it to the
 /// correct function based on the event type.
 async fn handle_instance(
-    event: WatchEvent<Instance>,
+    event: Event<Instance>,
     kube_interface: &impl KubeInterface,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_instance - enter");
     match event {
-        WatchEvent::Added(instance) => {
+        Event::Applied(instance) => {
             info!(
-                "handle_instance - added Akri Instance {:?}: {:?}",
+                "handle_instance - added or modified Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
             );
+            // TODO: consider renaming `InstanceAction::Add` to `InstanceAction::AddOrUpdate`
+            // to reflect that this could also be an Update event. Or as we do more specific
+            // inspection in future, delineation may be useful.
             handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await?;
             Ok(())
         }
-        WatchEvent::Deleted(instance) => {
+        Event::Deleted(instance) => {
             info!(
                 "handle_instance - deleted Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
@@ -119,19 +120,10 @@ async fn handle_instance(
             handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
             Ok(())
         }
-        WatchEvent::Modified(instance) => {
-            info!(
-                "handle_instance - modified Akri Instance {:?}: {:?}",
-                instance.metadata.name, instance.spec
-            );
-            handle_instance_change(&instance, &InstanceAction::Update, kube_interface).await?;
+        Event::Restarted(_instances) => {
+            info!("handle_instance - watcher [re]started");
             Ok(())
         }
-        WatchEvent::Error(ref e) => {
-            trace!("handle_instance - error for Akri Instance: {}", e);
-            Ok(())
-        }
-        WatchEvent::Bookmark(_) => Ok(()),
     }
 }
 
@@ -781,9 +773,8 @@ mod handle_instance_tests {
         let instance: Instance = serde_json::from_str(&instance_json).unwrap();
         handle_instance(
             match action {
-                InstanceAction::Add => WatchEvent::Added(instance),
-                InstanceAction::Update => WatchEvent::Modified(instance),
-                InstanceAction::Remove => WatchEvent::Deleted(instance),
+                InstanceAction::Add | InstanceAction::Update => Event::Applied(instance),
+                InstanceAction::Remove => Event::Deleted(instance),
             },
             mock,
         )

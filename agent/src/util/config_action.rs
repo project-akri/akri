@@ -14,7 +14,8 @@ use akri_shared::{
     k8s::{try_delete_instance, KubeInterface},
 };
 use futures::{StreamExt, TryStreamExt};
-use kube::api::{Api, ListParams, WatchEvent};
+use kube::api::{Api, ListParams};
+use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
 use std::{collections::HashMap, option::Option, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
@@ -95,13 +96,11 @@ async fn watch_for_config_changes(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("watch_for_config_changes - start");
     let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
-    let mut stream = resource
-        .watch(&ListParams::default(), akri_shared::akri::WATCH_VERSION)
-        .await?
-        .boxed();
+    let watcher = watcher(resource, ListParams::default());
+    let mut informer = watcher.boxed();
     // Currently, this does not handle None except to break the
     // while.
-    while let Some(event) = stream.try_next().await? {
+    while let Some(event) = informer.try_next().await? {
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         handle_config(
             kube_interface,
@@ -119,18 +118,41 @@ async fn watch_for_config_changes(
 /// correct function based on the event type.
 async fn handle_config(
     kube_interface: &impl KubeInterface,
-    event: WatchEvent<Configuration>,
+    event: Event<Configuration>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("handle_config - something happened to a configuration");
     match event {
-        WatchEvent::Added(config) => {
+        Event::Applied(config) => {
             info!(
-                "handle_config - added Configuration {:?}",
-                config.metadata.name
+                "handle_config - added or modified Configuration {:?}",
+                config.metadata.name,
             );
+            // Applied events can either be newly added Configurations or modified Configurations.
+            // If modified delete all associated instances and device plugins and then recreate them to reflect updated config
+            // TODO: more gracefully handle modified Configurations by determining what changed rather than delete/re-add
+            if config_map
+                .lock()
+                .await
+                .contains_key(config.metadata.name.as_ref().unwrap())
+            {
+                let do_recreate = should_recreate_config(&config, config_map.clone()).await?;
+                if !do_recreate {
+                    trace!(
+                        "handle_config - config {:?} has not changed. ignoring config modified event.",
+                        config.metadata.name,
+                    );
+                    return Ok(());
+                }
+                info!(
+                    "handle_config - modified Configuration {:?}",
+                    config.metadata.name,
+                );
+                handle_config_delete(kube_interface, &config, config_map.clone()).await?;
+            }
+
             tokio::spawn(async move {
                 handle_config_add(
                     Arc::new(k8s::KubeImpl::new().await.unwrap()),
@@ -144,7 +166,7 @@ async fn handle_config(
             });
             Ok(())
         }
-        WatchEvent::Deleted(config) => {
+        Event::Deleted(config) => {
             info!(
                 "handle_config - deleted Configuration {:?}",
                 config.metadata.name,
@@ -152,39 +174,10 @@ async fn handle_config(
             handle_config_delete(kube_interface, &config, config_map).await?;
             Ok(())
         }
-        // If a config is updated, delete all associated instances and device plugins and then recreate them to reflect updated config
-        WatchEvent::Modified(config) => {
-            let do_recreate = should_recreate_config(&config, config_map.clone()).await?;
-            if !do_recreate {
-                trace!(
-                    "handle_config - config {:?} has not changed. ignoring config modified event.",
-                    config.metadata.name,
-                );
-                return Ok(());
-            }
-            info!(
-                "handle_config - modified Configuration {:?}",
-                config.metadata.name,
-            );
-            handle_config_delete(kube_interface, &config, config_map.clone()).await?;
-            tokio::spawn(async move {
-                handle_config_add(
-                    Arc::new(k8s::KubeImpl::new().await.unwrap()),
-                    &config,
-                    config_map,
-                    discovery_handler_map,
-                    new_discovery_handler_sender,
-                )
-                .await
-                .unwrap();
-            });
+        Event::Restarted(_configs) => {
+            info!("handle_config - watcher [re]started");
             Ok(())
         }
-        WatchEvent::Error(ref e) => {
-            error!("handle_config - error for Configuration: {}", e);
-            Ok(())
-        }
-        WatchEvent::Bookmark(_) => Ok(()),
     }
 }
 
