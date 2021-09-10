@@ -172,9 +172,7 @@ impl BrokerPodWatcher {
                 }
             }
         };
-        if *first_event {
-            *first_event = false;
-        }
+        *first_event = false;
         Ok(())
     }
 

@@ -185,9 +185,7 @@ async fn handle_config(
             }
         }
     }
-    if *first_event {
-        *first_event = false;
-    }
+    *first_event = false;
     Ok(())
 }
 
