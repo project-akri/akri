@@ -16,9 +16,6 @@ lazy_static! {
     pub static ref BROKER_POD_COUNT_METRIC: IntGaugeVec = prometheus::register_int_gauge_vec!("akri_broker_pod_count", "Akri Broker Pod Count", &["configuration", "node"]).unwrap();
 }
 
-/// Environment variable name for setting metrics port
-const METRICS_PORT_LABEL: &str = "METRICS_PORT";
-
 /// This is the entry point for the controller.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -40,14 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let instance_watch_synchronization = synchronization.clone();
     let mut tasks = Vec::new();
 
-    let port = match std::env::var(METRICS_PORT_LABEL) {
-        Ok(p) => p.parse::<u16>()?,
-        Err(_) => 8080,
-    };
-
     // Start server for prometheus metrics
     tasks.push(tokio::spawn(async move {
-        run_metrics_server(port).await.unwrap();
+        run_metrics_server().await.unwrap();
     }));
 
     // Handle existing instances
