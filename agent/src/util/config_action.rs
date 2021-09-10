@@ -296,15 +296,15 @@ async fn should_recreate_config(
     config: &Configuration,
     config_map: ConfigMap,
 ) -> Result<bool, anyhow::Error> {
-    let name = config.metadata.name.clone().unwrap();
+    let name = config.metadata.name.as_ref().unwrap();
     let last_generation = config_map
         .lock()
         .await
-        .get(&name)
-        .ok_or_else(|| anyhow::anyhow!("Configuration {} not found in ConfigMap", name))?
+        .get(name)
+        .ok_or_else(|| anyhow::anyhow!("Configuration {} not found in ConfigMap", &name))?
         .last_generation;
 
-    if config.metadata.generation == last_generation {
+    if config.metadata.generation <= last_generation {
         return Ok(false);
     }
 
@@ -608,6 +608,21 @@ mod config_action_tests {
 
         // using same generation as what is already in config_map
         config.metadata.generation = Some(1);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation is older, should return false
+    #[tokio::test]
+    async fn test_should_recreate_config_older_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using older generation than what is already in config_map
+        config.metadata.generation = Some(0);
         let do_recreate = should_recreate_config(&config, config_map.clone())
             .await
             .unwrap();
