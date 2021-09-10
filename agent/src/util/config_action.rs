@@ -589,22 +589,7 @@ mod config_action_tests {
     // if generation has changed, should return true
     #[tokio::test]
     async fn test_should_recreate_config_new_generation() {
-        let path_to_config = "../test/yaml/config-a.yaml";
-        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let mut config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-
-        let (stop_discovery_sender, _) = broadcast::channel(2);
-        let (_, finished_discovery_receiver) = mpsc::channel(2);
-
-        let config_info = ConfigInfo {
-            instance_map: Arc::new(Mutex::new(HashMap::new())),
-            stop_discovery_sender: stop_discovery_sender.clone(),
-            finished_discovery_receiver,
-            last_generation: Some(1),
-        };
-        let config_name = config.metadata.name.clone().unwrap();
-        let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
-        config_map.lock().await.insert(config_name, config_info);
+        let (mut config, config_map) = get_should_recreate_config_data().await;
 
         // using different generation as what is already in config_map
         config.metadata.generation = Some(2);
@@ -619,9 +604,21 @@ mod config_action_tests {
     // if generation has NOT changed, should return false
     #[tokio::test]
     async fn test_should_recreate_config_same_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using same generation as what is already in config_map
+        config.metadata.generation = Some(1);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    async fn get_should_recreate_config_data() -> (Configuration, ConfigMap) {
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let mut config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
 
         let (stop_discovery_sender, _) = broadcast::channel(2);
         let (_, finished_discovery_receiver) = mpsc::channel(2);
@@ -635,13 +632,6 @@ mod config_action_tests {
         let config_name = config.metadata.name.clone().unwrap();
         let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
         config_map.lock().await.insert(config_name, config_info);
-
-        // using same generation as what is already in config_map
-        config.metadata.generation = Some(1);
-        let do_recreate = should_recreate_config(&config, config_map.clone())
-            .await
-            .unwrap();
-
-        assert!(!do_recreate)
+        (config, config_map)
     }
 }
