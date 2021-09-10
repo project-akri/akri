@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     info!("{} Udev Broker logging started", API_NAMESPACE);
 
     tokio::spawn(async move {
-        run_metrics_server(8080).await.unwrap();
+        run_metrics_server().await.unwrap();
     });
 
     let env_var_query = ActualEnvVarQuery {};
