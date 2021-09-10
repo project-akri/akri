@@ -168,7 +168,9 @@ impl BrokerPodWatcher {
                         pods
                     );
                 } else {
-                    return Err(anyhow::anyhow!("Pod watcher restarted - throwing error"));
+                    return Err(anyhow::anyhow!(
+                        "Pod watcher restarted - throwing error to restart controller"
+                    ));
                 }
             }
         };

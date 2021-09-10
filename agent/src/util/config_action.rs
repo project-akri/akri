@@ -180,7 +180,7 @@ async fn handle_config(
                 info!("handle_config - watcher started");
             } else {
                 return Err(anyhow::anyhow!(
-                    "Configuration watcher restarted - throwing error"
+                    "Configuration watcher restarted - throwing error to restart agent"
                 ));
             }
         }

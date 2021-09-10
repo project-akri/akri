@@ -119,7 +119,9 @@ impl NodeWatcher {
                 if *first_event {
                     info!("handle_node - watcher started");
                 } else {
-                    return Err(anyhow::anyhow!("Node watcher restarted - throwing error"));
+                    return Err(anyhow::anyhow!(
+                        "Node watcher restarted - throwing error to restart controller"
+                    ));
                 }
             }
         };

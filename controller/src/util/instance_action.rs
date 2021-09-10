@@ -125,7 +125,7 @@ async fn handle_instance(
                 info!("handle_instance - watcher started");
             } else {
                 return Err(anyhow::anyhow!(
-                    "Instance watcher restarted - throwing error"
+                    "Instance watcher restarted - throwing error to restart controller"
                 ));
             }
         }
