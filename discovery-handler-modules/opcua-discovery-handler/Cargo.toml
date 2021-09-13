@@ -1,6 +1,6 @@
 [package]
 name = "opcua-discovery-handler"
-version = "0.6.13"
+version = "0.6.14"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 

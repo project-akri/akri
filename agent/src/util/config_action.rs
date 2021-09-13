@@ -16,7 +16,7 @@ use akri_shared::{
 use futures::{StreamExt, TryStreamExt};
 use kube::api::{Api, ListParams, WatchEvent};
 use log::{info, trace};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, option::Option, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
@@ -34,6 +34,10 @@ pub struct ConfigInfo {
     /// Receives notification that all `DiscoveryOperators` threads have completed and a Configuration's Instances
     /// can be safely deleted and the associated `DevicePluginServices` terminated.
     finished_discovery_receiver: mpsc::Receiver<()>,
+    /// Tracks the last generation of the `Configuration` resource (i.e. `.metadata.generation`).
+    /// This is used to determine if the `Configuration` actually changed, or if only the metadata changed.
+    /// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
+    last_generation: Option<i64>,
 }
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
@@ -150,6 +154,14 @@ async fn handle_config(
         }
         // If a config is updated, delete all associated instances and device plugins and then recreate them to reflect updated config
         WatchEvent::Modified(config) => {
+            let do_recreate = should_recreate_config(&config, config_map.clone()).await?;
+            if !do_recreate {
+                trace!(
+                    "handle_config - config {:?} has not changed. ignoring config modified event.",
+                    config.metadata.name,
+                );
+                return Ok(());
+            }
             info!(
                 "handle_config - modified Configuration {:?}",
                 config.metadata.name,
@@ -196,6 +208,7 @@ async fn handle_config_add(
         instance_map: instance_map.clone(),
         stop_discovery_sender: stop_discovery_sender.clone(),
         finished_discovery_receiver,
+        last_generation: config.metadata.generation,
     };
     config_map
         .lock()
@@ -276,6 +289,28 @@ async fn handle_config_delete(
     Ok(())
 }
 
+/// Checks to see if the configuration needs to be recreated.
+/// At present, this just checks to see if the `.metadata.generation` has changed.
+/// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
+async fn should_recreate_config(
+    config: &Configuration,
+    config_map: ConfigMap,
+) -> Result<bool, anyhow::Error> {
+    let name = config.metadata.name.as_ref().unwrap();
+    let last_generation = config_map
+        .lock()
+        .await
+        .get(name)
+        .ok_or_else(|| anyhow::anyhow!("Configuration {} not found in ConfigMap", &name))?
+        .last_generation;
+
+    if config.metadata.generation <= last_generation {
+        return Ok(false);
+    }
+
+    Ok(true)
+}
+
 /// This shuts down all a Configuration's Instances and terminates the associated Device Plugins
 pub async fn delete_all_instances_in_map(
     kube_interface: &impl k8s::KubeInterface,
@@ -341,6 +376,7 @@ mod config_action_tests {
                 stop_discovery_sender,
                 instance_map: instance_map.clone(),
                 finished_discovery_receiver,
+                last_generation: config.metadata.generation,
             },
         );
         let config_map: ConfigMap = Arc::new(Mutex::new(map));
@@ -547,5 +583,70 @@ mod config_action_tests {
         .await;
 
         futures::future::join_all(vec![first_add_handle, second_add_handle]).await;
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation has changed, should return true
+    #[tokio::test]
+    async fn test_should_recreate_config_new_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using different generation as what is already in config_map
+        config.metadata.generation = Some(2);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation has NOT changed, should return false
+    #[tokio::test]
+    async fn test_should_recreate_config_same_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using same generation as what is already in config_map
+        config.metadata.generation = Some(1);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation is older, should return false
+    #[tokio::test]
+    async fn test_should_recreate_config_older_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using older generation than what is already in config_map
+        config.metadata.generation = Some(0);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    async fn get_should_recreate_config_data() -> (Configuration, ConfigMap) {
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+
+        let (stop_discovery_sender, _) = broadcast::channel(2);
+        let (_, finished_discovery_receiver) = mpsc::channel(2);
+
+        let config_info = ConfigInfo {
+            instance_map: Arc::new(Mutex::new(HashMap::new())),
+            stop_discovery_sender: stop_discovery_sender.clone(),
+            finished_discovery_receiver,
+            last_generation: Some(1),
+        };
+        let config_name = config.metadata.name.clone().unwrap();
+        let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
+        config_map.lock().await.insert(config_name, config_info);
+        (config, config_map)
     }
 }
