@@ -18,6 +18,8 @@ on:
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
     - Makefile
+  pull_request_review_comment:
+    types: [created]
 
 env:
   AKRI_COMPONENT: opencvsharp-build
@@ -25,9 +27,51 @@ env:
 
 jobs:
 
+  add-label-missing-comment:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add comment about missing build-dependency-containers label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: 'hey this apparently should run but running it will take hours. Do you want to run it? If so, add flag build deps cont. (also tags Akri Maintainers)'
+          })
+          exit 1
+
+  add-build-label-to-pr:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '/add-build-dependency-containers') && github.event_name == 'pull_request_review_comment'
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.addLabels({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['build-dependency-containers']
+          })
+          github.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '👋 Added build-dependency-containers label :)!'
+          })
+
   per-arch:
-    if: >-
-      contains(github.event.pull_request.labels.*.name, 'ignore intermediate builds') == false
+    if: contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == true
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -40,15 +84,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         persist-credentials: false
-
-    - name: Akri intermediate builds are LONG running and should only be run when absolutely needed
-      if: >-
-        contains(github.event.pull_request.labels.*.name, 'allow intermediate builds') == false
-      run: |
-        echo "Akri intermediate builds are LONG running and should only be run when absolutely needed."
-        echo "Add [IGNORE INTERMEDIATE BUILDS] to first commit message to skip building intermediate containers."
-        echo "Add [ALLOW INTERMEDIATE BUILDS] to first commit message if needed."
-        exit 1
 
     # Only run build version change check if PR does not have "same version" label
     - if: >-
