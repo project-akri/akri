@@ -155,7 +155,7 @@ pub fn create_new_pod_from_spec(
     node_to_run_pod_on: &str,
     capability_is_shared: bool,
     pod_spec: &PodSpec,
-) -> Result<Pod, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<Pod> {
     trace!("create_new_pod_from_spec enter");
 
     let app_name = create_pod_app_name(
