@@ -33,7 +33,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Add comment about missing build-dependency-containers label
-      uses: actions/github-script@0.9.0
+      uses: actions/github-script@v4
       if: success()
       with:
         github-token: ${{secrets.GITHUB_TOKEN}}
@@ -52,7 +52,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Add label
-      uses: actions/github-script@0.9.0
+      uses: actions/github-script@v4
       if: success()
       with:
         github-token: ${{secrets.GITHUB_TOKEN}}
