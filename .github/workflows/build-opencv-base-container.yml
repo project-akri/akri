@@ -18,8 +18,9 @@ on:
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
     - Makefile
-  pull_request_review_comment:
+  issue_comment:
     types: [created]
+    branches: [ main ]
 
 env:
   AKRI_COMPONENT: opencvsharp-build
@@ -27,47 +28,46 @@ env:
 
 jobs:
 
-  add-label-missing-comment:
-    runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
-    steps:
-    - uses: actions/checkout@v2
-    - name: Add comment about missing build-dependency-containers label
-      uses: actions/github-script@v4
-      if: success()
-      with:
-        github-token: ${{secrets.GITHUB_TOKEN}}
-        script: |
-          github.issues.createComment({
-            issue_number: context.payload.pull_request.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: 'hey this apparently should run but running it will take hours. Do you want to run it? If so, add flag build deps cont. (also tags Akri Maintainers)'
-          })
-          exit 1
-
   add-build-label-to-pr:
     runs-on: ubuntu-latest
-    if: contains(github.event.comment.body, '/add-build-dependency-containers') && github.event_name == 'pull_request_review_comment'
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-build-dependency-containers')
     steps:
     - uses: actions/checkout@v2
-    - name: Add label
-      uses: actions/github-script@v4
+    - name: Add build-dependency-containers label
+      uses: actions/github-script@0.9.0
       if: success()
       with:
         github-token: ${{secrets.GITHUB_TOKEN}}
         script: |
           github.issues.addLabels({
-            issue_number: context.payload.pull_request.number,
+            issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
             labels: ['build-dependency-containers']
           })
           github.issues.createComment({
-            issue_number: context.payload.pull_request.number,
+            issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: '👋 Added build-dependency-containers label :)!'
+          })
+
+  add-label-missing-comment:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add comment about missing build-dependency-containers label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: 'Hi there, this change should run a build dependency containers, but running it will take hours. Do you want to run it? If so, please add flag build-dependency-containers by commenting "/add-build-dependency-containers".'
           })
 
   per-arch:
