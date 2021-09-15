@@ -116,7 +116,7 @@ pub fn create_new_service_from_spec(
     ownership: OwnershipInfo,
     svc_spec: &ServiceSpec,
     node_specific_svc: bool,
-) -> Result<Service, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<Service> {
     let app_name =
         create_service_app_name(configuration_name, instance_name, "svc", node_specific_svc);
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
@@ -209,7 +209,7 @@ pub fn update_ownership(
     svc_to_update: &mut Service,
     ownership: OwnershipInfo,
     replace_references: bool,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
     let ownership_ref = OwnerReference {
         api_version: ownership.get_api_version(),
         kind: ownership.get_kind(),
