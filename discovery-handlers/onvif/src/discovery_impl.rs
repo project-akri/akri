@@ -352,6 +352,7 @@ pub mod util {
             "simple_onvif_discover - uris after filtering by scopes {:?}",
             filtered_uris
         );
+        filtered_uris.dedup();
         let devices = get_responsive_uris(filtered_uris, &OnvifQueryImpl {}).await;
         info!("simple_onvif_discover - devices: {:?}", devices);
         Ok(devices)
