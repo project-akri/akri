@@ -310,7 +310,7 @@ pub mod util {
         scopes_filters: Option<&FilterList>,
         timeout: Duration,
     ) -> Result<Vec<String>, anyhow::Error> {
-        let mut broadcast_responses = Vec::new();
+        let mut broadcast_responses = std::collections::HashSet::new();
 
         let start = Instant::now();
         loop {
@@ -323,7 +323,7 @@ pub mod util {
 
             match try_recv_string(socket, time_left).await {
                 Ok(s) => {
-                    broadcast_responses.push(s);
+                    broadcast_responses.insert(s);
                 }
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {
@@ -352,7 +352,6 @@ pub mod util {
             "simple_onvif_discover - uris after filtering by scopes {:?}",
             filtered_uris
         );
-        filtered_uris.dedup();
         let devices = get_responsive_uris(filtered_uris, &OnvifQueryImpl {}).await;
         info!("simple_onvif_discover - devices: {:?}", devices);
         Ok(devices)
