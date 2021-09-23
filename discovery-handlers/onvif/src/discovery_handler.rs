@@ -78,7 +78,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             loop {
                 // Before each iteration, check if receiver has dropped
                 if discovered_devices_sender.is_closed() {
-                    error!("discover - channel closed");
+                    error!("discover - channel closed ... attempting to re-register with Agent");
                     if let Some(sender) = register_sender {
                         sender.send(()).await.unwrap();
                     }
