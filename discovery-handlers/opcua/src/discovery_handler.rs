@@ -89,6 +89,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             let discovery_method = discovery_handler_config.opcua_discovery_method.clone();
             let application_names = discovery_handler_config.application_names.clone();
             loop {
+                // Before each iteration, check if receiver has dropped
+                if discovered_devices_sender.is_closed() {
+                    error!("discover - channel closed ... attempting to re-register with Agent");
+                    if let Some(sender) = register_sender {
+                        sender.send(()).await.unwrap();
+                    }
+                    break;
+                }
+
                 let discovery_urls: Vec<String> = match discovery_method.clone() {
                     OpcuaDiscoveryMethod::Standard(standard_opcua_discovery) => {
                         do_standard_discovery(
