@@ -67,6 +67,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let mut first_loop = true;
         tokio::spawn(async move {
             loop {
+                // Before each iteration, check if receiver has dropped
+                if discovered_devices_sender.is_closed() {
+                    error!("discover - channel closed ... attempting to re-register with Agent");
+                    if let Some(sender) = register_sender {
+                        sender.send(()).await.unwrap();
+                    }
+                    break;
+                }
+
                 let availability =
                     fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH).unwrap_or_default();
                 trace!(

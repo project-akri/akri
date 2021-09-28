@@ -57,6 +57,14 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             let udev_rules = discovery_handler_config.udev_rules.clone();
             loop {
                 trace!("discover - for udev rules {:?}", udev_rules);
+                // Before each iteration, check if receiver has dropped
+                if discovered_devices_sender.is_closed() {
+                    error!("discover - channel closed ... attempting to re-register with Agent");
+                    if let Some(sender) = register_sender {
+                        sender.send(()).await.unwrap();
+                    }
+                    break;
+                }
                 let mut devpaths: HashSet<String> = HashSet::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
