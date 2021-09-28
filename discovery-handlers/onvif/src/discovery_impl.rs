@@ -323,7 +323,7 @@ pub mod util {
 
             match try_recv_string(socket, time_left).await {
                 Ok(s) => {
-                    broadcast_responses.insert(s);
+                    broadcast_responses.insert(s.to_lowercase());
                 }
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {
