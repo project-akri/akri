@@ -63,7 +63,7 @@ Thank you everyone in the community who helped Akri get to this release! You're 
 - @kate-goldenring
 - @romoh
 - @shantanoo-desai
-- (Please let us know if we left you out!)
+- (Please let us know via [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on how to install Akri.
