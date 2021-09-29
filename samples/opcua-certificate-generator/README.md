@@ -1,5 +1,9 @@
 # OPC UA Certificate Generator
 This .NET Console application has been created to simplify the process of creating a Certificate Authority (CA) and X.509 v3 certificates issued by that CA for an OPC UA Client and Server(s). It has been provided to create the certificates needed to enable security in the [OPC UA End-to-End Demo](https://docs.akri.sh/demos/opc-thermometer-demo#creating-x.509-v3-certificates). 
+
+## Prerequisites
+1. Install .NET according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
+
 ## Running the Application
 The application takes in three command line arguments: the path at which to store the certificates, the number of server certificates to create, and the IP address of the host machine for each of the servers. This address is added to the Subject Alternative Names section of the certificate. It is best practice
 for that address to reflect where the server will ultimately be run, but it is not required. The program will also create a certificate for the Akri Monitoring broker. 
