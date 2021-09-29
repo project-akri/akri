@@ -248,7 +248,7 @@ jobs:
           sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
           echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
           sudo apt-get update
-          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet kubeadm kubectl
+          sudo apt-get install -y --allow-downgrades kubelet kubeadm kubectl
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
