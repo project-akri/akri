@@ -145,6 +145,9 @@ jobs:
           # - runtime: K3s-1.20
           #   version: v1.20.6+k3s1
           #   crictl: v1.17.0
+          # - runtime: K3s-1.21
+          #   version: v1.21.5+k3s1
+          #   crictl: v1.17.0
           # - runtime: Kubernetes-1.16
           #   version: 1.16.15-00
           #   crictl: UNUSED
