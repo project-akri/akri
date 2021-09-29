@@ -58,9 +58,10 @@ Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the featu
 Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri prosper. 
 
 **Contributors to v0.6.19**
-- @romoh
-- @kate-goldenring
 - @ammmze
+- @bfjelds
+- @kate-goldenring
+- @romoh
 - @shantanoo-desai
 - (Please let us know if we left you out!)
 
