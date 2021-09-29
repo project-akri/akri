@@ -33,7 +33,7 @@ jobs:
     - name: Rust install
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: 1.54.0
+        toolchain: 1.55.0
         override: true
         components: clippy, rustfmt
     - name: Install Linux requirements

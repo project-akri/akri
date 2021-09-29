@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.6.18"
+version = "0.6.19"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
