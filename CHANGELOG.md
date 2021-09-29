@@ -1,3 +1,62 @@
+# v0.6.19
+
+## Announcing Akri v0.6.19!
+Akri v0.6.19 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start [contributing](https://github.com/deislabs/akri/blob/v0.6.19/docs/contributing.md) today!
+
+## New Features
+The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations**, long-awaited runtime and Kubernetes **dependency updates**, and moves Akri's documentation to a [**docs repository**](https://github.com/deislabs/akri-docs).
+
+**Fixes, features, and optimizations**
+* opt: Updated Akri's runtime (`tokio`) and Kubernetes dependencies (`kube-rs` and `k8s-openapi`), along with the major versions of all other dependencies where possible. (https://github.com/deislabs/akri/pull/361)
+* opt: ONVIF Discovery handler optimized to be more performant (https://github.com/deislabs/akri/pull/351)
+* opt: Reduced size of ONVIF broker by decreasing size of OpenCV container (https://github.com/deislabs/akri/pull/353)
+* feat: Removed documentation from repository (https://github.com/deislabs/akri/pull/360) and placed in [deislabs/akri-docs](https://github.com/deislabs/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
+* feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/deislabs/akri/pull/363)
+* fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/deislabs/akri/pull/385)
+* fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/deislabs/akri/pull/382)
+* fix: Use `kube-rs` resource `watcher` instead of `Api::watch` (https://github.com/deislabs/akri/pull/378)
+* fix: Prevent re-creation instances when only Configuration metadata or status changes (https://github.com/deislabs/akri/pull/373)
+* feat: Enable configuring Prometheus metrics port for local runs (https://github.com/deislabs/akri/pull/377)
+
+View the [full change log](https://github.com/deislabs/akri/compare/v0.6.5...v0.6.19)
+
+## Breaking Changes
+N/A
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.21.0 |
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.21.5+k3s1 |
+| K3s | v1.20.6+k3s1 |
+| K3s | v1.19.10+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| K3s | v1.17.17+k3s1 |
+| K3s | v1.16.14+k3s1 |
+| MicroK8s | 1.21/stable |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+| MicroK8s | 1.17/stable |
+| MicroK8s | 1.16/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Release history
+See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.6.19/CHANGELOG.md) for more information on what changed in this and previous releases.
+
 # v0.6.5
 
 ## Announcing Akri v0.6.5!
