@@ -1,6 +1,6 @@
 # OPC UA Monitoring Broker
 Sample broker for for Akri's [OPC UA Thermometer demo](https://docs.akri.sh/demos/opc-thermometer-demo). Contains an OPC
-UA Client will subscribe to an OPC UA Server Node with a specific identifier and namespace index. It then serves the
+UA Client that will subscribe to an OPC UA Server Node with a specific identifier and namespace index. It then serves the
 value of the Node (or Variable) over gRPC for an [anomaly detection web application](../../apps/anomaly-detection-app)
 to consume. 
 
