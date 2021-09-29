@@ -12,7 +12,7 @@ The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations*
 * opt: Updated Akri's runtime (`tokio`) and Kubernetes dependencies (`kube-rs` and `k8s-openapi`), along with the major versions of all other dependencies where possible. (https://github.com/deislabs/akri/pull/361)
 * opt: ONVIF Discovery handler optimized to be more performant (https://github.com/deislabs/akri/pull/351)
 * opt: Reduced size of ONVIF broker by decreasing size of OpenCV container (https://github.com/deislabs/akri/pull/353)
-* feat: Removed documentation from repository (https://github.com/deislabs/akri/pull/360) and placed in [deislabs/akri-docs](https://github.com/deislabs/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
+* feat: Removed documentation from repository (https://github.com/deislabs/akri/pull/360) and placed in [`deislabs/akri-docs`](https://github.com/deislabs/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
 * feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/deislabs/akri/pull/363)
 * fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/deislabs/akri/pull/385)
 * fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/deislabs/akri/pull/382)
@@ -53,6 +53,25 @@ N/A
 
 ## What's next?
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks
+Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri prosper. 
+
+**Contributors to v0.6.19**
+- @romoh
+- @kate-goldenring
+- @ammmze
+- @shantanoo-desai
+- (Please let us know if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on how to install Akri.
+
+```
+helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.6.19 \
+    # additional configuration
+```
 
 ## Release history
 See [CHANGELOG.md](https://github.com/deislabs/akri/blob/v0.6.19/CHANGELOG.md) for more information on what changed in this and previous releases.
