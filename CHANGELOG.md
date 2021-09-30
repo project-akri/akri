@@ -15,7 +15,7 @@ The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations*
 * feat: Removed documentation from repository (https://github.com/deislabs/akri/pull/360) and placed in [`deislabs/akri-docs`](https://github.com/deislabs/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
 * feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/deislabs/akri/pull/363)
 * fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/deislabs/akri/pull/385)
-* fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/deislabs/akri/pull/382)
+* fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/deislabs/akri/pull/393)
 * fix: Use `kube-rs` resource `watcher` instead of `Api::watch` (https://github.com/deislabs/akri/pull/378)
 * fix: Prevent re-creation instances when only Configuration metadata or status changes (https://github.com/deislabs/akri/pull/373)
 * feat: Enable configuring Prometheus metrics port for local runs (https://github.com/deislabs/akri/pull/377)
@@ -26,7 +26,7 @@ View the [full change log](https://github.com/deislabs/akri/compare/v0.6.5...v0.
 N/A
 
 ## Known Issues
-N/A
+ONVIF discovery does not work in development versions `v0.6.17` and `v0.6.18` due to (https://github.com/deislabs/akri/pull/382). Issue was resolved for `v0.6.19` and beyond in (https://github.com/deislabs/akri/pull/393).
 
 ## Validated With
 
