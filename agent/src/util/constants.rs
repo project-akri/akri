@@ -28,6 +28,7 @@ pub const SLOT_RECONCILIATION_CHECK_DELAY_SECS: u64 = 10;
 pub const SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS: u64 = 300;
 
 /// Label of environment variable that, when set, enables the embedded debug echo discovery handler
+#[cfg(any(test, feature = "agent-full"))]
 pub const ENABLE_DEBUG_ECHO_LABEL: &str = "ENABLE_DEBUG_ECHO";
 
 /// Maximum amount of time allowed to pass without being able to connect to a discovery handler without it being removed
