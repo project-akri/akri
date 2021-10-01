@@ -1,4 +1,6 @@
 use super::super::INSTANCE_COUNT_METRIC;
+#[cfg(any(test, feature = "agent-full"))]
+use super::embedded_discovery_handlers::get_discovery_handler;
 use super::{
     constants::{
         DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
@@ -8,7 +10,6 @@ use super::{
     device_plugin_service::{
         get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
     },
-    embedded_discovery_handlers::get_discovery_handler,
     registration::{
         DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
         RegisteredDiscoveryHandlerMap,
@@ -35,7 +36,6 @@ use mockall::{automock, predicate::*};
 #[cfg(not(test))]
 use std::time::Instant;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
-use tokio::sync::mpsc;
 use tonic::{
     transport::{Endpoint, Uri},
     Status,
@@ -44,7 +44,8 @@ use tonic::{
 /// StreamType provides a wrapper around the two different types of streams returned from embedded
 /// or embedded discovery handlers and ones running externally.
 pub enum StreamType {
-    Embedded(mpsc::Receiver<std::result::Result<DiscoverResponse, Status>>),
+    #[cfg(any(test, feature = "agent-full"))]
+    Embedded(tokio::sync::mpsc::Receiver<std::result::Result<DiscoverResponse, Status>>),
     External(tonic::Streaming<DiscoverResponse>),
 }
 
@@ -117,6 +118,7 @@ impl DiscoveryOperator {
         });
         trace!("get_stream - endpoint is {:?}", endpoint);
         match endpoint {
+            #[cfg(any(test, feature = "agent-full"))]
             DiscoveryHandlerEndpoint::Embedded => {
                 match get_discovery_handler(&self.config.spec.discovery_handler) {
                     Ok(discovery_handler) => {
@@ -766,6 +768,7 @@ pub mod start_discovery {
                                 }
                             }
                         }
+                        #[cfg(any(test, feature = "agent-full"))]
                         StreamType::Embedded(mut stream) => {
                             discovery_operator
                                 .internal_do_discover(
@@ -869,7 +872,7 @@ pub mod tests {
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
     use std::time::Duration;
-    use tokio::sync::broadcast;
+    use tokio::sync::{broadcast, mpsc};
 
     pub async fn build_instance_map(
         config: &Configuration,

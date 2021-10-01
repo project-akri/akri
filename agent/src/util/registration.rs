@@ -36,6 +36,7 @@ pub type DiscoveryHandlerName = String;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DiscoveryHandlerEndpoint {
     /// Embedded means the Discovery Handler is running inside the Agent
+    #[cfg(any(test, feature = "agent-full"))]
     Embedded,
     /// Uds means the Discovery Handler is running on a specified unix domain socket
     Uds(String),
