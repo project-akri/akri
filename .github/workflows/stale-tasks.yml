@@ -13,12 +13,12 @@ jobs:
         with:
           stale-issue-label: stale
           stale-pr-label: stale
-          days-before-stale: 45
-          days-before-close: 45
+          days-before-stale: 90
+          days-before-close: 90
           remove-stale-when-updated: true
           stale-issue-message: > 
-            Issue has been automatically marked as stale due to inactivity for 45 days. Update the issue to remove label, otherwise it will be automatically closed.
+            Issue has been automatically marked as stale due to inactivity for 90 days. Update the issue to remove label, otherwise it will be automatically closed.
           stale-pr-message: > 
-            PR has been automatically marked as stale due to inactivity for 45 days. Update the PR to remove label, otherwise it will be automatically closed."
+            PR has been automatically marked as stale due to inactivity for 90 days. Update the PR to remove label, otherwise it will be automatically closed."
           exempt-issue-labels: keep-alive
           repo-token: ${{ secrets.GITHUB_TOKEN }}
