@@ -1,4 +1,4 @@
-# Akri Project Goveranance
+# Akri Project Governance
 
 This document outlines how the Akri project governs itself. The Akri project
 consists of all of the repositories in the https://github.com/project-akri/
