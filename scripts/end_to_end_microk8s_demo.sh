@@ -32,14 +32,14 @@ sudo gst-launch-1.0 -v videotestsrc pattern=ball ! "video/x-raw,width=640,height
 
 sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-raw,width=640,height=480,framerate=10/1" ! avenc_mjpeg ! v4l2sink device=/dev/video2 &
 
-sudo microk8s.helm3 repo add akri-helm-charts https://deislabs.github.io/akri/
+sudo microk8s.helm3 repo add akri-helm-charts https://project-akri.github.io/akri/
 sudo microk8s.helm3 install akri akri-helm-charts/akri-dev \
   $AKRI_HELM_CRICTL_CONFIGURATION \
   --set useLatestContainers=true \
   --set udev.enabled=true \
   --set udev.name=akri-udev-video \
   --set udev.udevRules[0]='KERNEL=="video[0-9]*"' \
-  --set udev.brokerPod.image.repository="ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+  --set udev.brokerPod.image.repository="ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
 
 until sudo microk8s.kubectl wait pod --for=condition=ready --selector=akri.sh/configuration=akri-udev-video
 do
@@ -48,4 +48,4 @@ do
 done
 
 sudo microk8s.kubectl apply \
---filename=https://raw.githubusercontent.com/deislabs/akri/main/deployment/samples/akri-video-streaming-app.yaml
+--filename=https://raw.githubusercontent.com/project-akri/akri/main/deployment/samples/akri-video-streaming-app.yaml

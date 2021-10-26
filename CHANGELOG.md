@@ -12,7 +12,7 @@ The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations*
 * opt: Updated Akri's runtime (`tokio`) and Kubernetes dependencies (`kube-rs` and `k8s-openapi`), along with the major versions of all other dependencies where possible. (https://github.com/project-akri/akri/pull/361)
 * opt: ONVIF Discovery handler optimized to be more performant (https://github.com/project-akri/akri/pull/351)
 * opt: Reduced size of ONVIF broker by decreasing size of OpenCV container (https://github.com/project-akri/akri/pull/353)
-* feat: Removed documentation from repository (https://github.com/project-akri/akri/pull/360) and placed in [`deislabs/akri-docs`](https://github.com/project-akri/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
+* feat: Removed documentation from repository (https://github.com/project-akri/akri/pull/360) and placed in [`project-akri/akri-docs`](https://github.com/project-akri/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
 * feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/project-akri/akri/pull/363)
 * fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/project-akri/akri/pull/385)
 * fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/project-akri/akri/pull/393)
@@ -69,7 +69,7 @@ Thank you everyone in the community who helped Akri get to this release! You're 
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on how to install Akri.
 
 ```
-helm repo add akri-helm-charts https://deislabs.github.io/akri/
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
 helm install akri akri-helm-charts/akri --version 0.6.19 \
     # additional configuration
 ```
