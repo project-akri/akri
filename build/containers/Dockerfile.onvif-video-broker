@@ -25,10 +25,7 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Link the container to the Akri repository
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
-
-# Copy over container legal notice
-COPY ./build/container-images-legal-notice.md .
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 EXPOSE 8083
 ENV ASPNETCORE_URLS=http://*:8083
