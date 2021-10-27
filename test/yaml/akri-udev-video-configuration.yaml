@@ -11,7 +11,7 @@ spec:
   brokerPodSpec:
     containers:
     - name: akri-udev-video-broker
-      image: "ghcr.io/deislabs/akri/udev-video-broker:latest-dev"
+      image: "ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
       env: 
         - name: FORMAT # default: MJPG
           value: "YUYV"

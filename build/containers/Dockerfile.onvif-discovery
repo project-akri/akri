@@ -7,10 +7,7 @@ RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim"
 RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}/${BUILD_TYPE}"
 
 # Link the container to the Akri repository
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
-
-# Copy over container legal notice
-COPY ./build/container-images-legal-notice.md .
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/onvif-discovery-handler /onvif-discovery-handler
