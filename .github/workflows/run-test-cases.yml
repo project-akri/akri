@@ -63,7 +63,7 @@ jobs:
           BUILD_SLIM_AGENT: 0
           AGENT_FEATURES: "agent-full"
           PACKAGES_TO_EXCLUDE: "akri-udev akri-onvif akri-opcua udev-video-broker debug-echo-discovery-handler onvif-discovery-handler opcua-discovery-handler udev-discovery-handler"
-          PREFIX: ghcr.io/deislabs/akri
+          PREFIX: ghcr.io/project-akri/akri
           LABEL_PREFIX: pr
           CARGO_INCREMENTAL: 0
         run: |
@@ -296,7 +296,7 @@ jobs:
           sudo microk8s ctr images ls
 
       - name: Add Akri Helm Chart
-        run: helm repo add akri-helm-charts https://deislabs.github.io/akri/
+        run: helm repo add akri-helm-charts https://project-akri.github.io/akri/
 
       # For push and release, we need to wait for the Helm chart and
       # associated containers to build.
