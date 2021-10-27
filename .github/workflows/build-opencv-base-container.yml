@@ -78,7 +78,7 @@ jobs:
         github_event_action: ${{ github.event.action }}
         github_merged: ${{ github.event.pull_request.merged }}
         container_name: ${{ env.AKRI_COMPONENT }}
-        container_prefix: ghcr.io/deislabs/akri
+        container_prefix: ghcr.io/project-akri/akri
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
