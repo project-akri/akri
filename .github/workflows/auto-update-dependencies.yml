@@ -30,5 +30,5 @@ jobs:
       uses: romoh/dependencies-autoupdate@v1.1
       with:  
         token: ${{ secrets.AKRI_BOT_TOKEN }}
-        update-command: "'cargo update && cargo test && cargo upgrade --to-lockfile --workspace'"
+        update-command: "'cargo update && cargo test'"
         on-changes-command: "'./version.sh -u -p'"
