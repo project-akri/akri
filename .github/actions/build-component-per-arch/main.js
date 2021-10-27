@@ -93,8 +93,6 @@ async function shell_cmd(cmd) {
         await exec.exec(`make ${core.getInput('makefile_component_name')}-build-${makefile_target_suffix}`)
 
         const image_name = `${core.getInput('container_prefix')}/${core.getInput('container_name')}:${versioned_label}-${core.getInput('platform')}`
-        console.log(`Check that container contains container-images-legal-notice.md: ${image_name}`)
-        await shell_cmd(`docker run ${image_name} find container-images-legal-notice.md | wc -l | grep -v 0`)
 
         if (push_containers == "1") {
             console.log(`Login into Container Registry user=${core.getInput('container_registry_username')} repo=${core.getInput('container_registry_base_url')}`);

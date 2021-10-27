@@ -29,7 +29,7 @@ you can actively engage
   guide](https://docs.akri.sh/community/contributing) to get started.
 - Report a bug
 - Create a pull request with a
-  [proposal](https://github.com/deislabs/akri-docs/tree/main/proposals) of a way
+  [proposal](https://github.com/project-akri/akri-docs/tree/main/proposals) of a way
   you'd like to extend, modify, or enhance Akri
 - Join our [monthly community call](https://hackmd.io/@akri/S1GKJidJd)
 - Join the conversation in our
@@ -67,5 +67,5 @@ Maintainers create the next release when a set of new features and fixes have
 been completed and the main branch is stable. Akri does not have a fixed release
 cadence; however, we prefer to release smaller batches of work more often.
 Akri's [documentation
-repository](https://github.com/deislabs/akri-docs/tree/main/proposals) creates
+repository](https://github.com/project-akri/akri-docs/tree/main/proposals) creates
 releases to match Akri's main repository (starting at `v0.6.19`).

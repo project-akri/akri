@@ -61,7 +61,7 @@ jobs:
         github_event_name: ${{ github.event.workflow_run.event }}
         github_ref: ${{ github.ref }}
         container_name: ${{ matrix.akri-component }}
-        container_prefix: ghcr.io/deislabs/akri
+        container_prefix: ghcr.io/project-akri/akri
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
@@ -102,7 +102,7 @@ jobs:
       with:
         github_event_name: ${{ github.event.workflow_run.event }}
         container_name: ${{ matrix.akri-component }}
-        container_prefix: ghcr.io/deislabs/akri
+        container_prefix: ghcr.io/project-akri/akri
         container_registry_base_url: ghcr.io
         container_registry_username: ${{ secrets.crUsername }}
         container_registry_password: ${{ secrets.crPassword }}
