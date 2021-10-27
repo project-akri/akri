@@ -17,7 +17,4 @@ RUN apt-get update && \
             libv4l-dev libudev-dev
 
 # Link the container to the Akri repository
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
-
-# Copy over container legal notice
-COPY ./build/container-images-legal-notice.md .
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
