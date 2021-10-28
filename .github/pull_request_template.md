@@ -16,4 +16,4 @@
 - [ ] all Akri tests succeed (`cargo test`)
 - [ ] inline documentation builds (`cargo doc`)
 - [ ] version has been updated appropriately (`./version.sh`)
-- [ ] all commits pass the [DCO bot](https://probot.github.io/apps/dco/) by being signed off. (If not signed off, go to the failing DCO check for instructions on how to retroactively sign commits.)
+- [ ] all commits pass the [DCO bot](https://probot.github.io/apps/dco/) by being signed off -- see the failing DCO check for instructions on how to retroactively sign commits
