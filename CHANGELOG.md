@@ -1,9 +1,96 @@
+# v0.7.0
+
+## Announcing Akri v0.7.0!
+Akri v0.7.0 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.7.0 release marks the first release of Akri in a new `project-akri` GitHub organization. While no
+breaking changes were introduced, Akri's minor version was bumped to clearly mark this transition of Akri to a [Cloud
+Native Computing Foundation (CNCF) Sandbox project](https://www.cncf.io/sandbox-projects/). 
+
+This release also introduces:
+- [Open governance](https://github.com/opengovernance/opengovernance.dev)
+  [documentation](https://github.com/project-akri/akri/blob/v0.7.0/GOVERNANCE.md)
+- The switch from MIT to Apache 2 license (https://github.com/project-akri/akri/pull/401)
+- The introduction of the Linux Foundation (LF) Core Infrastructure Initiative (CII) Best Practices badge on Akri's
+  README (https://github.com/project-akri/akri/pull/403)
+- The enablement of a [Developer Certificate of Origin (DCO)](https://github.com/apps/dco) of pull requests, which
+  requires requires all commit messages to contain the Signed-off-by line with an email address that matches the commit
+  author.
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.6.19...v0.7.0)
+
+## Breaking Changes
+N/A
+
+## Known Issues
+A [Rust security issue](https://github.com/project-akri/akri/issues/398) was raised on the `time` crate, which is used
+ultimately by Akri's `k8s-openapi`, `kube-rs` and `opcua-client` dependencies via `chrono`. It appears that the version
+of `time` that `chrono` is using is [not
+vulnerable](https://github.com/kube-rs/kube-rs/issues/650#issuecomment-940435726). This
+[issue](https://github.com/project-akri/akri/issues/398) tracks the progress on `chrono` and Akri's dependencies.
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.21.0 |
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.21.5+k3s1 |
+| K3s | v1.20.6+k3s1 |
+| K3s | v1.19.10+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| K3s | v1.17.17+k3s1 |
+| K3s | v1.16.14+k3s1 |
+| MicroK8s | 1.21/stable |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+| MicroK8s | 1.17/stable |
+| MicroK8s | 1.16/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks
+Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri
+prosper. 
+
+**Contributors to v0.7.0**
+- @bfjelds
+- @kate-goldenring
+- @romoh
+- @edrickwong
+- (Please send us (`@Kate Goldenring` or `@Edrick Wong`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.7.0 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.7.0/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
 # v0.6.19
 
 ## Announcing Akri v0.6.19!
 Akri v0.6.19 is a pre-release of Akri.
 
-To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start [contributing](https://github.com/project-akri/akri/blob/v0.6.19/docs/contributing.md) today!
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
 The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations**, long-awaited runtime and Kubernetes **dependency updates**, and moves Akri's documentation to a [**docs repository**](https://github.com/project-akri/akri-docs).
