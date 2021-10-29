@@ -12,7 +12,7 @@ use log::{error, info, trace};
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -47,7 +47,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for udev protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut discovered_devices_sender, discovered_devices_receiver) =
+        let (discovered_devices_sender, discovered_devices_receiver) =
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
@@ -57,10 +57,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             let udev_rules = discovery_handler_config.udev_rules.clone();
             loop {
                 trace!("discover - for udev rules {:?}", udev_rules);
+                // Before each iteration, check if receiver has dropped
+                if discovered_devices_sender.is_closed() {
+                    error!("discover - channel closed ... attempting to re-register with Agent");
+                    if let Some(sender) = register_sender {
+                        sender.send(()).await.unwrap();
+                    }
+                    break;
+                }
                 let mut devpaths: HashSet<String> = HashSet::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
-                    let paths = do_parse_and_find(enumerator, &rule).unwrap();
+                    let paths = do_parse_and_find(enumerator, rule).unwrap();
                     paths.into_iter().for_each(|path| {
                         devpaths.insert(path);
                     });
@@ -112,16 +120,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             "discover - for udev failed to send discovery response with error {}",
                             e
                         );
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 

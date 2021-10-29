@@ -5,7 +5,6 @@ extern crate lazy_static;
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-extern crate tokio_core;
 mod util;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};

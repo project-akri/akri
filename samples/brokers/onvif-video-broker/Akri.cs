@@ -1,8 +1,4 @@
-using k8s;
-using k8s.Models;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -13,27 +9,6 @@ using System.Xml.XPath;
 
 namespace Akri 
 {
-    public class KubeObject<T> 
-	{
-		public string ApiVersion {get;set;}
-		public string Kind {get;set;}
-		public object Metadata {get;set;}
-		public object Status {get;set;}
-		public T spec {get;set;}
-	}
-
-	public class Instance
-    {
-        private const string VERSION = "akri.sh/v0";
-        private const string KIND = "Instance";
-
-        public string ClassName { get; set; }
-        public Dictionary<String, String> BrokerProperties { get; set; }
-        public bool Shared { get; set; }
-        public IList<String> Nodes { get; set; }
-        public Dictionary<String, String> DeviceUsage { get; set; }
-    }
-
     public static class Akri 
     {
 		private static string PostSoapRequest(String requestUri, String action, String soapMessage)

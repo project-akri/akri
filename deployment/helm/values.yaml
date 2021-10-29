@@ -41,7 +41,7 @@ controller:
   enabled: true
   image:
     # repository is the Akri Controller container reference
-    repository: ghcr.io/deislabs/akri/controller
+    repository: ghcr.io/project-akri/akri/controller
     # tag is the Akri Controller container tag
     # controller.yaml will default to v(AppVersion)[-dev]
     # with `-dev` added if `useDevelopmentContainers` is specified
@@ -78,9 +78,9 @@ agent:
   full: false
   image:
     # repository is the Akri Agent container reference
-    repository: ghcr.io/deislabs/akri/agent
+    repository: ghcr.io/project-akri/akri/agent
     # fullRepository is the container reference for the Akri Agent with embedded Discovery Handlers
-    fullRepository: ghcr.io/deislabs/akri/agent-full
+    fullRepository: ghcr.io/project-akri/akri/agent-full
     # tag is the Akri Agent container tag
     # agent.yaml will default to v(AppVersion)[-dev]
     # with `-dev` added if `useDevelopmentContainers` is specified
@@ -286,7 +286,7 @@ debugEcho:
     enabled: false
     image:
       # repository is the container reference
-      repository: ghcr.io/deislabs/akri/debug-echo-discovery
+      repository: ghcr.io/project-akri/akri/debug-echo-discovery
       # tag is the container tag
       # debug-echo-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
@@ -394,7 +394,7 @@ onvif:
     enabled: false
     image:
       # repository is the container reference
-      repository: ghcr.io/deislabs/akri/onvif-discovery
+      repository: ghcr.io/project-akri/akri/onvif-discovery
       # tag is the container tag
       # onvif-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
@@ -501,7 +501,7 @@ opcua:
     enabled: false
     image:
       # repository is the container reference
-      repository: ghcr.io/deislabs/akri/opcua-discovery
+      repository: ghcr.io/project-akri/akri/opcua-discovery
       # tag is the container tag
       # opcua-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
@@ -553,6 +553,17 @@ udev:
         tag: latest
         # pullPolicy is the udev broker pull policy
         pullPolicy: ""
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
       securityContext: {}
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
@@ -588,7 +599,7 @@ udev:
     enabled: false
     image:
       # repository is the container reference
-      repository: ghcr.io/deislabs/akri/udev-discovery
+      repository: ghcr.io/project-akri/akri/udev-discovery
       # tag is the container tag
       # udev-configuration.yaml will default to v(AppVersion)[-dev]
       # with `-dev` added if `useDevelopmentContainers` is specified
@@ -598,14 +609,14 @@ udev:
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 10Mi
+      memoryRequest: 11Mi
       # cpuRequest defines the minimum amount of CPU that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
       cpuRequest: 10m
       # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 30Mi
+      memoryLimit: 24Mi
       # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 29m
+      cpuLimit: 23m
     # useNetworkConnection specifies whether the discovery handler should make a networked connection
     # with Agents, using its pod IP address when registering
     useNetworkConnection: false
@@ -639,7 +650,7 @@ webhookConfiguration:
   caBundle: null
   image:
     # repository is the Akri Webhook for Configurations image reference
-    repository: ghcr.io/deislabs/akri/webhook-configuration
+    repository: ghcr.io/project-akri/akri/webhook-configuration
     # tag is the container tag
     # webhook-configuration.yaml will default to v(AppVersion)[-dev]
     # with `-dev` added if `useDevelopmentContainers` is specified

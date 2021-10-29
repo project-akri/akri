@@ -3,11 +3,11 @@ use akri_discovery_utils::discovery::{
     DiscoverStream,
 };
 use async_trait::async_trait;
-use tokio::sync::mpsc;
-use tonic::{Response, Status};
+use log::info;
 use reqwest::get;
 use std::collections::HashMap;
-use log::info;
+use tokio::sync::mpsc;
+use tonic::{Response, Status};
 
 const BROKER_NAME: &str = "AKRI_HTTP";
 const DEVICE_ENDPOINT: &str = "AKRI_HTTP_DEVICE_ENDPOINT";
@@ -33,11 +33,11 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         // Get the discovery url from the `DiscoverRequest`
         let url = request.get_ref().discovery_details.clone();
         // Create a channel for sending and receiving device updates
-        let (mut stream_sender, stream_receiver) = mpsc::channel(4);
-        let mut register_sender = self.register_sender.clone();
+        let (stream_sender, stream_receiver) = mpsc::channel(4);
+        let register_sender = self.register_sender.clone();
         tokio::spawn(async move {
             loop {
-                let resp = get(&url).await.unwrap(); 
+                let resp = get(&url).await.unwrap();
                 // Response is a newline separated list of devices (host:port) or empty
                 let device_list = &resp.text().await.unwrap();
                 let devices = device_list
@@ -63,6 +63,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             }
         });
         // Send the agent one end of the channel to receive device updates
-        Ok(Response::new(stream_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            stream_receiver,
+        )))
     }
 }

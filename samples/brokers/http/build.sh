@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 : "${REGISTRY:?Need to export REGISTRY e.g. ghcr.io}"
-: "${USER:?Need to export USER e.g. ghcr.io/deislabs/...}"
+: "${USER:?Need to export USER e.g. ghcr.io/project-akri/...}"
 : "${PREFIX:?Need to export PREFIX e.g. ${REGISTRY}/${USER}/http...}"
 : "${TAG:?Need to export TAG e.g. v1}"
 

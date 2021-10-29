@@ -62,7 +62,7 @@ The first step is fairly simple for our Http devices (create this in `samples/br
 ```proto
 syntax = "proto3";
 
-option go_package = "github.com/deislabs/akri/http-extensibility/proto";
+option go_package = "github.com/project-akri/akri/http-extensibility/proto";
 
 package http;
 
@@ -290,7 +290,7 @@ RUN apt-get update && \
     openssl && \
     apt-get clean
 COPY --from=build /http/target/release/broker /broker
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
 ENV RUST_LOG broker
@@ -321,7 +321,7 @@ RUN apt-get update && \
     openssl && \
     apt-get clean
 COPY --from=build /http/target/release/client /client
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
 ENV RUST_LOG client

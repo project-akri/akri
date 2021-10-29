@@ -104,7 +104,7 @@ jobs:
 
       - name: Create new merged helm chart index
         if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')
-        run: helm repo index --url https://deislabs.github.io/akri --merge index.yaml .
+        run: helm repo index --url https://project-akri.github.io/akri --merge index.yaml .
 
       - name: Upload new merged helm chart index as artifact
         if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (startsWith(github.event_name, 'pull_request') && github.event.action == 'closed' && github.event.pull_request.merged == true && github.ref != 'refs/heads/main')

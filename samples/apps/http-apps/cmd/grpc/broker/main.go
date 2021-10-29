@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	pb "github.com/deislabs/akri/http-extensibility/prots"
+	pb "github.com/project-akri/akri/http-extensibility/prots"
 
 	"google.golang.org/grpc"
 )

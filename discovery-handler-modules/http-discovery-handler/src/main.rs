@@ -20,9 +20,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let (register_sender, register_receiver) = tokio::sync::mpsc::channel(2);
     // Create a DiscoveryHandler
     let discovery_handler = DiscoveryHandlerImpl::new(register_sender);
-    // This function will register the DiscoveryHandler with the Agent's registration socket 
-    // and serve its discover service over UDS at the socket path 
-    // `format!("{}/{}.sock"), env::var("DISCOVERY_HANDLERS_DIRECTORY"), name)`. 
+    // This function will register the DiscoveryHandler with the Agent's registration socket
+    // and serve its discover service over UDS at the socket path
+    // `format!("{}/{}.sock"), env::var("DISCOVERY_HANDLERS_DIRECTORY"), name)`.
     run_discovery_handler(discovery_handler, register_receiver, name, shared).await?;
     Ok(())
 }

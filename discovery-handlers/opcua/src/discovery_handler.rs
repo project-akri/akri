@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use log::{error, info, trace};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tonic::{Response, Status};
 
 // TODO: make this configurable
@@ -79,7 +79,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         info!("discover - called for OPC UA protocol");
         let register_sender = self.register_sender.clone();
         let discover_request = request.get_ref();
-        let (mut discovered_devices_sender, discovered_devices_receiver) =
+        let (discovered_devices_sender, discovered_devices_receiver) =
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: OpcuaDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
@@ -89,6 +89,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             let discovery_method = discovery_handler_config.opcua_discovery_method.clone();
             let application_names = discovery_handler_config.application_names.clone();
             loop {
+                // Before each iteration, check if receiver has dropped
+                if discovered_devices_sender.is_closed() {
+                    error!("discover - channel closed ... attempting to re-register with Agent");
+                    if let Some(sender) = register_sender {
+                        sender.send(()).await.unwrap();
+                    }
+                    break;
+                }
+
                 let discovery_urls: Vec<String> = match discovery_method.clone() {
                     OpcuaDiscoveryMethod::Standard(standard_opcua_discovery) => {
                         do_standard_discovery(
@@ -141,16 +150,18 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             "discover - for OPC UA failed to send discovery response with error {}",
                             e
                         );
-                        if let Some(mut sender) = register_sender {
+                        if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
                         }
                         break;
                     }
                 }
-                delay_for(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
+                sleep(Duration::from_secs(DISCOVERY_INTERVAL_SECS)).await;
             }
         });
-        Ok(Response::new(discovered_devices_receiver))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            discovered_devices_receiver,
+        )))
     }
 }
 
@@ -165,7 +176,7 @@ mod tests {
             opcuaDiscoveryMethod: 
               standard: {}
         "#;
-        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(&yaml).unwrap();
+        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_deserialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://localhost:4840/"]}}}"#;
         assert_eq!(expected_deserialized, serialized);
@@ -184,7 +195,7 @@ mod tests {
               items: 
               - "Some application name" 
         "#;
-        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(&yaml).unwrap();
+        let dh_config: OpcuaDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         let serialized = serde_json::to_string(&dh_config).unwrap();
         let expected_serialized = r#"{"opcuaDiscoveryMethod":{"standard":{"discoveryUrls":["opc.tcp://127.0.0.1:4855/"]}},"applicationNames":{"items":["Some application name"],"action":"Include"}}"#;
         assert_eq!(expected_serialized, serialized);

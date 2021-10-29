@@ -15,7 +15,7 @@ spec:
       serviceAccountName: akri-video-streaming-app-sa
       containers:
       - name: akri-video-streaming-app
-        image: ghcr.io/deislabs/akri/video-streaming-app:latest-dev
+        image: ghcr.io/project-akri/akri/video-streaming-app:latest-dev
         imagePullPolicy: Always
         env:
         # Streamer works in two modes; either specify the following commented

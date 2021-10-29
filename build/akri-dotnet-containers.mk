@@ -1,5 +1,5 @@
 define add_onvif_target
-  akri-$(1): akri-build akri-docker-$(1)
+  akri-$(1): akri-docker-$(1)
   akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
   $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
   $(1)-docker-per-arch: $(1)-docker-per-arch-amd64 $(1)-docker-per-arch-arm32 $(1)-docker-per-arch-arm64

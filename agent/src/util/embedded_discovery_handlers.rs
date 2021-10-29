@@ -93,7 +93,7 @@ mod tests {
         discoveryDetails: |+
             udevRules: []
         "#;
-        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&udev_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(udev_yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
         let yaml = r#"
@@ -102,7 +102,7 @@ mod tests {
             opcuaDiscoveryMethod: 
               standard: {}
         "#;
-        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(yaml).unwrap();
         assert!(inner_get_discovery_handler(&deserialized, &mock_query).is_ok());
 
         let deserialized = serde_json::from_str::<DiscoveryHandlerInfo>(
@@ -121,7 +121,7 @@ mod tests {
             descriptions:
             - "foo1"
         "#;
-        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(&debug_echo_yaml).unwrap();
+        let deserialized: DiscoveryHandlerInfo = serde_yaml::from_str(debug_echo_yaml).unwrap();
         // Test that errors without environment var set
         let mut mock_query_without_var_set = MockEnvVarQuery::new();
         mock_query_without_var_set

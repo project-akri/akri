@@ -1,0 +1,1505 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+build/akri-containers.mk:119: *** missing separator.  Stop.
+ 
+# GNU Make 4.2.1
+# Built for x86_64-pc-linux-gnu
+# Copyright (C) 1988-2016 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Fri Oct 29 08:18:29 2021
+
+# Variables
+
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# automatic
+?F = $(notdir $?)
+# environment
+OPAM_SWITCH_PREFIX = /usr/local/opam/default
+# default
+.SHELLFLAGS := -c
+# environment
+OCAML_TOPLEVEL_PATH = /usr/local/opam/default/lib/toplevel
+# environment
+XDG_SESSION_CLASS = user
+# environment
+VSCODE_AGENT_FOLDER = /home/kagold/.vscode-server
+# makefile (from 'build/akri-containers.mk', line 33)
+agent_build_slim = 	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml
+# environment
+XDG_SESSION_TYPE = tty
+# makefile (from 'Makefile', line 2)
+BUILD_ARM32 = 1
+# environment
+VSCODE_LOG_NATIVE = false
+# makefile (from 'Makefile', line 42)
+CACHE_OPTION = 
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# automatic
+@F = $(notdir $@)
+# default
+MAKE_VERSION := 4.2.1
+# makefile
+CURDIR := /home/kagold/akri-fork
+# makefile
+SHELL = /bin/sh
+# makefile (from 'Makefile', line 40)
+LABEL_PREFIX = $(VERSION_LABEL)
+# makefile (from 'build/akri-containers.mk', line 39)
+define agent_build_with_features
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml --features "${AGENT_FEATURES}"
+	mv target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/agent target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/${FULL_AGENT_EXECUTABLE_NAME}
+endef
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en","availableLanguages":{}}
+# environment
+_ = /home/kagold/.vscode-server/bin/6cba118ac49a1b88332f312a8f67186f7f3c1643/node
+# makefile (from 'build/intermediate-containers.mk', line 2)
+BUILD_RUST_CROSSBUILD_VERSION = 0.0.7
+# makefile (from 'build/akri-python-containers.mk', line 1)
+MAKEFILE_LIST :=  Makefile build/intermediate-containers.mk build/akri-containers.mk build/akri-rust-containers.mk build/akri-dotnet-containers.mk build/akri-python-containers.mk build/akri-rust-containers.mk build/akri-dotnet-containers.mk build/akri-python-containers.mk
+# makefile (from 'Makefile', line 48)
+ARM64V8_SUFFIX = arm64v8
+# environment
+GNUMAKEFLAGS := 
+# environment
+XDG_DATA_DIRS = /usr/local/share:/usr/share:/var/lib/snapd/desktop
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1002/bus
+# makefile (from 'Makefile', line 36)
+VERSION := 0.7.0
+# environment
+VSCODE_VERBOSE_LOGGING = true
+# makefile (from 'Makefile', line 52)
+ARM64V8_TARGET = aarch64-unknown-linux-gnu
+# environment
+LESSOPEN = | /usr/bin/lesspipe %s
+# environment
+VSCODE_CWD = /home/kagold
+# environment
+SSH_CONNECTION = 10.90.25.117 52159 10.137.184.218 22
+# environment
+PATH = /home/kagold/.vscode-server/bin/6cba118ac49a1b88332f312a8f67186f7f3c1643/bin:/home/kagold/.cargo/bin:/home/kagold/.nvm/versions/node/v12.18.2/bin:/usr/local/opam/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+# environment
+XDG_RUNTIME_DIR = /run/user/1002
+# makefile (from 'Makefile', line 20)
+FULL_AGENT_EXECUTABLE_NAME = agent-full
+# makefile (from 'Makefile', line 47)
+ARM32V7_SUFFIX = arm32v7
+# makefile (from 'build/akri-python-containers.mk', line 2)
+define add_python_target
+  akri-$(1): akri-build akri-docker-$(1)
+  akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
+  $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
+  $(1)-docker-per-arch: $(1)-docker-per-arch-amd64 $(1)-docker-per-arch-arm32 $(1)-docker-per-arch-arm64
+
+  $(1)-build-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg PLATFORM=$(AMD64_SUFFIX)
+  endif
+  $(1)-build-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX)
+  endif
+  $(1)-build-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-per-arch-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-create:
+  ifeq (1, ${BUILD_AMD64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM32})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-push:
+	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/$(2):$(LABEL_PREFIX)
+
+endef
+# makefile (from 'Makefile', line 44)
+ENABLE_DOCKER_MANIFEST = DOCKER_CLI_EXPERIMENTAL=enabled
+# environment
+NVM_BIN = /home/kagold/.nvm/versions/node/v12.18.2/bin
+# environment
+VSCODE_LOG_STACK = false
+# environment
+VSCODE_IPC_HOOK_CLI = /run/user/1002/vscode-ipc-c8d46cbe-0590-419a-8e69-b3cf286ba065.sock
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
+# environment
+LS_COLORS = 
+# automatic
+%F = $(notdir $%)
+# environment
+VSCODE_PIPE_LOGGING = true
+# environment
+PWD = /home/kagold/akri-fork
+# makefile (from 'Makefile', line 17)
+CARGO_INCREMENTAL = 0
+# default
+.LOADED := 
+# makefile (from 'Makefile', line 29)
+INTERMEDIATE_DOCKERFILE_DIR = build/containers/intermediate
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# makefile (from 'Makefile', line 51)
+ARM32V7_TARGET = armv7-unknown-linux-gnueabihf
+# environment
+MANPATH = /home/kagold/.nvm/versions/node/v12.18.2/share/man:/usr/local/opam/default/man
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/server/remoteExtensionHostProcess
+# environment
+HOME = /home/kagold
+# environment
+LESSCLOSE = /usr/bin/lesspipe %s %s
+# environment
+LOGNAME = kagold
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
+# environment
+NVM_CD_FLAGS = 
+# automatic
++F = $(notdir $+)
+# makefile (from 'Makefile', line 32)
+PREFIX = $(REGISTRY)/$(UNIQUE_ID)
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# environment
+MFX_HOME = /opt/intel/mediasdk
+# environment
+MAKELEVEL := 0
+# makefile (from 'Makefile', line 37)
+TIMESTAMP := 20211029_081829
+# default
+MAKE = $(MAKE_COMMAND)
+# default
+MAKECMDGOALS := all
+# environment
+SHLVL = 0
+# makefile (from 'Makefile', line 7)
+BUILD_RELEASE_FLAG = 1
+# makefile (from 'Makefile', line 30)
+DOCKERFILE_DIR = build/containers
+# environment
+LIBVA_DRIVER_NAME = iHD
+# makefile (from 'build/akri-containers.mk', line 1)
+USE_OPENCV_BASE_VERSION = 0.0.8
+# environment
+XDG_SESSION_ID = 497
+# environment
+USER = kagold
+# environment
+CAML_LD_LIBRARY_PATH = /usr/local/opam/default/lib/stublibs
+# makefile
+.DEFAULT_GOAL := opencv-base
+# makefile (from 'Makefile', line 19)
+BUILD_SLIM_AGENT = 1
+# environment
+LIBVIRT_DEFAULT_URI = qemu:///system
+# makefile (from 'build/akri-dotnet-containers.mk', line 53)
+define add_opcua_target
+  akri-$(1): akri-build akri-docker-$(1)
+  akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
+  $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
+  $(1)-docker-per-arch: $(1)-docker-per-arch-amd64 $(1)-docker-per-arch-arm32 $(1)-docker-per-arch-arm64
+
+  $(1)-build-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim --build-arg DOTNET_PUBLISH_RUNTIME=linux-x64
+  endif
+  $(1)-build-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim-$(ARM32V7_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm
+  endif
+  $(1)-build-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim-$(ARM64V8_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm64
+  endif
+
+  $(1)-docker-per-arch-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-create:
+  ifeq (1, ${BUILD_AMD64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM32})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-push:
+	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/$(2):$(LABEL_PREFIX)
+
+endef
+# makefile (from 'Makefile', line 39)
+VERSION_LABEL = v$(VERSION)-$(TIMESTAMP)
+# makefile (from 'build/intermediate-containers.mk', line 6)
+CROSS_VERSION = 0.1.16
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# makefile (from 'Makefile', line 46)
+AMD64_SUFFIX = amd64
+# makefile (from 'Makefile', line 27)
+UNIQUE_ID = $(USER)
+# default
+MAKE_COMMAND := make
+# default
+.VARIABLES := 
+# automatic
+*F = $(notdir $*)
+# makefile
+MAKEFLAGS = pqrR
+# environment
+MFLAGS = -pqrR
+# environment
+SSH_CLIENT = 10.90.25.117 52159 22
+# environment
+NVM_DIR = /home/kagold/.nvm
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# environment
+BROWSER = /home/kagold/.vscode-server/bin/6cba118ac49a1b88332f312a8f67186f7f3c1643/bin/helpers/browser.sh
+# makefile (from 'build/akri-dotnet-containers.mk', line 1)
+define add_onvif_target
+<<<<<<< HEAD
+  akri-$(1): akri-docker-$(1)
+=======
+  akri-$(1): akri-build akri-docker-$(1)
+>>>>>>> HTTP Extensibility Branch Rebase and Update (#320)
+  akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
+  $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
+  $(1)-docker-per-arch: $(1)-docker-per-arch-amd64 $(1)-docker-per-arch-arm32 $(1)-docker-per-arch-arm64
+
+  $(1)-build-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=$(USE_OPENCV_BASE_VERSION)-$(AMD64_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-x64
+  endif
+  $(1)-build-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=$(USE_OPENCV_BASE_VERSION)-$(ARM32V7_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm
+  endif
+  $(1)-build-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=$(USE_OPENCV_BASE_VERSION)-$(ARM64V8_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm64
+  endif
+
+  $(1)-docker-per-arch-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-create:
+  ifeq (1, ${BUILD_AMD64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM32})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-push:
+	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/$(2):$(LABEL_PREFIX)
+
+endef
+# 'override' directive
+.SHELLSTATUS := 0
+# default
+MAKEFILES := 
+# automatic
+<F = $(notdir $<)
+# environment
+LIBVA_DRIVERS_PATH = /opt/intel/mediasdk/lib64
+# makefile (from 'Makefile', line 50)
+AMD64_TARGET = x86_64-unknown-linux-gnu
+# makefile (from 'build/intermediate-containers.mk', line 4)
+BUILD_OPENCV_BASE_VERSION = 0.0.8
+# environment
+OPAMROOT = /usr/local/opam
+# environment
+LC_ALL = C
+# makefile (from 'build/akri-rust-containers.mk', line 3)
+define add_rust_targets
+  akri-$(1): akri-build akri-docker-$(1)
+  akri-docker-$(1): $(1)-build $(1)-docker-per-arch $(1)-docker-multi-arch-create $(1)-docker-multi-arch-push
+  $(1)-build: $(1)-build-amd64 $(1)-build-arm32 $(1)-build-arm64
+  $(1)-docker-per-arch: $(1)-docker-per-arch-amd64 $(1)-docker-per-arch-arm32 $(1)-docker-per-arch-arm64
+
+  $(1)-build-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg PLATFORM=$(AMD64_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(AMD64_TARGET) --build-arg BUILD_TYPE=$(if $(BUILD_RELEASE_FLAG),release,debug)
+  endif
+  $(1)-build-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=$(ARM32V7_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM32V7_TARGET) --build-arg BUILD_TYPE=$(if $(BUILD_RELEASE_FLAG),release,debug)
+  endif
+  $(1)-build-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=$(ARM64V8_SUFFIX) --build-arg CROSS_BUILD_TARGET=$(ARM64V8_TARGET) --build-arg BUILD_TYPE=$(if $(BUILD_RELEASE_FLAG),release,debug)
+  endif
+
+  $(1)-docker-per-arch-amd64:
+  ifeq (1, ${BUILD_AMD64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm32:
+  ifeq (1, ${BUILD_ARM32})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  $(1)-docker-per-arch-arm64:
+  ifeq (1, ${BUILD_ARM64})
+	docker push $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-create:
+  ifeq (1, ${BUILD_AMD64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM32})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX)
+  endif
+  ifeq (1, ${BUILD_ARM64})
+	$(ENABLE_DOCKER_MANIFEST) docker manifest create --amend $(PREFIX)/$(2):$(LABEL_PREFIX) $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX)
+  endif
+
+  $(1)-docker-multi-arch-push:
+	$(ENABLE_DOCKER_MANIFEST) docker manifest push $(PREFIX)/$(2):$(LABEL_PREFIX)
+
+endef
+# automatic
+^F = $(notdir $^)
+# makefile (from 'Makefile', line 3)
+BUILD_ARM64 = 1
+# default
+SUFFIXES := 
+# makefile (from 'Makefile', line 1)
+BUILD_AMD64 = 1
+# default
+.INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
+# environment
+VSCODE_INJECT_NODE_MODULE_LOOKUP_PATH = /home/kagold/.vscode-server/bin/6cba118ac49a1b88332f312a8f67186f7f3c1643/remote/node_modules
+# default
+.RECIPEPREFIX := 
+# default
+MAKE_HOST := x86_64-pc-linux-gnu
+# environment
+LANG = C
+# makefile (from 'Makefile', line 26)
+REGISTRY = devcaptest.azurecr.io
+# makefile (from 'Makefile', line 24)
+AGENT_FEATURES = 
+# makefile (from 'Makefile', line 11)
+PACKAGES_TO_EXCLUDE = 
+# environment
+VSCODE_EXTHOST_WILL_SEND_SOCKET = true
+# environment
+MOTD_SHOWN = pam
+# variable set hash-table stats:
+ 
+# Load=119/1024=12%, Rehash=0, Collisions=396/1769=22%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 66306, inode 13075435): 37 files, no impossibilities.
+
+# 37 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+rust-crossbuild-build: rust-crossbuild-build-amd64 rust-crossbuild-build-arm32 rust-crossbuild-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+rust-crossbuild-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 80):
+	 docker push $(PREFIX)/rust-crossbuild:$(ARM64V8_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+opcua-discovery-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker push devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-amd64
+
+debug-echo-discovery-docker-per-arch: debug-echo-discovery-docker-per-arch-amd64 debug-echo-discovery-docker-per-arch-arm32 debug-echo-discovery-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker build  -f build/containers/Dockerfile.agent . -t devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+udev-discovery-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker build  -f build/containers/Dockerfile.udev-discovery . -t devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+rust-crossbuild-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 66):
+	 docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.rust-crossbuild-$(ARM64V8_SUFFIX) . -t $(PREFIX)/rust-crossbuild:$(ARM64V8_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+udev-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829
+
+akri-docker-http-discovery: http-discovery-build http-discovery-docker-per-arch http-discovery-docker-multi-arch-create http-discovery-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-docker-per-arch: controller-docker-per-arch-amd64 controller-docker-per-arch-arm32 controller-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+webhook-configuration-build: webhook-configuration-build-amd64 webhook-configuration-build-arm32 webhook-configuration-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+all:
+#  Command line target.
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opcua-discovery-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker build  -f build/containers/Dockerfile.opcua-discovery . -t devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+debug-echo-discovery-build: debug-echo-discovery-build-amd64 debug-echo-discovery-build-arm32 debug-echo-discovery-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+debug-echo-discovery-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker push devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm64v8
+
+onvif-discovery-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm64v8
+
+agent-full-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829
+
+akri-docker-controller: controller-build controller-docker-per-arch controller-docker-multi-arch-create controller-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+.PHONY: opencv-base rust-crossbuild install-cross akri
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-docker-debug-echo-discovery: debug-echo-discovery-build debug-echo-discovery-docker-per-arch debug-echo-discovery-docker-multi-arch-create debug-echo-discovery-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-discovery-docker-per-arch: udev-discovery-docker-per-arch-amd64 udev-discovery-docker-per-arch-arm32 udev-discovery-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+onvif-discovery-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker push devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-amd64
+
+udev-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker push devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm32v7
+
+controller-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm64v8
+
+debug-echo-discovery-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker build  -f build/containers/Dockerfile.debug-echo-discovery . -t devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+webhook-configuration-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829
+
+agent-full-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker build  -f build/containers/Dockerfile.agent-full . -t devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+opcua-discovery-docker-per-arch: opcua-discovery-docker-per-arch-amd64 opcua-discovery-docker-per-arch-arm32 opcua-discovery-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-udev: akri-build akri-docker-udev
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-full-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker build  -f build/containers/Dockerfile.agent-full . -t devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+udev-discovery-build: udev-discovery-build-amd64 udev-discovery-build-arm32 udev-discovery-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker push devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-amd64
+
+udev-discovery-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker push devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm64v8
+
+http-discovery-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm64v8
+
+onvif-discovery-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker build  -f build/containers/Dockerfile.onvif-discovery . -t devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+akri-docker-webhook-configuration: webhook-configuration-build webhook-configuration-docker-per-arch webhook-configuration-docker-multi-arch-create webhook-configuration-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker build  -f build/containers/Dockerfile.udev-video-broker . -t devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+# Not a target:
+akri-docker-onvif:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opcua-discovery-build: opcua-discovery-build-amd64 opcua-discovery-build-arm32 opcua-discovery-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opcua-discovery-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker push devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm64v8
+
+akri-opcua-discovery: akri-build akri-docker-opcua-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+Makefile:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+http-discovery-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker push devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-amd64
+
+akri-cross-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 77):
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(AMD64_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
+	$(call agent_build_slim,$(AMD64_TARGET))
+
+opencv-base-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 38):
+	docker push $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM32V7_SUFFIX)
+
+webhook-configuration-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker push devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm32v7
+
+controller-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker build  -f build/containers/Dockerfile.controller . -t devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+udev-discovery-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker build  -f build/containers/Dockerfile.udev-discovery . -t devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+http-discovery-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker build  -f build/containers/Dockerfile.http-discovery . -t devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+agent-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm64v8
+
+http-discovery-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker build  -f build/containers/Dockerfile.http-discovery . -t devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+# Not a target:
+build/akri-python-containers.mk:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+onvif-discovery-docker-per-arch: onvif-discovery-docker-per-arch-amd64 onvif-discovery-docker-per-arch-arm32 onvif-discovery-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+debug-echo-discovery-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker build  -f build/containers/Dockerfile.debug-echo-discovery . -t devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+opcua-discovery-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker build  -f build/containers/Dockerfile.opcua-discovery . -t devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+agent-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker push devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-amd64
+
+agent-full-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker push devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm32v7
+
+opencv-base-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 25):
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM32V7_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim-$(ARM32V7_SUFFIX)
+
+agent-full-build: agent-full-build-amd64 agent-full-build-arm32 agent-full-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+webhook-configuration-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker build  -f build/containers/Dockerfile.webhook-configuration . -t devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+# Not a target:
+build/akri-containers.mk:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+rust-crossbuild-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 76):
+	 docker push $(PREFIX)/rust-crossbuild:$(ARM32V7_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+onvif-discovery-build: onvif-discovery-build-amd64 onvif-discovery-build-arm32 onvif-discovery-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+onvif-discovery-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker push devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm64v8
+
+debug-echo-discovery-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829
+
+akri-onvif-discovery: akri-build akri-docker-onvif-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker build  -f build/containers/Dockerfile.agent . -t devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+# Not a target:
+akri-docker-streaming:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+build/intermediate-containers.mk:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-cross-build: akri-cross-build-amd64 akri-cross-build-arm32 akri-cross-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+http-discovery-docker-per-arch: http-discovery-docker-per-arch-amd64 http-discovery-docker-per-arch-arm32 http-discovery-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-build: controller-build-amd64 controller-build-arm32 controller-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+rust-crossbuild-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 62):
+	 docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.rust-crossbuild-$(ARM32V7_SUFFIX) . -t $(PREFIX)/rust-crossbuild:$(ARM32V7_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+controller-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker push devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm64v8
+
+opencv-base: opencv-base-build opencv-base-docker-per-arch
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+onvif-discovery-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker build  -f build/containers/Dockerfile.onvif-discovery . -t devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+install-cross:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 54):
+	cargo install cross
+
+# Not a target:
+akri-docker-anomaly-detection:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm64v8
+
+akri-docker-udev: udev-build udev-docker-per-arch udev-docker-multi-arch-create udev-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+debug-echo-discovery-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker push devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm32v7
+
+http-discovery-build: http-discovery-build-amd64 http-discovery-build-arm32 http-discovery-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-docker-per-arch: agent-docker-per-arch-amd64 agent-docker-per-arch-arm32 agent-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri: akri-build akri-docker-all
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-cross-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 97):
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(ARM64V8_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
+	$(call agent_build_slim,$(ARM64V8_TARGET))
+
+udev-discovery-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829
+
+akri-webhook-configuration: akri-build akri-docker-webhook-configuration
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker build  -f build/containers/Dockerfile.controller . -t devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+udev-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker push devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-amd64
+
+agent-full-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker push devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-amd64
+
+opcua-discovery-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829
+
+agent-full-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker push devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm64v8
+
+rust-crossbuild: rust-crossbuild-build rust-crossbuild-docker-per-arch
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-build: agent-build-amd64 agent-build-arm32 agent-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker push devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm64v8
+
+akri-docker-opcua-discovery: opcua-discovery-build opcua-discovery-docker-per-arch opcua-discovery-docker-multi-arch-create opcua-discovery-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-full-docker-per-arch: agent-full-docker-per-arch-amd64 agent-full-docker-per-arch-arm32 agent-full-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-full-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm64v8
+
+webhook-configuration-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm64v8
+
+udev-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker build  -f build/containers/Dockerfile.udev-video-broker . -t devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+udev-discovery-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker push devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm32v7
+
+akri-udev-discovery: akri-build akri-docker-udev-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker build  -f build/containers/Dockerfile.agent . -t devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+opencv-base-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 34):
+	docker push $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(AMD64_SUFFIX)
+
+opcua-discovery-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker push devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm32v7
+
+webhook-configuration-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker push devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-amd64
+
+akri-agent-full: akri-build akri-docker-agent-full
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-agent: akri-build akri-docker-agent
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+onvif-discovery-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829
+
+udev-discovery-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker build  -f build/containers/Dockerfile.udev-discovery . -t devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+udev-docker-per-arch: udev-docker-per-arch-amd64 udev-docker-per-arch-arm32 udev-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-docker-onvif-discovery: onvif-discovery-build onvif-discovery-docker-per-arch onvif-discovery-docker-multi-arch-create onvif-discovery-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opencv-base-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 21):
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(AMD64_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim
+
+opcua-discovery-build-arm32:
+ 
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	docker build  -f build/containers/Dockerfile.opcua-discovery . -t devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+webhook-configuration-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker build  -f build/containers/Dockerfile.webhook-configuration . -t devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+akri-debug-echo-discovery: akri-build akri-docker-debug-echo-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829
+
+rust-crossbuild-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 72):
+	 docker push $(PREFIX)/rust-crossbuild:$(AMD64_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+akri-http-discovery: akri-build akri-docker-http-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-build: udev-build-amd64 udev-build-arm32 udev-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker push devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm64v8
+
+onvif-discovery-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker push devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm32v7
+
+http-discovery-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829
+
+akri-controller: akri-build akri-docker-controller
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+http-discovery-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker push devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm64v8
+
+opencv-base-docker-per-arch: opencv-base-docker-per-arch-amd64 opencv-base-docker-per-arch-arm32 opencv-base-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+build/akri-rust-containers.mk:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+webhook-configuration-docker-per-arch: webhook-configuration-docker-per-arch-amd64 webhook-configuration-docker-per-arch-arm32 webhook-configuration-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+build/akri-dotnet-containers.mk:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+rust-crossbuild-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 58):
+	 docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.rust-crossbuild-$(AMD64_SUFFIX) . -t $(PREFIX)/rust-crossbuild:$(AMD64_TARGET)-$(CROSS_VERSION)-$(BUILD_RUST_CROSSBUILD_VERSION)
+
+debug-echo-discovery-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-arm64v8
+
+controller-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker push devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm32v7
+
+udev-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 110):
+	docker build  -f build/containers/Dockerfile.udev-video-broker . -t devcaptest.azurecr.io/kagold/udev-video-broker:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+onvif-discovery-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 114):
+	docker build  -f build/containers/Dockerfile.onvif-discovery . -t devcaptest.azurecr.io/kagold/onvif-discovery:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+agent-docker-multi-arch-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829
+
+debug-echo-discovery-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker push devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-amd64
+
+opencv-base-build: opencv-base-build-amd64 opencv-base-build-arm32 opencv-base-build-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opencv-base-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 42):
+	docker push $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM64V8_SUFFIX)
+
+webhook-configuration-docker-per-arch-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker push devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm64v8
+
+http-discovery-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker push devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm32v7
+
+akri-cross-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 87):
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(ARM32V7_TARGET) --workspace --exclude agent $(foreach package,$(wordlist 1, 100, $(PACKAGES_TO_EXCLUDE)),--exclude $(package))
+	$(call agent_build_slim,$(ARM32V7_TARGET))
+
+akri-docker-all: akri-docker-controller akri-docker-agent akri-docker-udev akri-docker-onvif akri-docker-streaming akri-docker-opcua-monitoring akri-docker-anomaly-detection akri-docker-webhook-configuration akri-docker-debug-echo-discovery akri-docker-http-discovery akri-docker-onvif-discovery akri-docker-opcua-discovery akri-docker-udev-discovery
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+rust-crossbuild-docker-per-arch: rust-crossbuild-docker-per-arch-amd64 rust-crossbuild-docker-per-arch-arm32 rust-crossbuild-docker-per-arch-arm64
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+controller-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 107):
+	docker build  -f build/containers/Dockerfile.controller . -t devcaptest.azurecr.io/kagold/controller:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+akri-build: install-cross akri-cross-build
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+udev-discovery-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-arm64v8
+
+debug-echo-discovery-build-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 112):
+	docker build  -f build/containers/Dockerfile.debug-echo-discovery . -t devcaptest.azurecr.io/kagold/debug-echo-discovery:v0.7.0-20211029_081829-amd64 --build-arg PLATFORM=amd64 --build-arg CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+# Not a target:
+akri-docker-opcua-monitoring:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+akri-docker-udev-discovery: udev-discovery-build udev-discovery-docker-per-arch udev-discovery-docker-multi-arch-create udev-discovery-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opencv-base-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/intermediate-containers.mk', line 29):
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM64V8_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim-$(ARM64V8_SUFFIX)
+
+webhook-configuration-build-arm64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 111):
+	docker build  -f build/containers/Dockerfile.webhook-configuration . -t devcaptest.azurecr.io/kagold/webhook-configuration:v0.7.0-20211029_081829-arm64v8 --build-arg PLATFORM=arm64v8 --build-arg CROSS_BUILD_TARGET=aarch64-unknown-linux-gnu --build-arg BUILD_TYPE=release
+
+akri-docker-agent-full: agent-full-build agent-full-docker-per-arch agent-full-docker-multi-arch-create agent-full-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+agent-docker-per-arch-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 108):
+	docker push devcaptest.azurecr.io/kagold/agent:v0.7.0-20211029_081829-arm32v7
+
+http-discovery-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 113):
+	docker build  -f build/containers/Dockerfile.http-discovery . -t devcaptest.azurecr.io/kagold/http-discovery:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+akri-docker-agent: agent-build agent-docker-per-arch agent-docker-multi-arch-create agent-docker-multi-arch-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opcua-discovery-docker-multi-arch-create:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 115):
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-amd64
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm32v7
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829 devcaptest.azurecr.io/kagold/opcua-discovery:v0.7.0-20211029_081829-arm64v8
+
+ 
+agent-full-build-arm32:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 109):
+	docker build  -f build/containers/Dockerfile.agent-full . -t devcaptest.azurecr.io/kagold/agent-full:v0.7.0-20211029_081829-arm32v7 --build-arg PLATFORM=arm32v7 --build-arg CROSS_BUILD_TARGET=armv7-unknown-linux-gnueabihf --build-arg BUILD_TYPE=release
+
+udev-discovery-docker-per-arch-amd64:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'build/akri-containers.mk', line 116):
+	docker push devcaptest.azurecr.io/kagold/udev-discovery:v0.7.0-20211029_081829-amd64
+
+# files hash-table stats:
+# Load=160/1024=16%, Rehash=0, Collisions=63/468=13%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 198 / storage = 4868 B / avg = 24 B
+# current buf: size = 8162 B / used = 4868 B / count = 198 / avg = 24 B
+
+# strcache performance: lookups = 522 / hit rate = 62%
+# hash-table stats:
+# Load=198/8192=2%, Rehash=0, Collisions=1/522=0%
+# Finished Make data base on Fri Oct 29 08:18:29 2021
+
+ 

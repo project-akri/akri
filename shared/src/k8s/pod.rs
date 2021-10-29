@@ -5,13 +5,13 @@ use super::{
 use either::Either;
 use k8s_openapi::api::core::v1::{
     Affinity, NodeAffinity, NodeSelector, NodeSelectorRequirement, NodeSelectorTerm, Pod, PodSpec,
-    PodStatus, ResourceRequirements,
+    ResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
-    api::{Api, DeleteParams, ListParams, Object, ObjectList, PostParams},
-    client::APIClient,
+    api::{Api, DeleteParams, ListParams, ObjectList, PostParams},
+    client::Client,
 };
 use log::{error, info, trace};
 use std::collections::BTreeMap;
@@ -28,47 +28,44 @@ pub const AKRI_TARGET_NODE_LABEL_NAME: &str = "akri.sh/target-node";
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// for pod in pod::find_pods_with_selector(label_selector, None, api_client).await.unwrap() {
-///     println!("found pod: {}", pod.metadata.name)
+///     println!("found pod: {}", pod.metadata.name.unwrap())
 /// }
 /// # }
 /// ```
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
 /// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// for pod in pod::find_pods_with_selector(None, field_selector, api_client).await.unwrap() {
-///     println!("found pod: {}", pod.metadata.name)
+///     println!("found pod: {}", pod.metadata.name.unwrap())
 /// }
 /// # }
 /// ```
 pub async fn find_pods_with_selector(
     label_selector: Option<String>,
     field_selector: Option<String>,
-    kube_client: APIClient,
-) -> Result<
-    ObjectList<Object<PodSpec, PodStatus>>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+    kube_client: Client,
+) -> Result<ObjectList<Pod>, anyhow::Error> {
     trace!(
         "find_pods_with_selector with label_selector={:?} field_selector={:?}",
         &label_selector,
         &field_selector
     );
-    let pods = Api::v1Pod(kube_client);
+    let pods: Api<Pod> = Api::all(kube_client);
     let pod_list_params = ListParams {
         label_selector,
         field_selector,
@@ -127,11 +124,13 @@ type ResourceQuantityType = BTreeMap<String, Quantity>;
 ///     OwnershipType,
 ///     pod
 /// };
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 /// use k8s_openapi::api::core::v1::PodSpec;
 ///
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
 /// let svc = pod::create_new_pod_from_spec(
 ///     "pod_namespace",
 ///     "capability_instance",
@@ -145,6 +144,7 @@ type ResourceQuantityType = BTreeMap<String, Quantity>;
 ///     "node-a",
 ///     true,
 ///     &PodSpec::default()).unwrap();
+/// # }
 /// ```
 pub fn create_new_pod_from_spec(
     pod_namespace: &str,
@@ -155,7 +155,7 @@ pub fn create_new_pod_from_spec(
     node_to_run_pod_on: &str,
     capability_is_shared: bool,
     pod_spec: &PodSpec,
-) -> Result<Pod, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<Pod> {
     trace!("create_new_pod_from_spec enter");
 
     let app_name = create_pod_app_name(
@@ -183,51 +183,45 @@ pub fn create_new_pod_from_spec(
     let owner_references: Vec<OwnerReference> = vec![OwnerReference {
         api_version: ownership.get_api_version(),
         kind: ownership.get_kind(),
-        controller: Some(ownership.get_controller()),
-        block_owner_deletion: Some(ownership.get_block_owner_deletion()),
+        controller: ownership.get_controller(),
+        block_owner_deletion: ownership.get_block_owner_deletion(),
         name: ownership.get_name(),
         uid: ownership.get_uid(),
     }];
 
     let mut modified_pod_spec = pod_spec.clone();
 
+    let insert_akri_resources = |map: &mut ResourceQuantityType| {
+        if map.contains_key(RESOURCE_REQUIREMENTS_KEY) {
+            let placeholder_value = map.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
+            map.insert(resource_limit_name.to_string(), placeholder_value);
+            map.remove(RESOURCE_REQUIREMENTS_KEY);
+        }
+    };
+
     for container in &mut modified_pod_spec.containers {
-        let mut incoming_limits: Option<ResourceQuantityType> = None;
-        let mut incoming_requests: Option<ResourceQuantityType> = None;
-
         if let Some(resources) = container.resources.as_ref() {
-            if let Some(limits) = resources.limits.as_ref() {
-                let mut modified_limits = limits.clone();
-                if modified_limits.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_limits
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
-                    modified_limits.insert(resource_limit_name.to_string(), placeholder_value);
-                    modified_limits.remove(RESOURCE_REQUIREMENTS_KEY);
-                }
-
-                incoming_limits = Some(modified_limits);
-            }
-            if let Some(requests) = resources.requests.as_ref() {
-                let mut modified_requests = requests.clone();
-                if modified_requests.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_requests
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
-                    modified_requests.insert(resource_limit_name.to_string(), placeholder_value);
-                    modified_requests.remove(RESOURCE_REQUIREMENTS_KEY);
-                }
-
-                incoming_requests = Some(modified_requests);
-            }
+            container.resources = Some(ResourceRequirements {
+                limits: {
+                    match resources.limits.clone() {
+                        Some(mut map) => {
+                            insert_akri_resources(&mut map);
+                            Some(map)
+                        }
+                        None => None,
+                    }
+                },
+                requests: {
+                    match resources.requests.clone() {
+                        Some(mut map) => {
+                            insert_akri_resources(&mut map);
+                            Some(map)
+                        }
+                        None => None,
+                    }
+                },
+            });
         };
-
-        container.resources = Some(ResourceRequirements {
-            limits: incoming_limits,
-            requests: incoming_requests,
-        });
     }
 
     // Ensure that the modified PodSpec has the required Affinity settings
@@ -254,13 +248,13 @@ pub fn create_new_pod_from_spec(
 
     let result = Pod {
         spec: Some(modified_pod_spec),
-        metadata: Some(ObjectMeta {
+        metadata: ObjectMeta {
             name: Some(app_name),
             namespace: Some(pod_namespace.to_string()),
             labels: Some(labels),
             owner_references: Some(owner_references),
             ..Default::default()
-        }),
+        },
         ..Default::default()
     };
 
@@ -348,7 +342,7 @@ mod broker_podspec_tests {
         do_pod_spec_creation_test(
             vec![image.clone()],
             vec![Container {
-                image: Some(image.clone()),
+                image: Some(image),
                 resources: Some(ResourceRequirements {
                     limits: Some(placeholder_limits),
                     requests: Some(placeholder_requests),
@@ -448,18 +442,14 @@ mod broker_podspec_tests {
             );
 
             // Validate the metadata name/namesapce
-            assert_eq!(&app_name, &pod.metadata.clone().unwrap().name.unwrap());
-            assert_eq!(
-                &pod_namespace,
-                &pod.metadata.clone().unwrap().namespace.unwrap()
-            );
+            assert_eq!(&app_name, &pod.metadata.clone().name.unwrap());
+            assert_eq!(&pod_namespace, &pod.metadata.clone().namespace.unwrap());
 
             // Validate the labels added
             assert_eq!(
                 &&app_name,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
                     .unwrap()
                     .get(APP_LABEL_ID)
@@ -469,7 +459,6 @@ mod broker_podspec_tests {
                 &&API_NAMESPACE.to_string(),
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
                     .unwrap()
                     .get(CONTROLLER_LABEL_ID)
@@ -479,7 +468,6 @@ mod broker_podspec_tests {
                 &&configuration_name,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
                     .unwrap()
                     .get(AKRI_CONFIGURATION_LABEL_NAME)
@@ -489,7 +477,6 @@ mod broker_podspec_tests {
                 &&instance_name,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
                     .unwrap()
                     .get(AKRI_INSTANCE_LABEL_NAME)
@@ -499,7 +486,6 @@ mod broker_podspec_tests {
                 &&node_to_run_pod_on,
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .labels
                     .unwrap()
                     .get(AKRI_TARGET_NODE_LABEL_NAME)
@@ -511,7 +497,6 @@ mod broker_podspec_tests {
                 instance_name,
                 pod.metadata
                     .clone()
-                    .unwrap()
                     .owner_references
                     .unwrap()
                     .get(0)
@@ -522,7 +507,6 @@ mod broker_podspec_tests {
                 instance_uid,
                 pod.metadata
                     .clone()
-                    .unwrap()
                     .owner_references
                     .unwrap()
                     .get(0)
@@ -533,7 +517,6 @@ mod broker_podspec_tests {
                 "Instance",
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .owner_references
                     .unwrap()
                     .get(0)
@@ -544,7 +527,6 @@ mod broker_podspec_tests {
                 &format!("{}/{}", API_NAMESPACE, API_VERSION),
                 &pod.metadata
                     .clone()
-                    .unwrap()
                     .owner_references
                     .unwrap()
                     .get(0)
@@ -554,7 +536,6 @@ mod broker_podspec_tests {
             assert!(pod
                 .metadata
                 .clone()
-                .unwrap()
                 .owner_references
                 .unwrap()
                 .get(0)
@@ -564,7 +545,6 @@ mod broker_podspec_tests {
             assert!(pod
                 .metadata
                 .clone()
-                .unwrap()
                 .owner_references
                 .unwrap()
                 .get(0)
@@ -846,26 +826,25 @@ mod broker_podspec_tests {
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 /// use k8s_openapi::api::core::v1::Pod;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// pod::create_pod(&Pod::default(), "pod_namespace", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn create_pod(
     pod_to_create: &Pod,
     namespace: &str,
-    kube_client: APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
     trace!("create_pod enter");
-    let pods = Api::v1Pod(kube_client.clone()).within(&namespace);
-    let pod_as_u8 = serde_json::to_vec(&pod_to_create)?;
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
     info!("create_pod pods.create(...).await?:");
-    match pods.create(&PostParams::default(), pod_as_u8).await {
+    match pods.create(&PostParams::default(), pod_to_create).await {
         Ok(created_pod) => {
             info!(
                 "create_pod pods.create return: {:?}",
@@ -883,7 +862,7 @@ pub async fn create_pod(
                     serde_json::to_string(&pod_to_create),
                     ae
                 );
-                Err(ae.into())
+                Err(anyhow::anyhow!(ae))
             }
         }
         Err(e) => {
@@ -892,7 +871,7 @@ pub async fn create_pod(
                 serde_json::to_string(&pod_to_create),
                 e
             );
-            Err(e.into())
+            Err(anyhow::anyhow!(e))
         }
     }
 }
@@ -903,22 +882,22 @@ pub async fn create_pod(
 ///
 /// ```no_run
 /// use akri_shared::k8s::pod;
-/// use kube::client::APIClient;
+/// use kube::client::Client;
 /// use kube::config;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
-/// let api_client = APIClient::new(config::incluster_config().unwrap());
+/// let api_client = Client::try_default().await.unwrap();
 /// pod::remove_pod("pod_to_remove", "pod_namespace", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn remove_pod(
     pod_to_remove: &str,
     namespace: &str,
-    kube_client: APIClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
     trace!("remove_pod enter");
-    let pods = Api::v1Pod(kube_client.clone()).within(&namespace);
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
     info!("remove_pod pods.delete(...).await?:");
     match pods.delete(pod_to_remove, &DeleteParams::default()).await {
         Ok(deleted_pod) => match deleted_pod {
@@ -940,7 +919,7 @@ pub async fn remove_pod(
                     "remove_pod pods.delete [{:?}] returned kube error: {:?}",
                     &pod_to_remove, ae
                 );
-                Err(ae.into())
+                Err(anyhow::anyhow!(ae))
             }
         }
         Err(e) => {
@@ -948,7 +927,7 @@ pub async fn remove_pod(
                 "remove_pod pods.delete [{:?}] error: {:?}",
                 &pod_to_remove, e
             );
-            Err(e.into())
+            Err(anyhow::anyhow!(e))
         }
     }
 }

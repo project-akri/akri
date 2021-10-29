@@ -16,7 +16,7 @@ spec:
   brokerPodSpec:
     containers:
     - name: akri-opcua-broker
-      image: "ghcr.io/deislabs/akri/opcua-monitoring-broker:latest-dev"
+      image: "ghcr.io/project-akri/akri/opcua-monitoring-broker:latest-dev"
       env:
         - name: IDENTIFIER
           value: 

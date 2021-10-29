@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/deislabs/akri/http-extensibility/proto";
+option go_package = "github.com/project-akri/akri/http-extensibility/proto";
 
 package http;
 

@@ -1,4 +1,25 @@
-USE_OPENCV_BASE_VERSION = 0.0.7
+USE_OPENCV_BASE_VERSION = 0.0.8
+
+# Akri container defines
+include build/akri-rust-containers.mk
+include build/akri-dotnet-containers.mk
+include build/akri-python-containers.mk
+
+#
+# Functions for building Agent with or without Discovery Handlers
+#
+# Build the Agent without any Discovery Handlers embedded
+define agent_build_slim
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml
+endef
+
+# Build the Agent with features that embed Discovery Handlers and rename the executable in case subsequently
+# building a slim Agent
+define agent_build_with_features
+	CARGO_INCREMENTAL=$(CARGO_INCREMENTAL) PKG_CONFIG_ALLOW_CROSS=1 cross build $(if $(BUILD_RELEASE_FLAG), --release) --target=$(1) --manifest-path agent/Cargo.toml \
+	--features "${AGENT_FEATURES}"
+	mv target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/agent target/$(1)/$(if $(BUILD_RELEASE_FLAG),release,debug)/${FULL_AGENT_EXECUTABLE_NAME}
+endef
 
 # Akri container defines
 include build/akri-rust-containers.mk

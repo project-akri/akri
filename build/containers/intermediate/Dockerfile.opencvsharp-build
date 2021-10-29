@@ -14,10 +14,7 @@ FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG} AS base
 WORKDIR /app
 
 # Link the container to the Akri repository
-LABEL org.opencontainers.image.source https://github.com/deislabs/akri
-
-# Copy over container legal notice
-COPY ./build/container-images-legal-notice.md .
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 # based on https://xaviergeerinck.com/opencv-in-dotnet-core
 ENV OPENCV_VERSION="4.1.1"
@@ -27,17 +24,36 @@ ENV OPENCV_SHARP_VERSION="4.1.0.20190417"
 RUN whoami
 RUN pwd
 
-RUN apt update && \
-	apt -y install build-essential cmake pkg-config yasm git gfortran \
-	libjpeg-dev libpng-dev libtiff-dev libavcodec-dev \ 
-	libavformat-dev libswscale-dev libdc1394-22-dev libxine2-dev libv4l-dev \
-	libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgtk2.0-dev libtbb-dev \
-	qt5-default libatlas-base-dev libmp3lame-dev libtheora-dev \
-	libvorbis-dev libxvidcore-dev libopencore-amrnb-dev libopencore-amrwb-dev \
-	libavresample-dev x264 v4l-utils libprotobuf-dev protobuf-compiler \
-	libgoogle-glog-dev libgflags-dev libgphoto2-dev libeigen3-dev libhdf5-dev doxygen \
-	libtbb2 libdc1394-22-dev unzip wget && \
-	apt clean
+# Install opencv dependencies
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    apt-transport-https \
+    software-properties-common \
+    wget \
+    unzip \
+    ca-certificates \
+    build-essential \
+    cmake \
+    git \
+    libtbb-dev \
+    libatlas-base-dev \
+    libgtk2.0-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libdc1394-22-dev \
+    libxine2-dev \
+    libv4l-dev \
+    libtheora-dev \
+    libvorbis-dev \
+    libxvidcore-dev \
+    libopencore-amrnb-dev \
+    libopencore-amrwb-dev \
+    libavresample-dev \
+    x264 \
+    libtesseract-dev \
+    libgdiplus \
+    && apt-get -y clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir ${OPENCV_INSTALLATION_DIR} && \
 	cd ${OPENCV_INSTALLATION_DIR} && \
@@ -46,19 +62,52 @@ RUN mkdir ${OPENCV_INSTALLATION_DIR} && \
 	wget https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip -Oopencv_contrib-${OPENCV_VERSION}.zip && \
 	unzip opencv_contrib-${OPENCV_VERSION}.zip && \
 	rm ${OPENCV_INSTALLATION_DIR}/*.zip && \
-	cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
-	ln -s /usr/include/eigen3/Eigen /usr/include/Eigen
+	cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} 
+	
 	
 RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
     mkdir build && cd build && \
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules && \
-	make -j$(grep -c ^processor /proc/cpuinfo) && \
+	cmake \
+    -D CMAKE_BUILD_TYPE=RELEASE \
+    -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules \
+    -D BUILD_SHARED_LIBS=OFF \
+    -D ENABLE_CXX11=ON \
+    -D BUILD_EXAMPLES=OFF \
+    -D BUILD_DOCS=OFF \
+    -D BUILD_PERF_TESTS=OFF \
+    -D BUILD_TESTS=OFF \
+    -D BUILD_JAVA=OFF \
+    -D BUILD_opencv_app=OFF \
+    -D BUILD_opencv_barcode=OFF \
+    -D BUILD_opencv_java_bindings_generator=OFF \
+    -D BUILD_opencv_js_bindings_generator=OFF \
+    -D BUILD_opencv_python_bindings_generator=OFF \
+    -D BUILD_opencv_python_tests=OFF \
+    -D BUILD_opencv_ts=OFF \
+    -D BUILD_opencv_js=OFF \
+    -D BUILD_opencv_bioinspired=OFF \
+    -D BUILD_opencv_ccalib=OFF \
+    -D BUILD_opencv_datasets=OFF \
+    -D BUILD_opencv_dnn_objdetect=OFF \
+    -D BUILD_opencv_dpm=OFF \
+    -D BUILD_opencv_fuzzy=OFF \
+    -D BUILD_opencv_gapi=OFF \
+    -D BUILD_opencv_intensity_transform=OFF \
+    -D BUILD_opencv_mcc=OFF \
+    -D BUILD_opencv_objc_bindings_generator=OFF \
+    -D BUILD_opencv_rapid=OFF \
+    -D BUILD_opencv_reg=OFF \
+    -D BUILD_opencv_stereo=OFF \
+    -D BUILD_opencv_structured_light=OFF \
+    -D BUILD_opencv_surface_matching=OFF \
+    -D BUILD_opencv_videostab=OFF \
+    -D BUILD_opencv_wechat_qrcode=OFF \
+    -D WITH_GSTREAMER=OFF \
+    -D OPENCV_ENABLE_NONFREE=ON \
+    .. && make -j$(grep -c ^processor /proc/cpuinfo) && \
 	make install -j8 && \
-	ldconfig && \
-	cd && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencv_contrib-${OPENCV_VERSION}
-	
+	ldconfig
+
 RUN cd ${OPENCV_INSTALLATION_DIR} && \
 	git clone https://github.com/shimat/opencvsharp.git opencvsharp && \
 	cd opencvsharp && \
@@ -70,8 +119,40 @@ RUN cd ${OPENCV_INSTALLATION_DIR} && \
 	make -j$(grep -c ^processor /proc/cpuinfo) && \
 	make install && \
 	ldconfig && \
-	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib && \
-	cd && \
-	rm -r ${OPENCV_INSTALLATION_DIR}/opencvsharp && \
-	apt remove -y git unzip wget build-essential cmake && \
-	apt autoremove -y
+	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib
+
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build-dotnet-env
+WORKDIR /
+COPY --from=base /usr/lib/libOpenCvSharpExtern.so ./
+RUN git clone https://github.com/shimat/opencvsharp.git && \
+	cd opencvsharp && \
+	git fetch --all --tags --prune && git checkout ${OPENCV_SHARP_VERSION}
+
+# Install Build the C# part of OpenCvSharp
+RUN cd /opencvsharp/src/OpenCvSharp && \
+    dotnet build -c Release -f netstandard2.0 
+
+RUN cd /opencvsharp/src/OpenCvSharp.Extensions && \
+    dotnet build -c Release -f netstandard2.0 
+
+RUN mkdir /opencvsharp/build && \
+    cd /opencvsharp/build && \
+    cp /opencvsharp/src/OpenCvSharp/bin/Release/netstandard2.0/* . && \
+    cp /opencvsharp/src/OpenCvSharp.Extensions/bin/Release/netstandard2.0/* .
+
+# Copy over OpenCvSharp binaries and OpenCvSharpExtern shared library
+FROM mcr.microsoft.com/dotnet/core/aspnet:${PLATFORM_TAG}
+WORKDIR /app
+COPY --from=build-dotnet-env /opencvsharp/build ./
+COPY --from=build-dotnet-env /libOpenCvSharpExtern.so /usr/lib
+# Install OpenCVSharpEntern dependencies
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    libgtk2.0-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libdc1394-22-dev \
+    libavresample-dev \
+    libtesseract-dev \
+    && apt-get -y clean \
+    && rm -rf /var/lib/apt/lists/*

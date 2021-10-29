@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: Run security audit check
         id: cargo-audit
-        if: github.repository == 'deislabs/akri' # only run on main repo and not forks
+        if: github.repository == 'project-akri/akri' # only run on main repo and not forks
         continue-on-error: true
         uses: actions-rs/audit-check@v1
         with:
@@ -22,7 +22,7 @@ jobs:
   
       # sends an email if security audit failed 
       - name: Send mail
-        if: steps.cargo-audit.outcome != 'success' && github.repository == 'deislabs/akri' # only run on main repo and not forks
+        if: steps.cargo-audit.outcome != 'success' && github.repository == 'project-akri/akri' # only run on main repo and not forks
         uses: dawidd6/action-send-mail@v2
         with:
           server_address: smtp-mail.outlook.com
@@ -33,7 +33,7 @@ jobs:
           body: |-
             A security vulnerability was detected in one or more of Akri's dependencies. For more details, check the output of the [security audit workflow](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})
 
-            Hint: In most cases, running the [auto-update dependencies](https://github.com/deislabs/akri/actions/workflows/auto-update-dependencies.yml) workflow will fix the issue.
+            Hint: In most cases, running the [auto-update dependencies](https://github.com/project-akri/akri/actions/workflows/auto-update-dependencies.yml) workflow will fix the issue.
 
             -Your friendly Akri bot 🤖
           to: ${{secrets.AKRI_TEAM_EMAIL}}
