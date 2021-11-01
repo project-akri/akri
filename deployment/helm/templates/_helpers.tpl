@@ -67,7 +67,7 @@ Create nodeSelector for agent
 */}}
 {{- define "akri.agent.nodeSelector" -}}
 {{- $nodeSelector := .Values.agent.nodeSelector -}}
-{{- if eq .Values.agent.linuxOnly }}
+{{- if .Values.agent.linuxOnly }}
 {{- $_ := set $nodeSelector "kubernetes.io/os" "linux" -}}
 {{- end -}}
 {{ $nodeSelector | toYaml }}
