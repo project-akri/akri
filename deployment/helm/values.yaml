@@ -104,6 +104,8 @@ agent:
   allowDebugEcho: false
   # linuxOnly dictates whether the Akri Agent will only run on a linux node
   linuxOnly: true
+  # nodeSelector chooses which nodes will allow the daemonset to run on
+  nodeSelector: {}
   resources:
     # memoryRequest defines the minimum amount of RAM that must be available to this Pod
     # for it to be scheduled by the Kubernetes Scheduler
