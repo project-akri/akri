@@ -12,7 +12,7 @@ The Akri project is in the [CNCF Sandbox](https://www.cncf.io/sandbox-projects/)
 
 ## Roles
 
-Akri has defined four roles that community members can fill. This section
+Akri has defined three roles that community members can fill. This section
 defines the expectations and responsibilities of each role and describes how to
 graduate from one role to another.
 * Community member
