@@ -94,8 +94,6 @@ agent:
     discoveryHandlers: /var/lib/akri
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
     kubeletDevicePlugins: /var/lib/kubelet/device-plugins
-    # crictl is the node path to crictl
-    crictl: /usr/bin/crictl
     # dockerShimSock is the node path of the docker socket
     dockerShimSock: /var/run/dockershim.sock
     # udev is the node path of udev, usually at `/run/udev`
