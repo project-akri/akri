@@ -65,10 +65,10 @@ Create the name of the service account to use
 {{/*
 Create nodeSelector for agent
 */}}
-{{- define "akri.agent.nodeSelector" -}}
-{{- $nodeSelector := .Values.agent.nodeSelector -}}
+{{- define "akri.agent.nodeSelectors" -}}
+{{- $nodeSelectors := .Values.agent.nodeSelectors -}}
 {{- if .Values.agent.linuxOnly }}
-{{- $_ := set $nodeSelector "kubernetes.io/os" "linux" -}}
+{{- $_ := set $nodeSelectors "kubernetes.io/os" "linux" -}}
 {{- end -}}
-{{ $nodeSelector | toYaml }}
+{{ $nodeSelectors | toYaml }}
 {{- end }}
