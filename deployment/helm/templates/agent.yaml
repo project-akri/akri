@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
-      nodeSelector: {{ include "akri.agent.nodeSelector" . | nindent 8 }}
+      nodeSelector: {{ include "akri.agent.nodeSelectors" . | nindent 8 }}
       {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-agent-sa'
       {{- end }}
