@@ -63,7 +63,7 @@ spec:
             value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
-            value: unix:///usr/local/bin/crictl
+            value: /usr/local/bin/crictl
           - name: HOST_RUNTIME_ENDPOINT
             value: unix:///host/var/run/dockershim.sock
           - name: HOST_IMAGE_ENDPOINT
