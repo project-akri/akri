@@ -250,7 +250,12 @@ pub async fn delete_instance(
                 "delete_instance kube_client.request returned kube error: {:?}",
                 ae
             );
-            Err(ae.into())
+            // If not found (404 code), return okay.
+            if ae.code == 404 {
+                Ok(())
+            } else {
+                Err(ae.into())
+            }
         }
         Err(e) => {
             log::trace!("delete_instance kube_client.request error: {:?}", e);
