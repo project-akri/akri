@@ -222,7 +222,7 @@ debugEcho:
     brokerProperties: {}
     # capacity is the capacity for any instances created as a result of
     # applying this debugEcho configuration
-    capacity: 1
+    capacity: 2
     discoveryDetails:
       # descriptions is the list of instances created as a result of
       # applying this debugEcho configuration
