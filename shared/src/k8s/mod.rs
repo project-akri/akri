@@ -533,30 +533,19 @@ pub async fn try_delete_instance(
                 break;
             }
             Err(e) => {
-                // Check if already was deleted else return error
-                match kube_interface
-                    .find_instance(instance_name, instance_namespace)
-                    .await
-                {
-                    Err(e) => {
-                        if let Some(kube::Error::Api(ae)) = e.downcast_ref::<kube::Error>() {
-                            if ae.code == ERROR_NOT_FOUND {
-                                log::trace!(
-                                    "try_delete_instance - discovered Instance {} already deleted",
-                                    instance_name
-                                );
-                                break;
-                            }
-                            log::error!("try_delete_instance - when looking up Instance {}, got kube API error: {:?}", instance_name, ae);
-                        }
-                    }
-                    Ok(_) => {
-                        log::error!(
-                            "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
-                            instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>() {
+                    if ae.code == ERROR_NOT_FOUND {
+                        log::trace!(
+                            "try_delete_instance - discovered Instance {} already deleted",
+                            instance_name
                         );
+                        break;
                     }
                 }
+                log::error!(
+                    "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
+                    instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                );
                 if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                     return Err(e);
                 }
@@ -570,6 +559,54 @@ pub async fn try_delete_instance(
 #[cfg(test)]
 pub mod test_ownership {
     use super::*;
+
+    #[tokio::test]
+    async fn test_try_delete_instance() {
+        let mut mock_kube_interface = MockKubeInterface::new();
+        mock_kube_interface
+            .expect_delete_instance()
+            .times(1)
+            .returning(move |_, _| {
+                let error_response = kube::error::ErrorResponse {
+                    status: "random".to_string(),
+                    message: "blah".to_string(),
+                    reason: "NotFound".to_string(),
+                    code: 404,
+                };
+                Err(error_response.into())
+            });
+        try_delete_instance(&mock_kube_interface, "instance_name", "instance_namespace")
+            .await
+            .unwrap();
+    }
+
+    // Test that succeeds on second try
+    #[tokio::test]
+    async fn test_try_delete_instance_sequence() {
+        let mut seq = mockall::Sequence::new();
+        let mut mock_kube_interface = MockKubeInterface::new();
+        mock_kube_interface
+            .expect_delete_instance()
+            .times(1)
+            .returning(move |_, _| {
+                let error_response = kube::error::ErrorResponse {
+                    status: "random".to_string(),
+                    message: "blah".to_string(),
+                    reason: "SomeError".to_string(),
+                    code: 401,
+                };
+                Err(error_response.into())
+            })
+            .in_sequence(&mut seq);
+        mock_kube_interface
+            .expect_delete_instance()
+            .times(1)
+            .returning(move |_, _| Ok(()))
+            .in_sequence(&mut seq);
+        try_delete_instance(&mock_kube_interface, "instance_name", "instance_namespace")
+            .await
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn test_ownership_from_config() {
