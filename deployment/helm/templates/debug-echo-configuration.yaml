@@ -63,5 +63,5 @@ spec:
   {{- else }}
   brokerProperties: {}
   {{- end }}
-  capacity: 2
+  capacity: {{ .Values.debugEcho.configuration.capacity }}
 {{- end }}
