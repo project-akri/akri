@@ -8,18 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Json.NET" Version="1.0.18" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.9.10" />
-    <PackageReference Include="Google.Protobuf" Version="3.11.3" />
-    <PackageReference Include="Grpc" Version="2.27.0" />
-    <PackageReference Include="Grpc.AspNetCore" Version="2.27.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.27.0">
+    <PackageReference Include="Json.NET" Version="1.0.33" />
+    <PackageReference Include="Google.Protobuf" Version="3.19.1" />
+    <PackageReference Include="Grpc" Version="2.40.0" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.40.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.40.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="prometheus-net.AspNetCore" Version="3.4.0" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="5.0.1" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
-    <PackageReference Include="OpenCvSharp4" Version="4.1.0.20190416" />
+    <PackageReference Include="OpenCvSharp4" Version="4.5.3.20210817" />
   </ItemGroup>
 
   <ItemGroup>

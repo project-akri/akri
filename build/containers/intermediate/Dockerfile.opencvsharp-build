@@ -17,9 +17,9 @@ WORKDIR /app
 LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 # based on https://xaviergeerinck.com/opencv-in-dotnet-core
-ENV OPENCV_VERSION="4.1.1"
+ENV OPENCV_VERSION="4.5.4"
 ENV OPENCV_INSTALLATION_DIR="/opt/opencv/"
-ENV OPENCV_SHARP_VERSION="4.1.0.20190417"
+ENV OPENCV_SHARP_VERSION="4.5.3.20210821"
 
 RUN whoami
 RUN pwd
