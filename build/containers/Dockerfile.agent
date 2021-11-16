@@ -14,9 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev open
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/agent /agent
 
 # Install crictl
-RUN curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.17.0/crictl-v1.17.0-linux-amd64.tar.gz --output crictl-v1.17.0-linux-amd64.tar.gz &&\
-    tar zxvf crictl-v1.17.0-linux-amd64.tar.gz -C /usr/local/bin && \
-    rm -f crictl-v1.17.0-linux-amd64.tar.gz && \
+RUN VERSION="v1.17.0" && \
+    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz --output crictl-$VERSION-linux-amd64.tar.gz && \
+    tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin && \
+    rm -f crictl-$VERSION-linux-amd64.tar.gz && \
     apt-get remove -y curl ca-certificates && apt-get clean
     
 ENV RUST_LOG agent,akri_shared
