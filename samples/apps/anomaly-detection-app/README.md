@@ -8,15 +8,24 @@ log, displaying all the temperature values and the address of the OPC UA Server 
 values in red. 
 
 ## Dependencies
-Install protobuf utils, pip, grpcio, and sklearn
-```sh
-sudo apt-get update
-sudo apt-get install -y protobuf-compiler libprotoc-dev python3-pip \
-    python3-grpcio python3-sklearn
+> Note: using a virtual environment is recommended with pip
+
+Install pip:
 ```
-With pip, install numpy, protobuf, and flask python packages:
-```sh
-pip3 install numpy protobuf flask
+sudo apt-get install -y python3-pip
+```
+Navigate to this directory and use pip to install all dependencies in `requirements.txt`.
+```
+pip install -r requirements.txt
+```
+
+To clean up, simply run `pip uninstall -r requirements.txt -y`.
+
+## Generating Protobuf Code
+Set the path of the `opcua_node.proto` file and generate using `grpc-tools.protoc`. `grpc-tools` should've been installed in the previous step. The following assumes the `akri` repository is in the `$HOME` directory.
+```
+export SRC_DIR=$HOME/akri/samples/brokers/opcua-monitoring-broker
+python -m grpc_tools.protoc -I=$SRC_DIR --python_out=. --grpc_python_out=. $SRC_DIR/opcua_node.proto
 ```
 
 ## Running

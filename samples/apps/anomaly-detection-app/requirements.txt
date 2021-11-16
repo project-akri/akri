@@ -1,0 +1,6 @@
+grpcio==1.41.0
+grpcio-tools==1.41.0
+Flask==2.0.2
+numpy==1.21.4
+protobuf==3.19.1
+scikit_learn==1.0.1
