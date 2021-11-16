@@ -1,0 +1,5 @@
+Flask==2.0.2
+grpcio==1.41.0
+grpcio-tools==1.41.0
+kubernetes==19.15.0
+protobuf==3.19.1
