@@ -13,14 +13,23 @@ MJPG/JPEG, observe the output of `sudo  v4l2-ctl --list-formats` on the associat
 ## Running
 
 ## Dependencies
-Install protobuf utils and pip
-```sh
-sudo apt-get update
-sudo apt-get install -y protobuf-compiler libprotoc-dev python3-pip 
+> Note: using a virtual environment is recommended with pip
+
+Install pip:
 ```
-With pip, install protobuf, flask, gRPC, and Kubernetes python packages:
-```sh
-pip3 install protobuf flask grpcio kubernetes
+sudo apt-get install -y python3-pip
+```
+Navigate to this directory and use pip to install all dependencies in `requirements.txt`.
+```
+pip install -r requirements.txt
+```
+
+To clean up, simply run `pip uninstall -r requirements.txt -y`.
+
+## Generating Protobuf Code
+Generate using `grpc-tools.protoc`. `grpc-tools` should've been installed in the previous step. 
+```
+python -m grpc_tools.protoc -I=./ --python_out=. --grpc_python_out=./camera.proto
 ```
 
 ## Running
