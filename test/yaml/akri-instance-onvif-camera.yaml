@@ -3,7 +3,8 @@ kind: Instance
 metadata:
   name: onvif-camera-ffffff
 spec:
-  configurationName: onvif-camera
+  configurationDeploymentStatuses: 
+    onvif-camera: active
   shared: true
   nodes:
   - "linux-dev3"
@@ -17,3 +18,5 @@ spec:
   brokerProperties:
     resolution-width: "800"
     resolution-height: "600"
+  brokerInfo:
+    firmware-version: "1.0"

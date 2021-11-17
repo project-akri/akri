@@ -3,7 +3,8 @@ kind: Instance
 metadata:
   name: usb-dev-video0-ffffff
 spec:
-  configurationName: usb-dev-video0
+  configurationDeploymentStatuses: 
+    usb-dev-video0: active
   shared: false
   nodes:
   - "linux-dev3"
@@ -16,3 +17,5 @@ spec:
   brokerProperties:
     resolution-width: "800"
     resolution-height: "600"
+  brokerInfo:
+    firmware-version: "1.0"

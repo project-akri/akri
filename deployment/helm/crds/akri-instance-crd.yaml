@@ -15,8 +15,10 @@ spec:
             spec:
               type: object
               properties:
-                configurationName:
-                  type: string
+                configurationDeploymentStatuses: # map<string, ConfigurationStatus>
+                  additionalProperties:
+                    type: string
+                  type: object
                 brokerProperties:
                   additionalProperties:
                     type: string
@@ -28,6 +30,10 @@ spec:
                   items:
                     type: string
                 deviceUsage: # map<string, string>
+                  additionalProperties:
+                    type: string
+                  type: object
+                brokerInfo: # map<string, string>
                   additionalProperties:
                     type: string
                   type: object
