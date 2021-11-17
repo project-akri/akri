@@ -8,7 +8,7 @@ interface.
 1. Install [opencvsharp](https://github.com/shimat/opencvsharp), the OpenCV wrapper for .NET
 1. Build
     ```sh
-    cd ./samples/brokers/onvif-monitoring-broker
+    cd ./samples/brokers/onvif-video-broker
     dotnet build
     ```
 1. Run the broker, passing in the ONVIF service URL for the camera it should pull frames from.
