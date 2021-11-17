@@ -1,4 +1,4 @@
-USE_OPENCV_BASE_VERSION = 0.0.8
+USE_OPENCV_BASE_VERSION = 0.0.9
 
 # Akri container defines
 include build/akri-rust-containers.mk
