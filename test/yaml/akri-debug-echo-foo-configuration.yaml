@@ -9,27 +9,29 @@ spec:
         descriptions:
         - "foo0"
         - "foo1"
-  brokerPodSpec:
-    containers:
-    - name: akri-debug-echo-foo-broker
-      image: "nginx:latest"
-      resources:
-        limits:
-          "{{PLACEHOLDER}}" : "1"
-  instanceServiceSpec:
-    type: ClusterIP
-    ports:
-    - name: http
-      port: 6052
-      protocol: TCP
-      targetPort: 6052
-  configurationServiceSpec:
-    type: ClusterIP
-    ports:
-    - name: http
-      port: 6052
-      protocol: TCP
-      targetPort: 6052
+  deploymentStrategy:
+    brokerType:
+      pod:
+        containers:
+        - name: akri-debug-echo-foo-broker
+          image: "nginx:latest"
+          resources:
+            limits:
+              "{{PLACEHOLDER}}" : "1"
+    instanceServiceSpec:
+      type: ClusterIP
+      ports:
+      - name: http
+        port: 6052
+        protocol: TCP
+        targetPort: 6052
+    configurationServiceSpec:
+      type: ClusterIP
+      ports:
+      - name: http
+        port: 6052
+        protocol: TCP
+        targetPort: 6052
   brokerProperties: {}
   capacity: 5
   

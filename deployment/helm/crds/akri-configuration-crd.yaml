@@ -22,24 +22,36 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
+                deploymentStrategy: # {{DeploymentStrategy}}
+                  type: object 
+                  properties:
+                    brokerType: 
+                      type: object # enum of deployment types
+                      properties: 
+                        brokerJobSpec: # {{JobSpec}}
+                          x-kubernetes-preserve-unknown-fields: true
+                          type: object
+                          nullable: true
+                        brokerPodSpec: # {{PodSpec}}
+                          x-kubernetes-preserve-unknown-fields: true
+                          type: object
+                          nullable: true
+                    brokerGeneration: # number
+                      type: number
+                    brokerProperties: # map<string, string>
+                      additionalProperties:
+                        type: string
+                      type: object
+                    instanceServiceSpec: # {{ServiceSpec}}
+                      x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                      nullable: true
+                    configurationServiceSpec: # {{ServiceSpec}}
+                      x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                      nullable: true
                 capacity:
                   type: integer
-                brokerPodSpec: # {{PodSpec}}
-                  x-kubernetes-preserve-unknown-fields: true
-                  type: object
-                  nullable: true
-                instanceServiceSpec: # {{ServiceSpec}}
-                  x-kubernetes-preserve-unknown-fields: true
-                  type: object
-                  nullable: true
-                configurationServiceSpec: # {{ServiceSpec}}
-                  x-kubernetes-preserve-unknown-fields: true
-                  type: object
-                  nullable: true
-                brokerProperties: # map<string, string>
-                  additionalProperties:
-                    type: string
-                  type: object
       additionalPrinterColumns:
       - name: Capacity
         type: string
