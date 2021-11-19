@@ -2,7 +2,8 @@
 pub mod v0;
 
 /// Definition of the DiscoverStream type expected for supported embedded Akri DiscoveryHandlers
-pub type DiscoverStream = tokio::sync::mpsc::Receiver<Result<v0::DiscoverResponse, tonic::Status>>;
+pub type DiscoverStream =
+    tokio_stream::wrappers::ReceiverStream<Result<v0::DiscoverResponse, tonic::Status>>;
 
 pub mod discovery_handler {
     use super::super::registration_client::{
@@ -117,7 +118,7 @@ pub mod mock_discovery_handler {
             &self,
             _: tonic::Request<DiscoverRequest>,
         ) -> Result<tonic::Response<Self::DiscoverStream>, tonic::Status> {
-            let (mut discovered_devices_sender, discovered_devices_receiver) =
+            let (discovered_devices_sender, discovered_devices_receiver) =
                 mpsc::channel(super::discovery_handler::DISCOVERED_DEVICES_CHANNEL_CAPACITY);
             let devices = self.devices.clone();
             tokio::spawn(async move {
@@ -132,7 +133,9 @@ pub mod mock_discovery_handler {
                     "mock discovery handler error",
                 ))
             } else {
-                Ok(tonic::Response::new(discovered_devices_receiver))
+                Ok(tonic::Response::new(
+                    tokio_stream::wrappers::ReceiverStream::new(discovered_devices_receiver),
+                ))
             }
         }
     }
@@ -189,7 +192,7 @@ pub mod mock_discovery_handler {
 pub mod server {
     use super::v0::discovery_handler_server::{DiscoveryHandler, DiscoveryHandlerServer};
     use akri_shared::uds::unix_stream;
-    use futures::stream::TryStreamExt;
+    use futures::TryFutureExt;
     use log::info;
     use std::path::Path;
     use tokio::net::UnixListener;
@@ -221,10 +224,18 @@ pub mod server {
             tokio::fs::create_dir_all(Path::new(discovery_endpoint).parent().unwrap()).await?;
             // Delete socket if it already exists
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
-            let mut uds = UnixListener::bind(discovery_endpoint)?;
+            let incoming = {
+                let uds = UnixListener::bind(discovery_endpoint)?;
+
+                async_stream::stream! {
+                    while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
+                        yield item;
+                    }
+                }
+            };
             Server::builder()
                 .add_service(DiscoveryHandlerServer::new(discovery_handler))
-                .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
+                .serve_with_incoming(incoming)
                 .await?;
             std::fs::remove_file(discovery_endpoint).unwrap_or(());
         } else {

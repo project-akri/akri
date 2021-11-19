@@ -1,16 +1,15 @@
-use super::constants::{
-    CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY, ENABLE_DEBUG_ECHO_LABEL,
-};
+use super::constants::CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY;
+#[cfg(any(test, feature = "agent-full"))]
+use super::constants::ENABLE_DEBUG_ECHO_LABEL;
 use akri_discovery_utils::discovery::v0::{
     register_discovery_handler_request::EndpointType,
     registration_server::{Registration, RegistrationServer},
     Empty, RegisterDiscoveryHandlerRequest,
 };
-use akri_shared::{
-    os::env_var::{ActualEnvVarQuery, EnvVarQuery},
-    uds::unix_stream,
-};
-use futures::TryStreamExt;
+#[cfg(any(test, feature = "agent-full"))]
+use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
+use akri_shared::uds::unix_stream;
+use futures::TryFutureExt;
 #[cfg(test)]
 use mock_instant::Instant;
 use std::collections::HashMap;
@@ -37,6 +36,7 @@ pub type DiscoveryHandlerName = String;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DiscoveryHandlerEndpoint {
     /// Embedded means the Discovery Handler is running inside the Agent
+    #[cfg(any(test, feature = "agent-full"))]
     Embedded,
     /// Uds means the Discovery Handler is running on a specified unix domain socket
     Uds(String),
@@ -199,11 +199,19 @@ pub async fn internal_run_registration_server(
     );
     // Delete socket in case previously created/used
     std::fs::remove_file(&socket_path).unwrap_or(());
-    let mut uds =
-        tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
+    let incoming = {
+        let uds =
+            tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
+
+        async_stream::stream! {
+            while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
+                yield item;
+            }
+        }
+    };
     Server::builder()
         .add_service(RegistrationServer::new(registration))
-        .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
+        .serve_with_incoming(incoming)
         .await?;
     trace!(
         "internal_run_registration_server - gracefully shutdown ... deleting socket {}",

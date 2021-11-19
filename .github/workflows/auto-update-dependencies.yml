@@ -24,6 +24,7 @@ jobs:
         echo "Run apt update and apt install the following dependencies: $apt_dependencies"
         sudo apt update
         sudo apt install -y $apt_dependencies
+        cargo install cargo-edit
     
     - name: Check for dependency updates
       uses: romoh/dependencies-autoupdate@v1.1

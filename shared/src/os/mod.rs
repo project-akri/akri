@@ -1,5 +1,4 @@
 pub mod env_var;
-pub mod signal;
 
 /// Provide file operations
 pub mod file {
@@ -15,7 +14,7 @@ pub mod file {
     }
     /// This will read a file (as provided by a relative path) into a String
     pub fn read_file_to_string(relative_path: &str) -> String {
-        let file_path = get_canonical_path(&relative_path);
+        let file_path = get_canonical_path(relative_path);
         fs::read_to_string(&file_path)
             .unwrap_or_else(|_| panic!("unable to read file: {}", &file_path))
     }

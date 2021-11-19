@@ -9,11 +9,11 @@ use super::{
 };
 use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
-    akri::{configuration::KubeAkriConfig, AKRI_PREFIX},
+    akri::{configuration::Configuration, AKRI_PREFIX},
     uds::unix_stream,
 };
 use async_trait::async_trait;
-use futures::stream::TryStreamExt;
+use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
@@ -33,7 +33,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
     async fn build_device_plugin(
         &self,
         instance_name: String,
-        config: &KubeAkriConfig,
+        config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
@@ -65,7 +65,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
     async fn build_device_plugin(
         &self,
         instance_name: String,
-        config: &KubeAkriConfig,
+        config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
@@ -87,7 +87,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             instance_name: instance_name.clone(),
             endpoint: device_endpoint.clone(),
             config: config.spec.clone(),
-            config_name: config.metadata.name.clone(),
+            config_name: config.metadata.name.clone().unwrap(),
             config_uid: config.metadata.uid.as_ref().unwrap().clone(),
             config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
             shared,
@@ -131,25 +131,31 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         tokio::fs::create_dir_all(Path::new(&socket_path[..]).parent().unwrap())
             .await
             .expect("Failed to create dir at socket path");
-        let mut uds =
-            UnixListener::bind(socket_path.clone()).expect("Failed to bind to socket path");
         let service = DevicePluginServer::new(device_plugin_service);
-        let socket_path_to_delete = socket_path.clone();
+        let task_socket_path = socket_path.clone();
         task::spawn(async move {
+            let socket_to_delete = task_socket_path.clone();
+            let incoming = {
+                let uds =
+                    UnixListener::bind(task_socket_path).expect("Failed to bind to socket path");
+
+                async_stream::stream! {
+                    while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
+                        yield item;
+                    }
+                }
+            };
             Server::builder()
                 .add_service(service)
-                .serve_with_incoming_shutdown(
-                    uds.incoming().map_ok(unix_stream::UnixStream),
-                    shutdown_signal(server_ender_receiver),
-                )
+                .serve_with_incoming_shutdown(incoming, shutdown_signal(server_ender_receiver))
                 .await
                 .unwrap();
             trace!(
                 "serve - gracefully shutdown ... deleting socket {}",
-                socket_path_to_delete
+                socket_to_delete
             );
             // Socket may already be deleted in the case of the kubelet restart
-            std::fs::remove_file(socket_path_to_delete).unwrap_or(());
+            std::fs::remove_file(socket_to_delete).unwrap_or(());
         });
 
         akri_shared::uds::unix_stream::try_connect(&socket_path).await?;
@@ -167,7 +173,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         capability_id: &str,
         socket_name: &str,
         instance_name: &str,
-        mut server_ender_sender: mpsc::Sender<()>,
+        server_ender_sender: mpsc::Sender<()>,
         kubelet_socket: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!(
@@ -256,34 +262,45 @@ pub mod tests {
         }
     }
 
+    async fn serve_for_test<T: Registration, P: AsRef<Path>>(
+        service: RegistrationServer<T>,
+        socket: P,
+    ) {
+        let incoming = {
+            let uds = UnixListener::bind(socket).expect("Failed to bind to socket path");
+
+            async_stream::stream! {
+                while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
+                    yield item;
+                }
+            }
+        };
+
+        Server::builder()
+            .add_service(service)
+            .serve_with_incoming(incoming)
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn test_register() {
         let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
-        let kubelet_socket = device_plugins_dirs
-            .path()
-            .join("kubelet.sock")
-            .to_str()
-            .unwrap()
-            .to_string();
+        let kubelet_socket = device_plugins_dirs.path().join("kubelet.sock");
+        let kubelet_socket_clone = kubelet_socket.clone();
+        let kubelet_socket_str = kubelet_socket_clone.to_str().unwrap();
 
         // Start kubelet registration server
-        let mut uds =
-            UnixListener::bind(kubelet_socket.clone()).expect("Failed to bind to socket path");
-
         let registration = MockRegistration {
             return_error: false,
         };
         let service = RegistrationServer::new(registration);
         task::spawn(async move {
-            Server::builder()
-                .add_service(service)
-                .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
-                .await
-                .unwrap();
+            serve_for_test(service, kubelet_socket).await;
         });
 
         // Make sure registration server has started
-        akri_shared::uds::unix_stream::try_connect(&kubelet_socket)
+        akri_shared::uds::unix_stream::try_connect(kubelet_socket_str)
             .await
             .unwrap();
 
@@ -296,7 +313,7 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender,
-                &kubelet_socket
+                kubelet_socket_str
             )
             .await
             .is_ok());
@@ -307,12 +324,9 @@ pub mod tests {
         let device_plugin_builder = DevicePluginBuilder {};
         let (server_ender_sender, mut server_ender_receiver) = mpsc::channel(1);
         let device_plugins_dirs = Builder::new().prefix("device-plugins").tempdir().unwrap();
-        let kubelet_socket = device_plugins_dirs
-            .path()
-            .join("kubelet.sock")
-            .to_str()
-            .unwrap()
-            .to_string();
+        let kubelet_socket = device_plugins_dirs.path().join("kubelet.sock");
+        let kubelet_socket_clone = kubelet_socket.clone();
+        let kubelet_socket_str = kubelet_socket_clone.to_str().unwrap();
 
         // Try to register when no registration service exists
         assert!(device_plugin_builder
@@ -321,26 +335,20 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender.clone(),
-                &kubelet_socket
+                kubelet_socket_str
             )
             .await
             .is_err());
 
         // Start kubelet registration server
-        let mut uds =
-            UnixListener::bind(kubelet_socket.clone()).expect("Failed to bind to socket path");
         let registration = MockRegistration { return_error: true };
         let service = RegistrationServer::new(registration);
         task::spawn(async move {
-            Server::builder()
-                .add_service(service)
-                .serve_with_incoming(uds.incoming().map_ok(unix_stream::UnixStream))
-                .await
-                .unwrap();
+            serve_for_test(service, kubelet_socket).await;
         });
 
         // Make sure registration server has started
-        akri_shared::uds::unix_stream::try_connect(&kubelet_socket)
+        akri_shared::uds::unix_stream::try_connect(&kubelet_socket_str)
             .await
             .unwrap();
 
@@ -351,7 +359,7 @@ pub mod tests {
                 "socket.sock",
                 "random_instance",
                 server_ender_sender,
-                &kubelet_socket
+                kubelet_socket_str
             )
             .await
             .is_ok());

@@ -1,6 +1,6 @@
 [package]
 name = "udev-video-broker"
-version = "0.6.11"
+version = "0.7.5"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -8,15 +8,14 @@ edition = "2018"
 
 [dependencies]
 akri-shared = { path = "../../../shared" }
-env_logger = "0.8.3"
-futures = { version = "0.1", package = "futures" }
+env_logger = "0.9.0"
 lazy_static = "1.4"
 log = "0.4.3"
 prometheus = { version = "0.12.0", features = ["process"] }
-prost = "0.6"
-tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
-tonic = "0.1"
+prost = "0.8.0"
+tokio = { version = "1.0.1", features = ["time", "fs", "macros", "signal"] }
+tonic = "0.5.2"
 rscam = "0.5.5"
 
 [build-dependencies]
-tonic-build = "0.1.1"
+tonic-build = "0.5.2"

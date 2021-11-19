@@ -9,14 +9,15 @@ use super::{
     registration::RegisteredDiscoveryHandlerMap,
 };
 use akri_shared::{
-    akri::{configuration::KubeAkriConfig, API_CONFIGURATIONS, API_NAMESPACE, API_VERSION},
+    akri::configuration::Configuration,
     k8s,
     k8s::{try_delete_instance, KubeInterface},
 };
-use futures::StreamExt;
-use kube::api::{Informer, RawApi, WatchEvent};
+use futures::{StreamExt, TryStreamExt};
+use kube::api::{Api, ListParams};
+use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, option::Option, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
@@ -34,6 +35,10 @@ pub struct ConfigInfo {
     /// Receives notification that all `DiscoveryOperators` threads have completed and a Configuration's Instances
     /// can be safely deleted and the associated `DevicePluginServices` terminated.
     finished_discovery_receiver: mpsc::Receiver<()>,
+    /// Tracks the last generation of the `Configuration` resource (i.e. `.metadata.generation`).
+    /// This is used to determine if the `Configuration` actually changed, or if only the metadata changed.
+    /// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
+    last_generation: Option<i64>,
 }
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
@@ -43,7 +48,7 @@ pub async fn do_config_watch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
     let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
-    let kube_interface = k8s::create_kube_interface();
+    let kube_interface = k8s::KubeImpl::new().await?;
     let mut tasks = Vec::new();
 
     // Handle pre-existing configs
@@ -54,7 +59,7 @@ pub async fn do_config_watch(
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         tasks.push(tokio::spawn(async move {
             handle_config_add(
-                Arc::new(Box::new(k8s::create_kube_interface())),
+                Arc::new(k8s::KubeImpl::new().await.unwrap()),
                 &config,
                 config_map,
                 discovery_handler_map,
@@ -90,50 +95,70 @@ async fn watch_for_config_changes(
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("watch_for_config_changes - start");
-    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
-        .group(API_NAMESPACE)
-        .version(API_VERSION);
-    let informer = Informer::raw(kube_interface.get_kube_client(), akri_config_type)
-        .init()
-        .await?;
-    loop {
-        let mut configs = informer.poll().await?.boxed();
-
-        // Currently, this does not handle None except to break the
-        // while.
-        while let Some(event) = configs.next().await {
-            let new_discovery_handler_sender = new_discovery_handler_sender.clone();
-            handle_config(
-                kube_interface,
-                event?,
-                config_map.clone(),
-                discovery_handler_map.clone(),
-                new_discovery_handler_sender,
-            )
-            .await?
-        }
+    let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
+    let watcher = watcher(resource, ListParams::default());
+    let mut informer = watcher.boxed();
+    let mut first_event = true;
+    // Currently, this does not handle None except to break the
+    // while.
+    while let Some(event) = informer.try_next().await? {
+        let new_discovery_handler_sender = new_discovery_handler_sender.clone();
+        handle_config(
+            kube_interface,
+            event,
+            config_map.clone(),
+            discovery_handler_map.clone(),
+            new_discovery_handler_sender,
+            &mut first_event,
+        )
+        .await?
     }
+    Ok(())
 }
 
 /// This takes an event off the Configuration stream and delegates it to the
 /// correct function based on the event type.
 async fn handle_config(
     kube_interface: &impl KubeInterface,
-    event: WatchEvent<KubeAkriConfig>,
+    event: Event<Configuration>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    first_event: &mut bool,
+) -> anyhow::Result<()> {
     trace!("handle_config - something happened to a configuration");
     match event {
-        WatchEvent::Added(config) => {
+        Event::Applied(config) => {
             info!(
-                "handle_config - added Configuration {}",
-                config.metadata.name
+                "handle_config - added or modified Configuration {:?}",
+                config.metadata.name,
             );
+            // Applied events can either be newly added Configurations or modified Configurations.
+            // If modified delete all associated instances and device plugins and then recreate them to reflect updated config
+            // TODO: more gracefully handle modified Configurations by determining what changed rather than delete/re-add
+            if config_map
+                .lock()
+                .await
+                .contains_key(config.metadata.name.as_ref().unwrap())
+            {
+                let do_recreate = should_recreate_config(&config, config_map.clone()).await?;
+                if !do_recreate {
+                    trace!(
+                        "handle_config - config {:?} has not changed. ignoring config modified event.",
+                        config.metadata.name,
+                    );
+                    return Ok(());
+                }
+                info!(
+                    "handle_config - modified Configuration {:?}",
+                    config.metadata.name,
+                );
+                handle_config_delete(kube_interface, &config, config_map.clone()).await?;
+            }
+
             tokio::spawn(async move {
                 handle_config_add(
-                    Arc::new(Box::new(k8s::create_kube_interface())),
+                    Arc::new(k8s::KubeImpl::new().await.unwrap()),
                     &config,
                     config_map,
                     discovery_handler_map,
@@ -142,48 +167,33 @@ async fn handle_config(
                 .await
                 .unwrap();
             });
-            Ok(())
         }
-        WatchEvent::Deleted(config) => {
+        Event::Deleted(config) => {
             info!(
-                "handle_config - deleted Configuration {}",
+                "handle_config - deleted Configuration {:?}",
                 config.metadata.name,
             );
             handle_config_delete(kube_interface, &config, config_map).await?;
-            Ok(())
         }
-        // If a config is updated, delete all associated instances and device plugins and then recreate them to reflect updated config
-        WatchEvent::Modified(config) => {
-            info!(
-                "handle_config - modified Configuration {}",
-                config.metadata.name,
-            );
-            handle_config_delete(kube_interface, &config, config_map.clone()).await?;
-            tokio::spawn(async move {
-                handle_config_add(
-                    Arc::new(Box::new(k8s::create_kube_interface())),
-                    &config,
-                    config_map,
-                    discovery_handler_map,
-                    new_discovery_handler_sender,
-                )
-                .await
-                .unwrap();
-            });
-            Ok(())
-        }
-        WatchEvent::Error(ref e) => {
-            error!("handle_config - error for Configuration: {}", e);
-            Ok(())
+        Event::Restarted(_configs) => {
+            if *first_event {
+                info!("handle_config - watcher started");
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Configuration watcher restarted - throwing error to restart agent"
+                ));
+            }
         }
     }
+    *first_event = false;
+    Ok(())
 }
 
 /// This handles added Configuration by creating a new ConfigInfo for it and adding it to the ConfigMap.
 /// Then calls a function to continually observe the availability of instances associated with the Configuration.
 async fn handle_config_add(
-    kube_interface: Arc<Box<dyn k8s::KubeInterface>>,
-    config: &KubeAkriConfig,
+    kube_interface: Arc<dyn k8s::KubeInterface>,
+    config: &Configuration,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
@@ -199,11 +209,12 @@ async fn handle_config_add(
         instance_map: instance_map.clone(),
         stop_discovery_sender: stop_discovery_sender.clone(),
         finished_discovery_receiver,
+        last_generation: config.metadata.generation,
     };
     config_map
         .lock()
         .await
-        .insert(config_name.clone(), config_info);
+        .insert(config_name.clone().unwrap(), config_info);
 
     let config = config.clone();
     // Keep discovering instances until the config is deleted, signaled by a message from handle_config_delete
@@ -229,18 +240,19 @@ async fn handle_config_add(
 /// and deletes the Instance CRD.
 async fn handle_config_delete(
     kube_interface: &impl KubeInterface,
-    config: &KubeAkriConfig,
+    config: &Configuration,
     config_map: ConfigMap,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> anyhow::Result<()> {
+    let name = config.metadata.name.clone().unwrap();
     trace!(
         "handle_config_delete - for config {} telling do_periodic_discovery to end",
-        config.metadata.name
+        name
     );
     // Send message to stop observing instances' availability and waits until response is received
     if config_map
         .lock()
         .await
-        .get(&config.metadata.name)
+        .get(&name)
         .unwrap()
         .stop_discovery_sender
         .clone()
@@ -250,7 +262,7 @@ async fn handle_config_delete(
         config_map
             .lock()
             .await
-            .get_mut(&config.metadata.name)
+            .get_mut(&name)
             .unwrap()
             .finished_discovery_receiver
             .recv()
@@ -258,12 +270,12 @@ async fn handle_config_delete(
             .unwrap();
         trace!(
             "handle_config_delete - for config {} received message that do_periodic_discovery ended",
-            config.metadata.name
+            name
         );
     } else {
         trace!(
             "handle_config_delete - for config {} do_periodic_discovery receiver has been dropped",
-            config.metadata.name
+            name
         );
     }
 
@@ -271,29 +283,47 @@ async fn handle_config_delete(
     let instance_map: InstanceMap;
     {
         let mut config_map_locked = config_map.lock().await;
-        instance_map = config_map_locked
-            .get(&config.metadata.name)
-            .unwrap()
-            .instance_map
-            .clone();
-        config_map_locked.remove(&config.metadata.name);
+        instance_map = config_map_locked.get(&name).unwrap().instance_map.clone();
+        config_map_locked.remove(&name);
     }
     delete_all_instances_in_map(kube_interface, instance_map, config).await?;
     Ok(())
+}
+
+/// Checks to see if the configuration needs to be recreated.
+/// At present, this just checks to see if the `.metadata.generation` has changed.
+/// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
+async fn should_recreate_config(
+    config: &Configuration,
+    config_map: ConfigMap,
+) -> Result<bool, anyhow::Error> {
+    let name = config.metadata.name.as_ref().unwrap();
+    let last_generation = config_map
+        .lock()
+        .await
+        .get(name)
+        .ok_or_else(|| anyhow::anyhow!("Configuration {} not found in ConfigMap", &name))?
+        .last_generation;
+
+    if config.metadata.generation <= last_generation {
+        return Ok(false);
+    }
+
+    Ok(true)
 }
 
 /// This shuts down all a Configuration's Instances and terminates the associated Device Plugins
 pub async fn delete_all_instances_in_map(
     kube_interface: &impl k8s::KubeInterface,
     instance_map: InstanceMap,
-    config: &KubeAkriConfig,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    config: &Configuration,
+) -> anyhow::Result<()> {
     let mut instance_map_locked = instance_map.lock().await;
     let instances_to_delete_map = instance_map_locked.clone();
     let namespace = config.metadata.namespace.as_ref().unwrap();
     for (instance_name, instance_info) in instances_to_delete_map {
         trace!(
-            "handle_config_delete - found Instance {} associated with deleted config {} ... sending message to end list_and_watch",
+            "handle_config_delete - found Instance {} associated with deleted config {:?} ... sending message to end list_and_watch",
             instance_name,
             config.metadata.name
         );
@@ -302,7 +332,7 @@ pub async fn delete_all_instances_in_map(
             .send(device_plugin_service::ListAndWatchMessageKind::End)
             .unwrap();
         instance_map_locked.remove(&instance_name);
-        try_delete_instance(kube_interface, &instance_name, &namespace).await?;
+        try_delete_instance(kube_interface, &instance_name, namespace).await?;
     }
     Ok(())
 }
@@ -317,17 +347,48 @@ mod config_action_tests {
     };
     use super::*;
     use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
-    use akri_shared::{akri::configuration::KubeAkriConfig, k8s::MockKubeInterface};
+    use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface};
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
+
+    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
+    #[tokio::test]
+    async fn test_handle_watcher_restart() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let config_map = Arc::new(Mutex::new(HashMap::new()));
+        let dh_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
+        let (tx, mut _rx1) = broadcast::channel(1);
+        let mut first_event = true;
+        assert!(handle_config(
+            &MockKubeInterface::new(),
+            Event::Restarted(Vec::new()),
+            config_map.clone(),
+            dh_map.clone(),
+            tx.clone(),
+            &mut first_event
+        )
+        .await
+        .is_ok());
+        first_event = false;
+        assert!(handle_config(
+            &MockKubeInterface::new(),
+            Event::Restarted(Vec::new()),
+            config_map,
+            dh_map,
+            tx,
+            &mut first_event
+        )
+        .await
+        .is_err());
+    }
 
     #[tokio::test]
     async fn test_handle_config_delete() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_name = config.metadata.name.clone().unwrap();
         let mut list_and_watch_message_receivers = Vec::new();
         let mut visible_discovery_results = Vec::new();
         let mut mock = MockKubeInterface::new();
@@ -339,7 +400,7 @@ mod config_action_tests {
         )
         .await;
         let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
-        let (mut finished_discovery_sender, finished_discovery_receiver) = mpsc::channel(2);
+        let (finished_discovery_sender, finished_discovery_receiver) = mpsc::channel(2);
         let mut map: HashMap<String, ConfigInfo> = HashMap::new();
         map.insert(
             config_name.clone(),
@@ -347,6 +408,7 @@ mod config_action_tests {
                 stop_discovery_sender,
                 instance_map: instance_map.clone(),
                 finished_discovery_receiver,
+                last_generation: config.metadata.generation,
             },
         );
         let config_map: ConfigMap = Arc::new(Mutex::new(map));
@@ -386,7 +448,7 @@ mod config_action_tests {
     async fn run_and_test_handle_config_add(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         config_map: ConfigMap,
-        config: KubeAkriConfig,
+        config: Configuration,
         dh_endpoint: &DiscoveryHandlerEndpoint,
         dh_name: &str,
     ) -> tokio::task::JoinHandle<()> {
@@ -396,8 +458,7 @@ mod config_action_tests {
             .expect_create_instance()
             .times(1)
             .returning(move |_, _, _, _, _| Ok(()));
-        let arc_mock_kube_interface: Arc<Box<dyn k8s::KubeInterface>> =
-            Arc::new(Box::new(mock_kube_interface));
+        let arc_mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(mock_kube_interface);
         let config_add_config = config.clone();
         let config_add_config_map = config_map.clone();
         let config_add_discovery_handler_map = discovery_handler_map.clone();
@@ -414,10 +475,11 @@ mod config_action_tests {
         });
 
         // Loop until the Configuration and single discovered Instance are added to the ConfigMap
+        let config_name = config.metadata.name.unwrap();
         let mut x: i8 = 0;
         while x < 5 {
-            tokio::time::delay_for(std::time::Duration::from_millis(200)).await;
-            if let Some(config_info) = config_map.lock().await.get(&config.metadata.name) {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            if let Some(config_info) = config_map.lock().await.get(&config_name) {
                 if config_info.instance_map.lock().await.len() == 1 {
                     break;
                 }
@@ -444,7 +506,7 @@ mod config_action_tests {
     ) {
         let mut x: i8 = 0;
         while x < 5 {
-            tokio::time::delay_for(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             let dh_map = discovery_handler_map.lock().unwrap();
             if let Some(dh_details_map) = dh_map.get(dh_name) {
                 if dh_details_map.get(dh_endpoint).unwrap().connectivity_status == dh_status {
@@ -497,8 +559,8 @@ mod config_action_tests {
         // Discovery Handler should create an instance and be marked as Active
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: KubeAkriConfig = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_name = config.metadata.name.clone();
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_name = config.metadata.name.clone().unwrap();
         let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
         let first_add_handle = run_and_test_handle_config_add(
             discovery_handler_map.clone(),
@@ -553,5 +615,70 @@ mod config_action_tests {
         .await;
 
         futures::future::join_all(vec![first_add_handle, second_add_handle]).await;
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation has changed, should return true
+    #[tokio::test]
+    async fn test_should_recreate_config_new_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using different generation as what is already in config_map
+        config.metadata.generation = Some(2);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation has NOT changed, should return false
+    #[tokio::test]
+    async fn test_should_recreate_config_same_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using same generation as what is already in config_map
+        config.metadata.generation = Some(1);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation is older, should return false
+    #[tokio::test]
+    async fn test_should_recreate_config_older_generation() {
+        let (mut config, config_map) = get_should_recreate_config_data().await;
+
+        // using older generation than what is already in config_map
+        config.metadata.generation = Some(0);
+        let do_recreate = should_recreate_config(&config, config_map.clone())
+            .await
+            .unwrap();
+
+        assert!(!do_recreate)
+    }
+
+    async fn get_should_recreate_config_data() -> (Configuration, ConfigMap) {
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+
+        let (stop_discovery_sender, _) = broadcast::channel(2);
+        let (_, finished_discovery_receiver) = mpsc::channel(2);
+
+        let config_info = ConfigInfo {
+            instance_map: Arc::new(Mutex::new(HashMap::new())),
+            stop_discovery_sender: stop_discovery_sender.clone(),
+            finished_discovery_receiver,
+            last_generation: Some(1),
+        };
+        let config_name = config.metadata.name.clone().unwrap();
+        let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
+        config_map.lock().await.insert(config_name, config_info);
+        (config, config_map)
     }
 }

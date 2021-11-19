@@ -23,7 +23,7 @@ spec:
   brokerPodSpec:
     containers:
     - name: akri-onvif-video-broker
-      image: "ghcr.io/deislabs/akri/onvif-video-broker:latest-dev"
+      image: "ghcr.io/project-akri/akri/onvif-video-broker:latest-dev"
       imagePullPolicy: Always
       resources:
         limits:

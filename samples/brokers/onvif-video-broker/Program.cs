@@ -102,7 +102,7 @@ namespace FrameServer
 
 			FrameTask = Task.Run(() => Process(RtspUrl));
 
-			var metricServer = new KestrelMetricServer(port: 8000);
+			var metricServer = new KestrelMetricServer(port: 8080);
 			metricServer.Start();
 
 			CreateHostBuilder(args).Build().Run();

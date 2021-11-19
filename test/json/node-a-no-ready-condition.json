@@ -89,33 +89,33 @@
         "images": [
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:c9dfd4ec68de9e3609d2d60ab179ab1569dbb386a56dca998b4f984c0db5882d",
-                    "ghcr.io/deislabs/akri/agent:latest"
+                    "ghcr.io/project-akri/akri/agent@sha256:c9dfd4ec68de9e3609d2d60ab179ab1569dbb386a56dca998b4f984c0db5882d",
+                    "ghcr.io/project-akri/akri/agent:latest"
                 ],
                 "sizeBytes": 395790021
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:959d7a9a57020b5d954be1365f815a43c9db2a3a47bfff093d6f9455b5675eeb"
+                    "ghcr.io/project-akri/akri/agent@sha256:959d7a9a57020b5d954be1365f815a43c9db2a3a47bfff093d6f9455b5675eeb"
                 ],
                 "sizeBytes": 395790021
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:1238836fa04a8c32d336d50934c244fc9be74326b768e46124b510cc69258e2f",
-                    "ghcr.io/deislabs/akri/agent:latest"
+                    "ghcr.io/project-akri/akri/agent@sha256:1238836fa04a8c32d336d50934c244fc9be74326b768e46124b510cc69258e2f",
+                    "ghcr.io/project-akri/akri/agent:latest"
                 ],
                 "sizeBytes": 395716925
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:1ad43ba4877f91db4ef796788bfcb0bf56cbd9fe0dc4c25b49a1fed144464045"
+                    "ghcr.io/project-akri/akri/agent@sha256:1ad43ba4877f91db4ef796788bfcb0bf56cbd9fe0dc4c25b49a1fed144464045"
                 ],
                 "sizeBytes": 395439893
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:a1bc2ec11297fb4dc8f92ae885a2da1a016f3340a6675a41e774341000e3f795"
+                    "ghcr.io/project-akri/akri/agent@sha256:a1bc2ec11297fb4dc8f92ae885a2da1a016f3340a6675a41e774341000e3f795"
                 ],
                 "sizeBytes": 395439893
             },
@@ -135,13 +135,13 @@
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:e484be81717b99902bc64a6d3310b143a42f5920bb1a8c301703dc52f825615c"
+                    "ghcr.io/project-akri/akri/agent@sha256:e484be81717b99902bc64a6d3310b143a42f5920bb1a8c301703dc52f825615c"
                 ],
                 "sizeBytes": 91159902
             },
             {
                 "names": [
-                    "ghcr.io/deislabs/akri/agent@sha256:62d70cd1f3d438f825b18472353131be5a614282e9005c3a308c6369f5da9abd"
+                    "ghcr.io/project-akri/akri/agent@sha256:62d70cd1f3d438f825b18472353131be5a614282e9005c3a308c6369f5da9abd"
                 ],
                 "sizeBytes": 91159902
             },
