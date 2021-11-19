@@ -28,12 +28,12 @@ env:
 
 jobs:
 
-  add-build-label-to-pr:
+  add-same-version-label-to-pr:
     runs-on: ubuntu-latest
-    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-build-dependency-containers')
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-same-version-label')
     steps:
     - uses: actions/checkout@v2
-    - name: Add build-dependency-containers label
+    - name: Add same version label
       uses: actions/github-script@0.9.0
       if: success()
       with:
@@ -43,21 +43,45 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            labels: ['build-dependency-containers']
+            labels: ['same version']
           })
           github.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '👋 Added build-dependency-containers label :)!'
+            body: '👋 Added [same version] label :)!'
+          })
+
+  add-build-label-to-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-build-dependency-containers-label')
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add build dependency containers label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['build dependency containers']
+          })
+          github.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '👋 Added [build dependency containers] label :)!'
           })
 
   add-label-missing-comment:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'build dependency containers') == false
     steps:
     - uses: actions/checkout@v2
-    - name: Add comment about missing build-dependency-containers label
+    - name: Add comment about missing build dependency containers label
       uses: actions/github-script@0.9.0
       if: success()
       with:
@@ -67,11 +91,11 @@ jobs:
             issue_number: context.payload.pull_request.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: 'Hi there, this change should run a build dependency containers, but running it will take hours. Do you want to run it? If so, please add flag build-dependency-containers by commenting "/add-build-dependency-containers".'
+            body: 'Hi there, this change should run a build dependency containers, but running it will take hours. Do you want to run it? If so, please add label "build dependency containers" by commenting "/add-build-dependency-containers-label".'
           })
 
   per-arch:
-    if: contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == true
+    if: contains(github.event.pull_request.labels.*.name, 'build dependency containers') == true
     runs-on: ubuntu-latest
     strategy:
       matrix:
