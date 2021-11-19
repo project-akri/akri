@@ -19,7 +19,7 @@ on:
     - build/intermediate-containers.mk
     - Makefile
   issue_comment:
-    types: [created]
+    types: [created, edited]
     branches: [ main ]
 
 env:
