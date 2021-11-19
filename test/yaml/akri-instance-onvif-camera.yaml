@@ -3,8 +3,7 @@ kind: Instance
 metadata:
   name: onvif-camera-ffffff
 spec:
-  configurationDeploymentStatuses: 
-    onvif-camera: active
+  configurationName: onvif-camera
   shared: true
   nodes:
   - "linux-dev3"

@@ -30,10 +30,8 @@ pub enum ConfigurationDeploymentStatus {
 #[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
 #[kube(apiextensions = "v1")]
 pub struct InstanceSpec {
-    /// Map of currently deployed Configurations that are using this Instance.
-    /// Key is Configuration name
-    /// Value is the status of the Configuration: (`Active`, `Completed`, `Failed`)
-    pub configuration_deployment_statuses: HashMap<String, ConfigurationDeploymentStatus>,
+    /// This contains the name of the Configuration that initiated the discovery of this Instance
+    pub configuration_name: String,
 
     /// This defines some properties that will be set as
     /// environment variables in broker Pods that request
@@ -167,11 +165,9 @@ pub async fn find_instance(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
-/// let mut configuration_deployment_statuses = std::collections::HashMap::new();
-/// configuration_deployment_statuses.insert("capability_configuration_name".to_string(), ConfigurationDeploymentStatus::Active);
 /// let instance = instance::create_instance(
 ///     &InstanceSpec {
-///         configuration_deployment_statuses,
+///         configuration_name: "capability_configuration_name".to_string(),
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
@@ -290,11 +286,9 @@ pub async fn delete_instance(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
-/// let mut configuration_deployment_statuses = std::collections::HashMap::new();
-/// configuration_deployment_statuses.insert("capability_configuration_name".to_string(), ConfigurationDeploymentStatus::Active);
 /// let instance = instance::create_instance(
 ///     &InstanceSpec {
-///         configuration_deployment_statuses,
+///         configuration_name: "capability_configuration_name".to_string(),
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
@@ -364,15 +358,9 @@ mod crd_serializeation_tests {
     fn test_instance_defaults_with_json_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationDeploymentStatuses":{"foo":"active"}}"#;
+        let json = r#"{"configurationName": "foo"}"#;
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            &ConfigurationDeploymentStatus::Active,
-            deserialized
-                .configuration_deployment_statuses
-                .get("foo")
-                .unwrap()
-        );
+        assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(0, deserialized.broker_info.len());
         assert_eq!(default_shared(), deserialized.shared);
@@ -380,7 +368,7 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationDeploymentStatuses":{"foo":"active"},"brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -389,24 +377,17 @@ mod crd_serializeation_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"
-        configurationDeploymentStatuses: 
-            foo: active
+        configurationName: foo 
         "#;
         let deserialized: InstanceSpec = serde_yaml::from_str(json).unwrap();
-        assert_eq!(
-            &ConfigurationDeploymentStatus::Active,
-            deserialized
-                .configuration_deployment_statuses
-                .get("foo")
-                .unwrap()
-        );
+        assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationDeploymentStatuses":{"foo":"active"},"brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -414,15 +395,9 @@ mod crd_serializeation_tests {
     fn test_instance_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationDeploymentStatuses":{"foo":"active"},"brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"},"brokerInfo":{}}"#;
+        let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"},"brokerInfo":{}}"#;
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            &ConfigurationDeploymentStatus::Active,
-            deserialized
-                .configuration_deployment_statuses
-                .get("foo")
-                .unwrap()
-        );
+        assert_eq!("blah".to_string(), deserialized.configuration_name);
         assert_eq!(1, deserialized.broker_properties.len());
         assert_eq!(true, deserialized.shared);
         assert_eq!(2, deserialized.nodes.len());

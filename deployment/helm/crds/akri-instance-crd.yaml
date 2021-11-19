@@ -15,10 +15,8 @@ spec:
             spec:
               type: object
               properties:
-                configurationDeploymentStatuses: # map<string, ConfigurationStatus>
-                  additionalProperties:
-                    type: string
-                  type: object
+                configurationName:
+                  type: string
                 brokerProperties:
                   additionalProperties:
                     type: string

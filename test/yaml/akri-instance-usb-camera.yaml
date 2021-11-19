@@ -3,8 +3,7 @@ kind: Instance
 metadata:
   name: usb-dev-video0-ffffff
 spec:
-  configurationDeploymentStatuses: 
-    usb-dev-video0: active
+  configurationName: usb-dev-video0
   shared: false
   nodes:
   - "linux-dev3"
