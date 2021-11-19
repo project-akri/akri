@@ -14,6 +14,7 @@ use akri_shared::{
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
@@ -48,6 +49,22 @@ enum PodState {
     /// needs to be called to ensure that Pods are
     /// restarted
     Deleted,
+}
+
+fn instance_owned(pod: &Pod) -> bool {
+    let instance_string = "Instance".to_string();
+    match &pod.metadata.owner_references {
+        Some(or) => {
+            if or.iter().filter(|r| r.kind == instance_string).collect::<Vec<&OwnerReference>>().is_empty() {
+                false
+            } else {
+                true
+            }
+        }
+        None => {
+            false
+        }
+    }
 }
 
 /// This is used to handle broker Pods entering and leaving
@@ -126,8 +143,12 @@ impl BrokerPodWatcher {
         first_event: &mut bool,
     ) -> anyhow::Result<()> {
         trace!("handle_pod - enter [event: {:?}]", event);
+        // Ignore Pods that are not owned by an Akri Instance
         match event {
             Event::Applied(pod) => {
+                if !instance_owned(&pod) {
+                    return Ok(())
+                }
                 info!(
                     "handle_pod - pod {:?} added or modified",
                     &pod.metadata.name
@@ -157,6 +178,9 @@ impl BrokerPodWatcher {
                 }
             }
             Event::Deleted(pod) => {
+                if !instance_owned(&pod) {
+                    return Ok(())
+                }
                 info!("handle_pod - Deleted: {:?}", &pod.metadata.name);
                 self.handle_deleted_pod_if_needed(&pod, kube_interface)
                     .await?;
@@ -554,75 +578,77 @@ impl BrokerPodWatcher {
             "add_instance_and_configuration_services - instance={:?}",
             instance_name
         );
-
-        if let Some(instance_service_spec) = &configuration.spec.instance_service_spec {
-            let ownership = OwnershipInfo::new(
-                OwnershipType::Instance,
-                instance_name.to_string(),
-                instance_uid.to_string(),
-            );
-            // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
-            for x in 0..MAX_INSTANCE_UPDATE_TRIES {
-                match self
-                    .create_or_update_service(
-                        instance_name,
-                        configuration_name,
-                        namespace,
-                        AKRI_INSTANCE_LABEL_NAME,
-                        instance_name,
-                        ownership.clone(),
-                        instance_service_spec,
-                        true,
-                        kube_interface,
-                    )
-                    .await
-                {
-                    Ok(_) => break,
-                    Err(e) => {
-                        if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                            return Err(e);
+        if let Some(ds) = &configuration.spec.deployment_strategy {
+            if let Some(instance_service_spec) = &ds.instance_service_spec {
+                let ownership = OwnershipInfo::new(
+                    OwnershipType::Instance,
+                    instance_name.to_string(),
+                    instance_uid.to_string(),
+                );
+                // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
+                for x in 0..MAX_INSTANCE_UPDATE_TRIES {
+                    match self
+                        .create_or_update_service(
+                            instance_name,
+                            configuration_name,
+                            namespace,
+                            AKRI_INSTANCE_LABEL_NAME,
+                            instance_name,
+                            ownership.clone(),
+                            instance_service_spec,
+                            true,
+                            kube_interface,
+                        )
+                        .await
+                    {
+                        Ok(_) => break,
+                        Err(e) => {
+                            if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
+                                return Err(e);
+                            }
+                            random_delay().await;
                         }
-                        random_delay().await;
+                    }
+                }
+            }
+    
+            if let Some(configuration_service_spec) = &ds.configuration_service_spec {
+                let configuration_uid = configuration.metadata.uid.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("UID not found for configuration: {}", configuration_name)
+                })?;
+                let ownership = OwnershipInfo::new(
+                    OwnershipType::Configuration,
+                    configuration_name.to_string(),
+                    configuration_uid.clone(),
+                );
+                // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
+                for x in 0..MAX_INSTANCE_UPDATE_TRIES {
+                    match self
+                        .create_or_update_service(
+                            instance_name,
+                            configuration_name,
+                            namespace,
+                            AKRI_CONFIGURATION_LABEL_NAME,
+                            configuration_name,
+                            ownership.clone(),
+                            configuration_service_spec,
+                            false,
+                            kube_interface,
+                        )
+                        .await
+                    {
+                        Ok(_) => break,
+                        Err(e) => {
+                            if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
+                                return Err(e);
+                            }
+                            random_delay().await;
+                        }
                     }
                 }
             }
         }
-
-        if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
-            let configuration_uid = configuration.metadata.uid.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("UID not found for configuration: {}", configuration_name)
-            })?;
-            let ownership = OwnershipInfo::new(
-                OwnershipType::Configuration,
-                configuration_name.to_string(),
-                configuration_uid.clone(),
-            );
-            // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
-            for x in 0..MAX_INSTANCE_UPDATE_TRIES {
-                match self
-                    .create_or_update_service(
-                        instance_name,
-                        configuration_name,
-                        namespace,
-                        AKRI_CONFIGURATION_LABEL_NAME,
-                        configuration_name,
-                        ownership.clone(),
-                        configuration_service_spec,
-                        false,
-                        kube_interface,
-                    )
-                    .await
-                {
-                    Ok(_) => break,
-                    Err(e) => {
-                        if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                            return Err(e);
-                        }
-                        random_delay().await;
-                    }
-                }
-            }
-        }
+        
         Ok(())
     }
 }
@@ -1217,7 +1243,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
                 true,
                 &mock,
             )
@@ -1260,7 +1286,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
                 true,
                 &mock
             )
@@ -1304,7 +1330,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
                 true,
                 &mock,
             )
@@ -1344,7 +1370,7 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
+                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
                 true,
                 &mock
             )

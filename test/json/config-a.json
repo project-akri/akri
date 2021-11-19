@@ -39,7 +39,7 @@
                     }
                 ],
                 "type": "ClusterIP"
-            },
+            }
         },
         "discoveryHandler": {
             "name": "debugEcho",

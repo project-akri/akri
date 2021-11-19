@@ -286,7 +286,7 @@ pub async fn delete_instance(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
-/// let instance = instance::create_instance(
+/// let instance = instance::update_instance(
 ///     &InstanceSpec {
 ///         configuration_name: "capability_configuration_name".to_string(),
 ///         shared: true,

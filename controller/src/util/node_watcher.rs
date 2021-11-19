@@ -306,6 +306,7 @@ impl NodeWatcher {
             shared: instance.spec.shared,
             device_usage: modified_device_usage,
             nodes: modified_nodes,
+            broker_info: instance.spec.broker_info.clone(),
         };
 
         trace!(

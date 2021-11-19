@@ -84,27 +84,34 @@ pub async fn find_pods_with_selector(
 /// ```no_run
 /// use akri_shared::k8s::pod;
 ///
-/// let svc_name = pod::create_pod_app_name(
+/// let svc_name = pod::create_broker_app_name(
 ///     "capability_config",
-///     "node-a",
+///     Some("node-a"),
 ///     true,
 ///     "pod");
 /// ```
-pub fn create_pod_app_name(
+pub fn create_broker_app_name(
     instance_name: &str,
-    node_to_run_pod_on: &str,
+    node_to_run_broker_on: Option<&str>,
     capability_is_shared: bool,
     app_name_suffix: &str,
 ) -> String {
     let normalized_instance_name = instance_name.replace(".", "-");
     if capability_is_shared {
         // If the device capability is shared, the instance name will not contain any
-        // node-specific content.  To ensure uniqueness of the Pod we are creating,
+        // node-specific content.  To ensure uniqueness of the Pod/Job we are creating,
         // prepend the node name here.
-        format!(
-            "{}-{}-{}",
-            node_to_run_pod_on, normalized_instance_name, app_name_suffix
-        )
+        match node_to_run_broker_on {
+            Some(n) => format!(
+                "{}-{}-{}",
+                n, normalized_instance_name, app_name_suffix
+            ),
+            None => format!(
+                "{}-{}",
+                normalized_instance_name, app_name_suffix
+            )
+        }
+        
     } else {
         // If the device capability is NOT shared, the instance name will contain
         // node-specific content, which guarntees uniqueness.
@@ -158,9 +165,9 @@ pub fn create_new_pod_from_spec(
 ) -> anyhow::Result<Pod> {
     trace!("create_new_pod_from_spec enter");
 
-    let app_name = create_pod_app_name(
+    let app_name = create_broker_app_name(
         instance_name,
-        node_to_run_pod_on,
+        Some(node_to_run_pod_on),
         capability_is_shared,
         &"pod".to_string(),
     );
@@ -190,7 +197,25 @@ pub fn create_new_pod_from_spec(
     }];
 
     let mut modified_pod_spec = pod_spec.clone();
+    modify_pod_spec(&mut modified_pod_spec, resource_limit_name, Some(node_to_run_pod_on));
 
+    let result = Pod {
+        spec: Some(modified_pod_spec),
+        metadata: ObjectMeta {
+            name: Some(app_name),
+            namespace: Some(pod_namespace.to_string()),
+            labels: Some(labels),
+            owner_references: Some(owner_references),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    trace!("create_new_pod_from_spec return");
+    Ok(result)
+}
+
+pub fn modify_pod_spec(pod_spec: &mut PodSpec, resource_limit_name: &str, node_to_run_pod_on: Option<&str>) {
     let insert_akri_resources = |map: &mut ResourceQuantityType| {
         if map.contains_key(RESOURCE_REQUIREMENTS_KEY) {
             let placeholder_value = map.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
@@ -199,7 +224,7 @@ pub fn create_new_pod_from_spec(
         }
     };
 
-    for container in &mut modified_pod_spec.containers {
+    for container in &mut pod_spec.containers {
         if let Some(resources) = container.resources.as_ref() {
             container.resources = Some(ResourceRequirements {
                 limits: {
@@ -223,9 +248,9 @@ pub fn create_new_pod_from_spec(
             });
         };
     }
-
-    // Ensure that the modified PodSpec has the required Affinity settings
-    modified_pod_spec
+    if let Some(node_name) = node_to_run_pod_on {
+        // Ensure that the modified PodSpec has the required Affinity settings
+        pod_spec
         .affinity
         .get_or_insert(Affinity::default())
         .node_affinity
@@ -241,25 +266,11 @@ pub fn create_new_pod_from_spec(
             match_fields: Some(vec![NodeSelectorRequirement {
                 key: OBJECT_NAME_FIELD.to_string(),
                 operator: NODE_SELECTOR_OP_IN.to_string(), // need to find if there is an equivalent to: v1.NODE_SELECTOR_OP_IN,
-                values: Some(vec![node_to_run_pod_on.to_string()]),
+                values: Some(vec![node_name.to_string()]),
             }]),
             ..Default::default()
         });
-
-    let result = Pod {
-        spec: Some(modified_pod_spec),
-        metadata: ObjectMeta {
-            name: Some(app_name),
-            namespace: Some(pod_namespace.to_string()),
-            labels: Some(labels),
-            owner_references: Some(owner_references),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
-    trace!("create_new_pod_from_spec return");
-    Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -271,23 +282,23 @@ mod broker_podspec_tests {
     use k8s_openapi::api::core::v1::Container;
 
     #[test]
-    fn test_create_pod_app_name() {
+    fn test_create_broker_app_name() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"instance.name".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 true,
                 &"suffix".to_string()
             )
         );
         assert_eq!(
             "instance-name-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"instance.name".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 false,
                 &"suffix".to_string()
             )
@@ -295,18 +306,18 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"instance-name".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 true,
                 &"suffix".to_string()
             )
         );
         assert_eq!(
             "instance-name-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"instance-name".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 false,
                 &"suffix".to_string()
             )
@@ -314,18 +325,18 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-1-0-0-1-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"1-0-0-1".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 true,
                 &"suffix".to_string()
             )
         );
         assert_eq!(
             "1-0-0-1-suffix",
-            create_pod_app_name(
+            create_broker_app_name(
                 &"1-0-0-1".to_string(),
-                &"node".to_string(),
+                Some("node"),
                 false,
                 &"suffix".to_string()
             )
@@ -434,9 +445,9 @@ mod broker_podspec_tests {
             )
             .unwrap();
 
-            let app_name = create_pod_app_name(
+            let app_name = create_broker_app_name(
                 &instance_name,
-                &node_to_run_pod_on,
+                Some(&node_to_run_pod_on),
                 *capability_is_shared,
                 &"pod".to_string(),
             );

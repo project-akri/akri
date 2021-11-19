@@ -13,7 +13,17 @@
                     "akri.sh/target-node": "node-a"
                 },
                 "name": "config-a-b494b6-pod",
-                "namespace": "config-a-namespace"
+                "namespace": "config-a-namespace",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "akri.sh/v0",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "Instance",
+                        "name": "config-a-b494b6",
+                        "uid": "instance-uid"
+                    }
+                ]
             },
             "spec": {
                 "containers": [
