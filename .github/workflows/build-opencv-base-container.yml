@@ -54,7 +54,7 @@ jobs:
 
   add-label-missing-comment:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'build-dependency-containers') == false
     steps:
     - uses: actions/checkout@v2
     - name: Add comment about missing build-dependency-containers label
