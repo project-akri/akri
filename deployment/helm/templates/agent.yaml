@@ -63,7 +63,7 @@ spec:
             value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
           - name: HOST_CRICTL_PATH
-            value: /host/usr/bin/crictl
+            value: /usr/local/bin/crictl
           - name: HOST_RUNTIME_ENDPOINT
             value: unix:///host/var/run/dockershim.sock
           - name: HOST_IMAGE_ENDPOINT
@@ -79,8 +79,6 @@ spec:
             mountPath: /var/lib/akri
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
-          - name: usr-bin-crictl
-            mountPath: /host/usr/bin/crictl
           - name: var-run-dockershim
             mountPath: /host/var/run/dockershim.sock
           {{- if .Values.agent.host.udev }}
@@ -103,9 +101,6 @@ spec:
       - name: device-plugin
         hostPath:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"
-      - name: usr-bin-crictl
-        hostPath:
-          path: "{{ .Values.agent.host.crictl }}"
       - name: var-run-dockershim
         hostPath:
           path: "{{ .Values.agent.host.dockerShimSock }}"

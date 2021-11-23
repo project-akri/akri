@@ -9,7 +9,13 @@ RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}/${BUILD_TYPE}"
 # Link the container to the Akri repository
 LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl curl ca-certificates && \
+    VERSION="v1.17.0" && \
+    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz --output crictl-$VERSION-linux-amd64.tar.gz && \
+    tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin && \
+    rm -f crictl-$VERSION-linux-amd64.tar.gz && \
+    apt-get remove -y curl ca-certificates && apt-get clean
+    
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/agent-full /agent
 ENV RUST_LOG agent,akri_shared,akri_debug_echo
 CMD ["./agent"]
