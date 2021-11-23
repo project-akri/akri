@@ -255,6 +255,7 @@ impl DevicePluginSlotReconciler {
                     shared: instance.spec.shared,
                     device_usage: modified_device_usage,
                     nodes: instance.spec.nodes.clone(),
+                    broker_info: instance.spec.broker_info.clone(),
                 };
                 trace!("reconcile - update Instance from: {:?}", &instance.spec);
                 trace!("reconcile - update Instance   to: {:?}", &modified_instance);

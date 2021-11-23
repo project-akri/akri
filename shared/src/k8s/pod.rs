@@ -102,16 +102,9 @@ pub fn create_broker_app_name(
         // node-specific content.  To ensure uniqueness of the Pod/Job we are creating,
         // prepend the node name here.
         match node_to_run_broker_on {
-            Some(n) => format!(
-                "{}-{}-{}",
-                n, normalized_instance_name, app_name_suffix
-            ),
-            None => format!(
-                "{}-{}",
-                normalized_instance_name, app_name_suffix
-            )
+            Some(n) => format!("{}-{}-{}", n, normalized_instance_name, app_name_suffix),
+            None => format!("{}-{}", normalized_instance_name, app_name_suffix),
         }
-        
     } else {
         // If the device capability is NOT shared, the instance name will contain
         // node-specific content, which guarntees uniqueness.
@@ -197,7 +190,11 @@ pub fn create_new_pod_from_spec(
     }];
 
     let mut modified_pod_spec = pod_spec.clone();
-    modify_pod_spec(&mut modified_pod_spec, resource_limit_name, Some(node_to_run_pod_on));
+    modify_pod_spec(
+        &mut modified_pod_spec,
+        resource_limit_name,
+        Some(node_to_run_pod_on),
+    );
 
     let result = Pod {
         spec: Some(modified_pod_spec),
@@ -215,7 +212,11 @@ pub fn create_new_pod_from_spec(
     Ok(result)
 }
 
-pub fn modify_pod_spec(pod_spec: &mut PodSpec, resource_limit_name: &str, node_to_run_pod_on: Option<&str>) {
+pub fn modify_pod_spec(
+    pod_spec: &mut PodSpec,
+    resource_limit_name: &str,
+    node_to_run_pod_on: Option<&str>,
+) {
     let insert_akri_resources = |map: &mut ResourceQuantityType| {
         if map.contains_key(RESOURCE_REQUIREMENTS_KEY) {
             let placeholder_value = map.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
@@ -251,25 +252,25 @@ pub fn modify_pod_spec(pod_spec: &mut PodSpec, resource_limit_name: &str, node_t
     if let Some(node_name) = node_to_run_pod_on {
         // Ensure that the modified PodSpec has the required Affinity settings
         pod_spec
-        .affinity
-        .get_or_insert(Affinity::default())
-        .node_affinity
-        .get_or_insert(NodeAffinity {
-            ..Default::default()
-        })
-        .required_during_scheduling_ignored_during_execution
-        .get_or_insert(NodeSelector {
-            node_selector_terms: vec![],
-        })
-        .node_selector_terms
-        .push(NodeSelectorTerm {
-            match_fields: Some(vec![NodeSelectorRequirement {
-                key: OBJECT_NAME_FIELD.to_string(),
-                operator: NODE_SELECTOR_OP_IN.to_string(), // need to find if there is an equivalent to: v1.NODE_SELECTOR_OP_IN,
-                values: Some(vec![node_name.to_string()]),
-            }]),
-            ..Default::default()
-        });
+            .affinity
+            .get_or_insert(Affinity::default())
+            .node_affinity
+            .get_or_insert(NodeAffinity {
+                ..Default::default()
+            })
+            .required_during_scheduling_ignored_during_execution
+            .get_or_insert(NodeSelector {
+                node_selector_terms: vec![],
+            })
+            .node_selector_terms
+            .push(NodeSelectorTerm {
+                match_fields: Some(vec![NodeSelectorRequirement {
+                    key: OBJECT_NAME_FIELD.to_string(),
+                    operator: NODE_SELECTOR_OP_IN.to_string(), // need to find if there is an equivalent to: v1.NODE_SELECTOR_OP_IN,
+                    values: Some(vec![node_name.to_string()]),
+                }]),
+                ..Default::default()
+            });
     }
 }
 

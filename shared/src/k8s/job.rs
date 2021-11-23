@@ -1,17 +1,17 @@
 use super::super::akri::API_NAMESPACE;
 use super::{
-    ERROR_CONFLICT, ERROR_NOT_FOUND,
-        pod::{self,
-            APP_LABEL_ID, CONTROLLER_LABEL_ID, AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME,
-        },
-        pod::modify_pod_spec,
-        KubeInterface, OwnershipInfo, OwnershipType,
-    };
+    pod::modify_pod_spec,
+    pod::{
+        self, AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME,
+        APP_LABEL_ID, CONTROLLER_LABEL_ID,
+    },
+    KubeInterface, OwnershipInfo, OwnershipType, ERROR_CONFLICT, ERROR_NOT_FOUND,
+};
 use either::Either;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
     api::{Api, DeleteParams, ListParams, ObjectList, PostParams},
     client::Client,
@@ -167,7 +167,6 @@ pub fn create_new_job_from_spec(
     trace!("create_new_job_from_spec return");
     Ok(result)
 }
-
 
 /// Create Kubernetes Job
 ///

@@ -7,8 +7,8 @@ use super::akri::{
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
-use k8s_openapi::api::core::v1::{Node, Pod, Service};
 use k8s_openapi::api::batch::v1::Job;
+use k8s_openapi::api::core::v1::{Node, Pod, Service};
 use kube::{api::ObjectList, client::Client};
 use mockall::{automock, predicate::*};
 

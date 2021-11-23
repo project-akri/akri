@@ -1,11 +1,13 @@
 use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
-    akri::{configuration::{BrokerType, Configuration}, instance::Instance, AKRI_PREFIX},
+    akri::{
+        configuration::{BrokerType, Configuration},
+        instance::Instance,
+        AKRI_PREFIX,
+    },
     k8s::{
-        self,
-        job,
-        pod,
+        self, job, pod,
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
         KubeInterface, OwnershipInfo, OwnershipType,
     },
@@ -407,42 +409,64 @@ pub async fn handle_instance_change(
             anyhow::anyhow!("Namespace not found for instance: {}", &instance_name)
         })?;
     let configuration = match kube_interface
-            .find_configuration(&instance.spec.configuration_name, instance_namespace)
-            .await
-        {
-            Ok(config) => config,
-            _ => {
-                // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
-                // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
-                // is designed to shutdown when it's Configuration watcher fails.
-                error!(
+        .find_configuration(&instance.spec.configuration_name, instance_namespace)
+        .await
+    {
+        Ok(config) => config,
+        _ => {
+            // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
+            // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
+            // is designed to shutdown when it's Configuration watcher fails.
+            error!(
                     "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
                     &instance.spec.configuration_name, &instance.metadata.name
                 );
-                return Ok(());
-            }
-        };
+            return Ok(());
+        }
+    };
     if let Some(deployment) = &configuration.spec.deployment_strategy {
         match &deployment.broker_type {
-            BrokerType::Pod(p) => handle_instance_change_pod(instance, &configuration, action, kube_interface).await,
-            BrokerType::Job(j) => handle_instance_change_job(instance, &instance_name, instance_namespace, &configuration, action, kube_interface).await,
+            BrokerType::Pod(p) => {
+                handle_instance_change_pod(instance, &configuration, action, kube_interface).await
+            }
+            BrokerType::Job(j) => {
+                handle_instance_change_job(
+                    instance,
+                    &instance_name,
+                    instance_namespace,
+                    &configuration,
+                    action,
+                    kube_interface,
+                )
+                .await
+            }
         }
     } else {
         Ok(())
     }
 }
 
-
-pub async fn handle_instance_change_job(instance: &Instance, instance_name: &str, instance_namespace: &str, configuration: &Configuration,
+pub async fn handle_instance_change_job(
+    instance: &Instance,
+    instance_name: &str,
+    instance_namespace: &str,
+    configuration: &Configuration,
     action: &InstanceAction,
-    kube_interface: &impl KubeInterface,)  -> anyhow::Result<()> {
+    kube_interface: &impl KubeInterface,
+) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter {:?}", action);
-    if let BrokerType::Job(job) = &configuration.spec.deployment_strategy.as_ref().unwrap().broker_type {
-        let instance_uid = instance
-        .metadata
-        .uid
+    if let BrokerType::Job(job) = &configuration
+        .spec
+        .deployment_strategy
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
+        .unwrap()
+        .broker_type
+    {
+        let instance_uid = instance
+            .metadata
+            .uid
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
         match action {
             InstanceAction::Add => {
                 trace!("handle_instance_change_job - instance added");
@@ -462,32 +486,40 @@ pub async fn handle_instance_change_job(instance: &Instance, instance_name: &str
                     job,
                 )?;
                 kube_interface
-                .create_job(&new_job, instance_namespace)
-                .await?;
-            },
+                    .create_job(&new_job, instance_namespace)
+                    .await?;
+            }
             InstanceAction::Remove => {
                 trace!("handle_instance_change_job - instance removed");
                 // Find all jobs with the label
                 let instance_jobs = kube_interface
-                .find_jobs_with_label(&format!("{}={}", AKRI_INSTANCE_LABEL_NAME, instance_name))
-                .await?;
-                let delete_tasks = instance_jobs.into_iter().map(|j| async move { kube_interface.remove_job(j.metadata.name.as_ref().unwrap(), j.metadata.namespace.as_ref().unwrap()).await});
+                    .find_jobs_with_label(&format!(
+                        "{}={}",
+                        AKRI_INSTANCE_LABEL_NAME, instance_name
+                    ))
+                    .await?;
+                let delete_tasks = instance_jobs.into_iter().map(|j| async move {
+                    kube_interface
+                        .remove_job(
+                            j.metadata.name.as_ref().unwrap(),
+                            j.metadata.namespace.as_ref().unwrap(),
+                        )
+                        .await
+                });
 
                 futures::future::join_all(delete_tasks)
                     .await
                     .into_iter()
                     .collect::<anyhow::Result<()>>()?;
-
-            },
+            }
             InstanceAction::Update => {
                 trace!("handle_instance_change_job - instance updated");
                 // TODO: Broker could have encountered unexpected admission error and need to be removed and added
-            },
+            }
         }
     }
     Ok(())
 }
-
 
 pub async fn handle_instance_change_pod(
     instance: &Instance,

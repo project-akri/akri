@@ -14,54 +14,55 @@ spec:
       descriptions: []
       {{- end }}
   {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
-  brokerPodSpec:
-    containers:
-    - name: {{ .Values.debugEcho.configuration.name }}-broker
-      image: {{ printf "%s:%s" .Values.debugEcho.configuration.brokerPod.image.repository .Values.debugEcho.configuration.brokerPod.image.tag | quote }}
-      {{- with .Values.debugEcho.configuration.pullPolicy }}
-      imagePullPolicy: {{ . }}
+  deploymentStrategy:
+    pod:
+      containers:
+      - name: {{ .Values.debugEcho.configuration.name }}-broker
+        image: {{ printf "%s:%s" .Values.debugEcho.configuration.brokerPod.image.repository .Values.debugEcho.configuration.brokerPod.image.tag | quote }}
+        {{- with .Values.debugEcho.configuration.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryRequest }}
+            cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuRequest }}
+          limits:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryLimit }}
+            cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuLimit }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
       {{- end }}
-      resources:
-        requests:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryRequest }}
-          cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuRequest }}
-        limits:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryLimit }}
-          cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuLimit }}
-    {{- with .Values.imagePullSecrets }}
-    imagePullSecrets:
-      {{- toYaml . | nindent 6 }}
     {{- end }}
-  {{- end }}
-  {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
-  {{- if .Values.debugEcho.configuration.createInstanceServices }}
-  instanceServiceSpec:
-    type: {{ .Values.debugEcho.configuration.instanceService.type }}
-    ports:
-    - name: {{ .Values.debugEcho.configuration.instanceService.name }}
-      port: {{ .Values.debugEcho.configuration.instanceService.port }}
-      protocol: {{ .Values.debugEcho.configuration.instanceService.protocol }}
-      targetPort: {{ .Values.debugEcho.configuration.instanceService.targetPort }}
-  {{- end }}
-  {{- if .Values.debugEcho.configuration.createConfigurationService }}
-  configurationServiceSpec:
-    type: {{ .Values.debugEcho.configuration.configurationService.type }}
-    ports:
-    - name: {{ .Values.debugEcho.configuration.configurationService.name }}
-      port: {{ .Values.debugEcho.configuration.configurationService.port }}
-      protocol: {{ .Values.debugEcho.configuration.configurationService.protocol }}
-      targetPort: {{ .Values.debugEcho.configuration.configurationService.port }}
-  {{- end }}
-  {{- end }}
-  {{- if .Values.debugEcho.configuration.brokerProperties }}
-  brokerProperties:
-  {{- range $key, $val := .Values.debugEcho.configuration.brokerProperties }}
-  {{- $key | nindent 4 }}: {{ $val | quote }}
-  {{- end }}
-  {{- else }}
-  brokerProperties: {}
-  {{- end }}
+    {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
+    {{- if .Values.debugEcho.configuration.createInstanceServices }}
+    instanceServiceSpec:
+      type: {{ .Values.debugEcho.configuration.instanceService.type }}
+      ports:
+      - name: {{ .Values.debugEcho.configuration.instanceService.name }}
+        port: {{ .Values.debugEcho.configuration.instanceService.port }}
+        protocol: {{ .Values.debugEcho.configuration.instanceService.protocol }}
+        targetPort: {{ .Values.debugEcho.configuration.instanceService.targetPort }}
+    {{- end }}
+    {{- if .Values.debugEcho.configuration.createConfigurationService }}
+    configurationServiceSpec:
+      type: {{ .Values.debugEcho.configuration.configurationService.type }}
+      ports:
+      - name: {{ .Values.debugEcho.configuration.configurationService.name }}
+        port: {{ .Values.debugEcho.configuration.configurationService.port }}
+        protocol: {{ .Values.debugEcho.configuration.configurationService.protocol }}
+        targetPort: {{ .Values.debugEcho.configuration.configurationService.port }}
+    {{- end }}
+    {{- end }}
+    {{- if .Values.debugEcho.configuration.brokerProperties }}
+    brokerProperties:
+    {{- range $key, $val := .Values.debugEcho.configuration.brokerProperties }}
+    {{- $key | nindent 4 }}: {{ $val | quote }}
+    {{- end }}
+    {{- else }}
+    brokerProperties: {}
+    {{- end }}
   capacity: {{ .Values.debugEcho.configuration.capacity }}
 {{- end }}

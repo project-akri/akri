@@ -55,15 +55,18 @@ fn instance_owned(pod: &Pod) -> bool {
     let instance_string = "Instance".to_string();
     match &pod.metadata.owner_references {
         Some(or) => {
-            if or.iter().filter(|r| r.kind == instance_string).collect::<Vec<&OwnerReference>>().is_empty() {
+            if or
+                .iter()
+                .filter(|r| r.kind == instance_string)
+                .collect::<Vec<&OwnerReference>>()
+                .is_empty()
+            {
                 false
             } else {
                 true
             }
         }
-        None => {
-            false
-        }
+        None => false,
     }
 }
 
@@ -147,7 +150,7 @@ impl BrokerPodWatcher {
         match event {
             Event::Applied(pod) => {
                 if !instance_owned(&pod) {
-                    return Ok(())
+                    return Ok(());
                 }
                 info!(
                     "handle_pod - pod {:?} added or modified",
@@ -179,7 +182,7 @@ impl BrokerPodWatcher {
             }
             Event::Deleted(pod) => {
                 if !instance_owned(&pod) {
-                    return Ok(())
+                    return Ok(());
                 }
                 info!("handle_pod - Deleted: {:?}", &pod.metadata.name);
                 self.handle_deleted_pod_if_needed(&pod, kube_interface)
@@ -611,7 +614,7 @@ impl BrokerPodWatcher {
                     }
                 }
             }
-    
+
             if let Some(configuration_service_spec) = &ds.configuration_service_spec {
                 let configuration_uid = configuration.metadata.uid.as_ref().ok_or_else(|| {
                     anyhow::anyhow!("UID not found for configuration: {}", configuration_name)
@@ -648,7 +651,7 @@ impl BrokerPodWatcher {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -1243,7 +1246,13 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
+                &config
+                    .spec
+                    .deployment_strategy
+                    .unwrap()
+                    .instance_service_spec
+                    .unwrap()
+                    .clone(),
                 true,
                 &mock,
             )
@@ -1286,7 +1295,13 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
+                &config
+                    .spec
+                    .deployment_strategy
+                    .unwrap()
+                    .instance_service_spec
+                    .unwrap()
+                    .clone(),
                 true,
                 &mock
             )
@@ -1330,7 +1345,13 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
+                &config
+                    .spec
+                    .deployment_strategy
+                    .unwrap()
+                    .instance_service_spec
+                    .unwrap()
+                    .clone(),
                 true,
                 &mock,
             )
@@ -1370,7 +1391,13 @@ mod tests {
                 AKRI_INSTANCE_LABEL_NAME,
                 "config-a-b494b6",
                 ownership,
-                &config.spec.deployment_strategy.unwrap().instance_service_spec.unwrap().clone(),
+                &config
+                    .spec
+                    .deployment_strategy
+                    .unwrap()
+                    .instance_service_spec
+                    .unwrap()
+                    .clone(),
                 true,
                 &mock
             )

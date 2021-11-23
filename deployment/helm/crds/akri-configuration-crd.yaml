@@ -28,20 +28,16 @@ spec:
                     brokerType: 
                       type: object # enum of deployment types
                       properties: 
-                        brokerJobSpec: # {{JobSpec}}
+                        job: # {{JobSpec}}
                           x-kubernetes-preserve-unknown-fields: true
                           type: object
                           nullable: true
-                        brokerPodSpec: # {{PodSpec}}
+                        pod: # {{PodSpec}}
                           x-kubernetes-preserve-unknown-fields: true
                           type: object
                           nullable: true
                     brokerGeneration: # number
                       type: number
-                    brokerProperties: # map<string, string>
-                      additionalProperties:
-                        type: string
-                      type: object
                     instanceServiceSpec: # {{ServiceSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
@@ -50,6 +46,10 @@ spec:
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
                       nullable: true
+                brokerProperties: # map<string, string>
+                  additionalProperties:
+                    type: string
+                  type: object
                 capacity:
                   type: integer
       additionalPrinterColumns:
