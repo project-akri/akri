@@ -10,6 +10,7 @@ on:
     - build/intermediate-containers.mk
     - Makefile
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [ main ]
     paths:
     - .github/actions/build-intermediate/**
@@ -17,6 +18,9 @@ on:
     - build/containers/intermediate/Dockerfile.rust-crossbuild-*
     - build/intermediate-containers.mk
     - Makefile
+  issue_comment:
+    types: [created, edited]
+    branches: [ main ]
 
 env:
   AKRI_COMPONENT: rust-crossbuild
@@ -24,10 +28,74 @@ env:
 
 jobs:
 
+  add-same-version-label-to-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-same-version-label')
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add same version label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['same version']
+          })
+          github.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '👋 Added [same version] label :)!'
+          })
+
+  add-build-label-to-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/add-build-dependency-containers-label')
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add build dependency containers label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['build dependency containers']
+          })
+          github.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '👋 Added [build dependency containers] label :)!'
+          })
+
+  add-label-missing-comment:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened') && !contains(github.event.pull_request.labels.*.name, 'build dependency containers')
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add comment about missing build dependency containers label
+      uses: actions/github-script@0.9.0
+      if: success()
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          github.issues.createComment({
+            issue_number: context.payload.pull_request.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: 'Hi there, this change should run build dependency containers, but running it will take hours. Do you want to run it? If so, please add label "build dependency containers" by commenting "/add-build-dependency-containers-label".'
+          })
+
   per-arch:
-    if: >-
-      !contains(github.event.pull_request.title, '[IGNORE INTERMEDIATE BUILDS]') &&
-      !contains(github.event.commits[0].message, '[IGNORE INTERMEDIATE BUILDS]')
+    if: contains(github.event.pull_request.labels.*.name, 'build dependency containers')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -41,21 +109,10 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Akri intermediate builds are LONG running and should only be run when absolutely needed
-      if: >-
-        !contains(github.event.pull_request.title, '[ALLOW INTERMEDIATE BUILDS]') &&
-        !contains(github.event.commits[0].message, '[ALLOW INTERMEDIATE BUILDS]')
-      run: |
-        echo "Akri intermediate builds are LONG running and should only be run when absolutely needed."
-        echo "Add [IGNORE INTERMEDIATE BUILDS] to first commit message to skip building intermediate containers."
-        echo "Add [ALLOW INTERMEDIATE BUILDS] to first commit message if needed."
-        exit 1
-
-    # Only run build version change check if PR title and Merge commit message do NOT contain "[SAME VERSION]"
+    # Only run build version change check if PR does not have "same version" label
     - if: >-
         startsWith(github.event_name, 'pull_request') &&
-        !contains(github.event.pull_request.title, '[SAME VERSION]') &&
-        !contains(github.event.commits[0].message, '[SAME VERSION]')
+        !contains(github.event.pull_request.labels.*.name, 'same version')
       name: Ensure that ${{ env.AKRI_COMPONENT }} version has changed
       run: |
         git fetch origin main
