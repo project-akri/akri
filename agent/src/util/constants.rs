@@ -31,10 +31,6 @@ pub const SLOT_RECONCILIATION_SLOT_GRACE_PERIOD_SECS: u64 = 300;
 #[cfg(any(test, feature = "agent-full"))]
 pub const ENABLE_DEBUG_ECHO_LABEL: &str = "ENABLE_DEBUG_ECHO";
 
-/// Maximum amount of time allowed to pass without being able to connect to a discovery handler without it being removed
-/// from the map of registered Discovery Handlers.
-pub const DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS: u64 = 300;
-
 /// Capacity of channel over which `DevicePluginService::list_and_watch` sends updates to kubelet about "virtual" device
 /// health of an instance. The kubelet Device Plugin manager should receive each message instantly; however, providing
 /// some buffer in case.
