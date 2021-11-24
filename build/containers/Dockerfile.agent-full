@@ -1,6 +1,7 @@
 ARG PLATFORM=amd64
 ARG CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu
 FROM ${PLATFORM}/debian:buster-slim
+ARG PLATFORM
 ARG CROSS_BUILD_TARGET
 ARG BUILD_TYPE=release
 RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim"
@@ -11,11 +12,11 @@ LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl curl ca-certificates && \
     echo "Container platform target is ${PLATFORM}" && \
-    if [$PLATFORM -eq "arm32v7"] ; \
+    if [ "$PLATFORM" = "arm32v7"] ; \
     then export CRICTL_PLATFORM="arm" ; \
-    elif [$PLATFORM -eq "arm64v8"] ; \
+    elif [ "$PLATFORM" = "arm64v8" ] ; \
     then export CRICTL_PLATFORM="arm64" ; \
-    elif [$PLATFORM -eq "amd64"] ; \
+    elif [ "$PLATFORM" = "amd64" ] ; \
     then export CRICTL_PLATFORM="amd64" ; \
     else echo "no PLATFORM provided. Using amd64 for crictl" && export CRICTL_PLATFORM="amd64" ; \
     fi && \
