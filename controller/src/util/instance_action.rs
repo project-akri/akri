@@ -1,11 +1,7 @@
 use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
-    akri::{
-        configuration::{BrokerType, Configuration},
-        instance::Instance,
-        AKRI_PREFIX,
-    },
+    akri::{configuration::BrokerType, instance::Instance, AKRI_PREFIX},
     k8s::{
         self, job, pod,
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
@@ -14,7 +10,8 @@ use akri_shared::{
 };
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::batch::v1::JobSpec;
+use k8s_openapi::api::core::v1::{Pod, PodSpec};
 use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{error, info, trace};
@@ -353,44 +350,39 @@ async fn handle_addition_work(
     instance_class_name: &str,
     instance_shared: bool,
     new_node: &str,
-    instance_configuration: &Configuration,
+    podspec: &PodSpec,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!(
         "handle_addition_work - Create new Pod for Node={:?}",
         new_node
     );
+    let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
+    let new_pod = pod::create_new_pod_from_spec(
+        instance_namespace,
+        instance_name,
+        instance_class_name,
+        OwnershipInfo::new(
+            OwnershipType::Instance,
+            instance_name.to_string(),
+            instance_uid.to_string(),
+        ),
+        &capability_id,
+        &new_node.to_string(),
+        instance_shared,
+        podspec,
+    )?;
 
-    if let Some(ds) = &instance_configuration.spec.deployment_strategy {
-        if let BrokerType::Pod(broker_pod_spec) = &ds.broker_type {
-            let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
-            let new_pod = pod::create_new_pod_from_spec(
-                instance_namespace,
-                instance_name,
-                instance_class_name,
-                OwnershipInfo::new(
-                    OwnershipType::Instance,
-                    instance_name.to_string(),
-                    instance_uid.to_string(),
-                ),
-                &capability_id,
-                &new_node.to_string(),
-                instance_shared,
-                &broker_pod_spec,
-            )?;
+    trace!("handle_addition_work - New pod spec={:?}", new_pod);
 
-            trace!("handle_addition_work - New pod spec={:?}", new_pod);
+    kube_interface
+        .create_pod(&new_pod, instance_namespace)
+        .await?;
+    trace!("handle_addition_work - pod::create_pod succeeded",);
+    BROKER_POD_COUNT_METRIC
+        .with_label_values(&[instance_class_name, new_node])
+        .inc();
 
-            kube_interface
-                .create_pod(&new_pod, instance_namespace)
-                .await?;
-            trace!("handle_addition_work - pod::create_pod succeeded",);
-            BROKER_POD_COUNT_METRIC
-                .with_label_values(&[instance_class_name, new_node])
-                .inc();
-        }
-    }
-    trace!("handle_addition_work - POST nodeInfo.SetNode \n");
     Ok(())
 }
 
@@ -414,27 +406,29 @@ pub async fn handle_instance_change(
     {
         Ok(config) => config,
         _ => {
-            // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
-            // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
-            // is designed to shutdown when it's Configuration watcher fails.
-            error!(
-                    "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
-                    &instance.spec.configuration_name, &instance.metadata.name
-                );
+            if action != InstanceAction::Remove {
+                // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
+                // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
+                // is designed to shutdown when it's Configuration watcher fails.
+                error!(
+                        "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
+                        &instance.spec.configuration_name, &instance.metadata.name
+                    );
+            }
             return Ok(());
         }
     };
     if let Some(deployment) = &configuration.spec.deployment_strategy {
         match &deployment.broker_type {
             BrokerType::Pod(p) => {
-                handle_instance_change_pod(instance, &configuration, action, kube_interface).await
+                handle_instance_change_pod(instance, p, action, kube_interface).await
             }
             BrokerType::Job(j) => {
                 handle_instance_change_job(
                     instance,
                     &instance_name,
                     instance_namespace,
-                    &configuration,
+                    j,
                     action,
                     kube_interface,
                 )
@@ -450,72 +444,61 @@ pub async fn handle_instance_change_job(
     instance: &Instance,
     instance_name: &str,
     instance_namespace: &str,
-    configuration: &Configuration,
+    jobspec: &JobSpec,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter {:?}", action);
-    if let BrokerType::Job(job) = &configuration
-        .spec
-        .deployment_strategy
+    let instance_uid = instance
+        .metadata
+        .uid
         .as_ref()
-        .unwrap()
-        .broker_type
-    {
-        let instance_uid = instance
-            .metadata
-            .uid
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
-        match action {
-            InstanceAction::Add => {
-                trace!("handle_instance_change_job - instance added");
-                // Deploy job to one of the nodes on the list
-                let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
-                let new_job = job::create_new_job_from_spec(
-                    instance_namespace,
-                    instance_name,
-                    &instance.spec.configuration_name,
-                    OwnershipInfo::new(
-                        OwnershipType::Instance,
-                        instance_name.to_string(),
-                        instance_uid.to_string(),
-                    ),
-                    &capability_id,
-                    instance.spec.shared,
-                    job,
-                )?;
+        .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
+    match action {
+        InstanceAction::Add => {
+            trace!("handle_instance_change_job - instance added");
+            // Deploy job to one of the nodes on the list
+            let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
+            let new_job = job::create_new_job_from_spec(
+                instance_namespace,
+                instance_name,
+                &instance.spec.configuration_name,
+                OwnershipInfo::new(
+                    OwnershipType::Instance,
+                    instance_name.to_string(),
+                    instance_uid.to_string(),
+                ),
+                &capability_id,
+                instance.spec.shared,
+                jobspec,
+            )?;
+            kube_interface
+                .create_job(&new_job, instance_namespace)
+                .await?;
+        }
+        InstanceAction::Remove => {
+            trace!("handle_instance_change_job - instance removed");
+            // Find all jobs with the label
+            let instance_jobs = kube_interface
+                .find_jobs_with_label(&format!("{}={}", AKRI_INSTANCE_LABEL_NAME, instance_name))
+                .await?;
+            let delete_tasks = instance_jobs.into_iter().map(|j| async move {
                 kube_interface
-                    .create_job(&new_job, instance_namespace)
-                    .await?;
-            }
-            InstanceAction::Remove => {
-                trace!("handle_instance_change_job - instance removed");
-                // Find all jobs with the label
-                let instance_jobs = kube_interface
-                    .find_jobs_with_label(&format!(
-                        "{}={}",
-                        AKRI_INSTANCE_LABEL_NAME, instance_name
-                    ))
-                    .await?;
-                let delete_tasks = instance_jobs.into_iter().map(|j| async move {
-                    kube_interface
-                        .remove_job(
-                            j.metadata.name.as_ref().unwrap(),
-                            j.metadata.namespace.as_ref().unwrap(),
-                        )
-                        .await
-                });
-
-                futures::future::join_all(delete_tasks)
+                    .remove_job(
+                        j.metadata.name.as_ref().unwrap(),
+                        j.metadata.namespace.as_ref().unwrap(),
+                    )
                     .await
-                    .into_iter()
-                    .collect::<anyhow::Result<()>>()?;
-            }
-            InstanceAction::Update => {
-                trace!("handle_instance_change_job - instance updated");
-                // TODO: Broker could have encountered unexpected admission error and need to be removed and added
-            }
+            });
+
+            futures::future::join_all(delete_tasks)
+                .await
+                .into_iter()
+                .collect::<anyhow::Result<()>>()?;
+        }
+        InstanceAction::Update => {
+            trace!("handle_instance_change_job - instance updated");
+            // TODO: Broker could have encountered unexpected admission error and need to be removed and added
         }
     }
     Ok(())
@@ -523,7 +506,7 @@ pub async fn handle_instance_change_job(
 
 pub async fn handle_instance_change_pod(
     instance: &Instance,
-    configuration: &Configuration,
+    podspec: &PodSpec,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
@@ -628,7 +611,7 @@ pub async fn handle_instance_change_pod(
             &instance.spec.configuration_name,
             instance.spec.shared,
             &new_node,
-            configuration,
+            podspec,
             kube_interface,
         )
         .await?;

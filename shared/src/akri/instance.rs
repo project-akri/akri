@@ -10,14 +10,6 @@ use std::collections::HashMap;
 
 pub type InstanceList = ObjectList<Instance>;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum ConfigurationDeploymentStatus {
-    Active,
-    Completed,
-    Failed,
-}
-
 /// Defines the information in the Instance CRD
 ///
 /// An Instance is a specific instance described by

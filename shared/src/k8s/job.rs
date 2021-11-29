@@ -2,15 +2,13 @@ use super::super::akri::API_NAMESPACE;
 use super::{
     pod::modify_pod_spec,
     pod::{
-        self, AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME,
-        APP_LABEL_ID, CONTROLLER_LABEL_ID,
+        self, AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID,
+        CONTROLLER_LABEL_ID,
     },
-    KubeInterface, OwnershipInfo, OwnershipType, ERROR_CONFLICT, ERROR_NOT_FOUND,
+    OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND,
 };
 use either::Either;
-use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
-use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
     api::{Api, DeleteParams, ListParams, ObjectList, PostParams},
@@ -18,7 +16,6 @@ use kube::{
 };
 use log::{error, info, trace};
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 /// Length of time a Pod can be pending before we give up and retry
 pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
