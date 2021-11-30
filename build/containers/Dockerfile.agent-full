@@ -10,7 +10,7 @@ RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}/${BUILD_TYPE}"
 # Link the container to the Akri repository
 LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl curl ca-certificates && \
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl wget ca-certificates && \
     echo "Container platform target is ${PLATFORM}" && \
     if [ "$PLATFORM" = "arm32v7" ] ; \
     then export CRICTL_PLATFORM="arm" ; \
@@ -22,10 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev open
     fi && \
     echo "CRICTL platform target is ${CRICTL_PLATFORM}" && \
     VERSION="v1.17.0" && \
-    curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-$CRICTL_PLATFORM.tar.gz --output crictl.tar.gz && \
+    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-$CRICTL_PLATFORM.tar.gz -O crictl.tar.gz && \
     tar zxvf crictl.tar.gz -C /usr/local/bin && \
     rm -f crictl.tar.gz && \
-    apt-get remove -y curl ca-certificates && apt-get clean
+    apt-get remove -y wget ca-certificates && apt-get clean
     
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/agent-full /agent
 ENV RUST_LOG agent,akri_shared,akri_debug_echo
