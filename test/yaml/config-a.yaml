@@ -11,24 +11,26 @@ spec:
         descriptions:
         - "filter1"
         - "filter2"
-  brokerPodSpec:
-    containers:
-    - name: broker
-      image: "nginx:latest"
-  instanceServiceSpec:
-    type: ClusterIP
-    ports:
-    - name: http
-      port: 6052
-      protocol: TCP
-      targetPort: 6052
-  configurationServiceSpec:
-    type: ClusterIP
-    ports:
-    - name: http
-      port: 6052
-      protocol: TCP
-      targetPort: 6052
+  deploymentStrategy:
+    brokerType:
+      pod:
+        containers:
+        - name: broker
+          image: "nginx:latest"
+    instanceServiceSpec:
+      type: ClusterIP
+      ports:
+      - name: http
+        port: 6052
+        protocol: TCP
+        targetPort: 6052
+    configurationServiceSpec:
+      type: ClusterIP
+      ports:
+      - name: http
+        port: 6052
+        protocol: TCP
+        targetPort: 6052
   brokerProperties:
     RESOLUTION_WIDTH: "800"
     RESOLUTION_HEIGHT: "600"

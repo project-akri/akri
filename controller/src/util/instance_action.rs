@@ -406,7 +406,7 @@ pub async fn handle_instance_change(
     {
         Ok(config) => config,
         _ => {
-            if action != InstanceAction::Remove {
+            if action != &InstanceAction::Remove {
                 // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
                 // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
                 // is designed to shutdown when it's Configuration watcher fails.

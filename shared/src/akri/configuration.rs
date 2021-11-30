@@ -20,7 +20,7 @@ pub type ConfigurationList = ObjectList<Configuration>;
 
 /// This specifies which `DiscoveryHandler` should be used for discovery
 /// and any details that need to be sent to the `DiscoveryHandler`.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryHandlerInfo {
     pub name: String,
@@ -60,7 +60,7 @@ pub struct DeploymentStrategy {
     pub configuration_service_spec: Option<ServiceSpec>,
 
     #[serde(default = "default_generation")]
-    broker_generation: i32,
+    pub broker_generation: i32,
 }
 
 /// Defines the information in the Akri Configuration CRD
@@ -69,7 +69,7 @@ pub struct DeploymentStrategy {
 /// capabilities.  For any specific capability found that is described by this
 /// configuration, an Instance
 /// is created.
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(group = "akri.sh", version = "v0", kind = "Configuration", namespaced)]
 #[kube(apiextensions = "v1")]
@@ -186,7 +186,7 @@ fn default_capacity() -> i32 {
 }
 
 fn default_generation() -> i32 {
-    0
+    1
 }
 
 #[cfg(test)]
@@ -241,7 +241,7 @@ mod crd_serialization_tests {
                     assert_eq!(None, ds.configuration_service_spec);
 
                     let serialized = serde_json::to_string(&deserialized).unwrap();
-                    let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"deploymentStrategy":{"brokerType":{"pod":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerGeneration":0},"brokerProperties":{},"capacity":4}"#;
+                    let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"deploymentStrategy":{"brokerType":{"pod":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerGeneration":1},"brokerProperties":{},"capacity":4}"#;
                     assert_eq!(expected_deserialized, serialized);
                 }
                 BrokerType::Job(_j) => panic!("Expected Pod BrokerType"),
