@@ -20,6 +20,7 @@ on:
       - scripts/**
       - tests/**
   pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
     branches: [ main ]
     paths-ignore:
       - '.gitignore'
@@ -40,6 +41,9 @@ on:
   release:
     types:
       - published
+  issues:
+    types:
+      - labeled
 
 env:
   CARGO_TERM_COLOR: always
@@ -54,14 +58,14 @@ jobs:
       uses: actions/checkout@v2
       with:
         persist-credentials: false
-    
-    # Only run version check for PRs.  If PR title does NOT contain "[SAME VERSION]", then ensure that
+
+    # Only run version check for PRs. If PR does NOT have "same version" label, then ensure that
     # version.txt is different from what is in main.
-    - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.title, '[SAME VERSION]') == false
-      name: Run version check
+    - if: startsWith(github.event_name, 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'same version')
+      name: Run version check (triggered by "same version" label)
       run: ./version.sh -c
-    # If PR title does contain "[SAME VERSION]", then do not check that version.txt is different from
+    # If PR does have "same version" label, then do not check that version.txt is different from
     # what is in main.
-    - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.title, '[SAME VERSION]') == true
-      name: Run version check
+    - if: startsWith(github.event_name, 'pull_request') && contains(github.event.pull_request.labels.*.name, 'same version')
+      name: Run version check (skip, triggered by "same version" label)
       run: ./version.sh -c -s
