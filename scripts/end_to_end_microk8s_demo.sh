@@ -10,7 +10,7 @@ echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kub
 
 sudo microk8s stop && microk8s start
 
-KUBERNETES_DISTRO="--set kubernetesDistro.microk8s=true"
+KUBERNETES_DISTRO="--set kubernetesDistro=microk8s"
 
 sudo apt update
 sudo apt -y install linux-modules-extra-$(uname -r)

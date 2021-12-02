@@ -105,14 +105,14 @@ spec:
         hostPath:
           {{- if ne "" .Values.agent.host.containerRuntimeSock }}
           path: {{.Values.agent.host.containerRuntimeSock }}
-          {{- else if .Values.kubernetesDistro.microk8s }}
+          {{- else if eq .Values.kubernetesDistro "microk8s" }}
           path: "/var/snap/microk8s/common/run/containerd.sock"
-          {{- else if .Values.kubernetesDistro.k3s }}
+          {{- else if eq .Values.kubernetesDistro "k3s" }}
           path: "/run/k3s/containerd/containerd.sock"
-          {{- else if .Values.kubernetesDistro.k8s }}
+          {{- else if eq .Values.kubernetesDistro "k8s" }}
           path: "/var/run/dockershim.sock"
           {{- else }}
-          path: {{- required "Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro.<k8s|k3s|microk8s>=true` or setting `agent.host.containerRuntimeSock=/container/runtime.sock`. See https://docs.akri.sh/user-guide/cluster-setup for more information." .Values.agent.host.containerRuntimeSock }}
+          path: {{- required "Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro=<k8s|k3s|microk8s>` or setting `agent.host.containerRuntimeSock=/container/runtime.sock`. See https://docs.akri.sh/user-guide/cluster-setup for more information." .Values.agent.host.containerRuntimeSock }}
           {{- end }}
       {{- if .Values.agent.host.udev }}
       - name: devices

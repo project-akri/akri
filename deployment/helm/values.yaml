@@ -17,11 +17,8 @@ useDevelopmentContainers: true
 imagePullSecrets: []
 
 # kubernetesDistro describes the Kubernetes distro Akri is running on. It is used to conditionally set
-# distribution specific values such as container runtime socket.
-kubernetesDistro:
-  microk8s: false
-  k3s: false
-  k8s: false
+# distribution specific values such as container runtime socket. Options: microk8s | k3s | k8s
+kubernetesDistro: ""
 
 # generalize references to `apiGroups` and `apiVersion` values for Akri CRDs
 crds:
