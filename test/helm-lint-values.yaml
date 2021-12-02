@@ -53,3 +53,4 @@ custom:
         repository: "nginx"
 webhookConfiguration: 
   enabled: true
+  caBundle: certificate.crt
