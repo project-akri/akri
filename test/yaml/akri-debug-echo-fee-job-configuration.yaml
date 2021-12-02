@@ -23,7 +23,7 @@ spec:
                   "{{PLACEHOLDER}}" : "1"
             restartPolicy: Never
         backoffLimit: 4
-    brokerGeneration: 10
+    brokerGeneration: 1
     instanceServiceSpec:
       type: ClusterIP
       ports:

@@ -17,7 +17,6 @@ use kube_runtime::watcher::{watcher, Event};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
-
 /// Length of time a Pod can be pending before we give up and retry
 pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
 /// Length of time a Pod can be in an error state before we retry
@@ -143,32 +142,44 @@ async fn handle_instance(
 /// * the node is described by node_name
 /// * the protocol (or capability) is described by instance_name and namespace
 /// * what to do with the broker Pod is described by action
-// TODO: add Pod name so does not need to be 
+// TODO: add Pod name so does not need to be
 // generated on deletes and remove Option wrappers.
 #[derive(Clone, Debug, PartialEq)]
-pub (crate) struct PodContext {
+pub(crate) struct PodContext {
     pub node_name: Option<String>,
     namespace: Option<String>,
     action: PodAction,
 }
 
 impl PodContext {
-    pub (crate) fn new(    node_name: Option<String>,
+    pub(crate) fn new(
+        node_name: Option<String>,
         namespace: Option<String>,
-        action: PodAction,) -> Self {
-        Self { node_name, namespace, action }
+        action: PodAction,
+    ) -> Self {
+        Self {
+            node_name,
+            namespace,
+            action,
+        }
     }
 }
 
-pub (crate) fn create_pod_context(
-    k8s_pod: &Pod,
-) -> anyhow::Result<PodContext> {
+pub(crate) fn create_pod_context(k8s_pod: &Pod) -> anyhow::Result<PodContext> {
     let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
-    let labels = &k8s_pod.metadata.labels.as_ref().ok_or_else(|| { anyhow::anyhow!("no labels found for Pod {:?}",
-    pod_name)})?;
+    let labels = &k8s_pod
+        .metadata
+        .labels
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("no labels found for Pod {:?}", pod_name))?;
     // Early exits above ensure unwrap will not panic
-    let node_to_run_pod_on = labels.get(AKRI_TARGET_NODE_LABEL_NAME).ok_or_else(|| { anyhow::anyhow!("no {} label found for {:?}",
-    AKRI_TARGET_NODE_LABEL_NAME, pod_name)})?;
+    let node_to_run_pod_on = labels.get(AKRI_TARGET_NODE_LABEL_NAME).ok_or_else(|| {
+        anyhow::anyhow!(
+            "no {} label found for {:?}",
+            AKRI_TARGET_NODE_LABEL_NAME,
+            pod_name
+        )
+    })?;
 
     Ok(PodContext {
         node_name: Some(node_to_run_pod_on.to_string()),
@@ -186,10 +197,13 @@ fn determine_action_for_pod(
     nodes_to_act_on: &mut HashMap<String, PodContext>,
 ) -> anyhow::Result<()> {
     let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
-    let pod_phase = k8s_pod.status.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("No pod status found for Pod {:?}",
-        pod_name)})?.phase.as_ref().ok_or_else(|| { anyhow::anyhow!("No pod phase found for Pod {:?}",
-        pod_name)})?;
+    let pod_phase = k8s_pod
+        .status
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No pod status found for Pod {:?}", pod_name))?
+        .phase
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No pod phase found for Pod {:?}", pod_name))?;
 
     let mut update_pod_context = create_pod_context(k8s_pod)?;
     let node_to_run_pod_on = update_pod_context.node_name.as_ref().unwrap();
@@ -400,6 +414,7 @@ pub async fn handle_instance_change(
             BrokerType::Job(j) => {
                 handle_instance_change_job(
                     instance.clone(),
+                    deployment.broker_generation,
                     j,
                     action,
                     kube_interface,
@@ -414,11 +429,41 @@ pub async fn handle_instance_change(
 
 pub async fn handle_instance_change_job(
     instance: Instance,
+    broker_generation: i32,
     jobspec: &JobSpec,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter {:?}", action);
+    // Only take action if there is no existing job
+    // TODO: consider unique name for Jobs so previous ones can exist
+
+    let app_name = pod::create_broker_app_name(
+        instance.metadata.name.as_ref().unwrap(),
+        None,
+        instance.spec.shared,
+        &format!("{}-job", broker_generation),
+    );
+    match kube_interface
+        .find_job(&app_name, instance.metadata.namespace.as_ref().unwrap())
+        .await
+    {
+        Ok(j) => {
+            trace!(
+                "handle_instance_change_job - job {} already created ... returning",
+                app_name
+            );
+            return Ok(());
+        }
+        Err(e) => {
+            trace!(
+                "handle_instance_change_job - job {} DNE yet with error {:?}",
+                app_name,
+                e
+            );
+        }
+    }
+
     let instance_name = instance.metadata.name.as_ref().unwrap();
     let instance_namespace = instance.metadata.namespace.as_ref().unwrap();
     let instance_uid = instance
@@ -440,6 +485,7 @@ pub async fn handle_instance_change_job(
                 ),
                 &capability_id,
                 jobspec,
+                &app_name,
             )?;
             kube_interface
                 .create_job(&new_job, instance_namespace)
@@ -479,7 +525,7 @@ pub async fn handle_instance_change_pod(
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
-    trace!("handle_instance_change - enter {:?}", action);
+    trace!("handle_instance_change_pod - enter {:?}", action);
 
     let instance_name = instance.metadata.name.clone().unwrap();
 
@@ -529,8 +575,9 @@ pub async fn handle_instance_change_pod(
     instance_pods
         .items
         .iter()
-        .map(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on)).collect::<anyhow::Result<()>>()?;
-    
+        .map(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on))
+        .collect::<anyhow::Result<()>>()?;
+
     trace!(
         "handle_instance_change - nodes tracked after querying existing pods={:?}",
         nodes_to_act_on
@@ -541,57 +588,54 @@ pub async fn handle_instance_change_pod(
     Ok(())
 }
 
-pub (crate) async fn do_pod_action_for_nodes(
+pub(crate) async fn do_pod_action_for_nodes(
     nodes_to_act_on: HashMap<String, PodContext>,
     instance: &Instance,
     podspec: &PodSpec,
     kube_interface: &impl KubeInterface,
-)-> anyhow::Result<()> {
-        // Iterate over nodes_to_act_on where value == (PodAction::Remove | PodAction::RemoveAndAdd)
-        for (node_to_delete_pod, context) in nodes_to_act_on.iter().filter(|&(_, v)| {
-            ((v.action) == PodAction::Remove) | ((v.action) == PodAction::RemoveAndAdd)
-        }) {
-            handle_deletion_work(
-                instance.metadata.name.as_ref().unwrap(),
-                &instance.spec.configuration_name,
-                instance.spec.shared,
-                node_to_delete_pod,
-                context,
-                kube_interface,
-            )
-            .await?
-        }
-    
-        let nodes_to_add = nodes_to_act_on
-            .iter()
-            .filter_map(|(node, context)| {
-                if ((context.action) == PodAction::Add) | ((context.action) == PodAction::RemoveAndAdd)
-                {
-                    Some(node.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<String>>();
-    
-        // Iterate over nodes_to_act_on where value == (PodAction::Add | PodAction::RemoveAndAdd)
-        for new_node in nodes_to_add {
-            handle_addition_work(
-                instance.metadata.name.as_ref().unwrap(),
-                instance.metadata.uid.as_ref().unwrap(),
-                instance
-                .metadata
-                .namespace
-                .as_ref().unwrap(),
-                &instance.spec.configuration_name,
-                instance.spec.shared,
-                &new_node,
-                podspec,
-                kube_interface,
-            )
-            .await?;
-        }
-        Ok(())
+) -> anyhow::Result<()> {
+    // Iterate over nodes_to_act_on where value == (PodAction::Remove | PodAction::RemoveAndAdd)
+    for (node_to_delete_pod, context) in nodes_to_act_on.iter().filter(|&(_, v)| {
+        ((v.action) == PodAction::Remove) | ((v.action) == PodAction::RemoveAndAdd)
+    }) {
+        handle_deletion_work(
+            instance.metadata.name.as_ref().unwrap(),
+            &instance.spec.configuration_name,
+            instance.spec.shared,
+            node_to_delete_pod,
+            context,
+            kube_interface,
+        )
+        .await?
+    }
+
+    let nodes_to_add = nodes_to_act_on
+        .iter()
+        .filter_map(|(node, context)| {
+            if ((context.action) == PodAction::Add) | ((context.action) == PodAction::RemoveAndAdd)
+            {
+                Some(node.to_string())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>();
+
+    // Iterate over nodes_to_act_on where value == (PodAction::Add | PodAction::RemoveAndAdd)
+    for new_node in nodes_to_add {
+        handle_addition_work(
+            instance.metadata.name.as_ref().unwrap(),
+            instance.metadata.uid.as_ref().unwrap(),
+            instance.metadata.namespace.as_ref().unwrap(),
+            &instance.spec.configuration_name,
+            instance.spec.shared,
+            &new_node,
+            podspec,
+            kube_interface,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

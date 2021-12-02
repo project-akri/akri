@@ -55,9 +55,7 @@ impl PodActionInfo {
     ///                               | --> <PodStartTime within grace period> ===> PodAction::NoAction
     ///                               | --> <PodStartTime outside grace period> ===> PodAction::RemoveAndAdd
     ///
-    pub fn select_pod_action(
-        &self,
-    ) -> anyhow::Result<PodAction> {
+    pub fn select_pod_action(&self) -> anyhow::Result<PodAction> {
         log::trace!(
             "select_pod_action phase={:?} action={:?} unknown_node={:?}",
             &self.phase,
@@ -87,8 +85,7 @@ impl PodActionInfo {
             let time_limit = &start_time
                 .0
                 .checked_add_signed(chrono::Duration::minutes(grace_period_in_minutes))
-                .ok_or_else(|| {
-                    anyhow::anyhow!("check_add_signed failed")})?;
+                .ok_or_else(|| anyhow::anyhow!("check_add_signed failed"))?;
             let now = Utc::now();
             log::trace!(
                 "time_choice_for_non_running_pods - need more time? now:({:?}) ({:?})",
@@ -130,9 +127,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Running Pod
-    fn choice_for_running_pods(
-        &self,
-    ) -> anyhow::Result<PodAction> {
+    fn choice_for_running_pods(&self) -> anyhow::Result<PodAction> {
         log::trace!(
             "choice_for_running_pods action={:?} trace_node_name={:?}",
             self.instance_action,
@@ -198,9 +193,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Pod running on a known Node
-    fn choice_for_pods_on_known_nodes(
-        &self,
-    ) -> anyhow::Result<PodAction> {
+    fn choice_for_pods_on_known_nodes(&self) -> anyhow::Result<PodAction> {
         log::trace!(
             "choice_for_pods_on_known_nodes phase={:?} action={:?} trace_node_name={:?}",
             &self.phase,
@@ -255,9 +248,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Pod
-    fn choice_for_pod_action(
-        &self,
-    ) -> anyhow::Result<PodAction> {
+    fn choice_for_pod_action(&self) -> anyhow::Result<PodAction> {
         log::trace!(
             "choice_for_pod_action phase={:?} action={:?} unknown_node={:?} trace_node_name={:?}",
             &self.phase,

@@ -11,7 +11,7 @@ use either::Either;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
-    api::{Api, DeleteParams, ListParams, ObjectList, PostParams},
+    api::{Api, DeleteParams, ListParams, ObjectList, Patch, PatchParams, PostParams},
     client::Client,
 };
 use log::{error, info, trace};
@@ -113,18 +113,11 @@ pub fn create_new_job_from_spec(
     ownership: OwnershipInfo,
     resource_limit_name: &str,
     job_spec: &JobSpec,
+    app_name: &str,
 ) -> anyhow::Result<Job> {
     trace!("create_new_job_from_spec enter");
     let instance_name = instance.metadata.name.as_ref().unwrap();
-    let app_name = pod::create_broker_app_name(
-        instance_name,
-        None,
-        instance.spec.shared,
-        &"job".to_string(),
-    );
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
-    labels.insert(APP_LABEL_ID.to_string(), app_name.clone());
-    labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     labels.insert(
         AKRI_CONFIGURATION_LABEL_NAME.to_string(),
         instance.spec.configuration_name.to_string(),
@@ -133,6 +126,9 @@ pub fn create_new_job_from_spec(
         AKRI_INSTANCE_LABEL_NAME.to_string(),
         instance_name.to_string(),
     );
+    let pod_labels = labels.clone();
+    labels.insert(APP_LABEL_ID.to_string(), app_name.to_string());
+    labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
 
     let owner_references: Vec<OwnerReference> = vec![OwnerReference {
         api_version: ownership.get_api_version(),
@@ -145,11 +141,15 @@ pub fn create_new_job_from_spec(
     let mut modified_job_spec = job_spec.clone();
     let mut pod_spec = modified_job_spec.template.spec.clone().unwrap();
     modify_pod_spec(&mut pod_spec, resource_limit_name, None);
+    modified_job_spec.template.metadata = Some(ObjectMeta {
+        labels: Some(pod_labels),
+        ..Default::default()
+    });
     modified_job_spec.template.spec = Some(pod_spec);
     let result = Job {
         spec: Some(modified_job_spec),
         metadata: ObjectMeta {
-            name: Some(app_name),
+            name: Some(app_name.to_string()),
             namespace: Some(instance.metadata.namespace.as_ref().unwrap().to_string()),
             labels: Some(labels),
             owner_references: Some(owner_references),
@@ -160,6 +160,33 @@ pub fn create_new_job_from_spec(
 
     trace!("create_new_job_from_spec return");
     Ok(result)
+}
+
+/// Get Instance for a given name and namespace
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::akri::job;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// let job = job::find_job(
+///     "job-1",
+///     "default",
+///     &api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn find_job(name: &str, namespace: &str, kube_client: Client) -> anyhow::Result<Job> {
+    log::trace!("find_job enter");
+    let client: Api<Job> = Api::namespaced(kube_client, namespace);
+
+    log::trace!("find_job getting job with name {}", name);
+
+    client.get(name).await.map_err(anyhow::Error::from)
 }
 
 /// Create Kubernetes Job
@@ -290,7 +317,7 @@ pub async fn remove_job(
 /// job::delete_jobs_with_selector(label_selector, None, api_client).await.unwrap();
 /// # }
 /// ```
-/// 
+///
 /// ```no_run
 /// use akri_shared::k8s::job;
 /// use kube::client::Client;
@@ -316,16 +343,15 @@ pub async fn delete_jobs_with_selector(
         field_selector,
         ..Default::default()
     };
-    let dps = DeleteParams {
-        propagation_policy: Some(kube::api::PropagationPolicy::Foreground),
-        ..Default::default()
-    };
     info!("remove_job jobs.delete(...).await?:");
-    match jobs.delete_collection(&dps, &lps).await? {
+    match jobs
+        .delete_collection(&DeleteParams::default(), &lps)
+        .await?
+    {
         either::Left(list) => {
             let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
             trace!("Deleting collection of pods: {:?}", names);
-        },
+        }
         either::Right(status) => {
             trace!("Deleted collection of pods: status={:?}", status);
         }

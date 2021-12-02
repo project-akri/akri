@@ -339,28 +339,21 @@ pub fn should_recreate_config(config: &Configuration, config_state: ConfigState)
     } else {
         let previous_config = config_state.last_configuration_spec;
         if previous_config != config.spec {
-            if previous_config.discovery_handler != config.spec.discovery_handler
+            // Recreate config unless only the deployment specifications have changed
+            // and broker generation has increased.
+            (previous_config.discovery_handler != config.spec.discovery_handler
                 || previous_config.broker_properties != config.spec.broker_properties
-                || previous_config.capacity != config.spec.capacity
-            {
-                true
-            } else if previous_config
-                .deployment_strategy
-                .unwrap()
-                .broker_generation
-                != config
-                    .spec
+                || previous_config.capacity != config.spec.capacity)
+                || previous_config
                     .deployment_strategy
-                    .as_ref()
                     .unwrap()
                     .broker_generation
-            {
-                trace!("should_recreate_config - returning false since broker generation changed");
-                false
-            } else {
-                trace!("should_recreate_config - Configuration deployment strategy changed without changing broker generation.");
-                true
-            }
+                    <= config
+                        .spec
+                        .deployment_strategy
+                        .as_ref()
+                        .unwrap()
+                        .broker_generation
         } else {
             trace!("should_recreate_config - Configuration has not changed even though generation has.");
             // Should not reach this as generation check should catch this. Recreate Configuration.

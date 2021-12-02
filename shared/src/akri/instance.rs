@@ -144,7 +144,6 @@ pub async fn find_instance(
     }
 }
 
-
 /// Get Instances for a given namespace
 ///
 /// Example:
@@ -161,7 +160,7 @@ pub async fn find_instance(
 /// let instances = instance::find_instances_with_selector(label_selector, None, &api_client).await.unwrap();
 /// # }
 /// ```
-/// 
+///
 /// ```no_run
 /// use akri_shared::akri::instance;
 /// use kube::client::Client;
@@ -174,7 +173,12 @@ pub async fn find_instance(
 /// let instances = instance::find_instances_with_selector(None, field_selector, &api_client).await.unwrap();
 /// # }
 /// ```
-pub async fn find_instances_with_selector(label_selector: Option<String>, field_selector: Option<String>,     namespace: &str, kube_client: &Client) -> Result<InstanceList, anyhow::Error> {
+pub async fn find_instances_with_selector(
+    label_selector: Option<String>,
+    field_selector: Option<String>,
+    namespace: &str,
+    kube_client: &Client,
+) -> Result<InstanceList, anyhow::Error> {
     log::trace!("get_instances enter");
     let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
     let lp = ListParams {

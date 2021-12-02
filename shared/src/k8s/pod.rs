@@ -93,7 +93,7 @@ pub async fn find_pods_with_selector(
 /// job::delete_jobs_with_selector(label_selector, None, api_client).await.unwrap();
 /// # }
 /// ```
-/// 
+///
 /// ```no_run
 /// use akri_shared::k8s::job;
 /// use kube::client::Client;
@@ -118,11 +118,14 @@ pub async fn delete_pods_with_selector(
         field_selector,
         ..Default::default()
     };
-    match jobs.delete_collection(&DeleteParams::default(), &lps).await? {
+    match jobs
+        .delete_collection(&DeleteParams::default(), &lps)
+        .await?
+    {
         either::Left(list) => {
             let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
             trace!("Deleting collection of pods: {:?}", names);
-        },
+        }
         either::Right(status) => {
             trace!("Deleted collection of pods: status={:?}", status);
         }
@@ -393,6 +396,21 @@ mod broker_podspec_tests {
                 Some("node"),
                 false,
                 &"suffix".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_create_broker_app_name_job() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        assert_eq!(
+            "node-instance-name-1-job",
+            create_broker_app_name(
+                &"instance.name".to_string(),
+                Some("node"),
+                true,
+                &"1-job".to_string()
             )
         );
     }
