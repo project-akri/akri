@@ -103,8 +103,8 @@ spec:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"
       - name: var-run-dockershim
         hostPath:
-          {{- if ne "" .Values.agent.host.containerRuntimeSock }}
-          path: {{.Values.agent.host.containerRuntimeSock }}
+          {{- if ne "" .Values.agent.host.containerRuntimeSocket }}
+          path: {{.Values.agent.host.containerRuntimeSocket }}
           {{- else if eq .Values.kubernetesDistro "microk8s" }}
           path: "/var/snap/microk8s/common/run/containerd.sock"
           {{- else if eq .Values.kubernetesDistro "k3s" }}
@@ -112,7 +112,7 @@ spec:
           {{- else if eq .Values.kubernetesDistro "k8s" }}
           path: "/var/run/dockershim.sock"
           {{- else }}
-          path: {{- required "Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro=<k8s|k3s|microk8s>` or setting `agent.host.containerRuntimeSock=/container/runtime.sock`. See https://docs.akri.sh/user-guide/cluster-setup for more information." .Values.agent.host.containerRuntimeSock }}
+          path: {{- required "Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro=<k8s|k3s|microk8s>` or setting `agent.host.containerRuntimeSocket=/container/runtime.sock`. See https://docs.akri.sh/user-guide/cluster-setup for more information." .Values.agent.host.containerRuntimeSocket }}
           {{- end }}
       {{- if .Values.agent.host.udev }}
       - name: devices
