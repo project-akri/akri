@@ -144,6 +144,63 @@ pub async fn find_instance(
     }
 }
 
+
+/// Get Instances for a given namespace
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::akri::instance;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// let label_selector = Some("environment=production,app=nginx".to_string());
+/// let instances = instance::find_instances_with_selector(label_selector, None, &api_client).await.unwrap();
+/// # }
+/// ```
+/// 
+/// ```no_run
+/// use akri_shared::akri::instance;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// let field_selector = Some("spec.nodeName=node-a".to_string());
+/// let instances = instance::find_instances_with_selector(None, field_selector, &api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn find_instances_with_selector(label_selector: Option<String>, field_selector: Option<String>,     namespace: &str, kube_client: &Client) -> Result<InstanceList, anyhow::Error> {
+    log::trace!("get_instances enter");
+    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
+    let lp = ListParams {
+        label_selector,
+        field_selector,
+        ..Default::default()
+    };
+    match instances_client.list(&lp).await {
+        Ok(instances_retrieved) => {
+            log::trace!("get_instances return");
+            Ok(instances_retrieved)
+        }
+        Err(kube::Error::Api(ae)) => {
+            log::trace!(
+                "get_instances kube_client.request returned kube error: {:?}",
+                ae
+            );
+            Err(ae.into())
+        }
+        Err(e) => {
+            log::trace!("get_instances kube_client.request error: {:?}", e);
+            Err(e.into())
+        }
+    }
+}
+
 /// Create Instance
 ///
 /// Example:

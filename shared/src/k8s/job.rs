@@ -1,4 +1,4 @@
-use super::super::akri::API_NAMESPACE;
+use super::super::akri::{instance::Instance, API_NAMESPACE};
 use super::{
     pod::modify_pod_spec,
     pod::{
@@ -109,20 +109,17 @@ pub async fn find_jobs_with_selector(
 /// # }
 /// ```
 pub fn create_new_job_from_spec(
-    job_namespace: &str,
-    instance_name: &str,
-    configuration_name: &str,
+    instance: &Instance,
     ownership: OwnershipInfo,
     resource_limit_name: &str,
-    capability_is_shared: bool,
     job_spec: &JobSpec,
 ) -> anyhow::Result<Job> {
     trace!("create_new_job_from_spec enter");
-
+    let instance_name = instance.metadata.name.as_ref().unwrap();
     let app_name = pod::create_broker_app_name(
         instance_name,
         None,
-        capability_is_shared,
+        instance.spec.shared,
         &"job".to_string(),
     );
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
@@ -130,7 +127,7 @@ pub fn create_new_job_from_spec(
     labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     labels.insert(
         AKRI_CONFIGURATION_LABEL_NAME.to_string(),
-        configuration_name.to_string(),
+        instance.spec.configuration_name.to_string(),
     );
     labels.insert(
         AKRI_INSTANCE_LABEL_NAME.to_string(),
@@ -153,7 +150,7 @@ pub fn create_new_job_from_spec(
         spec: Some(modified_job_spec),
         metadata: ObjectMeta {
             name: Some(app_name),
-            namespace: Some(job_namespace.to_string()),
+            namespace: Some(instance.metadata.namespace.as_ref().unwrap().to_string()),
             labels: Some(labels),
             owner_references: Some(owner_references),
             ..Default::default()
@@ -275,4 +272,63 @@ pub async fn remove_job(
             Err(anyhow::anyhow!(e))
         }
     }
+}
+
+/// Delete a collection of Jobs with the given selectors
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::job;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let label_selector = Some("environment=production,app=nginx".to_string());
+/// let api_client = Client::try_default().await.unwrap();
+/// job::delete_jobs_with_selector(label_selector, None, api_client).await.unwrap();
+/// # }
+/// ```
+/// 
+/// ```no_run
+/// use akri_shared::k8s::job;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let field_selector = Some("spec.nodeName=node-a".to_string());
+/// let api_client = Client::try_default().await.unwrap();
+/// job::delete_jobs_with_selector(None, field_selector, api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn delete_jobs_with_selector(
+    label_selector: Option<String>,
+    field_selector: Option<String>,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!("remove_job enter");
+    let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
+    let lps = ListParams {
+        label_selector,
+        field_selector,
+        ..Default::default()
+    };
+    let dps = DeleteParams {
+        propagation_policy: Some(kube::api::PropagationPolicy::Foreground),
+        ..Default::default()
+    };
+    info!("remove_job jobs.delete(...).await?:");
+    match jobs.delete_collection(&dps, &lps).await? {
+        either::Left(list) => {
+            let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
+            trace!("Deleting collection of pods: {:?}", names);
+        },
+        either::Right(status) => {
+            trace!("Deleted collection of pods: status={:?}", status);
+        }
+    }
+    Ok(())
 }

@@ -102,6 +102,7 @@ impl BrokerPodWatcher {
         trace!("watch - enter");
         let kube_interface = k8s::KubeImpl::new().await?;
         let resource = Api::<Pod>::all(kube_interface.get_kube_client());
+        // TODO: watch for Configuration label instead
         let watcher = watcher(
             resource,
             ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME),
