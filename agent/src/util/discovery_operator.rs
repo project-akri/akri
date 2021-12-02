@@ -603,12 +603,6 @@ pub mod start_discovery {
                     config.spec.discovery_handler.name,
                     endpoint
                 );
-                // Only use DiscoveryHandler if it doesn't have a client yet
-                trace!(
-                    "do_discover - {} discovery handler at endpoint {:?} doesn't have client",
-                    config.spec.discovery_handler.name,
-                    endpoint
-                );
                 let discovery_operator = discovery_operator.clone();
                 let kube_interface = kube_interface.clone();
                 discovery_tasks.push(tokio::spawn(async move {
