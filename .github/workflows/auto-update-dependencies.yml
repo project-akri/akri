@@ -27,7 +27,7 @@ jobs:
         cargo install cargo-edit
     
     - name: Check for dependency updates
-      uses: romoh/dependencies-autoupdate@v1.1
+      uses: romoh/dependencies-autoupdate@v1.2
       with:  
         token: ${{ secrets.AKRI_BOT_TOKEN }}
         update-command: "'cargo update && cargo test'"
