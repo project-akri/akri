@@ -1,5 +1,6 @@
 use super::configuration::{Configuration, ConfigurationSpec};
 use log::{error, trace};
+use std::cmp::Ordering;
 
 /// Information for managing the state of a Configuration
 #[derive(Debug, Clone)]
@@ -18,30 +19,38 @@ pub struct ConfigState {
 /// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
 /// If only the BrokerType changed, the Controller should recreate brokers for the same Configuration.
 pub fn should_recreate_config(config: &Configuration, config_state: &ConfigState) -> bool {
-    if config.metadata.generation < config_state.last_generation {
-        error!(
-            "should_recreate_config - configuration generation somehow went backwards {:?} < {:?}",
-            config.metadata.generation, config.metadata.generation
-        );
-        true
-    // Immediately return false if the generation has not changed
-    } else if config.metadata.generation == config_state.last_generation {
-        trace!("should_recreate_config - configuration generation has not changed");
-        false
-    } else {
-        let previous_config = &config_state.last_configuration_spec;
-        if previous_config != &config.spec {
-            // Recreate config only if the broker or services have changed
-            !(previous_config.discovery_handler == config.spec.discovery_handler
-                && previous_config.broker_properties == config.spec.broker_properties
-                && previous_config.capacity == config.spec.capacity
-                && previous_config.instance_service_spec == config.spec.instance_service_spec
-                && previous_config.configuration_service_spec
-                    == config.spec.configuration_service_spec)
-        } else {
-            trace!("should_recreate_config - Configuration has not changed even though generation has.");
-            // Should not reach this as generation check should catch this. Recreate Configuration.
+    match config
+        .metadata
+        .generation
+        .unwrap()
+        .cmp(&config_state.last_generation.unwrap())
+    {
+        Ordering::Less => {
+            error!(
+                "should_recreate_config - configuration generation somehow went backwards {:?} < {:?}",
+                config.metadata.generation, config.metadata.generation
+            );
             true
+        }
+        Ordering::Equal => {
+            trace!("should_recreate_config - configuration generation has not changed");
+            false
+        }
+        Ordering::Greater => {
+            let previous_config = &config_state.last_configuration_spec;
+            if previous_config != &config.spec {
+                // Recreate config only if the broker or services have changed
+                !(previous_config.discovery_handler == config.spec.discovery_handler
+                    && previous_config.broker_properties == config.spec.broker_properties
+                    && previous_config.capacity == config.spec.capacity
+                    && previous_config.instance_service_spec == config.spec.instance_service_spec
+                    && previous_config.configuration_service_spec
+                        == config.spec.configuration_service_spec)
+            } else {
+                trace!("should_recreate_config - Configuration has not changed even though generation has.");
+                // Should not reach this as generation check should catch this. Recreate Configuration.
+                true
+            }
         }
     }
 }
