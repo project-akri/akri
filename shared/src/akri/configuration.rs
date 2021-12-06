@@ -29,11 +29,19 @@ pub struct DiscoveryHandlerInfo {
     pub discovery_details: String,
 }
 
+/// This defines a workload that should be scheduled to nodes
+/// that can access capability described by this Configuration.
+/// The enum contents are boxed to use the heap instead of the stack.
+/// See this clippy warning for more details:
+/// https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum BrokerType {
-    Pod(PodSpec),
-    Job(JobSpec),
+    // Pod that should be scheduled to all nodes that can
+    // access any capability described by this Configuration
+    Pod(Box<PodSpec>),
+    // Pod that should be deployed to each capability described by this Configuration
+    Job(Box<JobSpec>),
 }
 
 /// Defines the information in the Akri Configuration CRD
@@ -224,7 +232,7 @@ mod crd_serialization_tests {
         assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.broker_properties.len());
         if let BrokerType::Pod(d_pod_spec) = deserialized.broker_type.as_ref().unwrap() {
-            assert_eq!(d_pod_spec, &pod_spec);
+            assert_eq!(&pod_spec, d_pod_spec.as_ref());
         } else {
             panic!("Expected Pod BrokerType");
         }
