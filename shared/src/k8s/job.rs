@@ -11,7 +11,7 @@ use either::Either;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
-    api::{Api, DeleteParams, ListParams, ObjectList, Patch, PatchParams, PostParams},
+    api::{Api, DeleteParams, ListParams, ObjectList, PostParams, PropagationPolicy},
     client::Client,
 };
 use log::{error, info, trace};
@@ -268,7 +268,11 @@ pub async fn remove_job(
     trace!("remove_job enter");
     let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
     info!("remove_job jobs.delete(...).await?:");
-    match jobs.delete(job_to_remove, &DeleteParams::default()).await {
+    let dps = DeleteParams {
+        propagation_policy: Some(PropagationPolicy::Background),
+        ..Default::default()
+    };
+    match jobs.delete(job_to_remove, &dps).await {
         Ok(deleted_job) => match deleted_job {
             Either::Left(spec) => {
                 info!("remove_job jobs.delete return: {:?}", &spec.metadata.name);

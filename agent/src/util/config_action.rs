@@ -333,27 +333,31 @@ async fn handle_config_delete(
 /// If there has been a change, then looks to see if broker_generation has changed, indicating that the Config
 /// should not be recreated as the Controller should recreate brokers for the same Configuration.
 pub fn should_recreate_config(config: &Configuration, config_state: ConfigState) -> bool {
+    if config.metadata.generation < config_state.last_generation {
+        error!("should_recreate_config - configuration generation somehow went backwards");
+        true
     // Immediately return false if the generation has not changed
-    if config.metadata.generation <= config_state.last_generation {
-        return false;
+    } else if config.metadata.generation == config_state.last_generation {
+        trace!("should_recreate_config - configuration generation has not changed");
+        false
     } else {
         let previous_config = config_state.last_configuration_spec;
         if previous_config != config.spec {
             // Recreate config unless only the deployment specifications have changed
             // and broker generation has increased.
-            (previous_config.discovery_handler != config.spec.discovery_handler
-                || previous_config.broker_properties != config.spec.broker_properties
-                || previous_config.capacity != config.spec.capacity)
-                || previous_config
+            !(previous_config.discovery_handler == config.spec.discovery_handler
+                && previous_config.broker_properties == config.spec.broker_properties
+                && previous_config.capacity == config.spec.capacity)
+                || !(previous_config
                     .deployment_strategy
                     .unwrap()
                     .broker_generation
-                    <= config
+                    < config
                         .spec
                         .deployment_strategy
                         .as_ref()
                         .unwrap()
-                        .broker_generation
+                        .broker_generation)
         } else {
             trace!("should_recreate_config - Configuration has not changed even though generation has.");
             // Should not reach this as generation check should catch this. Recreate Configuration.
@@ -409,28 +413,42 @@ mod config_recreate_tests {
     // so long as broker generation HAS changed
     #[test]
     fn test_should_recreate_config_broker_change() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let (mut config, config_state) = get_should_recreate_config_data();
-
-        // using older generation than what is already in config_state
-        config.metadata.generation = Some(0);
+        config.metadata.generation = Some(2);
         config
             .spec
             .deployment_strategy
             .as_mut()
             .map(|d| d.broker_generation = 2);
         let do_recreate = should_recreate_config(&config, config_state);
-
         assert!(!do_recreate)
+    }
+
+    // Tests that when a Configuration is updated,
+    // if generation has increased, should return true
+    // if broker generation somehow decreased.
+    #[test]
+    fn test_should_recreate_config_broker_change_backwards() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (mut config, config_state) = get_should_recreate_config_data();
+        config.metadata.generation = Some(2);
+        // using older generation than what is already in config_state
+        config
+            .spec
+            .deployment_strategy
+            .as_mut()
+            .map(|d| d.broker_generation = 0);
+        let do_recreate = should_recreate_config(&config, config_state);
+        assert!(do_recreate)
     }
 
     // Tests that when a Configuration is updated,
     // if generation has NOT changed, should return false
     #[test]
     fn test_should_recreate_config_same_generation() {
-        let (mut config, config_state) = get_should_recreate_config_data();
-
+        let (config, config_state) = get_should_recreate_config_data();
         // using same generation as what is already in config_state
-        config.metadata.generation = Some(1);
         let do_recreate = should_recreate_config(&config, config_state);
 
         assert!(!do_recreate)
@@ -438,8 +456,7 @@ mod config_recreate_tests {
 
     // Tests that when a Configuration is updated,
     // if generation has increased, should return true
-    // if any part of the spec has changed along with
-    // the broker generation
+    // if any part of the spec has changed besides the deployment options
     #[test]
     fn test_should_recreate_config_config_change() {
         let (mut config, config_state) = get_should_recreate_config_data();
@@ -447,19 +464,14 @@ mod config_recreate_tests {
         // using higher generation as what is already in config_state
         config.metadata.generation = Some(2);
         config.spec.capacity = 3;
-        config
-            .spec
-            .deployment_strategy
-            .as_mut()
-            .map(|d| d.broker_generation = 2);
         let do_recreate = should_recreate_config(&config, config_state);
 
         assert!(do_recreate)
     }
 
     // Tests that when a Configuration is updated,
-    // if generation is older, should return false
-    // so long as broker generation HAS changed
+    // if generation is older, should return true
+    // Kubernetes should prevent this from ever happening
     #[test]
     fn test_should_recreate_config_older_generation() {
         let (mut config, config_state) = get_should_recreate_config_data();
@@ -468,7 +480,7 @@ mod config_recreate_tests {
         config.metadata.generation = Some(0);
         let do_recreate = should_recreate_config(&config, config_state);
 
-        assert!(!do_recreate)
+        assert!(do_recreate)
     }
 
     fn get_should_recreate_config_data() -> (Configuration, ConfigState) {

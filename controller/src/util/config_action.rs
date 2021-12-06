@@ -2,6 +2,7 @@ use super::instance_action::{
     create_pod_context, do_pod_action_for_nodes, handle_instance_change_job, InstanceAction,
     PodContext,
 };
+use super::pod_action::PodAction;
 use akri_shared::{
     akri::configuration::{BrokerType, Configuration},
     akri::instance::Instance,
@@ -205,8 +206,7 @@ async fn handle_broker_updates_for_configuration_pod(
                     )
                 })?
                 .clone();
-            let pod_name = p.metadata.name.as_ref().unwrap().to_string();
-            let c = create_pod_context(&p)?;
+            let c = create_pod_context(&p, PodAction::RemoveAndAdd)?;
             configuration_pods
                 .entry(instance_name.to_string())
                 .and_modify(|m| {
@@ -227,7 +227,8 @@ async fn handle_broker_updates_for_configuration_pod(
         .filter(|i| &i.spec.configuration_name == config.metadata.name.as_ref().unwrap())
         .map(|i| (i.metadata.name.as_ref().unwrap().to_string(), i))
         .collect();
-    // For each instance, do pod action for nodes
+
+    // For each instance, delete and add broker Pods
     let futures: Vec<_> = configuration_pods
         .into_iter()
         .filter_map(|(i_name, m)| {

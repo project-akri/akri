@@ -146,7 +146,7 @@ async fn handle_instance(
 // generated on deletes and remove Option wrappers.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PodContext {
-    pub node_name: Option<String>,
+    pub(crate) node_name: Option<String>,
     namespace: Option<String>,
     action: PodAction,
 }
@@ -165,7 +165,7 @@ impl PodContext {
     }
 }
 
-pub(crate) fn create_pod_context(k8s_pod: &Pod) -> anyhow::Result<PodContext> {
+pub(crate) fn create_pod_context(k8s_pod: &Pod, action: PodAction) -> anyhow::Result<PodContext> {
     let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
     let labels = &k8s_pod
         .metadata
@@ -184,7 +184,7 @@ pub(crate) fn create_pod_context(k8s_pod: &Pod) -> anyhow::Result<PodContext> {
     Ok(PodContext {
         node_name: Some(node_to_run_pod_on.to_string()),
         namespace: k8s_pod.metadata.namespace.clone(),
-        action: PodAction::NoAction,
+        action,
     })
 }
 
@@ -205,7 +205,7 @@ fn determine_action_for_pod(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("No pod phase found for Pod {:?}", pod_name))?;
 
-    let mut update_pod_context = create_pod_context(k8s_pod)?;
+    let mut update_pod_context = create_pod_context(k8s_pod, PodAction::NoAction)?;
     let node_to_run_pod_on = update_pod_context.node_name.as_ref().unwrap();
 
     // Early exits above ensure unwrap will not panic
@@ -594,6 +594,7 @@ pub(crate) async fn do_pod_action_for_nodes(
     podspec: &PodSpec,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
+    trace!("do_pod_action_for_nodes - enter");
     // Iterate over nodes_to_act_on where value == (PodAction::Remove | PodAction::RemoveAndAdd)
     for (node_to_delete_pod, context) in nodes_to_act_on.iter().filter(|&(_, v)| {
         ((v.action) == PodAction::Remove) | ((v.action) == PodAction::RemoveAndAdd)
