@@ -4,6 +4,7 @@ metadata:
   name: config-b
   namespace: config-b-namespace
   uid: e9fbe880-99da-47c1-bea3-5398f21ee747
+  generation: 0
 spec:
   discoveryHandler: 
     name: debugEcho
@@ -11,20 +12,19 @@ spec:
         descriptions:
         - "filter1"
         - "filter2"
-  deploymentStrategy:
-    brokerType:
-      job:
-        template:
-          spec:
-            containers:
-            - name: akri-debug-echo-fee-broker
-              image: perl
-              command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
-              resources:
-                limits:
-                  "{{PLACEHOLDER}}" : "1"
-            restartPolicy: Never
-        backoffLimit: 4
+  brokerType:
+    job:
+      template:
+        spec:
+          containers:
+          - name: akri-debug-echo-fee-broker
+            image: perl
+            command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            resources:
+              limits:
+                "{{PLACEHOLDER}}" : "1"
+          restartPolicy: Never
+      backoffLimit: 4
   brokerProperties:
     RESOLUTION_WIDTH: "800"
     RESOLUTION_HEIGHT: "600"

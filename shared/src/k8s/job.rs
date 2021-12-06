@@ -2,8 +2,7 @@ use super::super::akri::{instance::Instance, API_NAMESPACE};
 use super::{
     pod::modify_pod_spec,
     pod::{
-        self, AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID,
-        CONTROLLER_LABEL_ID,
+        AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID,
     },
     OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND,
 };
@@ -87,6 +86,7 @@ pub async fn find_jobs_with_selector(
 ///     OwnershipType,
 ///     job
 /// };
+/// use akri_shared::akri::instance::{Instance, InstanceSpec};
 /// use kube::client::Client;
 /// use kube::config;
 /// use k8s_openapi::api::batch::v1::JobSpec;
@@ -94,18 +94,23 @@ pub async fn find_jobs_with_selector(
 /// # #[tokio::main]
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
-/// let svc = job::create_new_job_from_spec(
-///     "job_namespace",
-///     "capability_instance",
-///     "capability_config",
+/// let instance_spec = InstanceSpec {
+///     configuration_name: "configuration_name".to_string(),
+///     shared: true,
+///     nodes: Vec::new(),
+///     device_usage: std::collections::HashMap::new(),
+///     broker_properties: std::collections::HashMap::new()
+/// };    
+/// let instance = Instance::new("instance_name", instance_spec);
+/// let job = job::create_new_job_from_spec(
+///     &instance,
 ///     OwnershipInfo::new(
 ///         OwnershipType::Instance,
-///         "capability_instance".to_string(),
+///         "instance_name".to_string(),
 ///         "instance_uid".to_string()
 ///     ),
-///     "akri.sh/capability_name",
-///     true,
-///     &JobSpec::default()).unwrap();
+///     "akri.sh/configuration_name",
+///     &JobSpec::default(),"app_name").unwrap();
 /// # }
 /// ```
 pub fn create_new_job_from_spec(
@@ -167,7 +172,7 @@ pub fn create_new_job_from_spec(
 /// Example:
 ///
 /// ```no_run
-/// use akri_shared::akri::job;
+/// use akri_shared::k8s::job;
 /// use kube::client::Client;
 /// use kube::config;
 ///
@@ -177,7 +182,7 @@ pub fn create_new_job_from_spec(
 /// let job = job::find_job(
 ///     "job-1",
 ///     "default",
-///     &api_client).await.unwrap();
+///     api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn find_job(name: &str, namespace: &str, kube_client: Client) -> anyhow::Result<Job> {
@@ -318,7 +323,7 @@ pub async fn remove_job(
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
 /// let api_client = Client::try_default().await.unwrap();
-/// job::delete_jobs_with_selector(label_selector, None, api_client).await.unwrap();
+/// job::delete_jobs_with_selector(label_selector, None, "default", api_client).await.unwrap();
 /// # }
 /// ```
 ///
@@ -331,7 +336,7 @@ pub async fn remove_job(
 /// # async fn main() {
 /// let field_selector = Some("spec.nodeName=node-a".to_string());
 /// let api_client = Client::try_default().await.unwrap();
-/// job::delete_jobs_with_selector(None, field_selector, api_client).await.unwrap();
+/// job::delete_jobs_with_selector(None, field_selector, "default", api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn delete_jobs_with_selector(

@@ -36,33 +36,6 @@ pub enum BrokerType {
     Job(JobSpec),
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct DeploymentStrategy {
-    /// This defines a workload that should be scheduled to any
-    /// node that can access any capability described by this
-    /// configuration
-    pub broker_type: BrokerType,
-
-    /// This defines a service that should be created to access
-    /// any specific capability found that is described by this
-    /// configuration. For each Configuration, several Instances
-    /// can be found.  For each Instance, there is at most 1
-    /// instance service.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub instance_service_spec: Option<ServiceSpec>,
-
-    /// This defines a service that should be created to access
-    /// all of the capabilities found that are described by this
-    /// configuration. For each Configuration, there is at most
-    /// 1 device capability service.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub configuration_service_spec: Option<ServiceSpec>,
-
-    #[serde(default = "default_generation")]
-    pub broker_generation: i32,
-}
-
 /// Defines the information in the Akri Configuration CRD
 ///
 /// A Configuration is the primary method for users to describe anticipated
@@ -79,8 +52,26 @@ pub struct ConfigurationSpec {
     /// discover the capability and any information needed by the `DiscoveryHandler`.
     pub discovery_handler: DiscoveryHandlerInfo,
 
+    /// This defines a workload that should be scheduled to any
+    /// node that can access any capability described by this
+    /// configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment_strategy: Option<DeploymentStrategy>,
+    pub broker_type: Option<BrokerType>,
+
+    /// This defines a service that should be created to access
+    /// any specific capability found that is described by this
+    /// configuration. For each Configuration, several Instances
+    /// can be found.  For each Instance, there is at most 1
+    /// instance service.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instance_service_spec: Option<ServiceSpec>,
+
+    /// This defines a service that should be created to access
+    /// all of the capabilities found that are described by this
+    /// configuration. For each Configuration, there is at most
+    /// 1 device capability service.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration_service_spec: Option<ServiceSpec>,
 
     /// This defines some properties that will be set as
     /// environment variables in broker Pods that request
@@ -185,10 +176,6 @@ fn default_capacity() -> i32 {
     1
 }
 
-fn default_generation() -> i32 {
-    1
-}
-
 #[cfg(test)]
 mod crd_serialization_tests {
     use super::super::super::os::file;
@@ -219,7 +206,9 @@ mod crd_serialization_tests {
         let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":"{\"onvif\":{}}"}}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
-        assert_eq!(None, deserialized.deployment_strategy);
+        assert_eq!(None, deserialized.broker_type);
+        assert_eq!(None, deserialized.instance_service_spec);
+        assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.broker_properties.len());
     }
 
@@ -228,25 +217,20 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod_spec_json = r#"{"containers": [{"image": "nginx:latest","name": "broker"}]}"#;
         let pod_spec: PodSpec = serde_json::from_str(pod_spec_json).unwrap();
-        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "deploymentStrategy":{"brokerType":{"pod":{"containers": [{"image": "nginx:latest","name": "broker"}]}}}, "capacity":4}"#;
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "brokerType":{"pod":{"containers": [{"image": "nginx:latest","name": "broker"}]}}, "capacity":4}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
+        assert_eq!(None, deserialized.instance_service_spec);
+        assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.broker_properties.len());
-        match deserialized.deployment_strategy {
-            None => panic!("Pod deployment strategy expected"),
-            Some(ref ds) => match &ds.broker_type {
-                BrokerType::Pod(p) => {
-                    assert_eq!(p, &pod_spec);
-                    assert_eq!(None, ds.instance_service_spec);
-                    assert_eq!(None, ds.configuration_service_spec);
-
-                    let serialized = serde_json::to_string(&deserialized).unwrap();
-                    let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"deploymentStrategy":{"brokerType":{"pod":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerGeneration":1},"brokerProperties":{},"capacity":4}"#;
-                    assert_eq!(expected_deserialized, serialized);
-                }
-                BrokerType::Job(_j) => panic!("Expected Pod BrokerType"),
-            },
+        if let BrokerType::Pod(d_pod_spec) = deserialized.broker_type.as_ref().unwrap() {
+            assert_eq!(d_pod_spec, &pod_spec);
+        } else {
+            panic!("Expected Pod BrokerType");
         }
+        let serialized = serde_json::to_string(&deserialized).unwrap();
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"brokerType":{"pod":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerProperties":{},"capacity":4}"#;
+        assert_eq!(expected_deserialized, serialized);
     }
 
     #[test]
@@ -254,7 +238,8 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let files = [
             "../test/yaml/akri-onvif-video-configuration.yaml",
-            "../test/yaml/akri-debug-echo-foo-configuration.yaml",
+            "../test/yaml/akri-debug-echo-pod-configuration.yaml",
+            "../test/yaml/akri-debug-echo-job-configuration.yaml",
             "../test/yaml/akri-udev-video-configuration.yaml",
             "../test/yaml/akri-opcua-configuration.yaml",
         ];
@@ -279,49 +264,47 @@ mod crd_serialization_tests {
                 "name": "random",
                 "discoveryDetails": ""
             },
-            "deploymentStrategy": {
-                "instanceServiceSpec": {
-                    "ports": [
+            "instanceServiceSpec": {
+                "ports": [
+                    {
+                        "name": "http",
+                        "port": 6052,
+                        "protocol": "TCP",
+                        "targetPort": 6052
+                    }
+                ],
+                "type": "ClusterIP"
+            },
+            "brokerType": {
+                "pod": {
+                    "containers": [
                         {
-                            "name": "http",
-                            "port": 6052,
-                            "protocol": "TCP",
-                            "targetPort": 6052
-                        }
-                    ],
-                    "type": "ClusterIP"
-                },
-                "brokerType": {
-                    "pod": {
-                        "containers": [
-                            {
-                                "image": "nginx:latest",
-                                "name": "usb-camera-broker",
-                                "resources": {
-                                    "limits": {
-                                        "{{PLACEHOLDER}}": "1"
-                                    }
+                            "image": "nginx:latest",
+                            "name": "usb-camera-broker",
+                            "resources": {
+                                "limits": {
+                                    "{{PLACEHOLDER}}": "1"
                                 }
                             }
-                        ],
-                        "imagePullSecrets": [
-                            {
-                                "name": "regcred"
-                            }
-                        ]
-                    }
-                },
-                "configurationServiceSpec": {
-                    "ports": [
-                        {
-                            "name": "http",
-                            "port": 6052,
-                            "protocol": "TCP",
-                            "targetPort": 6052
                         }
                     ],
-                    "type": "ClusterIP"
+                    "imagePullSecrets": [
+                        {
+                            "name": "regcred"
+                        }
+                    ]
                 }
+            },
+            "configurationServiceSpec": {
+                "ports": [
+                    {
+                        "name": "http",
+                        "port": 6052,
+                        "protocol": "TCP",
+                        "targetPort": 6052
+                    }
+                ],
+                "type": "ClusterIP"
             },
             "brokerProperties": {
                 "resolution-height": "600",
@@ -333,12 +316,11 @@ mod crd_serialization_tests {
         assert_eq!(deserialized.discovery_handler.name, "random".to_string());
         assert!(deserialized.discovery_handler.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);
-        assert_eq!(2, deserialized.broker_properties.len());
-        let ds = deserialized.deployment_strategy.unwrap();
-        if let BrokerType::Job(_j) = ds.broker_type {
+        if let BrokerType::Job(_j) = deserialized.broker_type.unwrap() {
             panic!("Expected Pod BrokerType");
         }
-        assert_ne!(None, ds.instance_service_spec);
-        assert_ne!(None, ds.configuration_service_spec);
+        assert_ne!(None, deserialized.instance_service_spec);
+        assert_ne!(None, deserialized.configuration_service_spec);
+        assert_eq!(2, deserialized.broker_properties.len());
     }
 }

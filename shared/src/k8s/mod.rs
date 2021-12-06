@@ -335,7 +335,7 @@ impl KubeInterface for KubeImpl {
     /// # #[tokio::main]
     /// # async fn main() {
     /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// kube.find_job(&Job::default(), "job_namespace").await.unwrap();
+    /// kube.find_job("job_name", "job_namespace").await.unwrap();
     /// # }
     /// ```
     async fn find_job(&self, job_name: &str, namespace: &str) -> anyhow::Result<Job> {
@@ -390,7 +390,7 @@ impl KubeInterface for KubeImpl {
     /// # async fn main() {
     /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let label_selector = Some("environment=production,app=nginx".to_string());
-    /// kube.delete_jobs_with_label(label_selector).await.unwrap();
+    /// kube.delete_jobs_with_label(label_selector, "default").await.unwrap();
     /// # }
     /// ```
     async fn delete_jobs_with_label(
@@ -578,7 +578,7 @@ impl KubeInterface for KubeImpl {
     /// # async fn main() {
     /// let kube = k8s::KubeImpl::new().await.unwrap();
     /// let label_selector = Some("environment=production,app=nginx".to_string());
-    /// let instances = kube.find_instances_with_label(label_selector).await.unwrap();
+    /// let instances = kube.find_instances_with_label(label_selector, "default").await.unwrap();
     /// # }
     /// ```
     async fn find_instances_with_label(
@@ -613,7 +613,6 @@ impl KubeInterface for KubeImpl {
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
     ///         broker_properties: std::collections::HashMap::new(),
-    ///         broker_info: std::collections::HashMap::new(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace",
@@ -679,7 +678,6 @@ impl KubeInterface for KubeImpl {
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
     ///         broker_properties: std::collections::HashMap::new(),
-    ///         broker_info: std::collections::HashMap::new(),
     ///     },
     ///     "instance-1",
     ///     "instance-namespace"

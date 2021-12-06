@@ -50,11 +50,6 @@ pub struct InstanceSpec {
     /// the slot)
     #[serde(default)]
     pub device_usage: HashMap<String, String>,
-
-    /// Where the Agent can propagate information from Jobs (through the filesyste).
-    /// This may contain non-secret information such as current firmware version.
-    #[serde(default)]
-    pub broker_info: HashMap<String, String>,
 }
 
 /// Get Instances for a given namespace
@@ -157,7 +152,7 @@ pub async fn find_instance(
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
 /// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let instances = instance::find_instances_with_selector(label_selector, None, &api_client).await.unwrap();
+/// let instances = instance::find_instances_with_selector(label_selector, None, "default", &api_client).await.unwrap();
 /// # }
 /// ```
 ///
@@ -170,7 +165,7 @@ pub async fn find_instance(
 /// # async fn main() {
 /// let api_client = Client::try_default().await.unwrap();
 /// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let instances = instance::find_instances_with_selector(None, field_selector, &api_client).await.unwrap();
+/// let instances = instance::find_instances_with_selector(None, field_selector, "default", &api_client).await.unwrap();
 /// # }
 /// ```
 pub async fn find_instances_with_selector(
@@ -224,8 +219,7 @@ pub async fn find_instances_with_selector(
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
-///         broker_properties: std::collections::HashMap::new(),
-///         broker_info: std::collections::HashMap::new(),
+///         broker_properties: std::collections::HashMap::new()
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -346,7 +340,6 @@ pub async fn delete_instance(
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
 ///         broker_properties: std::collections::HashMap::new(),
-///         broker_info: std::collections::HashMap::new(),
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -415,13 +408,12 @@ mod crd_serializeation_tests {
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
-        assert_eq!(0, deserialized.broker_info.len());
         assert_eq!(default_shared(), deserialized.shared);
         assert_eq!(0, deserialized.nodes.len());
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -440,7 +432,7 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{},"brokerInfo":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -448,7 +440,7 @@ mod crd_serializeation_tests {
     fn test_instance_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"},"brokerInfo":{}}"#;
+        let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("blah".to_string(), deserialized.configuration_name);
         assert_eq!(1, deserialized.broker_properties.len());

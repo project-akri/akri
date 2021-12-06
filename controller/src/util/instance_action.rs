@@ -151,20 +151,6 @@ pub(crate) struct PodContext {
     action: PodAction,
 }
 
-impl PodContext {
-    pub(crate) fn new(
-        node_name: Option<String>,
-        namespace: Option<String>,
-        action: PodAction,
-    ) -> Self {
-        Self {
-            node_name,
-            namespace,
-            action,
-        }
-    }
-}
-
 pub(crate) fn create_pod_context(k8s_pod: &Pod, action: PodAction) -> anyhow::Result<PodContext> {
     let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
     let labels = &k8s_pod
@@ -406,15 +392,15 @@ pub async fn handle_instance_change(
             return Ok(());
         }
     };
-    if let Some(deployment) = &configuration.spec.deployment_strategy {
-        match &deployment.broker_type {
+    if let Some(broker_type) = &configuration.spec.broker_type {
+        match broker_type {
             BrokerType::Pod(p) => {
                 handle_instance_change_pod(instance, p, action, kube_interface).await
             }
             BrokerType::Job(j) => {
                 handle_instance_change_job(
                     instance.clone(),
-                    deployment.broker_generation,
+                    *configuration.metadata.generation.as_ref().unwrap(),
                     j,
                     action,
                     kube_interface,
@@ -429,7 +415,7 @@ pub async fn handle_instance_change(
 
 pub async fn handle_instance_change_job(
     instance: Instance,
-    broker_generation: i32,
+    config_generation: i64,
     jobspec: &JobSpec,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
@@ -442,13 +428,13 @@ pub async fn handle_instance_change_job(
         instance.metadata.name.as_ref().unwrap(),
         None,
         instance.spec.shared,
-        &format!("{}-job", broker_generation),
+        &format!("{}-job", config_generation),
     );
     match kube_interface
         .find_job(&app_name, instance.metadata.namespace.as_ref().unwrap())
         .await
     {
-        Ok(j) => {
+        Ok(_) => {
             trace!(
                 "handle_instance_change_job - job {} already created ... returning",
                 app_name
@@ -575,8 +561,7 @@ pub async fn handle_instance_change_pod(
     instance_pods
         .items
         .iter()
-        .map(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on))
-        .collect::<anyhow::Result<()>>()?;
+        .try_for_each(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on))?;
 
     trace!(
         "handle_instance_change - nodes tracked after querying existing pods={:?}",

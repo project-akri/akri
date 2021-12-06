@@ -5,6 +5,7 @@ use super::instance_action::{
 use super::pod_action::PodAction;
 use akri_shared::{
     akri::configuration::{BrokerType, Configuration},
+    akri::configuration_state::{should_recreate_config, ConfigState},
     akri::instance::Instance,
     k8s,
     k8s::{pod, KubeInterface},
@@ -12,16 +13,14 @@ use akri_shared::{
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::PodSpec;
-use kube::api::{Api, ListParams, ObjectList};
+use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
-type ConfigMap = Arc<RwLock<HashMap<String, LastBrokerGeneration>>>;
-
-// Last broker_generation of the Configuration if a deployment_strategy exists; otherwise, None.
-type LastBrokerGeneration = Option<i32>;
+// Map of Configuration name and Current Configuration state
+type ConfigMap = Arc<RwLock<HashMap<String, ConfigState>>>;
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
 pub async fn do_config_watch() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -75,13 +74,8 @@ async fn watch_for_config_changes(
     }
     Ok(())
 }
-async fn get_entry(config_name: &str, config_map: ConfigMap) -> Option<i32> {
-    config_map
-        .read()
-        .await
-        .get(config_name)
-        .unwrap_or(&None)
-        .clone()
+async fn get_entry(config_name: &str, config_map: ConfigMap) -> Option<ConfigState> {
+    config_map.read().await.get(config_name).cloned()
 }
 
 /// This takes an event off the Configuration stream and delegates it to the
@@ -100,53 +94,53 @@ async fn handle_config(
                 "handle_config - added or modified Configuration {:?}",
                 config.metadata.name.as_ref().unwrap(),
             );
-            // Check if the Configuration has a deployment strategy
-            match &config.spec.deployment_strategy {
-                Some(deployment) => {
-                    let current_gen = deployment.broker_generation;
-                    match get_entry(config.metadata.name.as_ref().unwrap(), config_map.clone())
-                        .await
-                    {
-                        Some(last_broker_generation) => {
-                            if last_broker_generation < current_gen {
-                                config_map.write().await.insert(
-                                    config.metadata.name.as_ref().unwrap().to_string(),
-                                    Some(current_gen),
-                                );
-                                match &deployment.broker_type {
-                                    BrokerType::Pod(p) => {
-                                        handle_broker_updates_for_configuration_pod(
-                                            kube_interface,
-                                            &config,
-                                            &p,
-                                        )
-                                        .await?;
-                                    }
-                                    BrokerType::Job(j) => {
-                                        handle_broker_updates_for_configuration_job(
-                                            kube_interface,
-                                            current_gen,
-                                            &config,
-                                            &j,
-                                        )
-                                        .await?;
-                                    }
+            let config_state = ConfigState {
+                last_generation: config.metadata.generation,
+                last_configuration_spec: config.spec.clone(),
+            };
+            // Check the Configuration map to see if the Configuration has been updated and
+            // brokers and services need to be redeployed.
+            match get_entry(config.metadata.name.as_ref().unwrap(), config_map.clone()).await {
+                Some(config_state) => match &config.spec.broker_type {
+                    None => {
+                        config_map.write().await.insert(
+                            config.metadata.name.as_ref().unwrap().to_string(),
+                            config_state,
+                        );
+                    }
+                    Some(broker) => {
+                        if !should_recreate_config(&config, &config_state) {
+                            config_map.write().await.insert(
+                                config.metadata.name.as_ref().unwrap().to_string(),
+                                config_state,
+                            );
+                            match broker {
+                                BrokerType::Pod(p) => {
+                                    handle_broker_updates_for_configuration_pod(
+                                        kube_interface,
+                                        &config,
+                                        p,
+                                    )
+                                    .await?;
+                                }
+                                BrokerType::Job(j) => {
+                                    handle_broker_updates_for_configuration_job(
+                                        kube_interface,
+                                        *config.metadata.generation.as_ref().unwrap(),
+                                        &config,
+                                        j,
+                                    )
+                                    .await?;
                                 }
                             }
                         }
-                        None => {
-                            config_map.write().await.insert(
-                                config.metadata.name.as_ref().unwrap().to_string(),
-                                Some(current_gen),
-                            );
-                        }
                     }
-                }
+                },
                 None => {
-                    config_map
-                        .write()
-                        .await
-                        .insert(config.metadata.name.as_ref().unwrap().to_string(), None);
+                    config_map.write().await.insert(
+                        config.metadata.name.as_ref().unwrap().to_string(),
+                        config_state,
+                    );
                 }
             }
         }
@@ -198,7 +192,6 @@ async fn handle_broker_updates_for_configuration_pod(
                 .as_ref()
                 .unwrap()
                 .get(pod::AKRI_INSTANCE_LABEL_NAME)
-                .as_ref()
                 .ok_or_else(|| {
                     anyhow::anyhow!(
                         "No instance label found for Pod {}",
@@ -208,7 +201,7 @@ async fn handle_broker_updates_for_configuration_pod(
                 .clone();
             let c = create_pod_context(&p, PodAction::RemoveAndAdd)?;
             configuration_pods
-                .entry(instance_name.to_string())
+                .entry(instance_name)
                 .and_modify(|m| {
                     m.insert(c.node_name.as_ref().unwrap().to_string(), c.clone());
                 })
@@ -232,17 +225,9 @@ async fn handle_broker_updates_for_configuration_pod(
     let futures: Vec<_> = configuration_pods
         .into_iter()
         .filter_map(|(i_name, m)| {
-            if let Some(instance) = instances.get(&i_name) {
-                // Create pod context for each Pod
-                Some(do_pod_action_for_nodes(
-                    m,
-                    instance,
-                    podspec,
-                    kube_interface,
-                ))
-            } else {
-                None
-            }
+            instances
+                .get(&i_name)
+                .map(|instance| do_pod_action_for_nodes(m, instance, podspec, kube_interface))
         })
         .collect();
 
@@ -252,7 +237,7 @@ async fn handle_broker_updates_for_configuration_pod(
 
 async fn handle_broker_updates_for_configuration_job(
     kube_interface: &impl k8s::KubeInterface,
-    current_broker_generation: i32,
+    config_generation: i64,
     config: &Configuration,
     job_spec: &JobSpec,
 ) -> anyhow::Result<()> {
@@ -291,7 +276,7 @@ async fn handle_broker_updates_for_configuration_job(
     for i in instances {
         handle_instance_change_job(
             i,
-            current_broker_generation,
+            config_generation,
             job_spec,
             &InstanceAction::Add,
             kube_interface,
@@ -311,14 +296,29 @@ async fn handle_broker_updates_for_configuration_job(
 mod config_action_tests {
     use super::*;
     use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface, os::file};
+    use kube::api::ObjectList;
     #[tokio::test]
-    async fn test_handle_config_blah() {
+    async fn test_handle_config() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-b.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let mut config_map = HashMap::new();
-        config_map.insert("config-b".to_string(), Some(0));
+        let mut last_configuration_spec = config.spec.clone();
+        last_configuration_spec.broker_type.as_mut().map(|b| {
+            if let BrokerType::Job(j) = b {
+                j.parallelism = Some(5);
+            } else {
+                panic!("Expected Configuration to contain JobSpec");
+            }
+        });
+        config_map.insert(
+            "config-b".to_string(),
+            ConfigState {
+                last_generation: Some(0),
+                last_configuration_spec,
+            },
+        );
         let mut mock = MockKubeInterface::new();
         mock.expect_get_instances().times(1).returning(move || {
             let pods_json = file::read_file_to_string("../test/json/empty-list.json");

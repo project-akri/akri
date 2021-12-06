@@ -9,7 +9,8 @@ use super::{
     registration::RegisteredDiscoveryHandlerMap,
 };
 use akri_shared::{
-    akri::configuration::{Configuration, ConfigurationSpec},
+    akri::configuration::Configuration,
+    akri::configuration_state::{should_recreate_config, ConfigState},
     k8s,
     k8s::{try_delete_instance, KubeInterface},
 };
@@ -21,17 +22,6 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
-
-/// Information for managing the state of a Configuration
-#[derive(Debug, Clone)]
-pub struct ConfigState {
-    /// Tracks the last generation of the `Configuration` resource (i.e. `.metadata.generation`).
-    /// This is used to determine if the `Configuration` actually changed, or if only the metadata changed.
-    /// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
-    pub last_generation: Option<i64>,
-    /// The last ConfigurationSpec of this Configuration. Enables tracking changes in events of Configuration modification.
-    pub last_configuration_spec: ConfigurationSpec,
-}
 
 /// Information for managing a Configuration, such as all applied Instances of that Configuration
 /// and senders for ceasing to discover instances upon Configuration deletion.
@@ -152,7 +142,7 @@ async fn handle_config(
             {
                 let do_recreate = should_recreate_config(
                     &config,
-                    config_map
+                    &config_map
                         .lock()
                         .await
                         .get(config.metadata.name.as_ref().unwrap())
@@ -327,45 +317,6 @@ async fn handle_config_delete(
     Ok(())
 }
 
-/// Checks to see if the configuration needs to be recreated.
-/// First checks to see if the `.metadata.generation` has changed.
-/// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
-/// If there has been a change, then looks to see if broker_generation has changed, indicating that the Config
-/// should not be recreated as the Controller should recreate brokers for the same Configuration.
-pub fn should_recreate_config(config: &Configuration, config_state: ConfigState) -> bool {
-    if config.metadata.generation < config_state.last_generation {
-        error!("should_recreate_config - configuration generation somehow went backwards");
-        true
-    // Immediately return false if the generation has not changed
-    } else if config.metadata.generation == config_state.last_generation {
-        trace!("should_recreate_config - configuration generation has not changed");
-        false
-    } else {
-        let previous_config = config_state.last_configuration_spec;
-        if previous_config != config.spec {
-            // Recreate config unless only the deployment specifications have changed
-            // and broker generation has increased.
-            !(previous_config.discovery_handler == config.spec.discovery_handler
-                && previous_config.broker_properties == config.spec.broker_properties
-                && previous_config.capacity == config.spec.capacity)
-                || !(previous_config
-                    .deployment_strategy
-                    .unwrap()
-                    .broker_generation
-                    < config
-                        .spec
-                        .deployment_strategy
-                        .as_ref()
-                        .unwrap()
-                        .broker_generation)
-        } else {
-            trace!("should_recreate_config - Configuration has not changed even though generation has.");
-            // Should not reach this as generation check should catch this. Recreate Configuration.
-            true
-        }
-    }
-}
-
 /// This shuts down all a Configuration's Instances and terminates the associated Device Plugins
 pub async fn delete_all_instances_in_map(
     kube_interface: &impl k8s::KubeInterface,
@@ -392,110 +343,6 @@ pub async fn delete_all_instances_in_map(
 }
 
 #[cfg(test)]
-mod config_recreate_tests {
-    use super::*;
-    // Tests that when a Configuration is updated,
-    // if generation has increased, should return true
-    // so long as broker generation has NOT changed
-    #[test]
-    fn test_should_recreate_config_new_generation() {
-        let (mut config, config_state) = get_should_recreate_config_data();
-
-        // using higher generation as what is already in config_state
-        config.metadata.generation = Some(2);
-        let do_recreate = should_recreate_config(&config, config_state);
-
-        assert!(do_recreate)
-    }
-
-    // Tests that when a Configuration is updated,
-    // if generation has increased, should return false
-    // so long as broker generation HAS changed
-    #[test]
-    fn test_should_recreate_config_broker_change() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (mut config, config_state) = get_should_recreate_config_data();
-        config.metadata.generation = Some(2);
-        config
-            .spec
-            .deployment_strategy
-            .as_mut()
-            .map(|d| d.broker_generation = 2);
-        let do_recreate = should_recreate_config(&config, config_state);
-        assert!(!do_recreate)
-    }
-
-    // Tests that when a Configuration is updated,
-    // if generation has increased, should return true
-    // if broker generation somehow decreased.
-    #[test]
-    fn test_should_recreate_config_broker_change_backwards() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (mut config, config_state) = get_should_recreate_config_data();
-        config.metadata.generation = Some(2);
-        // using older generation than what is already in config_state
-        config
-            .spec
-            .deployment_strategy
-            .as_mut()
-            .map(|d| d.broker_generation = 0);
-        let do_recreate = should_recreate_config(&config, config_state);
-        assert!(do_recreate)
-    }
-
-    // Tests that when a Configuration is updated,
-    // if generation has NOT changed, should return false
-    #[test]
-    fn test_should_recreate_config_same_generation() {
-        let (config, config_state) = get_should_recreate_config_data();
-        // using same generation as what is already in config_state
-        let do_recreate = should_recreate_config(&config, config_state);
-
-        assert!(!do_recreate)
-    }
-
-    // Tests that when a Configuration is updated,
-    // if generation has increased, should return true
-    // if any part of the spec has changed besides the deployment options
-    #[test]
-    fn test_should_recreate_config_config_change() {
-        let (mut config, config_state) = get_should_recreate_config_data();
-
-        // using higher generation as what is already in config_state
-        config.metadata.generation = Some(2);
-        config.spec.capacity = 3;
-        let do_recreate = should_recreate_config(&config, config_state);
-
-        assert!(do_recreate)
-    }
-
-    // Tests that when a Configuration is updated,
-    // if generation is older, should return true
-    // Kubernetes should prevent this from ever happening
-    #[test]
-    fn test_should_recreate_config_older_generation() {
-        let (mut config, config_state) = get_should_recreate_config_data();
-
-        // using older generation than what is already in config_state
-        config.metadata.generation = Some(0);
-        let do_recreate = should_recreate_config(&config, config_state);
-
-        assert!(do_recreate)
-    }
-
-    fn get_should_recreate_config_data() -> (Configuration, ConfigState) {
-        let path_to_config = "../test/yaml/config-a.yaml";
-        let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
-        let config_state = ConfigState {
-            last_generation: Some(1),
-            last_configuration_spec: config.spec.clone(),
-        };
-        (config, config_state)
-    }
-}
-
-#[cfg(test)]
 mod config_action_tests {
     use super::super::{
         device_plugin_service,
@@ -505,7 +352,10 @@ mod config_action_tests {
     };
     use super::*;
     use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
-    use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface};
+    use akri_shared::{
+        akri::configuration::{BrokerType, Configuration},
+        k8s::MockKubeInterface,
+    };
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
 
@@ -540,8 +390,7 @@ mod config_action_tests {
         .is_err());
     }
 
-    // Tests that a Configuration is not recreated if ONLY the generation and broker generation of the Configuration
-    // have increased.
+    // Tests that a Configuration is not recreated if ONLY the BrokerType of the ConfigurationSpec has increased.
     #[tokio::test]
     async fn test_handle_config_no_recreate() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -553,12 +402,16 @@ mod config_action_tests {
         let (stop_discovery_sender, _) = broadcast::channel(2);
         let (_, finished_discovery_receiver) = mpsc::channel(2);
         let mut updated_config = config.clone();
+        // Change BrokerType by updating the container name
+        let new_container_name = "new-name";
         updated_config.metadata.generation = Some(2);
-        updated_config
-            .spec
-            .deployment_strategy
-            .as_mut()
-            .map(|d| d.broker_generation = 2);
+        updated_config.spec.broker_type.as_mut().map(|b| {
+            if let BrokerType::Pod(p) = b {
+                p.containers[0].name = new_container_name.to_string();
+            } else {
+                panic!("Expected Configuration to contain PodSpec");
+            }
+        });
         let mut map: HashMap<String, ConfigInfo> = HashMap::new();
         map.insert(
             config_name.clone(),
@@ -584,21 +437,22 @@ mod config_action_tests {
         )
         .await
         .unwrap();
-        assert_eq!(
-            config_map
-                .lock()
-                .await
-                .get(&config_name)
-                .as_ref()
-                .unwrap()
-                .config_state
-                .last_configuration_spec
-                .deployment_strategy
-                .as_ref()
-                .unwrap()
-                .broker_generation,
-            2
-        );
+        let map = config_map.lock().await;
+
+        if let BrokerType::Pod(p) = map
+            .get(&config_name)
+            .as_ref()
+            .unwrap()
+            .config_state
+            .last_configuration_spec
+            .broker_type
+            .as_ref()
+            .unwrap()
+        {
+            assert_eq!(new_container_name, p.containers[0].name)
+        } else {
+            panic!("Expected Pod BrokerType");
+        }
     }
 
     #[tokio::test]

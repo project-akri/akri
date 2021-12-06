@@ -17,5 +17,3 @@ spec:
   brokerProperties:
     resolution-width: "800"
     resolution-height: "600"
-  brokerInfo:
-    firmware-version: "1.0"

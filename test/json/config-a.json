@@ -7,39 +7,37 @@
         "uid": "e9fbe880-99da-47c1-bea3-5398f21ee747"
     },
     "spec": {
-        "deploymentStrategy": {
-            "instanceServiceSpec": {
-                "ports": [
-                    {
-                        "name": "http",
-                        "port": 6052,
-                        "protocol": "TCP",
-                        "targetPort": 6052
-                    }
-                ],
-                "type": "ClusterIP"
-            },
-            "brokerType": {
-                "pod": {
-                    "containers": [
-                        {
-                            "image": "nginx:latest",
-                            "name": "broker"
-                        }
-                    ]
+        "instanceServiceSpec": {
+            "ports": [
+                {
+                    "name": "http",
+                    "port": 6052,
+                    "protocol": "TCP",
+                    "targetPort": 6052
                 }
-            },
-            "configurationServiceSpec": {
-                "ports": [
+            ],
+            "type": "ClusterIP"
+        },
+        "brokerType": {
+            "pod": {
+                "containers": [
                     {
-                        "name": "http",
-                        "port": 6052,
-                        "protocol": "TCP",
-                        "targetPort": 6052
+                        "image": "nginx:latest",
+                        "name": "broker"
                     }
-                ],
-                "type": "ClusterIP"
+                ]
             }
+        },
+        "configurationServiceSpec": {
+            "ports": [
+                {
+                    "name": "http",
+                    "port": 6052,
+                    "protocol": "TCP",
+                    "targetPort": 6052
+                }
+            ],
+            "type": "ClusterIP"
         },
         "discoveryHandler": {
             "name": "debugEcho",

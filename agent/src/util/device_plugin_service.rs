@@ -511,7 +511,6 @@ async fn try_create_instance(
             &dps.config.broker_properties,
             &dps.device.properties,
         ),
-        broker_info: std::collections::HashMap::new(),
     };
 
     // Try up to MAX_INSTANCE_UPDATE_TRIES to create or update instance, breaking on success

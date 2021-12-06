@@ -22,30 +22,25 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
-                deploymentStrategy: # {{DeploymentStrategy}}
-                  type: object 
-                  properties:
-                    brokerType: 
-                      type: object # enum of deployment types
-                      properties: 
-                        job: # {{JobSpec}}
-                          x-kubernetes-preserve-unknown-fields: true
-                          type: object
-                          nullable: true
-                        pod: # {{PodSpec}}
-                          x-kubernetes-preserve-unknown-fields: true
-                          type: object
-                          nullable: true
-                    brokerGeneration: # number
-                      type: number
-                    instanceServiceSpec: # {{ServiceSpec}}
+                brokerType: # {{BrokerType}}
+                  type: object
+                  properties: 
+                    job: # {{JobSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
                       nullable: true
-                    configurationServiceSpec: # {{ServiceSpec}}
+                    pod: # {{PodSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
                       nullable: true
+                instanceServiceSpec: # {{ServiceSpec}}
+                  x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                  nullable: true
+                configurationServiceSpec: # {{ServiceSpec}}
+                  x-kubernetes-preserve-unknown-fields: true
+                  type: object
+                  nullable: true
                 brokerProperties: # map<string, string>
                   additionalProperties:
                     type: string

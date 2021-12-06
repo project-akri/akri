@@ -14,7 +14,7 @@ spec:
       descriptions: []
       {{- end }}
   {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
-  deploymentStrategy:
+  brokerType:
     pod:
       containers:
       - name: {{ .Values.debugEcho.configuration.name }}-broker

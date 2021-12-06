@@ -77,12 +77,12 @@ pub async fn find_pods_with_selector(
     Ok(result?)
 }
 
-/// Delete a collection of Jobs with the given selectors
+/// Delete a collection of Pods with the given selectors
 ///
 /// Example:
 ///
 /// ```no_run
-/// use akri_shared::k8s::job;
+/// use akri_shared::k8s::pod;
 /// use kube::client::Client;
 /// use kube::config;
 ///
@@ -90,12 +90,12 @@ pub async fn find_pods_with_selector(
 /// # async fn main() {
 /// let label_selector = Some("environment=production,app=nginx".to_string());
 /// let api_client = Client::try_default().await.unwrap();
-/// job::delete_jobs_with_selector(label_selector, None, api_client).await.unwrap();
+/// pod::delete_pods_with_selector(label_selector, None, api_client).await.unwrap();
 /// # }
 /// ```
 ///
 /// ```no_run
-/// use akri_shared::k8s::job;
+/// use akri_shared::k8s::pod;
 /// use kube::client::Client;
 /// use kube::config;
 ///

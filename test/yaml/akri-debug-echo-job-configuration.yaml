@@ -1,21 +1,27 @@
 apiVersion: akri.sh/v0
 kind: Configuration
 metadata:
-  name: config-a
-  namespace: config-a-namespace
-  uid: e9fbe880-99da-47c1-bea3-5398f21ee747
+  name: akri-debug-echo-fee
 spec:
   discoveryHandler: 
     name: debugEcho
     discoveryDetails: |+
         descriptions:
-        - "filter1"
-        - "filter2"
+        - "fee0"
+        - "fee1"
   brokerType:
-    pod:
-      containers:
-      - name: broker
-        image: "nginx:latest"
+    job:
+      template:
+        spec:
+          containers:
+          - name: akri-debug-echo-fee-broker
+            image: perl
+            command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            resources:
+              limits:
+                "{{PLACEHOLDER}}" : "1"
+          restartPolicy: Never
+      backoffLimit: 4
   instanceServiceSpec:
     type: ClusterIP
     ports:
@@ -30,8 +36,6 @@ spec:
       port: 6052
       protocol: TCP
       targetPort: 6052
-  brokerProperties:
-    RESOLUTION_WIDTH: "800"
-    RESOLUTION_HEIGHT: "600"
+  brokerProperties: {}
   capacity: 5
   

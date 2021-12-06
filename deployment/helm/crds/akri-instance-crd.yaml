@@ -31,10 +31,6 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
-                brokerInfo: # map<string, string>
-                  additionalProperties:
-                    type: string
-                  type: object
       additionalPrinterColumns:
       - name: Config
         type: string
