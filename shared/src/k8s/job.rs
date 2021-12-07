@@ -274,6 +274,7 @@ pub async fn remove_job(
     let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
     info!("remove_job jobs.delete(...).await?:");
     let dps = DeleteParams {
+        dry_run: false,
         propagation_policy: Some(PropagationPolicy::Background),
         ..Default::default()
     };
@@ -345,18 +346,20 @@ pub async fn delete_jobs_with_selector(
     namespace: &str,
     kube_client: Client,
 ) -> Result<(), anyhow::Error> {
-    trace!("remove_job enter");
+    trace!("delete_jobs_with_selector enter");
     let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
     let lps = ListParams {
         label_selector,
         field_selector,
         ..Default::default()
     };
-    info!("remove_job jobs.delete(...).await?:");
-    match jobs
-        .delete_collection(&DeleteParams::default(), &lps)
-        .await?
-    {
+    let dps = DeleteParams {
+        dry_run: false,
+        propagation_policy: Some(PropagationPolicy::Background),
+        ..Default::default()
+    };
+    info!("delete_jobs_with_selector jobs.delete_collection(...).await?:");
+    match jobs.delete_collection(&dps, &lps).await? {
         either::Left(list) => {
             let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
             trace!("Deleting collection of pods: {:?}", names);
