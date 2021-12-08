@@ -299,8 +299,8 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "descriptions:\n- \"foo0\"\n- \"foo1\"\n"
                     },
-                    "brokerType": {
-                        "pod": {
+                    "brokerSpec": {
+                        "brokerPodSpec": {
                             "containers": [
                                 {
                                     "image": "image",
@@ -390,8 +390,8 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
-                    "brokerType": {
-                        "pod": {
+                    "brokerSpec": {
+                        "brokerPodSpec": {
                             "containers": [
                                 {
                                     "image": "image",
@@ -476,8 +476,8 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
-                    "brokerType": {
-                        "pod": {
+                    "brokerSpec": {
+                        "brokerPodSpec": {
                             "containers": [
                                 {
                                     "image": "image",

@@ -4,7 +4,7 @@ use super::instance_action::{
 };
 use super::pod_action::PodAction;
 use akri_shared::{
-    akri::configuration::{BrokerType, Configuration},
+    akri::configuration::{BrokerSpec, Configuration},
     akri::configuration_state::{should_recreate_config, ConfigState},
     akri::instance::Instance,
     k8s,
@@ -101,7 +101,7 @@ async fn handle_config(
             // Check the Configuration map to see if the Configuration has been updated and
             // brokers and services need to be redeployed.
             match get_entry(config.metadata.name.as_ref().unwrap(), config_map.clone()).await {
-                Some(config_state) => match &config.spec.broker_type {
+                Some(config_state) => match &config.spec.broker_spec {
                     None => {
                         config_map.write().await.insert(
                             config.metadata.name.as_ref().unwrap().to_string(),
@@ -115,7 +115,7 @@ async fn handle_config(
                                 config_state,
                             );
                             match broker {
-                                BrokerType::Pod(p) => {
+                                BrokerSpec::BrokerPodSpec(p) => {
                                     handle_broker_updates_for_configuration_pod(
                                         kube_interface,
                                         &config,
@@ -123,7 +123,7 @@ async fn handle_config(
                                     )
                                     .await?;
                                 }
-                                BrokerType::Job(j) => {
+                                BrokerSpec::BrokerJobSpec(j) => {
                                     handle_broker_updates_for_configuration_job(
                                         kube_interface,
                                         *config.metadata.generation.as_ref().unwrap(),
@@ -289,7 +289,7 @@ mod config_action_tests {
     use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface, os::file};
     use kube::api::ObjectList;
 
-    // Test that when a Configuration's brokerType is updated, the
+    // Test that when a Configuration's BrokerSpec is updated, the
     #[tokio::test]
     async fn test_handle_config_updated() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -298,8 +298,8 @@ mod config_action_tests {
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let mut config_map = HashMap::new();
         let mut last_configuration_spec = config.spec.clone();
-        last_configuration_spec.broker_type.as_mut().map(|b| {
-            if let BrokerType::Job(j) = b {
+        last_configuration_spec.broker_spec.as_mut().map(|b| {
+            if let BrokerSpec::BrokerJobSpec(j) = b {
                 j.parallelism = Some(5);
             } else {
                 panic!("Expected Configuration to contain JobSpec");

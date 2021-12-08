@@ -9,8 +9,8 @@ spec:
         descriptions:
         - "foo0"
         - "foo1"
-  brokerType:
-    pod:
+  brokerSpec:
+    brokerPodSpec:
       containers:
       - name: akri-debug-echo-foo-broker
         image: "nginx:latest"

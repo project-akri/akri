@@ -12,8 +12,8 @@ spec:
         descriptions:
         - "filter1"
         - "filter2"
-  brokerType:
-    pod:
+  brokerSpec:
+    brokerPodSpec:
       containers:
       - name: broker
         image: "nginx:latest"

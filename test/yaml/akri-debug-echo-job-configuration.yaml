@@ -9,8 +9,8 @@ spec:
         descriptions:
         - "fee0"
         - "fee1"
-  brokerType:
-    job:
+  brokerSpec:
+    brokerJobSpec:
       template:
         spec:
           containers:

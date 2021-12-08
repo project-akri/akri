@@ -353,7 +353,7 @@ mod config_action_tests {
     use super::*;
     use akri_discovery_utils::discovery::{mock_discovery_handler, v0::Device};
     use akri_shared::{
-        akri::configuration::{BrokerType, Configuration},
+        akri::configuration::{BrokerSpec, Configuration},
         k8s::MockKubeInterface,
     };
     use std::{collections::HashMap, fs, sync::Arc};
@@ -390,7 +390,7 @@ mod config_action_tests {
         .is_err());
     }
 
-    // Tests that a Configuration is not recreated if ONLY the BrokerType of the ConfigurationSpec has increased.
+    // Tests that a Configuration is not recreated if ONLY the BrokerSpec of the ConfigurationSpec has increased.
     #[tokio::test]
     async fn test_handle_config_no_recreate() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -402,11 +402,11 @@ mod config_action_tests {
         let (stop_discovery_sender, _) = broadcast::channel(2);
         let (_, finished_discovery_receiver) = mpsc::channel(2);
         let mut updated_config = config.clone();
-        // Change BrokerType by updating the container name
+        // Change BrokerSpec by updating the container name
         let new_container_name = "new-name";
         updated_config.metadata.generation = Some(2);
-        updated_config.spec.broker_type.as_mut().map(|b| {
-            if let BrokerType::Pod(p) = b {
+        updated_config.spec.broker_spec.as_mut().map(|b| {
+            if let BrokerSpec::BrokerPodSpec(p) = b {
                 p.containers[0].name = new_container_name.to_string();
             } else {
                 panic!("Expected Configuration to contain PodSpec");
@@ -439,19 +439,19 @@ mod config_action_tests {
         .unwrap();
         let map = config_map.lock().await;
 
-        if let BrokerType::Pod(p) = map
+        if let BrokerSpec::BrokerPodSpec(p) = map
             .get(&config_name)
             .as_ref()
             .unwrap()
             .config_state
             .last_configuration_spec
-            .broker_type
+            .broker_spec
             .as_ref()
             .unwrap()
         {
             assert_eq!(new_container_name, p.containers[0].name)
         } else {
-            panic!("Expected Pod BrokerType");
+            panic!("Expected BrokerPodSpec");
         }
     }
 

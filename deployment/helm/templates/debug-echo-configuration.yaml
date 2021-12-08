@@ -14,8 +14,8 @@ spec:
       descriptions: []
       {{- end }}
   {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
-  brokerType:
-    pod:
+  brokerSpec:
+    brokerPodSpec:
       containers:
       - name: {{ .Values.debugEcho.configuration.name }}-broker
         image: {{ printf "%s:%s" .Values.debugEcho.configuration.brokerPod.image.repository .Values.debugEcho.configuration.brokerPod.image.tag | quote }}

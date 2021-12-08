@@ -1,7 +1,7 @@
 use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
-    akri::{configuration::BrokerType, instance::Instance, AKRI_PREFIX},
+    akri::{configuration::BrokerSpec, instance::Instance, AKRI_PREFIX},
     k8s::{
         self, job, pod,
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
@@ -392,12 +392,12 @@ pub async fn handle_instance_change(
             return Ok(());
         }
     };
-    if let Some(broker_type) = &configuration.spec.broker_type {
-        match broker_type {
-            BrokerType::Pod(p) => {
+    if let Some(broker_spec) = &configuration.spec.broker_spec {
+        match broker_spec {
+            BrokerSpec::BrokerPodSpec(p) => {
                 handle_instance_change_pod(instance, p, action, kube_interface).await
             }
-            BrokerType::Job(j) => {
+            BrokerSpec::BrokerJobSpec(j) => {
                 handle_instance_change_job(
                     instance.clone(),
                     *configuration.metadata.generation.as_ref().unwrap(),

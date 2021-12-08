@@ -15,9 +15,9 @@ pub struct ConfigState {
 
 /// In most cases, the Akri Agent handles Configuration changes by deleting and recreating the Configuration.
 /// However, the Agent will not recreate the Configuration if the `.metadata.generation` has NOT changed or if
-/// the only change to the ConfigurationSpec is to the BrokerType.
+/// the only change to the ConfigurationSpec is to the BrokerSpec.
 /// The `.metadata.generation` value is incremented for all changes, except for changes to `.metadata` or `.status`.
-/// If only the BrokerType changed, the Controller should recreate brokers for the same Configuration.
+/// If only the BrokerSpec changed, the Controller should recreate brokers for the same Configuration.
 pub fn should_recreate_config(config: &Configuration, config_state: &ConfigState) -> bool {
     match config
         .metadata
@@ -38,26 +38,22 @@ pub fn should_recreate_config(config: &Configuration, config_state: &ConfigState
         }
         Ordering::Greater => {
             let previous_config = &config_state.last_configuration_spec;
-            if previous_config != &config.spec {
-                // Recreate config only if the broker or services have changed
-                !(previous_config.discovery_handler == config.spec.discovery_handler
+            // Don't recreate configuration if the BrokerSpec is the only
+            // component in the Configuration that changed.
+            previous_config.broker_spec == config.spec.broker_spec
+                || !(previous_config.discovery_handler == config.spec.discovery_handler
                     && previous_config.broker_properties == config.spec.broker_properties
                     && previous_config.capacity == config.spec.capacity
                     && previous_config.instance_service_spec == config.spec.instance_service_spec
                     && previous_config.configuration_service_spec
                         == config.spec.configuration_service_spec)
-            } else {
-                trace!("should_recreate_config - Configuration has not changed even though generation has.");
-                // Should not reach this as generation check should catch this. Recreate Configuration.
-                true
-            }
         }
     }
 }
 
 #[cfg(test)]
 mod config_recreate_tests {
-    use super::super::configuration::BrokerType;
+    use super::super::configuration::BrokerSpec;
     use super::*;
     // Tests that when a Configuration is updated,
     // if generation has increased, should return true
@@ -80,8 +76,8 @@ mod config_recreate_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (mut config, config_state) = get_should_recreate_config_data();
         config.metadata.generation = Some(2);
-        config.spec.broker_type.as_mut().map(|b| {
-            if let BrokerType::Pod(p) = b {
+        config.spec.broker_spec.as_mut().map(|b| {
+            if let BrokerSpec::BrokerPodSpec(p) = b {
                 p.containers[0].name = "new-name".to_string();
             } else {
                 panic!("Expected Configuration to contain PodSpec");

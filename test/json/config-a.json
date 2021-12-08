@@ -18,8 +18,8 @@
             ],
             "type": "ClusterIP"
         },
-        "brokerType": {
-            "pod": {
+        "brokerSpec": {
+            "brokerPodSpec": {
                 "containers": [
                     {
                         "image": "nginx:latest",

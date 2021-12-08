@@ -12,8 +12,8 @@ spec:
         descriptions:
         - "filter1"
         - "filter2"
-  brokerType:
-    job:
+  brokerSpec:
+    brokerJobSpec:
       template:
         spec:
           containers:

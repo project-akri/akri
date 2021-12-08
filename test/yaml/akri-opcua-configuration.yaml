@@ -13,8 +13,8 @@ spec:
         applicationNames:
           action: Include
           items: []
-  brokerType:
-    pod:
+  brokerSpec:
+    brokerPodSpec:
       containers:
       - name: akri-opcua-broker
         image: "ghcr.io/project-akri/akri/opcua-monitoring-broker:latest-dev"

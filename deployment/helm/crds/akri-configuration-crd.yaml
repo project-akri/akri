@@ -22,14 +22,14 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
-                brokerType: # {{BrokerType}}
+                brokerSpec: # {{BrokerSpec}}
                   type: object
                   properties: 
-                    job: # {{JobSpec}}
+                    brokerJobSpec: # {{JobSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
                       nullable: true
-                    pod: # {{PodSpec}}
+                    brokerPodSpec: # {{PodSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object
                       nullable: true

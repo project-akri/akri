@@ -8,8 +8,8 @@ spec:
     discoveryDetails: |+
         udevRules:
         -  'KERNEL=="video[0-9]*"'
-  brokerType:
-    pod:
+  brokerSpec:
+    brokerPodSpec:
       containers:
       - name: akri-udev-video-broker
         image: "ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
