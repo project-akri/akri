@@ -107,7 +107,6 @@ pub trait KubeInterface: Send + Sync {
         selector: Option<String>,
         namespace: &str,
     ) -> Result<(), anyhow::Error>;
-    async fn find_job(&self, name: &str, namespace: &str) -> anyhow::Result<Job>;
     async fn create_job(&self, job_to_create: &Job, namespace: &str) -> Result<(), anyhow::Error>;
     async fn remove_job(&self, job_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
 
@@ -321,25 +320,6 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn delete_pods_with_label(&self, selector: Option<String>) -> Result<(), anyhow::Error> {
         pod::delete_pods_with_selector(selector, None, self.get_kube_client()).await
-    }
-
-    /// Find Kuberenetes job
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    /// use k8s_openapi::api::batch::v1::Job;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// kube.find_job("job_name", "job_namespace").await.unwrap();
-    /// # }
-    /// ```
-    async fn find_job(&self, job_name: &str, namespace: &str) -> anyhow::Result<Job> {
-        job::find_job(job_name, namespace, self.get_kube_client()).await
     }
 
     /// Create Kuberenetes job

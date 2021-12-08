@@ -420,7 +420,7 @@ mod config_action_tests {
                 instance_map: Arc::new(Mutex::new(HashMap::new())),
                 finished_discovery_receiver,
                 config_state: ConfigState {
-                    last_generation: config.metadata.generation,
+                    last_generation: Some(0),
                     last_configuration_spec: config.spec.clone(),
                 },
             },

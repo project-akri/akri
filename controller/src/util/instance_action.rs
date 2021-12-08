@@ -422,33 +422,12 @@ pub async fn handle_instance_change_job(
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter {:?}", action);
     // Only take action if there is no existing job
-    // TODO: consider unique name for Jobs so previous ones can exist
-
     let app_name = pod::create_broker_app_name(
         instance.metadata.name.as_ref().unwrap(),
         None,
         instance.spec.shared,
         &format!("{}-job", config_generation),
     );
-    match kube_interface
-        .find_job(&app_name, instance.metadata.namespace.as_ref().unwrap())
-        .await
-    {
-        Ok(_) => {
-            trace!(
-                "handle_instance_change_job - job {} already created ... returning",
-                app_name
-            );
-            return Ok(());
-        }
-        Err(e) => {
-            trace!(
-                "handle_instance_change_job - job {} DNE yet with error {:?}",
-                app_name,
-                e
-            );
-        }
-    }
 
     let instance_name = instance.metadata.name.as_ref().unwrap();
     let instance_namespace = instance.metadata.namespace.as_ref().unwrap();

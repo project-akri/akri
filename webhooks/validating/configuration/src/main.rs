@@ -299,23 +299,25 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "descriptions:\n- \"foo0\"\n- \"foo1\"\n"
                     },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name",
-                                "resources": {
-                                    "limits": {
-                                        "{{PLACEHOLDER}}": "1"
+                    "brokerType": {
+                        "pod": {
+                            "containers": [
+                                {
+                                    "image": "image",
+                                    "name": "name",
+                                    "resources": {
+                                        "limits": {
+                                            "{{PLACEHOLDER}}": "1"
+                                        }
                                     }
                                 }
-                            }
-                        ],
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
+                            ],
+                            "imagePullSecrets": [
+                                {
+                                    "name": "name"
+                                }
+                            ]
+                        }
                     },
                     "capacity": 1,
                     "brokerProperties": {}
@@ -388,23 +390,25 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name"
-                            }
-                        ],
-                        "resources": {
-                            "limits": {
-                                "{{PLACEHOLDER}}": "1"
-                            }
-                        },
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
+                    "brokerType": {
+                        "pod": {
+                            "containers": [
+                                {
+                                    "image": "image",
+                                    "name": "name"
+                                }
+                            ],
+                            "resources": {
+                                "limits": {
+                                    "{{PLACEHOLDER}}": "1"
+                                }
+                            },
+                            "imagePullSecrets": [
+                                {
+                                    "name": "name"
+                                }
+                            ]
+                        }
                     },
                     "capacity": 1
                 }
@@ -472,23 +476,25 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name",
-                                "resources": {
-                                    "limits": {
-                                        "{{PLACEHOLDER}}": "1"
+                    "brokerType": {
+                        "pod": {
+                            "containers": [
+                                {
+                                    "image": "image",
+                                    "name": "name",
+                                    "resources": {
+                                        "limits": {
+                                            "{{PLACEHOLDER}}": "1"
+                                        }
                                     }
                                 }
-                            }
-                        ],
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
+                            ],
+                            "imagePullSecrets": [
+                                {
+                                    "name": "name"
+                                }
+                            ]
+                        }
                     },
                     "instanceServiceSpec": {
                         "type": "ClusterIP",

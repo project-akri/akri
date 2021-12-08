@@ -51,7 +51,7 @@ enum PodState {
 fn instance_owned(pod: &Pod) -> bool {
     let instance_string = "Instance".to_string();
     match &pod.metadata.owner_references {
-        Some(or) => or.iter().find(|r| r.kind == instance_string).is_some(),
+        Some(or) => or.iter().any(|r| r.kind == instance_string),
         None => false,
     }
 }
