@@ -21,7 +21,7 @@ spec:
         {{- end }}
   
   {{- if or .Values.opcua.configuration.brokerPod.image.repository .Values.opcua.configuration.brokerJob.image.repository }}
-  {{- /* Only add broker pod spec if a broker image is provided */}}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
     {{- if .Values.opcua.configuration.brokerPod.image.repository }}
     brokerPodSpec:

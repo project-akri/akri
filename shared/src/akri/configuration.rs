@@ -30,7 +30,7 @@ pub struct DiscoveryHandlerInfo {
 }
 
 /// This defines a workload that should be scheduled to nodes
-/// that can access capability described by this Configuration.
+/// that can access a capability described by this Configuration.
 /// The enum contents are boxed to use the heap instead of the stack.
 /// See this clippy warning for more details:
 /// https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
@@ -50,7 +50,7 @@ pub enum BrokerSpec {
 /// capabilities.  For any specific capability found that is described by this
 /// configuration, an Instance
 /// is created.
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(group = "akri.sh", version = "v0", kind = "Configuration", namespaced)]
 #[kube(apiextensions = "v1")]
@@ -59,6 +59,11 @@ pub struct ConfigurationSpec {
     /// This defines the `DiscoveryHandler` that should be used to
     /// discover the capability and any information needed by the `DiscoveryHandler`.
     pub discovery_handler: DiscoveryHandlerInfo,
+
+    /// This defines the number of nodes that can schedule workloads for
+    /// any given capability that is found
+    #[serde(default = "default_capacity")]
+    pub capacity: i32,
 
     /// This defines a workload that should be scheduled to any
     /// node that can access any capability described by this
@@ -88,11 +93,6 @@ pub struct ConfigurationSpec {
     /// that represent the discovered resources.
     #[serde(default)]
     pub broker_properties: HashMap<String, String>,
-
-    /// This defines the number of nodes that can schedule workloads for
-    /// any given capability that is found
-    #[serde(default = "default_capacity")]
-    pub capacity: i32,
 }
 
 /// Get Configurations for a given namespace
@@ -234,10 +234,10 @@ mod crd_serialization_tests {
         if let BrokerSpec::BrokerPodSpec(d_pod_spec) = deserialized.broker_spec.as_ref().unwrap() {
             assert_eq!(&pod_spec, d_pod_spec.as_ref());
         } else {
-            panic!("Expected Pod BrokerSpec");
+            panic!("Expected BrokerPodSpec");
         }
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"brokerSpec":{"brokerPodSpec":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerProperties":{},"capacity":4}"#;
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerSpec":{"brokerPodSpec":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerProperties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -267,65 +267,65 @@ mod crd_serialization_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"{
-            "capacity": 5,
-            "discoveryHandler": {
-                "name": "random",
-                "discoveryDetails": ""
-            },
-            "instanceServiceSpec": {
-                "ports": [
-                    {
-                        "name": "http",
-                        "port": 6052,
-                        "protocol": "TCP",
-                        "targetPort": 6052
-                    }
-                ],
-                "type": "ClusterIP"
-            },
-            "brokerSpec": {
-                "brokerPodSpec": {
-                    "containers": [
+                "instanceServiceSpec": {
+                    "ports": [
                         {
-                            "image": "nginx:latest",
-                            "name": "usb-camera-broker",
-                            "resources": {
-                                "limits": {
-                                    "{{PLACEHOLDER}}": "1"
-                                }
-                            }
+                            "name": "http",
+                            "port": 6052,
+                            "protocol": "TCP",
+                            "targetPort": 6052
                         }
                     ],
-                    "imagePullSecrets": [
-                        {
-                            "name": "regcred"
-                        }
-                    ]
-                }
-            },
-            "configurationServiceSpec": {
-                "ports": [
-                    {
-                        "name": "http",
-                        "port": 6052,
-                        "protocol": "TCP",
-                        "targetPort": 6052
+                    "type": "ClusterIP"
+                },
+                "brokerSpec": {
+                    "brokerPodSpec": {
+                        "containers": [
+                            {
+                                "image": "nginx:latest",
+                                "name": "usb-camera-broker",
+                                "resources": {
+                                    "limits": {
+                                        "{{PLACEHOLDER}}": "1"
+                                    }
+                                }
+                            }
+                        ],
+                        "imagePullSecrets": [
+                            {
+                                "name": "regcred"
+                            }
+                        ]
                     }
-                ],
-                "type": "ClusterIP"
-            },
-            "brokerProperties": {
-                "resolution-height": "600",
-                "resolution-width": "800"
+                },
+                "capacity": 5,
+                "configurationServiceSpec": {
+                    "ports": [
+                        {
+                            "name": "http",
+                            "port": 6052,
+                            "protocol": "TCP",
+                            "targetPort": 6052
+                        }
+                    ],
+                    "type": "ClusterIP"
+                },
+                "discoveryHandler": {
+                    "name": "random",
+                    "discoveryDetails": ""
+                },
+                "brokerProperties": {
+                    "resolution-height": "600",
+                    "resolution-width": "800"
+                }
             }
-        }"#;
-
+        "#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(deserialized.discovery_handler.name, "random".to_string());
         assert!(deserialized.discovery_handler.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);
         if let BrokerSpec::BrokerJobSpec(_j) = deserialized.broker_spec.unwrap() {
-            panic!("Expected Pod BrokerSpec");
+            panic!("Expected BrokerPodSpec");
         }
         assert_ne!(None, deserialized.instance_service_spec);
         assert_ne!(None, deserialized.configuration_service_spec);

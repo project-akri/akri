@@ -20,8 +20,8 @@ spec:
         image: "ghcr.io/project-akri/akri/opcua-monitoring-broker:latest-dev"
         env:
           - name: IDENTIFIER
-            value: 
-          - name: NAMESPACE_INDEX 
+            value:
+          - name: NAMESPACE_INDEX
             value: "2"
         resources:
           limits:

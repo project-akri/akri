@@ -13,7 +13,7 @@ spec:
       containers:
       - name: akri-udev-video-broker
         image: "ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
-        env: 
+        env:
           - name: FORMAT # default: MJPG
             value: "YUYV"
           - name: RESOLUTION_WIDTH # default: 640

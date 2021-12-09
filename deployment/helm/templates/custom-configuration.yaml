@@ -8,6 +8,7 @@ spec:
     name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
     discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
   {{- if or .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerJob.image.repository }}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
     {{- if .Values.custom.configuration.brokerPod.image.repository }}
     brokerPodSpec:

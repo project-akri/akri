@@ -22,6 +22,8 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
+                capacity:
+                  type: integer
                 brokerSpec: # {{BrokerSpec}}
                   type: object
                   properties: 
@@ -45,8 +47,6 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
-                capacity:
-                  type: integer
       additionalPrinterColumns:
       - name: Capacity
         type: string

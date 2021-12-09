@@ -16,12 +16,7 @@ use kube::{
 use log::{error, info, trace};
 use std::collections::BTreeMap;
 
-/// Length of time a Pod can be pending before we give up and retry
-pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
-/// Length of time a Pod can be in an error state before we retry
-pub const FAILED_POD_GRACE_PERIOD_MINUTES: i64 = 0;
-
-/// Get Kubernetes Jobs with a given label or field selector
+/// Find Kubernetes Jobs with a given label or field selector
 ///
 /// Example:
 ///
@@ -70,7 +65,6 @@ pub async fn find_jobs_with_selector(
         field_selector,
         ..Default::default()
     };
-    trace!("find_jobs_with_selector PRE jobs.list(...).await?");
     let result = jobs.list(&job_list_params).await;
     trace!("find_jobs_with_selector return");
     Ok(result?)
@@ -196,7 +190,6 @@ pub async fn create_job(
 ) -> Result<(), anyhow::Error> {
     trace!("create_job enter");
     let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
-    info!("create_job jobs.create(...).await?:");
     match jobs.create(&PostParams::default(), job_to_create).await {
         Ok(created_job) => {
             info!(
@@ -251,7 +244,6 @@ pub async fn remove_job(
 ) -> Result<(), anyhow::Error> {
     trace!("remove_job enter");
     let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
-    info!("remove_job jobs.delete(...).await?:");
     let dps = DeleteParams {
         dry_run: false,
         propagation_policy: Some(PropagationPolicy::Background),
@@ -337,7 +329,6 @@ pub async fn delete_jobs_with_selector(
         propagation_policy: Some(PropagationPolicy::Background),
         ..Default::default()
     };
-    info!("delete_jobs_with_selector jobs.delete_collection(...).await?:");
     match jobs.delete_collection(&dps, &lps).await? {
         either::Left(list) => {
             let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
@@ -515,7 +506,7 @@ mod broker_jobspec_tests {
                 .unwrap()
         );
 
-        // Validate ownerReference
+        // Validate OwnerReferences
         assert_eq!(
             instance_name,
             &job.metadata

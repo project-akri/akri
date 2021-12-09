@@ -268,41 +268,6 @@ impl KubeInterface for KubeImpl {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Get Kuberenetes jobs with specified label selector
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let interesting_jobs = kube.find_jobs_with_label("label=interesting").await.unwrap();
-    /// # }
-    /// ```
-    async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
-        job::find_jobs_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
-    }
-    /// Get Kuberenetes jobs with specified field selector
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let jobs_on_node_a = kube.find_jobs_with_field("spec.nodeName=node-a").await.unwrap();
-    /// # }
-    /// ```
-    async fn find_jobs_with_field(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
-        job::find_jobs_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
-    }
-
     /// Remove Kubernetes Pods with given label
     ///
     /// Example:
@@ -320,6 +285,41 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn delete_pods_with_label(&self, selector: Option<String>) -> Result<(), anyhow::Error> {
         pod::delete_pods_with_selector(selector, None, self.get_kube_client()).await
+    }
+
+    /// Find Kuberenetes Jobs with specified label selector
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// let interesting_jobs = kube.find_jobs_with_label("label=interesting").await.unwrap();
+    /// # }
+    /// ```
+    async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
+        job::find_jobs_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
+    }
+    /// Find Kuberenetes Jobs with specified field selector
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// let jobs_on_node_a = kube.find_jobs_with_field("spec.nodeName=node-a").await.unwrap();
+    /// # }
+    /// ```
+    async fn find_jobs_with_field(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
+        job::find_jobs_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
 
     /// Create Kuberenetes job
@@ -358,7 +358,7 @@ impl KubeInterface for KubeImpl {
         job::remove_job(job_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Remove Kubernetes job
+    /// Delete Kubernetes Jobs with given label
     ///
     /// Example:
     ///
@@ -546,7 +546,7 @@ impl KubeInterface for KubeImpl {
     async fn get_instances(&self) -> Result<InstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
     }
-    // Get Akri Instances with given label
+    // Find Akri Instances with given label
     ///
     /// Example:
     ///
@@ -574,6 +574,7 @@ impl KubeInterface for KubeImpl {
         )
         .await
     }
+
     /// Create Akri Instance
     ///
     /// Example:

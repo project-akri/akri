@@ -160,17 +160,14 @@ async fn handle_config(
                         "handle_config - config {:?} should not be recreated ... ignoring config modified event.",
                         config.metadata.name,
                     );
-                    let mut config_map_lock = config_map.lock().await;
-                    let mut config_info = config_map_lock
+                    if let Some(info) = config_map
+                        .lock()
+                        .await
                         .get_mut(config.metadata.name.as_ref().unwrap())
-                        .ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "Configuration {} not found in ConfigMap",
-                                config.metadata.name.as_ref().unwrap()
-                            )
-                        })?;
-                    config_info.config_state.last_generation = config.metadata.generation;
-                    config_info.config_state.last_configuration_spec = config.spec.clone();
+                    {
+                        info.config_state.last_generation = config.metadata.generation;
+                        info.config_state.last_configuration_spec = config.spec.clone();
+                    }
                     return Ok(());
                 }
                 info!(

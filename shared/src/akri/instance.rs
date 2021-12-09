@@ -22,7 +22,8 @@ pub type InstanceList = ObjectList<Instance>;
 #[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
 #[kube(apiextensions = "v1")]
 pub struct InstanceSpec {
-    /// This contains the name of the Configuration that initiated the discovery of this Instance
+    /// This contains the name of the Configuration that initiated
+    /// the discovery of this Instance
     pub configuration_name: String,
 
     /// This defines some properties that will be set as
@@ -139,7 +140,7 @@ pub async fn find_instance(
     }
 }
 
-/// Get Instances for a given namespace
+/// Find Instances with a given selector
 ///
 /// Example:
 ///
@@ -174,7 +175,7 @@ pub async fn find_instances_with_selector(
     namespace: &str,
     kube_client: &Client,
 ) -> Result<InstanceList, anyhow::Error> {
-    log::trace!("get_instances enter");
+    log::trace!("find_instances_with_selector enter");
     let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
     let lp = ListParams {
         label_selector,
@@ -183,18 +184,21 @@ pub async fn find_instances_with_selector(
     };
     match instances_client.list(&lp).await {
         Ok(instances_retrieved) => {
-            log::trace!("get_instances return");
+            log::trace!("find_instances_with_selector return");
             Ok(instances_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
             log::trace!(
-                "get_instances kube_client.request returned kube error: {:?}",
+                "find_instances_with_selector kube_client.request returned kube error: {:?}",
                 ae
             );
             Err(ae.into())
         }
         Err(e) => {
-            log::trace!("get_instances kube_client.request error: {:?}", e);
+            log::trace!(
+                "find_instances_with_selector kube_client.request error: {:?}",
+                e
+            );
             Err(e.into())
         }
     }
@@ -219,7 +223,7 @@ pub async fn find_instances_with_selector(
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
-///         broker_properties: std::collections::HashMap::new()
+///         broker_properties: std::collections::HashMap::new(),
 ///     },
 ///     "instance-1",
 ///     "default",
@@ -422,7 +426,7 @@ mod crd_serializeation_tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let json = r#"
-        configurationName: foo 
+        configurationName: foo
         "#;
         let deserialized: InstanceSpec = serde_yaml::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);

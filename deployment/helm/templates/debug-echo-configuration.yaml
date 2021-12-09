@@ -14,6 +14,7 @@ spec:
       descriptions: []
       {{- end }}
   {{- if or .Values.debugEcho.configuration.brokerPod.image.repository .Values.debugEcho.configuration.brokerJob.image.repository }}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
     {{- if .Values.debugEcho.configuration.brokerPod.image.repository }}
     brokerPodSpec:

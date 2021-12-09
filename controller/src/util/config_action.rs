@@ -78,8 +78,9 @@ async fn get_entry(config_name: &str, config_map: ConfigMap) -> Option<ConfigSta
     config_map.read().await.get(config_name).cloned()
 }
 
-/// This takes an event off the Configuration stream and delegates it to the
-/// correct function based on the event type.
+/// This manages the config_map, adding new Configurations and removing old ones.
+/// If the `Configuration::BrokerSpec` was modified, it calls functions to bring down and redeploy
+/// the brokers and services to reflect the updated Configuration.
 async fn handle_config(
     kube_interface: &impl KubeInterface,
     event: Event<Configuration>,
@@ -169,6 +170,10 @@ async fn handle_config(
     Ok(())
 }
 
+/// This function is called when the Configuration::BrokerSpec was modified where
+/// BrokerSpec::BrokerPodSpec.
+/// It brings down all Pods of the Configuration and redeploys them to reflect
+/// the updated Configuration.
 async fn handle_broker_updates_for_configuration_pod(
     kube_interface: &impl k8s::KubeInterface,
     config: &Configuration,
@@ -212,7 +217,6 @@ async fn handle_broker_updates_for_configuration_pod(
                 });
             Ok(())
         })?;
-
     // Find all Instances of the Configuration
     let instances: HashMap<String, Instance> = kube_interface
         .get_instances()
@@ -221,7 +225,6 @@ async fn handle_broker_updates_for_configuration_pod(
         .filter(|i| &i.spec.configuration_name == config.metadata.name.as_ref().unwrap())
         .map(|i| (i.metadata.name.as_ref().unwrap().to_string(), i))
         .collect();
-
     // For each Instance, delete and add broker Pods
     let futures: Vec<_> = configuration_pods
         .into_iter()
@@ -236,6 +239,10 @@ async fn handle_broker_updates_for_configuration_pod(
     Ok(())
 }
 
+/// This function is called when the Configuration::BrokerSpec was modified where
+/// BrokerSpec::BrokerJobSpec.
+/// It brings down all Jobs of the Configuration and redeploys them to reflect
+/// the updated Configuration.
 async fn handle_broker_updates_for_configuration_job(
     kube_interface: &impl k8s::KubeInterface,
     config_generation: i64,
@@ -245,12 +252,6 @@ async fn handle_broker_updates_for_configuration_job(
     trace!("handle_broker_updates_for_configuration_job - entered");
     // Find all Instances of the Configuration
     let namespace = config.metadata.namespace.as_ref().unwrap();
-    let instances = kube_interface
-        .get_instances()
-        .await?
-        .into_iter()
-        .filter(|i| &i.spec.configuration_name == config.metadata.name.as_ref().unwrap())
-        .collect::<Vec<Instance>>();
 
     // Delete all Jobs labeled with this Configuration
     kube_interface
@@ -265,10 +266,12 @@ async fn handle_broker_updates_for_configuration_job(
         .await?;
 
     trace!("handle_broker_updates_for_configuration_job - deleted jobs and now recreating them");
-    trace!("instances are {:?}", instances);
     // Recreate a Job for each Instance
-    let futures: Vec<_> = instances
+    let futures: Vec<_> = kube_interface
+        .get_instances()
+        .await?
         .into_iter()
+        .filter(|i| &i.spec.configuration_name == config.metadata.name.as_ref().unwrap())
         .map(|i| {
             handle_instance_change_job(
                 i,
@@ -287,11 +290,12 @@ async fn handle_broker_updates_for_configuration_job(
 mod config_action_tests {
     use super::*;
     use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface, os::file};
+    use k8s_openapi::api::core::v1::Pod;
     use kube::api::ObjectList;
 
-    // Test that when a Configuration's BrokerSpec is updated, the
+    // Test that when a Configuration's BrokerSpec is updated, the Jobs are brought down and recreated
     #[tokio::test]
-    async fn test_handle_config_updated() {
+    async fn test_handle_config_updated_job() {
         let _ = env_logger::builder().is_test(true).try_init();
         let path_to_config = "../test/yaml/config-b.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
@@ -315,8 +319,8 @@ mod config_action_tests {
         let mut mock = MockKubeInterface::new();
         // Return one instance for the Configuration
         mock.expect_get_instances().times(1).returning(move || {
-            let instances_json = file::read_file_to_string("../test/json/local-instance-list.json");
-            let is: ObjectList<Instance> = serde_json::from_str(&instances_json).unwrap();
+            let instances_str = file::read_file_to_string("../test/json/local-instance-list.json");
+            let is: ObjectList<Instance> = serde_json::from_str(&instances_str).unwrap();
             Ok(is)
         });
         mock.expect_delete_jobs_with_label()
@@ -324,6 +328,65 @@ mod config_action_tests {
             .returning(|_, _| Ok(()));
         // create job
         mock.expect_create_job().times(1).returning(|_, _| Ok(()));
+        handle_config(
+            &mock,
+            Event::Applied(config),
+            Arc::new(RwLock::new(config_map)),
+            &mut false,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Test that when a Configuration's BrokerSpec is updated, the Jobs are brought down and recreated
+    #[tokio::test]
+    async fn test_handle_config_updated_pod() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let mut config_map = HashMap::new();
+        let mut last_configuration_spec = config.spec.clone();
+        last_configuration_spec.broker_spec.as_mut().map(|b| {
+            if let BrokerSpec::BrokerPodSpec(p) = b {
+                p.service_account = Some("ServiceAccount".to_string());
+            } else {
+                panic!("Expected Configuration to contain PodSpec");
+            }
+        });
+        config_map.insert(
+            "config-a".to_string(),
+            ConfigState {
+                last_generation: Some(0),
+                last_configuration_spec,
+            },
+        );
+        let mut mock = MockKubeInterface::new();
+        // Return one Pod for the Configuration
+        mock.expect_find_pods_with_label()
+            .times(1)
+            .returning(move |_| {
+                let pods_str = file::read_file_to_string(
+                    "../test/json/running-pod-list-for-config-a-local.json",
+                );
+                let ps: ObjectList<Pod> = serde_json::from_str(&pods_str).unwrap();
+                Ok(ps)
+            });
+        // Return one Instance for the Configuration
+        mock.expect_get_instances().times(1).returning(move || {
+            let instances_str = file::read_file_to_string("../test/json/local-instance-list.json");
+            let is: ObjectList<Instance> =
+                serde_json::from_str(&instances_str.replace("config-b", "config-a")).unwrap();
+            Ok(is)
+        });
+        // Check that the Pod is removed
+        mock.expect_remove_pod().times(1).returning(|name, _| {
+            assert_eq!(name, "config-a-b494b6-pod");
+            Ok(())
+        });
+        // Check that the Pod is recreated
+        mock.expect_create_pod().times(1).returning(|_, _| Ok(()));
+
         handle_config(
             &mock,
             Event::Applied(config),

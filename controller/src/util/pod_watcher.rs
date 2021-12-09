@@ -48,6 +48,9 @@ enum PodState {
     Deleted,
 }
 
+/// Determines whether a Pod is owned by an Insance (has an ownerReference of Kind = "Instance")
+/// Pods deployed directly by the Controller will have this ownership, while Pods
+/// created by Jobs will not.
 fn instance_owned(pod: &Pod) -> bool {
     let instance_string = "Instance".to_string();
     match &pod.metadata.owner_references {
@@ -88,7 +91,6 @@ impl BrokerPodWatcher {
         trace!("watch - enter");
         let kube_interface = k8s::KubeImpl::new().await?;
         let resource = Api::<Pod>::all(kube_interface.get_kube_client());
-        // TODO: watch for Configuration label instead
         let watcher = watcher(
             resource,
             ListParams::default().labels(AKRI_CONFIGURATION_LABEL_NAME),
@@ -133,7 +135,6 @@ impl BrokerPodWatcher {
         first_event: &mut bool,
     ) -> anyhow::Result<()> {
         trace!("handle_pod - enter [event: {:?}]", event);
-        // Ignore Pods that are not owned by an Akri Instance
         match event {
             Event::Applied(pod) => {
                 info!(
@@ -330,6 +331,7 @@ impl BrokerPodWatcher {
         )
         .await?;
 
+        // Only redeploy Pods that are managed by the Akri Controller (have Instance ownerReference)
         if instance_owned {
             // Make sure instance has required Pods
             if let Ok(instance) = kube_interface.find_instance(&instance_id, namespace).await {
@@ -636,7 +638,6 @@ impl BrokerPodWatcher {
                 }
             }
         }
-
         Ok(())
     }
 }

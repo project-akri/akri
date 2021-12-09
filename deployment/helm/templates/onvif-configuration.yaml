@@ -33,9 +33,9 @@ spec:
         {{- end }}
       discoveryTimeoutSeconds: {{ .Values.onvif.configuration.discoveryDetails.discoveryTimeoutSeconds }}
   {{- if or .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerJob.image.repository }}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
     {{- if .Values.onvif.configuration.brokerPod.image.repository }}
-    {{- /* Only add broker pod spec if a broker image is provided */}}
     brokerPodSpec:
       containers:
       - name: {{ .Values.onvif.configuration.name }}-broker

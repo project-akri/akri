@@ -317,6 +317,8 @@ mod handle_deletion_work_tests {
 
 /// This handles Instance addition event by creating the
 /// broker Pod, the broker Service, and the capability Service.
+/// TODO: reduce parameters by passing Instance object instead of
+/// individual fields
 async fn handle_addition_work(
     instance_name: &str,
     instance_uid: &str,
@@ -416,7 +418,7 @@ pub async fn handle_instance_change(
 pub async fn handle_instance_change_job(
     instance: Instance,
     config_generation: i64,
-    jobspec: &JobSpec,
+    job_spec: &JobSpec,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
@@ -449,7 +451,7 @@ pub async fn handle_instance_change_job(
                     instance_uid.to_string(),
                 ),
                 &capability_id,
-                jobspec,
+                job_spec,
                 &app_name,
             )?;
             kube_interface
@@ -471,10 +473,7 @@ pub async fn handle_instance_change_job(
                     .await
             });
 
-            futures::future::join_all(delete_tasks)
-                .await
-                .into_iter()
-                .collect::<anyhow::Result<()>>()?;
+            futures::future::try_join_all(delete_tasks).await?;
         }
         InstanceAction::Update => {
             trace!("handle_instance_change_job - instance updated");
