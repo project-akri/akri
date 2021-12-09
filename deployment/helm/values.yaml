@@ -173,9 +173,6 @@ custom:
         memoryLimit: 24Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 24m
-      # enablePodAntiAffinity defines whether to set PodAntiAffinity such that no two Pods 
-      # of a Job run on the same node
-      enablePodAntiAffinity: false
       # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
       # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
       backoffLimit: 2
@@ -306,9 +303,6 @@ debugEcho:
         memoryLimit: 30Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 29m
-      # enablePodAntiAffinity defines whether to set PodAntiAffinity such that no two Pods 
-      # of a Job run on the same node
-      enablePodAntiAffinity: false
       # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
       # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
       backoffLimit: 2
@@ -444,9 +438,6 @@ onvif:
         memoryLimit: 400Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 2800m
-      # enablePodAntiAffinity defines whether to set PodAntiAffinity such that no two Pods 
-      # of a Job run on the same node
-      enablePodAntiAffinity: false
       # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
       # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
       backoffLimit: 2
@@ -589,9 +580,6 @@ opcua:
         memoryLimit: 200Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 30m
-      # enablePodAntiAffinity defines whether to set PodAntiAffinity such that no two Pods 
-      # of a Job run on the same node
-      enablePodAntiAffinity: false
       # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
       # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
       backoffLimit: 2
@@ -721,9 +709,6 @@ udev:
         memoryLimit: 30Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 29m
-      # enablePodAntiAffinity defines whether to set PodAntiAffinity such that no two Pods 
-      # of a Job run on the same node
-      enablePodAntiAffinity: false
       # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
       # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
       backoffLimit: 2

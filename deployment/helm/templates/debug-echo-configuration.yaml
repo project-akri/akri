@@ -40,11 +40,6 @@ spec:
     {{- else }}
     brokerJobSpec:
       template:
-        {{- if .Values.debugEcho.configuration.brokerJob.enablePodAntiAffinity }}
-        metadata:
-          labels:
-            app: {{ .Values.debugEcho.configuration.name }}-broker
-        {{- end }}
         spec:
           containers:
           - name: {{ .Values.debugEcho.configuration.name }}-broker
@@ -69,18 +64,6 @@ spec:
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 6 }}
-          {{- end }}
-          {{- if .Values.debugEcho.configuration.brokerJob.enablePodAntiAffinity }}
-          affinity:
-            podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-              - labelSelector:
-                  matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                    - {{ .Values.debugEcho.configuration.name }}-broker
-                topologyKey: "kubernetes.io/hostname"
           {{- end }}
       backoffLimit: {{ .Values.debugEcho.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.debugEcho.configuration.brokerJob.parallelism }}

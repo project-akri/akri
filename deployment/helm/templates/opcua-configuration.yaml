@@ -75,11 +75,6 @@ spec:
     {{- else }}
     brokerJobSpec:
       template:
-        {{- if .Values.opcua.configuration.brokerJob.enablePodAntiAffinity }}
-        metadata:
-          labels:
-            app: {{ .Values.opcua.configuration.name }}-broker
-        {{- end }}
         spec:
           containers:
           - name: {{ .Values.opcua.configuration.name }}-broker
@@ -104,18 +99,6 @@ spec:
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 6 }}
-          {{- end }}
-          {{- if .Values.opcua.configuration.brokerJob.enablePodAntiAffinity }}
-          affinity:
-            podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-              - labelSelector:
-                  matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                    - {{ .Values.opcua.configuration.name }}-broker
-                topologyKey: "kubernetes.io/hostname"
           {{- end }}
       backoffLimit: {{ .Values.opcua.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.opcua.configuration.brokerJob.parallelism }}

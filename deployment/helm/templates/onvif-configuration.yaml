@@ -66,11 +66,6 @@ spec:
     {{- else }}
     brokerJobSpec:
       template:
-        {{- if .Values.onvif.configuration.brokerJob.enablePodAntiAffinity }}
-        metadata:
-          labels:
-            app: {{ .Values.onvif.configuration.name }}-broker
-        {{- end }}
         spec:
           containers:
           - name: {{ .Values.onvif.configuration.name }}-broker
@@ -95,18 +90,6 @@ spec:
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 6 }}
-          {{- end }}
-          {{- if .Values.onvif.configuration.brokerJob.enablePodAntiAffinity }}
-          affinity:
-            podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-              - labelSelector:
-                  matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                    - {{ .Values.onvif.configuration.name }}-broker
-                topologyKey: "kubernetes.io/hostname"
           {{- end }}
       backoffLimit: {{ .Values.onvif.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.onvif.configuration.brokerJob.parallelism }}
