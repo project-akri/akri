@@ -20,7 +20,7 @@ spec:
             resources:
               limits:
                 "{{PLACEHOLDER}}" : "1"
-          restartPolicy: Never
+          restartPolicy: OnFailure
       backoffLimit: 4
   instanceServiceSpec:
     type: ClusterIP

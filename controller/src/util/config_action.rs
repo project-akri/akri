@@ -17,15 +17,15 @@ use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 
 // Map of Configuration name and Current Configuration state
-type ConfigMap = Arc<RwLock<HashMap<String, ConfigState>>>;
+type ConfigMap = Arc<Mutex<HashMap<String, ConfigState>>>;
 
 /// This handles pre-existing Configurations and invokes an internal method that watches for Configuration events.
 pub async fn do_config_watch() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
-    let config_map: ConfigMap = Arc::new(RwLock::new(HashMap::new()));
+    let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
     let kube_interface = k8s::KubeImpl::new().await?;
     let mut tasks = Vec::new();
 
@@ -75,7 +75,7 @@ async fn watch_for_config_changes(
     Ok(())
 }
 async fn get_entry(config_name: &str, config_map: ConfigMap) -> Option<ConfigState> {
-    config_map.read().await.get(config_name).cloned()
+    config_map.lock().await.get(config_name).cloned()
 }
 
 /// This manages the config_map, adding new Configurations and removing old ones.
@@ -95,25 +95,26 @@ async fn handle_config(
                 "handle_config - added or modified Configuration {:?}",
                 config.metadata.name.as_ref().unwrap(),
             );
-            let config_state = ConfigState {
+            let new_config_state = ConfigState {
                 last_generation: config.metadata.generation,
                 last_configuration_spec: config.spec.clone(),
             };
             // Check the Configuration map to see if the Configuration has been updated and
             // brokers and services need to be redeployed.
             match get_entry(config.metadata.name.as_ref().unwrap(), config_map.clone()).await {
-                Some(config_state) => match &config.spec.broker_spec {
+                Some(prev_config_state) => match &config.spec.broker_spec {
                     None => {
-                        config_map.write().await.insert(
+                        config_map.lock().await.insert(
                             config.metadata.name.as_ref().unwrap().to_string(),
-                            config_state,
+                            prev_config_state,
                         );
                     }
                     Some(broker) => {
-                        if !should_recreate_config(&config, &config_state) {
-                            config_map.write().await.insert(
+                        if !should_recreate_config(&config, &prev_config_state) {
+                            trace!("handle_config - should redeploy broker");
+                            config_map.lock().await.insert(
                                 config.metadata.name.as_ref().unwrap().to_string(),
-                                config_state,
+                                new_config_state,
                             );
                             match broker {
                                 BrokerSpec::BrokerPodSpec(p) => {
@@ -138,9 +139,9 @@ async fn handle_config(
                     }
                 },
                 None => {
-                    config_map.write().await.insert(
+                    config_map.lock().await.insert(
                         config.metadata.name.as_ref().unwrap().to_string(),
-                        config_state,
+                        new_config_state,
                     );
                 }
             }
@@ -152,7 +153,7 @@ async fn handle_config(
             );
             // Remove Configuration from map
             config_map
-                .write()
+                .lock()
                 .await
                 .remove(config.metadata.name.as_ref().unwrap());
         }
@@ -331,7 +332,7 @@ mod config_action_tests {
         handle_config(
             &mock,
             Event::Applied(config),
-            Arc::new(RwLock::new(config_map)),
+            Arc::new(Mutex::new(config_map)),
             &mut false,
         )
         .await
@@ -390,7 +391,7 @@ mod config_action_tests {
         handle_config(
             &mock,
             Event::Applied(config),
-            Arc::new(RwLock::new(config_map)),
+            Arc::new(Mutex::new(config_map)),
             &mut false,
         )
         .await
@@ -412,7 +413,7 @@ mod config_action_tests {
                 last_configuration_spec: config.spec.clone(),
             },
         );
-        let shared_map = Arc::new(RwLock::new(config_map));
+        let shared_map = Arc::new(Mutex::new(config_map));
 
         handle_config(
             &MockKubeInterface::new(),
@@ -423,6 +424,6 @@ mod config_action_tests {
         .await
         .unwrap();
 
-        assert!(shared_map.read().await.is_empty())
+        assert!(shared_map.lock().await.is_empty())
     }
 }
