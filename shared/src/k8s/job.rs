@@ -115,6 +115,8 @@ pub fn create_new_job_from_spec(
     app_name: &str,
 ) -> anyhow::Result<Job> {
     trace!("create_new_job_from_spec enter");
+    // TODO: Consider optionally enabling podAntiAffinity in this function
+    // (using an instance name label) to ensure only one Job runs on each Node per instance.
     let instance_name = instance.metadata.name.as_ref().unwrap();
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     labels.insert(
