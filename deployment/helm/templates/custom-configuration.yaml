@@ -7,26 +7,77 @@ spec:
   discoveryHandler: 
     name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
     discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
-  {{- if .Values.custom.configuration.brokerPod.image.repository }}
-  brokerPodSpec:
-    containers:
-    - name: {{ .Values.custom.configuration.name }}-broker
-      image: {{ printf "%s:%s" .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
-      {{- with .Values.custom.configuration.pullPolicy }}
-      imagePullPolicy: {{ . }}
+  {{- if or .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerJob.image.repository }}
+  brokerSpec:
+    {{- if .Values.custom.configuration.brokerPod.image.repository }}
+    brokerPodSpec:
+      containers:
+      - name: {{ .Values.custom.configuration.name }}-broker
+        image: {{ printf "%s:%s" .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
+        {{- with .Values.custom.configuration.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.custom.configuration.brokerPod.resources.memoryRequest }}
+            cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuRequest }}
+          limits:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.custom.configuration.brokerPod.resources.memoryLimit }}
+            cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuLimit }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
       {{- end }}
-      resources:
-        requests:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.custom.configuration.brokerPod.resources.memoryRequest }}
-          cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuRequest }}
-        limits:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.custom.configuration.brokerPod.resources.memoryLimit }}
-          cpu: {{ .Values.custom.configuration.brokerPod.resources.cpuLimit }}
-    {{- with .Values.imagePullSecrets }}
-    imagePullSecrets:
-      {{- toYaml . | nindent 6 }}
+    {{- else }}
+    brokerJobSpec:
+      template:
+        {{- if .Values.custom.configuration.brokerJob.enablePodAntiAffinity }}
+        metadata:
+          labels:
+            app: {{ .Values.custom.configuration.name }}-broker
+        {{- end }}
+        spec:
+          containers:
+          - name: {{ .Values.custom.configuration.name }}-broker
+            image: {{ printf "%s:%s" .Values.custom.configuration.brokerJob.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
+            {{- if .Values.custom.configuration.brokerJob.command }}
+            command: 
+              {{- toYaml .Values.custom.configuration.brokerJob.command | nindent 14 }}
+            {{- end }}
+            {{- with .Values.custom.configuration.pullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
+            resources:
+              requests:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.custom.configuration.brokerJob.resources.memoryRequest }}
+                cpu: {{ .Values.custom.configuration.brokerJob.resources.cpuRequest }}
+              limits:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.custom.configuration.brokerJob.resources.memoryLimit }}
+                cpu: {{ .Values.custom.configuration.brokerJob.resources.cpuLimit }}
+          restartPolicy: {{ .Values.custom.configuration.brokerJob.restartPolicy }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 6 }}
+          {{- end }}
+          {{- if .Values.custom.configuration.brokerJob.enablePodAntiAffinity }}
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - {{ .Values.custom.configuration.name }}-broker
+                topologyKey: "kubernetes.io/hostname"
+          {{- end }}
+      backoffLimit: {{ .Values.custom.configuration.brokerJob.backoffLimit }}
+      parallelism: {{ .Values.custom.configuration.brokerJob.parallelism }}
+      completions: {{ .Values.custom.configuration.brokerJob.completions }}
     {{- end }}
   {{- end }}
   {{- if .Values.custom.configuration.brokerPod.image.repository }}

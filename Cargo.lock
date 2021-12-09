@@ -989,6 +989,7 @@ dependencies = [
  "chrono",
  "env_logger",
  "futures 0.3.18",
+ "futures-util",
  "k8s-openapi",
  "kube",
  "kube-runtime",
