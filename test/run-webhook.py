@@ -68,12 +68,14 @@ TEMPLATE = {
             "name": "debugEcho",
             "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
         },
-        "brokerPodSpec": {
-            "containers": [{
-                "name": "test-broker",
-                "image": "nginx:latest",
-                "imagePullPolicy": "Always",
-            }],
+        "brokerSpec": {
+            "brokerPodSpec": {
+                "containers": [{
+                    "name": "test-broker",
+                    "image": "nginx:stable-alpine",
+                    "imagePullPolicy": "Always",
+                }],
+            }
         },
         "instanceServiceSpec": SERVICE,
         "configurationServiceSpec": SERVICE,
