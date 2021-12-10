@@ -160,7 +160,12 @@ custom:
         tag: latest
         # pullPolicy is the custom pull policy
         pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set custom.configuration.brokerJob.command[0]="sh" \
+      # --set custom.configuration.brokerJob.command[1]="-c" \
+      # --set custom.configuration.brokerJob.command[2]="echo 'Hello World'"
       command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
       restartPolicy: OnFailure
       resources:
         # memoryRequest defines the minimum amount of RAM that must be available to this Pod
@@ -290,7 +295,12 @@ debugEcho:
         tag: latest
         # pullPolicy is the debugEcho pull policy
         pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set debugEcho.configuration.brokerJob.command[0]="sh" \
+      # --set debugEcho.configuration.brokerJob.command[1]="-c" \
+      # --set debugEcho.configuration.brokerJob.command[2]="echo 'Hello World'" \
       command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
       restartPolicy: OnFailure
       resources:
         # memoryRequest defines the minimum amount of RAM that must be available to this Pod
@@ -425,7 +435,12 @@ onvif:
         tag: latest
         # pullPolicy is the onvif pull policy
         pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set onvif.configuration.brokerJob.command[0]="sh" \
+      # --set onvif.configuration.brokerJob.command[1]="-c" \
+      # --set onvif.configuration.brokerJob.command[2]="echo 'Hello World'"
       command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
       restartPolicy: OnFailure
       resources:
         # memoryRequest defines the minimum amount of RAM that must be available to this Pod
@@ -567,7 +582,12 @@ opcua:
         tag: latest
         # pullPolicy is the opcua pull policy
         pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set opcua.configuration.brokerJob.command[0]="sh" \
+      # --set opcua.configuration.brokerJob.command[1]="-c" \
+      # --set opcua.configuration.brokerJob.command[2]="echo 'Hello World'"
       command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
       restartPolicy: OnFailure
       resources:
         # memoryRequest defines the minimum amount of RAM that must be available to this Pod
@@ -696,7 +716,12 @@ udev:
         tag: latest
         # pullPolicy is the udev pull policy
         pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set udev.configuration.brokerJob.command[0]="sh" \
+      # --set udev.configuration.brokerJob.command[1]="-c" \
+      # --set udev.configuration.brokerJob.command[2]="echo 'Hello World'"
       command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
       restartPolicy: OnFailure
       resources:
         # memoryRequest defines the minimum amount of RAM that must be available to this Pod
