@@ -15,7 +15,7 @@ DEBUG_ECHO_NAME = "akri-debug-echo-foo"
 DEBUG_ECHO_DESCRIPTIONS_PREFIX = "bar"
 KUBE_CONFIG_PATH_FILE = "/tmp/kubeconfig_path_to_test.txt"
 RUNTIME_COMMAND_FILE = "/tmp/runtime_cmd_to_test.txt"
-HELM_CRI_ARGS_FILE = "/tmp/cri_args_to_test.txt"
+HELM_K8S_DISTRO = "/tmp/k8s_distro_to_test.txt"
 VERSION_FILE = "/tmp/version_to_test.txt"
 SLEEP_DURATION_FILE = "/tmp/sleep_duration.txt"
 EXTRA_HELM_ARGS_FILE = "/tmp/extra_helm_args.txt"
@@ -77,9 +77,9 @@ def get_kubectl_command():
     return open(RUNTIME_COMMAND_FILE, "r").readline().rstrip()
 
 
-def get_cri_args():
-    # Get CRI args for Akri Helm
-    return open(HELM_CRI_ARGS_FILE, "r").readline().rstrip()
+def get_k8s_distro_arg():
+    # Get K8s distro arg for Akri Helm
+    return open(HELM_K8S_DISTRO, "r").readline().rstrip()
 
 
 def get_test_version():

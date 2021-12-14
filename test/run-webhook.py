@@ -116,8 +116,8 @@ def main():
     helm_chart_location = shared_test_code.get_helm_chart_location()
     print("Get Akri Helm chart: {}".format(helm_chart_location))
 
-    cri_args = shared_test_code.get_cri_args()
-    print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
+    k8s_distro_arg = shared_test_code.get_k8s_distro_arg()
+    print("Providing Akri Helm chart with K8s distro arg: {}".format(k8s_distro_arg))
 
     extra_helm_args = shared_test_code.get_extra_helm_args()
     print("Providing Akri Helm chart with extra helm args: {}".format(
@@ -129,14 +129,14 @@ def main():
     --set=agent.full=true \
     --set=agent.allowDebugEcho=true \
     {webhook_config} \
-    {cri_args} \
+    {k8s_distro_arg} \
     {helm_args} \
     --debug\
     ".format(chart_name=HELM_CHART_NAME,
              location=helm_chart_location,
              namespace=NAMESPACE,
              webhook_config=get_webhook_helm_config(),
-             cri_args=cri_args,
+             k8s_distro_arg=k8s_distro_arg,
              helm_args=extra_helm_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)

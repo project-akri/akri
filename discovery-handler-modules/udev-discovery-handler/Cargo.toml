@@ -1,6 +1,6 @@
 [package]
 name = "udev-discovery-handler"
-version = "0.7.10"
+version = "0.7.11"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 

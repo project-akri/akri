@@ -27,8 +27,8 @@ def main():
 
     helm_chart_location = shared_test_code.get_helm_chart_location()
     print("Get Akri Helm chart: {}".format(helm_chart_location))
-    cri_args = shared_test_code.get_cri_args()
-    print("Providing Akri Helm chart with CRI args: {}".format(cri_args))
+    k8s_distro_arg = shared_test_code.get_k8s_distro_arg()
+    print("Providing Akri Helm chart with K8s distro arg: {}".format(k8s_distro_arg))
     extra_helm_args = shared_test_code.get_extra_helm_args()
     print("Providing Akri Helm chart with extra helm args: {}".format(extra_helm_args))
     helm_install_command = "\
@@ -42,10 +42,10 @@ def main():
     --set debugEcho.configuration.brokerProperties.{res_width_key}={res_width_val} \
     --set debugEcho.configuration.brokerProperties.{res_height_key}={res_height_val} \
     --set agent.allowDebugEcho=true \
-    {cri_args} \
+    {k8s_distro_arg} \
     {helm_args} \
     --debug \
-    ".format(location=helm_chart_location, config_name=shared_test_code.DEBUG_ECHO_NAME, description_prefix=shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, res_width_key=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_KEY, res_width_val=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_VALUE, res_height_key=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_KEY, res_height_val=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_VALUE, cri_args=cri_args, helm_args=extra_helm_args)
+    ".format(location=helm_chart_location, config_name=shared_test_code.DEBUG_ECHO_NAME, description_prefix=shared_test_code.DEBUG_ECHO_DESCRIPTIONS_PREFIX, res_width_key=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_KEY, res_width_val=shared_test_code.PROPERTIES_RESOLUTION_WIDTH_VALUE, res_height_key=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_KEY, res_height_val=shared_test_code.PROPERTIES_RESOLUTION_HEIGHT_VALUE, k8s_distro_arg=k8s_distro_arg, helm_args=extra_helm_args)
     print("Helm command: {}".format(helm_install_command))
     os.system(helm_install_command)
     
