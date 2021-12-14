@@ -10,12 +10,8 @@ use akri_discovery_utils::discovery::v0::{
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use akri_shared::uds::unix_stream;
 use futures::TryFutureExt;
-#[cfg(test)]
-use mock_instant::Instant;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-#[cfg(not(test))]
-use std::time::Instant;
 use tokio::sync::broadcast;
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -44,17 +40,6 @@ pub enum DiscoveryHandlerEndpoint {
     Network(String),
 }
 
-/// Describes the connectivity status of a Discovery Handler.
-#[derive(PartialEq, Debug, Clone)]
-pub enum DiscoveryHandlerStatus {
-    /// This discovery handler is currently doing discovery on behalf of the Agent
-    Active,
-    /// This discovery handler is available and waiting for a discover call from the Agent
-    Waiting,
-    /// Not returning discovery results
-    Offline(Instant),
-}
-
 /// Details about a `DiscoveryHandler` and a sender for terminating its clients when needed.
 #[derive(Debug, Clone)]
 pub struct DiscoveryDetails {
@@ -67,8 +52,6 @@ pub struct DiscoveryDetails {
     /// Channel over which the Registration service tells a DiscoveryOperator client to close a connection with a
     /// `DiscoveryHandler`, if any. A broadcast channel is used so both the sending and receiving ends can be cloned.
     pub close_discovery_handler_connection: broadcast::Sender<()>,
-    /// Connection state of the `DiscoveryHandler`.
-    pub connectivity_status: DiscoveryHandlerStatus,
 }
 
 /// This maps the endpoint string and endpoint type of a `RegisterDiscoveryHandlerRequest` into a
@@ -131,7 +114,6 @@ impl Registration for AgentRegistration {
             endpoint: dh_endpoint.clone(),
             shared: req.shared,
             close_discovery_handler_connection,
-            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut registered_discovery_handlers = self.registered_discovery_handlers.lock().unwrap();
         // Check if any DiscoveryHandlers have been registered under this name
@@ -274,7 +256,6 @@ pub fn inner_register_embedded_discovery_handlers(
             endpoint: DiscoveryHandlerEndpoint::Embedded,
             shared,
             close_discovery_handler_connection,
-            connectivity_status: DiscoveryHandlerStatus::Waiting,
         };
         let mut register_request_map = HashMap::new();
         register_request_map.insert(

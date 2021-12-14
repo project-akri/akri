@@ -2,18 +2,13 @@ use super::super::INSTANCE_COUNT_METRIC;
 #[cfg(any(test, feature = "agent-full"))]
 use super::embedded_discovery_handlers::get_discovery_handler;
 use super::{
-    constants::{
-        DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS, SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
-    },
+    constants::SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
     device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
     device_plugin_service,
     device_plugin_service::{
         get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
     },
-    registration::{
-        DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
-        RegisteredDiscoveryHandlerMap,
-    },
+    registration::{DiscoveryDetails, DiscoveryHandlerEndpoint, RegisteredDiscoveryHandlerMap},
     streaming_extension::StreamingExt,
 };
 use akri_discovery_utils::discovery::v0::{
@@ -36,16 +31,13 @@ use mockall::{automock, predicate::*};
 #[cfg(not(test))]
 use std::time::Instant;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
-use tonic::{
-    transport::{Endpoint, Uri},
-    Status,
-};
+use tonic::transport::{Endpoint, Uri};
 
 /// StreamType provides a wrapper around the two different types of streams returned from embedded
 /// or embedded discovery handlers and ones running externally.
 pub enum StreamType {
     #[cfg(any(test, feature = "agent-full"))]
-    Embedded(tokio::sync::mpsc::Receiver<std::result::Result<DiscoverResponse, Status>>),
+    Embedded(tokio::sync::mpsc::Receiver<std::result::Result<DiscoverResponse, tonic::Status>>),
     External(tonic::Streaming<DiscoverResponse>),
 }
 
@@ -211,7 +203,7 @@ impl DiscoveryOperator {
         kube_interface: Arc<dyn k8s::KubeInterface>,
         dh_details: &'a DiscoveryDetails,
         stream: &'a mut dyn StreamingExt,
-    ) -> Result<(), Status> {
+    ) -> anyhow::Result<()> {
         // clone objects for thread
         let discovery_operator = Arc::new(self.clone());
         let stop_discovery_receiver: &mut tokio::sync::broadcast::Receiver<()> =
@@ -224,74 +216,20 @@ impl DiscoveryOperator {
                     break;
                 },
                 result = stream.get_message() => {
-                    let message = result?;
-                    if let Some(response) = message {
-                        trace!("internal_do_discover - got discovery results {:?}", response.devices);
-                        self.handle_discovery_results(
-                            kube_interface.clone(),
-                            response.devices,
-                            dh_details.shared,
-                            Box::new(DevicePluginBuilder{}),
-                        )
-                        .await
-                        .unwrap();
-                    } else {
-                        error!("internal_do_discover - received result of type None. Should not happen.");
-                        break;
-                    }
+                    let response = result?.ok_or_else(|| anyhow::anyhow!("Received response type None. Should not happen."))?;
+                    trace!("internal_do_discover - got discovery results {:?}", response.devices);
+                    self.handle_discovery_results(
+                        kube_interface.clone(),
+                        response.devices,
+                        dh_details.shared,
+                        Box::new(DevicePluginBuilder{}),
+                    )
+                    .await?;
                 }
             }
         }
 
         Ok(())
-    }
-
-    /// Sets the connectivity status of a discovery handler. If a discovery handler goes offline, mark_offline_or_deregister_discovery_handler should be used.
-    pub fn set_discovery_handler_connectivity_status(
-        &self,
-        endpoint: &DiscoveryHandlerEndpoint,
-        connectivity_status: DiscoveryHandlerStatus,
-    ) {
-        trace!("set_discovery_handler_connectivity_status - set status of {:?} for {} discovery handler at endpoint {:?}", connectivity_status, self.config.spec.discovery_handler.name, endpoint);
-        let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let discovery_handler_details_map = registered_dh_map
-            .get_mut(&self.config.spec.discovery_handler.name)
-            .unwrap();
-        let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
-        dh_details.connectivity_status = connectivity_status;
-    }
-
-    /// This is called when no connection can be made with a discovery handler at its endpoint.
-    /// It takes action based on a Discovery Handler's (DH's) current `DiscoveryHandlerStatus`.
-    /// If `DiscoveryHandlerStatus::Waiting`, connectivity status changed to Offline.
-    /// If `DiscoveryHandlerStatus::Offline`, DH is removed from the `RegisteredDiscoveryHandlersMap`
-    /// if it have been offline for longer than the grace period.
-    /// If `DiscoveryHandlerStatus::Active`, this should not happen, Error is returned.
-    pub async fn mark_offline_or_deregister_discovery_handler(
-        &self,
-        endpoint: &DiscoveryHandlerEndpoint,
-    ) -> Result<bool, anyhow::Error> {
-        trace!("mark_offline_or_deregister_discovery_handler - {} discovery handler at endpoint {:?} is offline", self.config.spec.discovery_handler.name, endpoint);
-        let mut deregistered = false;
-        let mut registered_dh_map = self.discovery_handler_map.lock().unwrap();
-        let discovery_handler_details_map = registered_dh_map
-            .get_mut(&self.config.spec.discovery_handler.name)
-            .unwrap();
-        let dh_details = discovery_handler_details_map.get_mut(endpoint).unwrap();
-        match dh_details.connectivity_status {
-            DiscoveryHandlerStatus::Offline(instant) => {
-                if instant.elapsed().as_secs() > DISCOVERY_HANDLER_OFFLINE_GRACE_PERIOD_SECS {
-                    trace!("mark_offline_or_deregister_discovery_handler - de-registering {} discovery handler at endpoint {:?} since been offline for longer than 5 minutes", self.config.spec.discovery_handler.name, endpoint);
-                    // Remove discovery handler from map if timed out
-                    discovery_handler_details_map.remove(endpoint).unwrap();
-                    deregistered = true;
-                }
-            }
-            DiscoveryHandlerStatus::Waiting | DiscoveryHandlerStatus::Active => {
-                dh_details.connectivity_status = DiscoveryHandlerStatus::Offline(Instant::now());
-            }
-        }
-        Ok(deregistered)
     }
 
     /// Checks if any of this DiscoveryOperator's Configuration's Instances have been offline for too long.
@@ -343,7 +281,7 @@ impl DiscoveryOperator {
         discovery_results: Vec<Device>,
         shared: bool,
         device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         let config_name = self.config.metadata.name.clone().unwrap();
         trace!(
             "handle_discovery_results - for config {} with discovery results {:?}",
@@ -414,7 +352,7 @@ impl DiscoveryOperator {
         kube_interface: Arc<dyn k8s::KubeInterface>,
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         let instance_map = self.instance_map.lock().await.clone();
         for (instance, instance_info) in instance_map {
             trace!(
@@ -514,9 +452,7 @@ impl DiscoveryOperator {
 }
 
 pub mod start_discovery {
-    use super::super::registration::{
-        DiscoveryDetails, DiscoveryHandlerEndpoint, DiscoveryHandlerStatus,
-    };
+    use super::super::registration::{DiscoveryDetails, DiscoveryHandlerEndpoint};
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     #[double]
     pub use super::DiscoveryOperator;
@@ -637,13 +573,7 @@ pub mod start_discovery {
     /// A Configuration specifies the name of `DiscoveryHandlers` that should be utilized for discovery.
     /// This tries to establish connection with each `DiscoveryHandler` registered under the requested
     /// `DiscoveryHandler` name and spawns a discovery thread for each connection.
-    /// This function also manages the `DiscoveryHandlerStatus` of each `DiscoveryHandler` as follows:
-    /// /// `DiscoveryHandlerStatus::Active` if a connection is established via a call to get_stream
-    /// /// `DiscoveryHandlerStatus::Waitin`g after a connection has finished due to either being signaled to stop connecting
-    /// /// or an error being returned from the discovery handler (that is not a broken pipe)
-    /// /// `DiscoveryHandlerStatus::Offline` if a connection cannot be established via a call to get_stream
     /// If a connection cannot be established, continues to try, sleeping between iteration.
-    /// Removes the discovery handler from the `RegisteredDiscoveryHandlerMap` if it has been offline for longer than the grace period.
     pub async fn do_discover(
         discovery_operator: Arc<DiscoveryOperator>,
         kube_interface: Arc<dyn k8s::KubeInterface>,
@@ -673,26 +603,18 @@ pub mod start_discovery {
                     config.spec.discovery_handler.name,
                     endpoint
                 );
-                // Only use DiscoveryHandler if it doesn't have a client yet
-                if dh_details.connectivity_status != DiscoveryHandlerStatus::Active {
-                    trace!(
-                        "do_discover - {} discovery handler at endpoint {:?} doesn't have client",
-                        config.spec.discovery_handler.name,
-                        endpoint
-                    );
-                    let discovery_operator = discovery_operator.clone();
-                    let kube_interface = kube_interface.clone();
-                    discovery_tasks.push(tokio::spawn(async move {
-                        do_discover_on_discovery_handler(
-                            discovery_operator.clone(),
-                            kube_interface.clone(),
-                            &endpoint,
-                            &dh_details,
-                        )
-                        .await
-                        .unwrap();
-                    }));
-                }
+                let discovery_operator = discovery_operator.clone();
+                let kube_interface = kube_interface.clone();
+                discovery_tasks.push(tokio::spawn(async move {
+                    do_discover_on_discovery_handler(
+                        discovery_operator.clone(),
+                        kube_interface.clone(),
+                        &endpoint,
+                        &dh_details,
+                    )
+                    .await
+                    .unwrap();
+                }));
             }
         }
         futures::future::try_join_all(discovery_tasks).await?;
@@ -705,34 +627,20 @@ pub mod start_discovery {
         kube_interface: Arc<dyn k8s::KubeInterface>,
         endpoint: &'a DiscoveryHandlerEndpoint,
         dh_details: &'a DiscoveryDetails,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    ) -> anyhow::Result<()> {
         loop {
-            let deregistered;
-            match discovery_operator.get_stream(endpoint).await {
-                Some(stream_type) => {
-                    // Since connection was established, be sure that the Discovery Handler is marked as having a client
-                    discovery_operator.set_discovery_handler_connectivity_status(
-                        endpoint,
-                        DiscoveryHandlerStatus::Active,
-                    );
-                    match stream_type {
-                        StreamType::External(mut stream) => {
-                            match discovery_operator
-                                .internal_do_discover(
-                                    kube_interface.clone(),
-                                    dh_details,
-                                    &mut stream,
-                                )
-                                .await
-                            {
-                                Ok(_) => {
-                                    discovery_operator.set_discovery_handler_connectivity_status(
-                                        endpoint,
-                                        DiscoveryHandlerStatus::Waiting,
-                                    );
-                                    break;
-                                }
-                                Err(status) => {
+            if let Some(stream_type) = discovery_operator.get_stream(endpoint).await {
+                match stream_type {
+                    StreamType::External(mut stream) => {
+                        match discovery_operator
+                            .internal_do_discover(kube_interface.clone(), dh_details, &mut stream)
+                            .await
+                        {
+                            Ok(_) => {
+                                break;
+                            }
+                            Err(e) => {
+                                if let Some(status) = e.downcast_ref::<tonic::Status>() {
                                     if status.message().contains("broken pipe") {
                                         // Mark all associated instances as offline
                                         error!("do_discover_on_discovery_handler - connection with Discovery Handler dropped with status {:?}. Marking all instances offline.", status);
@@ -743,14 +651,9 @@ pub mod start_discovery {
                                                 dh_details.shared,
                                             )
                                             .await?;
-                                        deregistered = discovery_operator
-                                            .mark_offline_or_deregister_discovery_handler(endpoint)
-                                            .await
-                                            .unwrap();
                                     } else {
                                         trace!("do_discover_on_discovery_handler - Discovery Handlers returned error status {}. Marking all instances offline.", status);
                                         // TODO: Possibly mark config as invalid
-                                        // Mark all associated instances as offline by declaring no visible instances
                                         discovery_operator
                                             .update_instance_connectivity_status(
                                                 kube_interface.clone(),
@@ -758,61 +661,39 @@ pub mod start_discovery {
                                                 dh_details.shared,
                                             )
                                             .await?;
-                                        discovery_operator
-                                            .set_discovery_handler_connectivity_status(
-                                                endpoint,
-                                                DiscoveryHandlerStatus::Waiting,
-                                            );
-                                        break;
                                     }
+                                } else {
+                                    return Err(e);
                                 }
                             }
                         }
-                        #[cfg(any(test, feature = "agent-full"))]
-                        StreamType::Embedded(mut stream) => {
-                            discovery_operator
-                                .internal_do_discover(
-                                    kube_interface.clone(),
-                                    dh_details,
-                                    &mut stream,
-                                )
-                                .await
-                                .unwrap();
-                            discovery_operator.set_discovery_handler_connectivity_status(
-                                endpoint,
-                                DiscoveryHandlerStatus::Waiting,
-                            );
-                            break;
-                        }
+                    }
+                    #[cfg(any(test, feature = "agent-full"))]
+                    StreamType::Embedded(mut stream) => {
+                        discovery_operator
+                            .internal_do_discover(kube_interface.clone(), dh_details, &mut stream)
+                            .await?;
+                        // Embedded discovery should only return okay if signaled to stop. Otherwise, bubble up error.
+                        break;
                     }
                 }
-                None => {
-                    deregistered = discovery_operator
-                        .mark_offline_or_deregister_discovery_handler(endpoint)
-                        .await
-                        .unwrap();
-                }
             }
-            if deregistered {
-                break;
-            } else {
-                // If a connection cannot be established with the Discovery Handler, it will sleep and try again.
-                // This continues until connection established, the Discovery Handler is deregistered due to grace period elapsing,
-                // or the Discovery Handler is told to stop discovery.
-                let mut stop_discovery_receiver =
-                    dh_details.close_discovery_handler_connection.subscribe();
-                let mut sleep_duration = Duration::from_secs(60);
-                if cfg!(test) {
-                    sleep_duration = Duration::from_millis(100);
-                }
 
-                if tokio::time::timeout(sleep_duration, stop_discovery_receiver.recv())
-                    .await
-                    .is_ok()
-                {
-                    trace!("do_discover_on_discovery_handler - received message to stop discovery for {} Discovery Handler at endpoint {:?}", dh_details.name, dh_details.endpoint);
-                    break;
-                }
+            // If a connection cannot be established with the Discovery Handler, it will sleep and try again.
+            // This continues until connection established or the Discovery Handler is told to stop discovery.
+            let mut stop_discovery_receiver =
+                dh_details.close_discovery_handler_connection.subscribe();
+            let mut sleep_duration = Duration::from_secs(60);
+            if cfg!(test) {
+                sleep_duration = Duration::from_millis(100);
+            }
+
+            if tokio::time::timeout(sleep_duration, stop_discovery_receiver.recv())
+                .await
+                .is_ok()
+            {
+                trace!("do_discover_on_discovery_handler - received message to stop discovery for {} Discovery Handler at endpoint {:?}", dh_details.name, dh_details.endpoint);
+                break;
             }
         }
         Ok(())
@@ -860,9 +741,7 @@ pub fn inner_generate_instance_digest(
 pub mod tests {
     use super::super::{
         device_plugin_builder::MockDevicePluginBuilderInterface,
-        registration::{
-            inner_register_embedded_discovery_handlers, DiscoveryDetails, DiscoveryHandlerStatus,
-        },
+        registration::{inner_register_embedded_discovery_handlers, DiscoveryDetails},
     };
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
@@ -993,11 +872,12 @@ pub mod tests {
             endpoint,
             shared,
             close_discovery_handler_connection: close_discovery_handler_connection,
-            connectivity_status: DiscoveryHandlerStatus::Waiting,
         }
     }
 
-    fn setup_test_do_discover() -> (MockDiscoveryOperator, RegisteredDiscoveryHandlerMap) {
+    fn setup_test_do_discover(
+        config_name: &str,
+    ) -> (MockDiscoveryOperator, RegisteredDiscoveryHandlerMap) {
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         add_discovery_handler_to_map(
             "debugEcho",
@@ -1009,7 +889,8 @@ pub mod tests {
         // Build discovery operator
         let path_to_config = "../test/yaml/config-a.yaml";
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
-        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let mut config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        config.metadata.name = Some(config_name.to_string());
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
@@ -1091,52 +972,97 @@ pub mod tests {
     #[tokio::test]
     async fn test_start_discovery_termination() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (mut mock_discovery_operator, discovery_handler_map) = setup_test_do_discover();
-        let (marked_offline_sender, mut marked_offline_receiver) =
-            tokio::sync::broadcast::channel(1);
+        let mut start_discovery_components = start_discovery_setup("config-a", true).await;
+        start_discovery_components
+            .running_receiver
+            .recv()
+            .await
+            .unwrap();
+        start_discovery_components
+            .stop_all_discovery_sender
+            .send(())
+            .unwrap();
+        start_discovery_components
+            .finished_discovery_receiver
+            .recv()
+            .await
+            .unwrap();
+        // Make sure that all threads have finished
+        start_discovery_components
+            .start_discovery_handle
+            .await
+            .unwrap();
+    }
+
+    // Test that start discovery can be called twice for two (differently named)
+    // Configurations that use the same DH.
+    #[tokio::test]
+    async fn test_start_discovery_same_discovery_handler() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let mut start_discovery_components_a = start_discovery_setup("config-a", false).await;
+        let mut start_discovery_components_b = start_discovery_setup("config-b", false).await;
+
+        start_discovery_components_a
+            .running_receiver
+            .recv()
+            .await
+            .unwrap();
+        start_discovery_components_b
+            .running_receiver
+            .recv()
+            .await
+            .unwrap();
+    }
+
+    struct StartDiscoveryComponents {
+        finished_discovery_receiver: tokio::sync::mpsc::Receiver<()>,
+        stop_all_discovery_sender: tokio::sync::broadcast::Sender<()>,
+        running_receiver: tokio::sync::broadcast::Receiver<()>,
+        start_discovery_handle: tokio::task::JoinHandle<()>,
+    }
+
+    async fn start_discovery_setup(config_name: &str, terminate: bool) -> StartDiscoveryComponents {
+        let (mut mock_discovery_operator, discovery_handler_map) =
+            setup_test_do_discover(config_name);
+        let (running_sender, running_receiver) = tokio::sync::broadcast::channel::<()>(1);
         mock_discovery_operator
             .expect_get_stream()
-            .returning(|_| None);
-        mock_discovery_operator
-            .expect_mark_offline_or_deregister_discovery_handler()
-            .withf(move |endpoint: &DiscoveryHandlerEndpoint| {
-                endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-            })
             .returning(move |_| {
-                marked_offline_sender.clone().send(()).unwrap();
-                Ok(false)
+                running_sender.clone().send(()).unwrap();
+                None
             });
         mock_discovery_operator
             .expect_delete_offline_instances()
             .times(1)
             .returning(move |_| Ok(()));
-        let stop_dh_discovery_sender = discovery_handler_map
-            .lock()
-            .unwrap()
-            .get_mut("debugEcho")
-            .unwrap()
-            .clone()
-            .get(&DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()))
-            .unwrap()
-            .clone()
-            .close_discovery_handler_connection;
-        mock_discovery_operator
-            .expect_stop_all_discovery()
-            .times(1)
-            .returning(move || {
-                stop_dh_discovery_sender.clone().send(()).unwrap();
-            });
+        if terminate {
+            let stop_dh_discovery_sender = discovery_handler_map
+                .lock()
+                .unwrap()
+                .get_mut("debugEcho")
+                .unwrap()
+                .clone()
+                .get(&DiscoveryHandlerEndpoint::Uds("socket.sock".to_string()))
+                .unwrap()
+                .clone()
+                .close_discovery_handler_connection;
+            mock_discovery_operator
+                .expect_stop_all_discovery()
+                .times(1)
+                .returning(move || {
+                    stop_dh_discovery_sender.clone().send(()).unwrap();
+                });
+        }
+        let (mut finished_discovery_sender, finished_discovery_receiver) =
+            tokio::sync::mpsc::channel(2);
         let (new_dh_sender, _) = broadcast::channel(2);
         let (stop_all_discovery_sender, _) = broadcast::channel(2);
-        let (mut finished_discovery_sender, mut finished_discovery_receiver) =
-            tokio::sync::mpsc::channel(2);
-        let thread_new_dh_sender = new_dh_sender.clone();
         let thread_stop_all_discovery_sender = stop_all_discovery_sender.clone();
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
-        let handle = tokio::spawn(async move {
+        let start_discovery_handle = tokio::spawn(async move {
             start_discovery::start_discovery(
                 mock_discovery_operator,
-                thread_new_dh_sender,
+                new_dh_sender.to_owned(),
                 thread_stop_all_discovery_sender,
                 &mut finished_discovery_sender,
                 mock_kube_interface,
@@ -1144,36 +1070,26 @@ pub mod tests {
             .await
             .unwrap();
         });
-
-        // Wait until do_discovery has gotten to point the DH marked offline
-        marked_offline_receiver.recv().await.unwrap();
-        stop_all_discovery_sender.send(()).unwrap();
-        finished_discovery_receiver.recv().await.unwrap();
-        // Make sure that all threads have finished
-        handle.await.unwrap();
+        StartDiscoveryComponents {
+            finished_discovery_receiver,
+            stop_all_discovery_sender,
+            running_receiver,
+            start_discovery_handle,
+        }
     }
 
-    // Test that DH is connected to on second try getting stream and
-    // that connectivity status is changed from Waiting -> Active -> Waiting again
-    // when a successful connection is made and completed.
+    // Test that DH is connected to on second try getting stream.
     #[tokio::test]
     async fn test_do_discover_completed_internal_connection() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (mut mock_discovery_operator, _) = setup_test_do_discover();
+        let (mut mock_discovery_operator, _) = setup_test_do_discover("config-a");
         let mut get_stream_seq = Sequence::new();
-        // First time cannot get stream and is marked offline
+        // First time cannot get stream
         mock_discovery_operator
             .expect_get_stream()
             .times(1)
             .returning(|_| None)
             .in_sequence(&mut get_stream_seq);
-        mock_discovery_operator
-            .expect_mark_offline_or_deregister_discovery_handler()
-            .withf(move |endpoint: &DiscoveryHandlerEndpoint| {
-                endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-            })
-            .times(1)
-            .returning(|_| Ok(false));
         // Second time successfully get stream
         let (_, rx) = mpsc::channel(2);
         let stream_type = Some(StreamType::Embedded(rx));
@@ -1182,38 +1098,11 @@ pub mod tests {
             .times(1)
             .return_once(move |_| stream_type)
             .in_sequence(&mut get_stream_seq);
-        // Make sure discovery handler is marked as Active
-        let mut discovery_handler_status_seq = Sequence::new();
-        mock_discovery_operator
-            .expect_set_discovery_handler_connectivity_status()
-            .withf(
-                move |endpoint: &DiscoveryHandlerEndpoint,
-                      connectivity_status: &DiscoveryHandlerStatus| {
-                    endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-                        && connectivity_status == &DiscoveryHandlerStatus::Active
-                },
-            )
-            .times(1)
-            .returning(|_, _| ())
-            .in_sequence(&mut discovery_handler_status_seq);
         // Discovery should be initiated
         mock_discovery_operator
             .expect_internal_do_discover()
             .times(1)
             .returning(|_, _, _| Ok(()));
-        // Make sure after discovery is complete that the DH is marked Online again
-        mock_discovery_operator
-            .expect_set_discovery_handler_connectivity_status()
-            .withf(
-                move |endpoint: &DiscoveryHandlerEndpoint,
-                      connectivity_status: &DiscoveryHandlerStatus| {
-                    endpoint == &DiscoveryHandlerEndpoint::Uds("socket.sock".to_string())
-                        && connectivity_status == &DiscoveryHandlerStatus::Waiting
-                },
-            )
-            .times(1)
-            .returning(|_, _| ())
-            .in_sequence(&mut discovery_handler_status_seq);
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
         start_discovery::do_discover(Arc::new(mock_discovery_operator), mock_kube_interface)
             .await
@@ -1591,82 +1480,6 @@ pub mod tests {
             config,
             Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         )
-    }
-
-    #[tokio::test]
-    async fn test_set_discovery_handler_connectivity_status() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let discovery_handler_name = "debugEcho";
-        let endpoint = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
-        let discovery_operator = setup_non_mocked_dh(discovery_handler_name, &endpoint);
-        // Test that an online discovery handler is marked Active
-        discovery_operator
-            .set_discovery_handler_connectivity_status(&endpoint, DiscoveryHandlerStatus::Active);
-        assert_eq!(
-            discovery_operator
-                .discovery_handler_map
-                .lock()
-                .unwrap()
-                .get_mut(discovery_handler_name)
-                .unwrap()
-                .clone()
-                .get(&endpoint)
-                .unwrap()
-                .clone()
-                .connectivity_status,
-            DiscoveryHandlerStatus::Active
-        );
-    }
-
-    #[tokio::test]
-    async fn test_mark_offline_or_deregister_discovery_handler() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let discovery_handler_name = "debugEcho";
-        let endpoint = DiscoveryHandlerEndpoint::Uds("socket.sock".to_string());
-        let discovery_operator = setup_non_mocked_dh(discovery_handler_name, &endpoint);
-        // Test that an online discovery handler is marked offline
-        assert!(!discovery_operator
-            .mark_offline_or_deregister_discovery_handler(&endpoint)
-            .await
-            .unwrap());
-        if let DiscoveryHandlerStatus::Offline(_) = discovery_operator
-            .discovery_handler_map
-            .lock()
-            .unwrap()
-            .get_mut(discovery_handler_name)
-            .unwrap()
-            .clone()
-            .get(&endpoint)
-            .unwrap()
-            .clone()
-            .connectivity_status
-        {
-            // expected
-        } else {
-            panic!("DiscoveryHandlerStatus should be changed to offline");
-        }
-        // Test that an offline discovery handler IS NOT deregistered if the time has not passed
-        assert!(!discovery_operator
-            .mark_offline_or_deregister_discovery_handler(&endpoint)
-            .await
-            .unwrap());
-
-        // Test that an offline discovery handler IS deregistered if the time has passed
-        let mock_now = Instant::now();
-        MockClock::advance(Duration::from_secs(301));
-        discovery_operator
-            .discovery_handler_map
-            .lock()
-            .unwrap()
-            .get_mut(discovery_handler_name)
-            .unwrap()
-            .get_mut(&endpoint)
-            .unwrap()
-            .connectivity_status = DiscoveryHandlerStatus::Offline(mock_now);
-        assert!(discovery_operator
-            .mark_offline_or_deregister_discovery_handler(&endpoint)
-            .await
-            .unwrap());
     }
 
     #[tokio::test]
