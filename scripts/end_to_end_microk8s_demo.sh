@@ -10,11 +10,7 @@ echo "--allow-privileged=true" | sudo tee -a /var/snap/microk8s/current/args/kub
 
 sudo microk8s stop && microk8s start
 
-VERSION="v1.17.0"
-curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-${VERSION}-linux-amd64.tar.gz --output crictl-${VERSION}-linux-amd64.tar.gz
-sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-rm -f crictl-$VERSION-linux-amd64.tar.gz
-AKRI_HELM_CRICTL_CONFIGURATION="--set agent.host.crictl=/usr/local/bin/crictl --set agent.host.dockerShimSock=/var/snap/microk8s/common/run/containerd.sock"
+KUBERNETES_DISTRO="--set kubernetesDistro=microk8s"
 
 sudo apt update
 sudo apt -y install linux-modules-extra-$(uname -r)
@@ -34,7 +30,7 @@ sudo gst-launch-1.0 -v videotestsrc pattern=smpte horizontal-speed=1 ! "video/x-
 
 sudo microk8s.helm3 repo add akri-helm-charts https://project-akri.github.io/akri/
 sudo microk8s.helm3 install akri akri-helm-charts/akri-dev \
-  $AKRI_HELM_CRICTL_CONFIGURATION \
+  $KUBERNETES_DISTRO \
   --set useLatestContainers=true \
   --set udev.enabled=true \
   --set udev.name=akri-udev-video \
