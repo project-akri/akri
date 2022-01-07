@@ -221,7 +221,7 @@ mod crd_serialization_tests {
     }
 
     #[test]
-    fn test_config_serialization() {
+    fn test_config_serialization_podspec() {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod_spec_json = r#"{"containers": [{"image": "nginx:latest","name": "broker"}]}"#;
         let pod_spec: PodSpec = serde_json::from_str(pod_spec_json).unwrap();
@@ -238,6 +238,27 @@ mod crd_serialization_tests {
         }
         let serialized = serde_json::to_string(&deserialized).unwrap();
         let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerSpec":{"brokerPodSpec":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerProperties":{}}"#;
+        assert_eq!(expected_deserialized, serialized);
+    }
+
+    #[test]
+    fn test_config_serialization_jobspec() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let job_spec_json = r#"{"template": {"spec": {"containers": [{"image": "nginx:latest","name": "broker"}], "restartPolicy": "OnFailure"}}}"#;
+        let job_spec: JobSpec = serde_json::from_str(job_spec_json).unwrap();
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "brokerSpec":{"brokerJobSpec":{"template": {"spec": {"containers": [{"image": "nginx:latest","name": "broker"}], "restartPolicy": "OnFailure"}}}}, "capacity":4}"#;
+        let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
+        assert_eq!(4, deserialized.capacity);
+        assert_eq!(None, deserialized.instance_service_spec);
+        assert_eq!(None, deserialized.configuration_service_spec);
+        assert_eq!(0, deserialized.broker_properties.len());
+        if let BrokerSpec::BrokerJobSpec(d_job_spec) = deserialized.broker_spec.as_ref().unwrap() {
+            assert_eq!(&job_spec, d_job_spec.as_ref());
+        } else {
+            panic!("Expected BrokerJobSpec");
+        }
+        let serialized = serde_json::to_string(&deserialized).unwrap();
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerSpec":{"brokerJobSpec":{"template":{"spec":{"containers":[{"image":"nginx:latest","name":"broker"}],"restartPolicy":"OnFailure"}}}},"brokerProperties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
