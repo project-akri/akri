@@ -803,7 +803,6 @@ mod handle_instance_tests {
 
     #[derive(Clone)]
     struct HandleAdditionWork {
-        config_work: HandleConfigWork,
         new_pod_names: Vec<&'static str>,
         new_pod_instance_names: Vec<&'static str>,
         new_pod_namespaces: Vec<&'static str>,
@@ -811,7 +810,6 @@ mod handle_instance_tests {
 
     fn configure_add_shared_config_a_359973(pod_name: &'static str) -> HandleAdditionWork {
         HandleAdditionWork {
-            config_work: get_config_work(),
             new_pod_names: vec![pod_name],
             new_pod_instance_names: vec!["config-a-359973"],
             new_pod_namespaces: vec!["config-a-namespace"],
@@ -826,7 +824,6 @@ mod handle_instance_tests {
     }
     fn configure_add_local_config_a_b494b6() -> HandleAdditionWork {
         HandleAdditionWork {
-            config_work: get_config_work(),
             new_pod_names: vec!["config-a-b494b6-pod"],
             new_pod_instance_names: vec!["config-a-b494b6"],
             new_pod_namespaces: vec!["config-a-namespace"],
