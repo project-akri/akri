@@ -386,7 +386,7 @@ mod config_action_tests {
         .is_err());
     }
 
-    // Tests that a Configuration is not recreated if ONLY the BrokerSpec of the ConfigurationSpec has increased.
+    // Tests that a Configuration is not recreated if ONLY the BrokerSpec of the ConfigurationSpec has changed.
     #[tokio::test]
     async fn test_handle_config_no_recreate() {
         let _ = env_logger::builder().is_test(true).try_init();

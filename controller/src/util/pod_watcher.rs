@@ -301,7 +301,7 @@ impl BrokerPodWatcher {
     }
 
     /// This is called when a broker Pod exits the Running phase and ensures
-    /// that isntance and configuration services are only running when
+    /// that instance and configuration services are only running when
     /// supported by Running broker Pods.
     async fn handle_non_running_pod(
         &self,

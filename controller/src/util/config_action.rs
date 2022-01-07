@@ -171,8 +171,7 @@ async fn handle_config(
     Ok(())
 }
 
-/// This function is called when the Configuration::BrokerSpec was modified where
-/// BrokerSpec::BrokerPodSpec.
+/// This function is called when a Configuration's BrokerSpec::BrokerPodSpec is modified.
 /// It brings down all Pods of the Configuration and redeploys them to reflect
 /// the updated Configuration.
 async fn handle_broker_updates_for_configuration_pod(
@@ -240,8 +239,7 @@ async fn handle_broker_updates_for_configuration_pod(
     Ok(())
 }
 
-/// This function is called when the Configuration::BrokerSpec was modified where
-/// BrokerSpec::BrokerJobSpec.
+/// This function is called when a Configuration's BrokerSpec::BrokerJobSpec is modified.
 /// It brings down all Jobs of the Configuration and redeploys them to reflect
 /// the updated Configuration.
 async fn handle_broker_updates_for_configuration_job(

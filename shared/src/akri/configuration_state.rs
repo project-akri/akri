@@ -28,7 +28,7 @@ pub fn should_recreate_config(config: &Configuration, config_state: &ConfigState
         Ordering::Less => {
             error!(
                 "should_recreate_config - configuration generation somehow went backwards {:?} < {:?}",
-                config.metadata.generation, config.metadata.generation
+                config.metadata.generation, config_state.last_generation
             );
             true
         }
