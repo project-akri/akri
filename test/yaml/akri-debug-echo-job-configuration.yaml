@@ -14,7 +14,7 @@ spec:
       template:
         spec:
           containers:
-          - name: akri-debug-echo-fee-broker
+          - name: akri-debug-echo-fee-broker2
             image: perl
             command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
             resources:

@@ -6,7 +6,7 @@ use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
 use async_std::sync::Mutex;
 use prometheus::IntGaugeVec;
 use std::sync::Arc;
-use util::{config_action, instance_action, node_watcher, pod_watcher};
+use util::{instance_action, node_watcher, pod_watcher};
 
 /// Length of time to sleep between controller system validation checks
 pub const SYSTEM_CHECK_DELAY_SECS: u64 = 30;
@@ -56,12 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
                 .unwrap();
         }
     }));
-    // Handle Configuration changes
-    tasks.push(tokio::spawn({
-        async move {
-            config_action::do_config_watch().await.unwrap();
-        }
-    }));
+
     // Watch for node disappearance
     tasks.push(tokio::spawn({
         async move {

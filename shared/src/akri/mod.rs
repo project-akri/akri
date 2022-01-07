@@ -15,7 +15,6 @@ pub const AKRI_PREFIX: &str = "akri.sh";
 pub const AKRI_SLOT_ANNOTATION_NAME: &str = "akri.agent.slot";
 
 pub mod configuration;
-pub mod configuration_state;
 pub mod instance;
 pub mod metrics;
 

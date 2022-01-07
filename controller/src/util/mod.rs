@@ -1,4 +1,3 @@
-pub(crate) mod config_action;
 pub mod instance_action;
 pub mod node_watcher;
 mod pod_action;
