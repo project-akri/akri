@@ -422,10 +422,11 @@ mod tests {
     }
     "#;
 
-    // Valid JSON but invalid akri.sh/v0/Configuration
+    // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
+    // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
     // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerPodSpec.containers[*].resources
-    // Invalid: .request.object.spec.brokerPodSpec.resources
+    //   Valid: .request.object.spec.brokerSpec.brokerPodSpec.containers[*].resources
+    // Invalid: .request.object.spec.brokerSpec.brokerPodSpec.resources
     const INVALID_BROKER_POD_SPEC: &str = r#"
     "brokerPodSpec": {
         "containers": [
@@ -472,10 +473,11 @@ mod tests {
     }
     "#;
 
-    // Valid JSON but invalid akri.sh/v0/Configuration
+    // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
+    // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
     // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerJobSpec.template.spec.containers[*].resources
-    // Invalid: .request.object.spec.brokerJobSpec.template.spec.resources
+    //   Valid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.containers[*].resources
+    // Invalid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.resources
     const INVALID_BROKER_JOB_SPEC: &str = r#"
     "brokerJobSpec": {
         "template": {
