@@ -345,10 +345,7 @@ mod config_action_tests {
         discovery_operator::tests::build_instance_map,
     };
     use super::*;
-    use akri_shared::{
-        akri::configuration::{BrokerSpec, Configuration},
-        k8s::MockKubeInterface,
-    };
+    use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface};
     use std::{collections::HashMap, fs, sync::Arc};
     use tokio::sync::{broadcast, Mutex};
 

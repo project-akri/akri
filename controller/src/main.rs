@@ -56,7 +56,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
                 .unwrap();
         }
     }));
-
     // Watch for node disappearance
     tasks.push(tokio::spawn({
         async move {

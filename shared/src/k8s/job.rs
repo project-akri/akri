@@ -284,65 +284,6 @@ pub async fn remove_job(
     }
 }
 
-/// Delete a collection of Jobs with the given selectors
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::job;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = Client::try_default().await.unwrap();
-/// job::delete_jobs_with_selector(label_selector, None, "default", api_client).await.unwrap();
-/// # }
-/// ```
-///
-/// ```no_run
-/// use akri_shared::k8s::job;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let api_client = Client::try_default().await.unwrap();
-/// job::delete_jobs_with_selector(None, field_selector, "default", api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn delete_jobs_with_selector(
-    label_selector: Option<String>,
-    field_selector: Option<String>,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!("delete_jobs_with_selector enter");
-    let jobs: Api<Job> = Api::namespaced(kube_client, namespace);
-    let lps = ListParams {
-        label_selector,
-        field_selector,
-        ..Default::default()
-    };
-    let dps = DeleteParams {
-        dry_run: false,
-        propagation_policy: Some(PropagationPolicy::Background),
-        ..Default::default()
-    };
-    match jobs.delete_collection(&dps, &lps).await? {
-        either::Left(list) => {
-            let names: Vec<_> = list.iter().map(kube::ResourceExt::name).collect();
-            trace!("Deleting collection of pods: {:?}", names);
-        }
-        either::Right(status) => {
-            trace!("Deleted collection of pods: status={:?}", status);
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod broker_jobspec_tests {
     use super::super::super::{akri::API_VERSION, os::file};

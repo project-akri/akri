@@ -96,17 +96,11 @@ pub trait KubeInterface: Send + Sync {
 
     async fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error>;
     async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error>;
-    async fn delete_pods_with_label(&self, selector: Option<String>) -> Result<(), anyhow::Error>;
     async fn create_pod(&self, pod_to_create: &Pod, namespace: &str) -> Result<(), anyhow::Error>;
     async fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
 
     async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error>;
     async fn find_jobs_with_field(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error>;
-    async fn delete_jobs_with_label(
-        &self,
-        selector: Option<String>,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error>;
     async fn create_job(&self, job_to_create: &Job, namespace: &str) -> Result<(), anyhow::Error>;
     async fn remove_job(&self, job_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
 
@@ -137,11 +131,6 @@ pub trait KubeInterface: Send + Sync {
 
     async fn find_instance(&self, name: &str, namespace: &str) -> Result<Instance, anyhow::Error>;
     async fn get_instances(&self) -> Result<InstanceList, anyhow::Error>;
-    async fn find_instances_with_label(
-        &self,
-        label_selector: Option<String>,
-        namespace: &str,
-    ) -> Result<InstanceList, anyhow::Error>;
     async fn create_instance(
         &self,
         instance_to_create: &InstanceSpec,
@@ -268,25 +257,6 @@ impl KubeInterface for KubeImpl {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Remove Kubernetes Pods with given label
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let label_selector = Some("environment=production,app=nginx".to_string());
-    /// kube.delete_pods_with_label(label_selector).await.unwrap();
-    /// # }
-    /// ```
-    async fn delete_pods_with_label(&self, selector: Option<String>) -> Result<(), anyhow::Error> {
-        pod::delete_pods_with_selector(selector, None, self.get_kube_client()).await
-    }
-
     /// Find Kuberenetes Jobs with specified label selector
     ///
     /// Example:
@@ -356,29 +326,6 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn remove_job(&self, job_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error> {
         job::remove_job(job_to_remove, namespace, self.get_kube_client()).await
-    }
-
-    /// Delete Kubernetes Jobs with given label
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let label_selector = Some("environment=production,app=nginx".to_string());
-    /// kube.delete_jobs_with_label(label_selector, "default").await.unwrap();
-    /// # }
-    /// ```
-    async fn delete_jobs_with_label(
-        &self,
-        selector: Option<String>,
-        namespace: &str,
-    ) -> Result<(), anyhow::Error> {
-        job::delete_jobs_with_selector(selector, None, namespace, self.get_kube_client()).await
     }
 
     /// Get Kuberenetes services with specified label selector
@@ -545,34 +492,6 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn get_instances(&self) -> Result<InstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
-    }
-    // Find Akri Instances with given label
-    ///
-    /// Example:
-    ///
-    /// ```no_run
-    /// use akri_shared::k8s;
-    /// use akri_shared::k8s::KubeInterface;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let kube = k8s::KubeImpl::new().await.unwrap();
-    /// let label_selector = Some("environment=production,app=nginx".to_string());
-    /// let instances = kube.find_instances_with_label(label_selector, "default").await.unwrap();
-    /// # }
-    /// ```
-    async fn find_instances_with_label(
-        &self,
-        label_selector: Option<String>,
-        namespace: &str,
-    ) -> Result<InstanceList, anyhow::Error> {
-        instance::find_instances_with_selector(
-            label_selector,
-            None,
-            namespace,
-            &self.get_kube_client(),
-        )
-        .await
     }
 
     /// Create Akri Instance

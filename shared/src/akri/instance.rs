@@ -22,8 +22,7 @@ pub type InstanceList = ObjectList<Instance>;
 #[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
 #[kube(apiextensions = "v1")]
 pub struct InstanceSpec {
-    /// This contains the name of the Configuration that initiated
-    /// the discovery of this Instance
+    /// This contains the name of the corresponding Configuration
     pub configuration_name: String,
 
     /// This defines some properties that will be set as
@@ -137,70 +136,6 @@ pub async fn find_instance(
                 Err(anyhow::anyhow!(e))
             }
         },
-    }
-}
-
-/// Find Instances with a given selector
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::akri::instance;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let instances = instance::find_instances_with_selector(label_selector, None, "default", &api_client).await.unwrap();
-/// # }
-/// ```
-///
-/// ```no_run
-/// use akri_shared::akri::instance;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let instances = instance::find_instances_with_selector(None, field_selector, "default", &api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn find_instances_with_selector(
-    label_selector: Option<String>,
-    field_selector: Option<String>,
-    namespace: &str,
-    kube_client: &Client,
-) -> Result<InstanceList, anyhow::Error> {
-    log::trace!("find_instances_with_selector enter");
-    let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
-    let lp = ListParams {
-        label_selector,
-        field_selector,
-        ..Default::default()
-    };
-    match instances_client.list(&lp).await {
-        Ok(instances_retrieved) => {
-            log::trace!("find_instances_with_selector return");
-            Ok(instances_retrieved)
-        }
-        Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_instances_with_selector kube_client.request returned kube error: {:?}",
-                ae
-            );
-            Err(ae.into())
-        }
-        Err(e) => {
-            log::trace!(
-                "find_instances_with_selector kube_client.request error: {:?}",
-                e
-            );
-            Err(e.into())
-        }
     }
 }
 
