@@ -24,8 +24,23 @@ pub const FAILED_POD_GRACE_PERIOD_MINUTES: i64 = 0;
 
 /// Instance action types
 ///
-/// Instance actions describe the types of actions the controller can
-/// react to for DeviceCapabiltiyInstances.
+/// Instance actions describe the types of actions the Controller can
+/// react to for Instances.
+///
+/// This will determine what broker management actions to take (if any)
+///
+///   | --> InstanceAction::Add
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => Deploy a Job
+///                 | --> <BrokerSpec::BrokerPodSpec> => Deploy Pod to each Node on Instance's `nodes` list (up to `capacity` total)
+///   | --> InstanceAction::Remove
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => Delete all Jobs labeled with the Instance name
+///                 | --> <BrokerSpec::BrokerPodSpec> => Delete all Pods labeled with the Instance name
+///   | --> InstanceAction::Update
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => No nothing
+///                 | --> <BrokerSpec::BrokerPodSpec> => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod
 ///
 #[derive(Clone, Debug, PartialEq)]
 pub enum InstanceAction {
@@ -362,9 +377,9 @@ async fn handle_addition_work(
     Ok(())
 }
 
-/// Handle Instance change by watching for node
-/// disappearances, starting broker Pods/Services that are missing,
-/// and stopping Pods/Services that are no longer needed.
+/// Handle Instance change by
+/// 1) checking to make sure the Instance's Configuration exists
+/// 2) calling the appropriate handler depending on the broker type (Pod or Job) if any
 pub async fn handle_instance_change(
     instance: &Instance,
     action: &InstanceAction,
@@ -415,6 +430,10 @@ pub async fn handle_instance_change(
     }
 }
 
+/// Called when an Instance has changed that requires a Job broker. Action determined by InstanceAction.
+/// InstanceAction::Add =>  Deploy a Job with JobSpec from Configuration. Label with Instance name.
+/// InstanceAction::Remove => Delete all Jobs labeled with the Instance name
+/// InstanceAction::Update => No nothing
 pub async fn handle_instance_change_job(
     instance: Instance,
     config_generation: i64,
@@ -423,8 +442,9 @@ pub async fn handle_instance_change_job(
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter {:?}", action);
-    // Only take action if there is no existing job
-    let app_name = pod::create_broker_app_name(
+    // Create name for Job. Includes Configuration generation in the suffix
+    // to track what version of the Configuration the Job is associated with.
+    let job_name = pod::create_broker_app_name(
         instance.metadata.name.as_ref().unwrap(),
         None,
         instance.spec.shared,
@@ -451,7 +471,7 @@ pub async fn handle_instance_change_job(
                 ),
                 &capability_id,
                 job_spec,
-                &app_name,
+                &job_name,
             )?;
             kube_interface
                 .create_job(&new_job, instance_namespace)
@@ -482,6 +502,12 @@ pub async fn handle_instance_change_job(
     Ok(())
 }
 
+/// Called when an Instance has changed that requires a Pod broker.
+/// Action determined by InstanceAction and changes to the Instance's `nodes` list.
+/// Starts broker Pods that are missing and stops Pods that are no longer needed.
+/// InstanceAction::Add =>  Deploy Pod to each Node on Instance's `nodes` list (up to `capacity` total)
+/// InstanceAction::Remove => Delete all Pods labeled with the Instance name
+/// InstanceAction::Update => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod
 pub async fn handle_instance_change_pod(
     instance: &Instance,
     podspec: &PodSpec,

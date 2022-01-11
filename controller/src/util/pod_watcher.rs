@@ -40,11 +40,18 @@ enum PodState {
     Ended,
     /// Pod is in Deleted state and needs to remove any
     /// instance and configuration services that are not
-    /// supported by other Running Pods.  Also, at this
-    /// point, if an Instance still exists,
-    /// instance_action::handle_instance_change
-    /// needs to be called to ensure that Pods are
-    /// restarted
+    /// supported by other Running Pods. Also, at this
+    /// point, if an Instance still exists, and the Pod is
+    /// owned by the Instance,
+    /// instance_action::handle_instance_change needs to be
+    /// called to ensure that Pods are restarted. Akri
+    /// places an Instance OwnerReference on all the Pods it
+    /// deploys. This declares that the Instance owns that
+    /// Pod and Akri's Controller explicitly manages its
+    /// deployment. However, if the Pod is not owned by the
+    /// Instance, Akri should not assume retry logic and
+    /// should cease action. The owning object (ie Job) will
+    /// handle retries as necessary.
     Deleted,
 }
 
