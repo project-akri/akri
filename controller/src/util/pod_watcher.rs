@@ -55,14 +55,44 @@ enum PodState {
     Deleted,
 }
 
-/// Determines whether a Pod is owned by an Insance (has an ownerReference of Kind = "Instance")
+/// The `kind` of a broker Pod's controlling OwnerReference
+///
+/// Determines what controls the deployment of the broker Pod.
+#[derive(Debug, PartialEq)]
+enum BrokerPodOwnerKind {
+    /// An Instance "owns" this broker Pod, since the broker pod
+    /// has an OwnerReference where `kind == "Instance"` and `controller=true`.
+    Instance,
+    /// A Job "owns" this broker Pod, since the broker pod
+    /// has an OwnerReference where `kind == "Job"` and `controller=true`.
+    Job,
+    /// The broker Pod does not have a Job nor Instance OwnerReference
+    Other,
+}
+
+/// Determines whether a Pod is owned by an Instance (has an ownerReference of Kind = "Instance")
 /// Pods deployed directly by the Controller will have this ownership, while Pods
 /// created by Jobs will not.
-fn instance_owned(pod: &Pod) -> bool {
-    let instance_string = "Instance".to_string();
+fn get_broker_pod_owner_kind(pod: &Pod) -> BrokerPodOwnerKind {
+    let instance_kind = "Instance".to_string();
+    let job_kind = "Job".to_string();
     match &pod.metadata.owner_references {
-        Some(or) => or.iter().any(|r| r.kind == instance_string),
-        None => false,
+        Some(or) => {
+            if or
+                .iter()
+                .any(|r| r.kind == instance_kind && r.controller.unwrap_or(false))
+            {
+                BrokerPodOwnerKind::Instance
+            } else if or
+                .iter()
+                .any(|r| r.kind == job_kind && r.controller.unwrap_or(false))
+            {
+                BrokerPodOwnerKind::Job
+            } else {
+                BrokerPodOwnerKind::Other
+            }
+        }
+        None => BrokerPodOwnerKind::Other,
     }
 }
 
@@ -164,7 +194,7 @@ impl BrokerPodWatcher {
                             .await?;
                     }
                     "Succeeded" | "Failed" => {
-                        self.handle_ended_pod_if_needed(&pod, instance_owned(&pod), kube_interface)
+                        self.handle_ended_pod_if_needed(&pod, kube_interface)
                             .await?;
                     }
                     _ => {
@@ -174,7 +204,7 @@ impl BrokerPodWatcher {
             }
             Event::Deleted(pod) => {
                 info!("handle_pod - Deleted: {:?}", &pod.metadata.name);
-                self.handle_deleted_pod_if_needed(&pod, instance_owned(&pod), kube_interface)
+                self.handle_deleted_pod_if_needed(&pod, kube_interface)
                     .await?;
             }
             Event::Restarted(pods) => {
@@ -229,7 +259,6 @@ impl BrokerPodWatcher {
     async fn handle_ended_pod_if_needed(
         &mut self,
         pod: &Pod,
-        instance_owned: bool,
         kube_interface: &impl KubeInterface,
     ) -> anyhow::Result<()> {
         trace!("handle_ended_pod_if_needed - enter");
@@ -247,8 +276,7 @@ impl BrokerPodWatcher {
         // per transition into the Ended state
         if last_known_state != &PodState::Ended {
             trace!("handle_ended_pod_if_needed - call handle_non_running_pod");
-            self.handle_non_running_pod(pod, instance_owned, kube_interface)
-                .await?;
+            self.handle_non_running_pod(pod, kube_interface).await?;
             self.known_pods.insert(pod_name, PodState::Ended);
         }
         Ok(())
@@ -261,7 +289,6 @@ impl BrokerPodWatcher {
     async fn handle_deleted_pod_if_needed(
         &mut self,
         pod: &Pod,
-        instance_owned: bool,
         kube_interface: &impl KubeInterface,
     ) -> anyhow::Result<()> {
         trace!("handle_deleted_pod_if_needed - enter");
@@ -279,8 +306,7 @@ impl BrokerPodWatcher {
         // per transition into the Deleted state
         if last_known_state != &PodState::Deleted {
             trace!("handle_deleted_pod_if_needed - call handle_non_running_pod");
-            self.handle_non_running_pod(pod, instance_owned, kube_interface)
-                .await?;
+            self.handle_non_running_pod(pod, kube_interface).await?;
             self.known_pods.insert(pod_name, PodState::Deleted);
         }
         Ok(())
@@ -313,7 +339,6 @@ impl BrokerPodWatcher {
     async fn handle_non_running_pod(
         &self,
         pod: &Pod,
-        instance_owned: bool,
         kube_interface: &impl KubeInterface,
     ) -> anyhow::Result<()> {
         trace!("handle_non_running_pod - enter");
@@ -338,8 +363,8 @@ impl BrokerPodWatcher {
         )
         .await?;
 
-        // Only redeploy Pods that are managed by the Akri Controller (have Instance ownerReference)
-        if instance_owned {
+        // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
+        if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
             // Make sure instance has required Pods
             if let Ok(instance) = kube_interface.find_instance(&instance_id, namespace).await {
                 super::instance_action::handle_instance_change(
@@ -655,6 +680,8 @@ mod tests {
     use super::super::shared_test_utils::config_for_tests::PodList;
     use super::*;
     use akri_shared::{k8s::MockKubeInterface, os::file};
+    use k8s_openapi::api::core::v1::PodSpec;
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 
     fn create_pods_with_phase(result_file: &'static str, specified_phase: &'static str) -> PodList {
         let pods_json = file::read_file_to_string(result_file);
@@ -664,6 +691,91 @@ mod tests {
         );
         let pods: PodList = serde_json::from_str(&phase_adjusted_json).unwrap();
         pods
+    }
+
+    fn make_pod_with_owner_references(owner_references: Vec<OwnerReference>) -> Pod {
+        Pod {
+            spec: Some(PodSpec::default()),
+            metadata: ObjectMeta {
+                owner_references: Some(owner_references),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_instance() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Instance".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Instance
+        );
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_job() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Job".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Job
+        );
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_other() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "OtherOwner".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Other
+        );
+    }
+
+    // Test that is only labeled as Instance owned if it is the controller OwnerReference
+    #[test]
+    fn test_get_broker_pod_owner_kind_non_controlling() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Instance".to_string(),
+            controller: Some(false),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Other
+        );
+    }
+
+    // Test that if multiple OwnerReferences exist, the controlling one is returned.
+    #[test]
+    fn test_get_broker_pod_owner_kind_both() {
+        let owner_references: Vec<OwnerReference> = vec![
+            OwnerReference {
+                kind: "Instance".to_string(),
+                controller: Some(false),
+                ..Default::default()
+            },
+            OwnerReference {
+                kind: "Job".to_string(),
+                controller: Some(true),
+                ..Default::default()
+            },
+        ];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Job
+        );
     }
 
     // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
@@ -1151,7 +1263,7 @@ mod tests {
             .known_pods
             .insert("config-a-b494b6-pod".to_string(), PodState::Ended);
         pod_watcher
-            .handle_ended_pod_if_needed(pod, true, &MockKubeInterface::new())
+            .handle_ended_pod_if_needed(pod, &MockKubeInterface::new())
             .await
             .unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
@@ -1178,7 +1290,7 @@ mod tests {
             .known_pods
             .insert("config-a-b494b6-pod".to_string(), PodState::Deleted);
         pod_watcher
-            .handle_deleted_pod_if_needed(pod, true, &MockKubeInterface::new())
+            .handle_deleted_pod_if_needed(pod, &MockKubeInterface::new())
             .await
             .unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
