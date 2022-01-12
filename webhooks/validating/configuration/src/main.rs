@@ -311,8 +311,7 @@ mod tests {
                 "apiVersion": "meta.k8s.io/v1"
             }
         }
-    }
-    "#;
+    }"#;
 
     const EXTENDED_ADMISSION_REVIEW: &str = r#"
     {
@@ -398,8 +397,7 @@ mod tests {
                 "apiVersion": "meta.k8s.io/v1"
             }
         }
-    }
-    "#;
+    }"#;
 
     const VALID_BROKER_POD_SPEC: &str = r#"
     "brokerPodSpec": {
@@ -419,8 +417,7 @@ mod tests {
                 "name": "name"
             }
         ]
-    }
-    "#;
+    }"#;
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
@@ -445,8 +442,7 @@ mod tests {
                 "name": "name"
             }
         ]
-    }
-    "#;
+    }"#;
 
     const VALID_BROKER_JOB_SPEC: &str = r#"
     "brokerJobSpec": {
@@ -470,8 +466,7 @@ mod tests {
                 ]
             }
         }
-    }
-    "#;
+    }"#;
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
@@ -505,8 +500,7 @@ mod tests {
                 ]
             }
         }
-    }
-    "#;
+    }"#;
 
     const METADATA: &str = r#"
     {
@@ -524,8 +518,7 @@ mod tests {
             "uid": "00000000-0000-0000-0000-000000000000"
         },
         "spec": {}
-    }
-    "#;
+    }"#;
 
     fn get_valid_admission_review_with_broker_pod_spec() -> String {
         ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, VALID_BROKER_POD_SPEC)
@@ -545,6 +538,15 @@ mod tests {
 
     fn get_invalid_admission_review_with_broker_job_spec() -> String {
         ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, INVALID_BROKER_JOB_SPEC)
+    }
+
+    fn get_invalid_admission_review_with_broker_job_and_pod_spec() -> String {
+        let invalid_setting_both_broker_job_and_pod =
+            format!("{},\n{}", VALID_BROKER_JOB_SPEC, VALID_BROKER_POD_SPEC);
+        ADMISSION_REVIEW.replace(
+            BROKER_SPEC_INSERTION_KEYWORD,
+            &invalid_setting_both_broker_job_and_pod,
+        )
     }
 
     // JSON Syntax Tests
@@ -762,6 +764,16 @@ mod tests {
         let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, false);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_invalid_jobspec_and_podspec() {
+        let invalid: AdmissionReview =
+            serde_json::from_str(&get_invalid_admission_review_with_broker_job_and_pod_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
+        validate_configuration(&rqst);
     }
 
     #[test]
