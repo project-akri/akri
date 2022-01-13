@@ -18,15 +18,16 @@
             ],
             "type": "ClusterIP"
         },
-        "brokerPodSpec": {
-            "containers": [
-                {
-                    "image": "nginx:latest",
-                    "name": "broker"
-                }
-            ]
+        "brokerSpec": {
+            "brokerPodSpec": {
+                "containers": [
+                    {
+                        "image": "nginx:latest",
+                        "name": "broker"
+                    }
+                ]
+            }
         },
-        "capacity": 5,
         "configurationServiceSpec": {
             "ports": [
                 {
@@ -42,6 +43,7 @@
             "name": "debugEcho",
             "discoveryDetails": "{\"debugEcho\": {\"descriptions\":[\"filter1\", \"filter2\"]}}"       
         },
+        "capacity": 5,
         "brokerProperties": {}
     }
 }

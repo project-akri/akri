@@ -13,35 +13,36 @@ spec:
         applicationNames:
           action: Include
           items: []
-  brokerPodSpec:
-    containers:
-    - name: akri-opcua-broker
-      image: "ghcr.io/project-akri/akri/opcua-monitoring-broker:latest-dev"
-      env:
-        - name: IDENTIFIER
-          value: 
-        - name: NAMESPACE_INDEX 
-          value: "2"
-      resources:
-        limits:
-          "{{PLACEHOLDER}}" : "1"
-      volumeMounts:
+  brokerSpec:
+    brokerPodSpec:
+      containers:
+      - name: akri-opcua-broker
+        image: "ghcr.io/project-akri/akri/opcua-monitoring-broker:latest-dev"
+        env:
+          - name: IDENTIFIER
+            value:
+          - name: NAMESPACE_INDEX
+            value: "2"
+        resources:
+          limits:
+            "{{PLACEHOLDER}}" : "1"
+        volumeMounts:
+        - name: credentials
+          mountPath: "/etc/opcua-certs/client-pki"
+          readOnly: false
+      volumes:
       - name: credentials
-        mountPath: "/etc/opcua-certs/client-pki"
-        readOnly: false
-    volumes:
-    - name: credentials
-      secret:
-        secretName: opcua-broker-credentials
-        items:
-        - key: client_certificate
-          path: own/certs/AkriClient.der
-        - key: client_key
-          path: own/private/AkriClient.pfx
-        - key: ca_certificate
-          path: trusted/certs/AkriCA.der
-        - key: ca_crl
-          path: trusted/crl/AkriCA.crl
+        secret:
+          secretName: opcua-broker-credentials
+          items:
+          - key: client_certificate
+            path: own/certs/AkriClient.der
+          - key: client_key
+            path: own/private/AkriClient.pfx
+          - key: ca_certificate
+            path: trusted/certs/AkriCA.der
+          - key: ca_crl
+            path: trusted/crl/AkriCA.crl
   instanceServiceSpec:
     type: ClusterIP
     ports:

@@ -32,34 +32,68 @@ spec:
         items: []
         {{- end }}
       discoveryTimeoutSeconds: {{ .Values.onvif.configuration.discoveryDetails.discoveryTimeoutSeconds }}
-  {{- if .Values.onvif.configuration.brokerPod.image.repository }}
-  {{- /* Only add broker pod spec if a broker image is provided */}}
-  brokerPodSpec:
-    containers:
-    - name: {{ .Values.onvif.configuration.name }}-broker
-      image: {{ printf "%s:%s" .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerPod.image.tag | quote }}
-      {{- with .Values.onvif.configuration.brokerPod.image.pullPolicy }}
-      imagePullPolicy: {{ . }}
-      {{- end }}
-      {{- if .Values.onvif.configuration.brokerPod.env }}
-      env:
-        {{- range $key, $val := .Values.onvif.configuration.brokerPod.env }}
-        - name: {{ $key }}
-          value: {{ $val | quote }}
+  {{- if or .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerJob.image.repository }}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
+  brokerSpec:
+    {{- if .Values.onvif.configuration.brokerPod.image.repository }}
+    brokerPodSpec:
+      containers:
+      - name: {{ .Values.onvif.configuration.name }}-broker
+        image: {{ printf "%s:%s" .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerPod.image.tag | quote }}
+        {{- with .Values.onvif.configuration.brokerPod.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
         {{- end }}
+        {{- if .Values.onvif.configuration.brokerPod.env }}
+        env:
+          {{- range $key, $val := .Values.onvif.configuration.brokerPod.env }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.onvif.configuration.brokerPod.resources.memoryRequest }}
+            cpu: {{ .Values.onvif.configuration.brokerPod.resources.cpuRequest }}
+          limits:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.onvif.configuration.brokerPod.resources.memoryLimit }}
+            cpu: {{ .Values.onvif.configuration.brokerPod.resources.cpuLimit }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
       {{- end }}
-      resources:
-        requests:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.onvif.configuration.brokerPod.resources.memoryRequest }}
-          cpu: {{ .Values.onvif.configuration.brokerPod.resources.cpuRequest }}
-        limits:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.onvif.configuration.brokerPod.resources.memoryLimit }}
-          cpu: {{ .Values.onvif.configuration.brokerPod.resources.cpuLimit }}
-    {{- with .Values.imagePullSecrets }}
-    imagePullSecrets:
-      {{- toYaml . | nindent 6 }}
+    {{- else }}
+    brokerJobSpec:
+      template:
+        spec:
+          containers:
+          - name: {{ .Values.onvif.configuration.name }}-broker
+            image: {{ printf "%s:%s" .Values.onvif.configuration.brokerJob.image.repository .Values.onvif.configuration.brokerPod.image.tag | quote }}
+            {{- if .Values.onvif.configuration.brokerJob.command }}
+            command: 
+              {{- toYaml .Values.onvif.configuration.brokerJob.command | nindent 14 }}
+            {{- end }}
+            {{- with .Values.onvif.configuration.pullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
+            resources:
+              requests:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.onvif.configuration.brokerJob.resources.memoryRequest }}
+                cpu: {{ .Values.onvif.configuration.brokerJob.resources.cpuRequest }}
+              limits:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.onvif.configuration.brokerJob.resources.memoryLimit }}
+                cpu: {{ .Values.onvif.configuration.brokerJob.resources.cpuLimit }}
+          restartPolicy: {{ .Values.onvif.configuration.brokerJob.restartPolicy }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 6 }}
+          {{- end }}
+      backoffLimit: {{ .Values.onvif.configuration.brokerJob.backoffLimit }}
+      parallelism: {{ .Values.onvif.configuration.brokerJob.parallelism }}
+      completions: {{ .Values.onvif.configuration.brokerJob.completions }}
     {{- end }}
   {{- end }}
   {{- /* Only add service specs if a broker image was specified and service creation was not disabled */}}

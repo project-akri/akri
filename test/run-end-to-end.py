@@ -36,6 +36,8 @@ def main():
     --set agent.full=true \
     --set debugEcho.configuration.enabled=true \
     --set debugEcho.configuration.name={config_name} \
+    --set debugEcho.configuration.brokerPod.image.repository=nginx \
+    --set debugEcho.configuration.brokerPod.image.tag=stable-alpine \
     --set debugEcho.configuration.shared=false \
     --set debugEcho.configuration.discoveryDetails.descriptions[0]='{description_prefix}0' \
     --set debugEcho.configuration.discoveryDetails.descriptions[1]='{description_prefix}1' \

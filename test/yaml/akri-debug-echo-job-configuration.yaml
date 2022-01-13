@@ -1,21 +1,27 @@
 apiVersion: akri.sh/v0
 kind: Configuration
 metadata:
-  name: akri-debug-echo-foo
+  name: akri-debug-echo-fee
 spec:
   discoveryHandler: 
     name: debugEcho
     discoveryDetails: |+
         descriptions:
-        - "foo0"
-        - "foo1"
-  brokerPodSpec:
-    containers:
-    - name: akri-debug-echo-foo-broker
-      image: "nginx:latest"
-      resources:
-        limits:
-          "{{PLACEHOLDER}}" : "1"
+        - "fee0"
+        - "fee1"
+  brokerSpec:
+    brokerJobSpec:
+      template:
+        spec:
+          containers:
+          - name: akri-debug-echo-fee-broker
+            image: perl
+            command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            resources:
+              limits:
+                "{{PLACEHOLDER}}" : "1"
+          restartPolicy: OnFailure
+      backoffLimit: 4
   instanceServiceSpec:
     type: ClusterIP
     ports:

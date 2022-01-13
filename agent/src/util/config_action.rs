@@ -17,7 +17,7 @@ use futures::{StreamExt, TryStreamExt};
 use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
-use std::{collections::HashMap, option::Option, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex};
 
 type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
@@ -131,7 +131,7 @@ async fn handle_config(
         Event::Applied(config) => {
             info!(
                 "handle_config - added or modified Configuration {:?}",
-                config.metadata.name,
+                config.metadata.name.as_ref().unwrap(),
             );
             // Applied events can either be newly added Configurations or modified Configurations.
             // If modified delete all associated instances and device plugins and then recreate them to reflect updated config

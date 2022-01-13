@@ -1,0 +1,32 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: config-b
+  namespace: config-b-namespace
+  uid: e9fbe880-99da-47c1-bea3-5398f21ee747
+  generation: 1
+spec:
+  discoveryHandler: 
+    name: debugEcho
+    discoveryDetails: |+
+        descriptions:
+        - "filter1"
+        - "filter2"
+  brokerSpec:
+    brokerJobSpec:
+      template:
+        spec:
+          containers:
+          - name: akri-debug-echo-fee-broker
+            image: perl
+            command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            resources:
+              limits:
+                "{{PLACEHOLDER}}" : "1"
+          restartPolicy: Never
+      backoffLimit: 4
+  brokerProperties:
+    RESOLUTION_WIDTH: "800"
+    RESOLUTION_HEIGHT: "600"
+  capacity: 5
+  

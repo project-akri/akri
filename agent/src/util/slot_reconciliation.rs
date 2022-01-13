@@ -143,7 +143,11 @@ impl DevicePluginSlotReconciler {
                 .as_ref()
                 .unwrap_or(&Vec::new())
                 .iter()
-                .any(|condition| condition.type_ == "ContainersReady" && condition.status != "True")
+                .any(|condition| {
+                    condition.type_ == "ContainersReady"
+                        && condition.status != "True"
+                        && condition.reason != Some("PodCompleted".to_string())
+                })
         });
         if any_unready_pods {
             trace!("reconcile - Pods with unready Containers exist on this node, we can't clean the slots yet");

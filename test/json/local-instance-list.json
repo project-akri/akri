@@ -2,15 +2,24 @@
     "apiVersion": "v1",
     "items": [
         {
+            "apiVersion": "akri.sh/v0",
+            "kind": "Instance",
             "metadata": {
-                "name": "config-a-b494b6",
-                "namespace": "config-a-namespace",
+                "name": "config-b-b494b6",
+                "namespace": "config-b-namespace",
                 "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
             }, 
             "spec": {
-                "configurationName": "config-a",
+                "configurationName": "config-b",
                 "nodes": [ "node-a" ],
-                "shared": false
+                "shared": false,
+                "deviceUsage": {
+                    "config-b-b494b6-0":"",
+                    "config-b-b494b6-1":"",
+                    "config-b-b494b6-2":"",
+                    "config-b-b494b6-3":"",
+                    "config-b-b494b6-4":""
+                }
             }
         }
     ],

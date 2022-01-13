@@ -1,23 +1,22 @@
 use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
-    akri::{configuration::Configuration, instance::Instance, AKRI_PREFIX},
-    k8s,
+    akri::{configuration::BrokerSpec, instance::Instance, AKRI_PREFIX},
     k8s::{
-        pod,
+        self, job, pod,
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
         KubeInterface, OwnershipInfo, OwnershipType,
     },
 };
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::batch::v1::JobSpec;
+use k8s_openapi::api::core::v1::{Pod, PodSpec};
 use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
-
 /// Length of time a Pod can be pending before we give up and retry
 pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
 /// Length of time a Pod can be in an error state before we retry
@@ -25,8 +24,23 @@ pub const FAILED_POD_GRACE_PERIOD_MINUTES: i64 = 0;
 
 /// Instance action types
 ///
-/// Instance actions describe the types of actions the controller can
-/// react to for DeviceCapabiltiyInstances.
+/// Instance actions describe the types of actions the Controller can
+/// react to for Instances.
+///
+/// This will determine what broker management actions to take (if any)
+///
+///   | --> InstanceAction::Add
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => Deploy a Job
+///                 | --> <BrokerSpec::BrokerPodSpec> => Deploy Pod to each Node on Instance's `nodes` list (up to `capacity` total)
+///   | --> InstanceAction::Remove
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => Delete all Jobs labeled with the Instance name
+///                 | --> <BrokerSpec::BrokerPodSpec> => Delete all Pods labeled with the Instance name
+///   | --> InstanceAction::Update
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => No nothing
+///                 | --> <BrokerSpec::BrokerPodSpec> => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod
 ///
 #[derive(Clone, Debug, PartialEq)]
 pub enum InstanceAction {
@@ -143,11 +157,36 @@ async fn handle_instance(
 /// * the node is described by node_name
 /// * the protocol (or capability) is described by instance_name and namespace
 /// * what to do with the broker Pod is described by action
+// TODO: add Pod name so does not need to be
+// generated on deletes and remove Option wrappers.
 #[derive(Clone, Debug, PartialEq)]
-struct PodContext {
-    node_name: Option<String>,
+pub(crate) struct PodContext {
+    pub(crate) node_name: Option<String>,
     namespace: Option<String>,
     action: PodAction,
+}
+
+pub(crate) fn create_pod_context(k8s_pod: &Pod, action: PodAction) -> anyhow::Result<PodContext> {
+    let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
+    let labels = &k8s_pod
+        .metadata
+        .labels
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("no labels found for Pod {:?}", pod_name))?;
+    // Early exits above ensure unwrap will not panic
+    let node_to_run_pod_on = labels.get(AKRI_TARGET_NODE_LABEL_NAME).ok_or_else(|| {
+        anyhow::anyhow!(
+            "no {} label found for {:?}",
+            AKRI_TARGET_NODE_LABEL_NAME,
+            pod_name
+        )
+    })?;
+
+    Ok(PodContext {
+        node_name: Some(node_to_run_pod_on.to_string()),
+        namespace: k8s_pod.metadata.namespace.clone(),
+        action,
+    })
 }
 
 /// This finds what to do with a given broker Pod based on its current state and
@@ -157,60 +196,18 @@ fn determine_action_for_pod(
     k8s_pod: &Pod,
     action: &InstanceAction,
     nodes_to_act_on: &mut HashMap<String, PodContext>,
-) {
-    if k8s_pod.status.is_none() {
-        error!(
-            "determine_action_for_pod - no pod status found for {:?}",
-            &k8s_pod.metadata.name
-        );
-        return;
-    }
+) -> anyhow::Result<()> {
+    let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
+    let pod_phase = k8s_pod
+        .status
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No pod status found for Pod {:?}", pod_name))?
+        .phase
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No pod phase found for Pod {:?}", pod_name))?;
 
-    if k8s_pod.status.as_ref().unwrap().phase.is_none() {
-        error!(
-            "determine_action_for_pod - no pod phase found for {:?}",
-            &k8s_pod.metadata.name
-        );
-        return;
-    }
-
-    // Early exits above ensure unwrap will not panic
-    let pod_phase = k8s_pod.status.as_ref().unwrap().phase.as_ref().unwrap();
-    let labels = match &k8s_pod.metadata.labels {
-        Some(labels) => labels,
-        None => {
-            error!(
-                "determine_action_for_pod - no {} label found for {:?}",
-                AKRI_TARGET_NODE_LABEL_NAME, &k8s_pod.metadata.name
-            );
-            return;
-        }
-    };
-
-    if labels.get(AKRI_TARGET_NODE_LABEL_NAME).is_none() {
-        error!(
-            "determine_action_for_pod - no {} label found for {:?}",
-            AKRI_TARGET_NODE_LABEL_NAME, &k8s_pod.metadata.name
-        );
-        return;
-    }
-
-    // Early exits above ensure unwrap will not panic
-    let node_to_run_pod_on = labels.get(AKRI_TARGET_NODE_LABEL_NAME).unwrap();
-
-    if labels.get(AKRI_INSTANCE_LABEL_NAME).is_none() {
-        error!(
-            "determine_action_for_pod - no {} label found for {:?}",
-            AKRI_INSTANCE_LABEL_NAME, &k8s_pod.metadata.name
-        );
-        return;
-    }
-
-    let mut update_pod_context = PodContext {
-        node_name: Some(node_to_run_pod_on.to_string()),
-        namespace: k8s_pod.metadata.namespace.clone(),
-        action: PodAction::NoAction,
-    };
+    let mut update_pod_context = create_pod_context(k8s_pod, PodAction::NoAction)?;
+    let node_to_run_pod_on = update_pod_context.node_name.as_ref().unwrap();
 
     // Early exits above ensure unwrap will not panic
     let pod_start_time = k8s_pod.status.as_ref().unwrap().start_time.clone();
@@ -224,17 +221,9 @@ fn determine_action_for_pod(
         unknown_node: !nodes_to_act_on.contains_key(node_to_run_pod_on),
         trace_node_name: k8s_pod.metadata.name.clone().unwrap(),
     };
-    update_pod_context.action = match pod_action_info.select_pod_action() {
-        Ok(action) => action,
-        Err(e) => {
-            error!(
-                "determine_action_for_pod - failed ({}) to get pod action for {:?}",
-                e, update_pod_context
-            );
-            return;
-        }
-    };
+    update_pod_context.action = pod_action_info.select_pod_action()?;
     nodes_to_act_on.insert(node_to_run_pod_on.to_string(), update_pod_context);
+    Ok(())
 }
 
 /// This handles Instance deletion event by deleting the
@@ -264,15 +253,15 @@ async fn handle_deletion_work(
     })?;
 
     trace!(
-        "handle_deletion_work - pod::create_pod_app_name({:?}, {:?}, {:?}, {:?})",
+        "handle_deletion_work - pod::create_broker_app_name({:?}, {:?}, {:?}, {:?})",
         &instance_name,
         context_node_name,
         instance_shared,
         &"pod".to_string()
     );
-    let pod_app_name = pod::create_pod_app_name(
+    let pod_app_name = pod::create_broker_app_name(
         instance_name,
-        context_node_name,
+        Some(context_node_name),
         instance_shared,
         &"pod".to_string(),
     );
@@ -343,6 +332,8 @@ mod handle_deletion_work_tests {
 
 /// This handles Instance addition event by creating the
 /// broker Pod, the broker Service, and the capability Service.
+/// TODO: reduce parameters by passing Instance object instead of
+/// individual fields
 async fn handle_addition_work(
     instance_name: &str,
     instance_uid: &str,
@@ -350,65 +341,182 @@ async fn handle_addition_work(
     instance_class_name: &str,
     instance_shared: bool,
     new_node: &str,
-    instance_configuration: &Configuration,
+    podspec: &PodSpec,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!(
         "handle_addition_work - Create new Pod for Node={:?}",
         new_node
     );
+    let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
+    let new_pod = pod::create_new_pod_from_spec(
+        instance_namespace,
+        instance_name,
+        instance_class_name,
+        OwnershipInfo::new(
+            OwnershipType::Instance,
+            instance_name.to_string(),
+            instance_uid.to_string(),
+        ),
+        &capability_id,
+        &new_node.to_string(),
+        instance_shared,
+        podspec,
+    )?;
 
-    if let Some(broker_pod_spec) = &instance_configuration.spec.broker_pod_spec {
-        let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
-        let new_pod = pod::create_new_pod_from_spec(
-            instance_namespace,
-            instance_name,
-            instance_class_name,
-            OwnershipInfo::new(
-                OwnershipType::Instance,
-                instance_name.to_string(),
-                instance_uid.to_string(),
-            ),
-            &capability_id,
-            &new_node.to_string(),
-            instance_shared,
-            broker_pod_spec,
-        )?;
+    trace!("handle_addition_work - New pod spec={:?}", new_pod);
 
-        trace!("handle_addition_work - New pod spec={:?}", new_pod);
+    kube_interface
+        .create_pod(&new_pod, instance_namespace)
+        .await?;
+    trace!("handle_addition_work - pod::create_pod succeeded",);
+    BROKER_POD_COUNT_METRIC
+        .with_label_values(&[instance_class_name, new_node])
+        .inc();
 
-        kube_interface
-            .create_pod(&new_pod, instance_namespace)
-            .await?;
-        trace!("handle_addition_work - pod::create_pod succeeded",);
-        BROKER_POD_COUNT_METRIC
-            .with_label_values(&[instance_class_name, new_node])
-            .inc();
-    }
-    trace!("handle_addition_work - POST nodeInfo.SetNode \n");
     Ok(())
 }
 
-/// Handle Instance change by watching for node
-/// disappearances, starting broker Pods/Services that are missing,
-/// and stopping Pods/Services that are no longer needed.
+/// Handle Instance change by
+/// 1) checking to make sure the Instance's Configuration exists
+/// 2) calling the appropriate handler depending on the broker type (Pod or Job) if any
 pub async fn handle_instance_change(
     instance: &Instance,
     action: &InstanceAction,
     kube_interface: &impl KubeInterface,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change - enter {:?}", action);
-
     let instance_name = instance.metadata.name.clone().unwrap();
     let instance_namespace =
         instance.metadata.namespace.as_ref().ok_or_else(|| {
             anyhow::anyhow!("Namespace not found for instance: {}", &instance_name)
         })?;
+    let configuration = match kube_interface
+        .find_configuration(&instance.spec.configuration_name, instance_namespace)
+        .await
+    {
+        Ok(config) => config,
+        _ => {
+            if action != &InstanceAction::Remove {
+                // In this scenario, a configuration has been deleted without the Akri Agent deleting the associated Instances.
+                // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
+                // is designed to shutdown when it's Configuration watcher fails.
+                error!(
+                        "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
+                        &instance.spec.configuration_name, &instance.metadata.name
+                    );
+            }
+            return Ok(());
+        }
+    };
+    if let Some(broker_spec) = &configuration.spec.broker_spec {
+        match broker_spec {
+            BrokerSpec::BrokerPodSpec(p) => {
+                handle_instance_change_pod(instance, p, action, kube_interface).await
+            }
+            BrokerSpec::BrokerJobSpec(j) => {
+                handle_instance_change_job(
+                    instance.clone(),
+                    *configuration.metadata.generation.as_ref().unwrap(),
+                    j,
+                    action,
+                    kube_interface,
+                )
+                .await
+            }
+        }
+    } else {
+        Ok(())
+    }
+}
+
+/// Called when an Instance has changed that requires a Job broker. Action determined by InstanceAction.
+/// InstanceAction::Add =>  Deploy a Job with JobSpec from Configuration. Label with Instance name.
+/// InstanceAction::Remove => Delete all Jobs labeled with the Instance name
+/// InstanceAction::Update => No nothing
+pub async fn handle_instance_change_job(
+    instance: Instance,
+    config_generation: i64,
+    job_spec: &JobSpec,
+    action: &InstanceAction,
+    kube_interface: &impl KubeInterface,
+) -> anyhow::Result<()> {
+    trace!("handle_instance_change_job - enter {:?}", action);
+    // Create name for Job. Includes Configuration generation in the suffix
+    // to track what version of the Configuration the Job is associated with.
+    let job_name = pod::create_broker_app_name(
+        instance.metadata.name.as_ref().unwrap(),
+        None,
+        instance.spec.shared,
+        &format!("{}-job", config_generation),
+    );
+
+    let instance_name = instance.metadata.name.as_ref().unwrap();
+    let instance_namespace = instance.metadata.namespace.as_ref().unwrap();
     let instance_uid = instance
         .metadata
         .uid
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", &instance_name))?;
+    match action {
+        InstanceAction::Add => {
+            trace!("handle_instance_change_job - instance added");
+            let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
+            let new_job = job::create_new_job_from_spec(
+                &instance,
+                OwnershipInfo::new(
+                    OwnershipType::Instance,
+                    instance_name.to_string(),
+                    instance_uid.to_string(),
+                ),
+                &capability_id,
+                job_spec,
+                &job_name,
+            )?;
+            kube_interface
+                .create_job(&new_job, instance_namespace)
+                .await?;
+        }
+        InstanceAction::Remove => {
+            trace!("handle_instance_change_job - instance removed");
+            // Find all jobs with the label
+            let instance_jobs = kube_interface
+                .find_jobs_with_label(&format!("{}={}", AKRI_INSTANCE_LABEL_NAME, instance_name))
+                .await?;
+            let delete_tasks = instance_jobs.into_iter().map(|j| async move {
+                kube_interface
+                    .remove_job(
+                        j.metadata.name.as_ref().unwrap(),
+                        j.metadata.namespace.as_ref().unwrap(),
+                    )
+                    .await
+            });
+
+            futures::future::try_join_all(delete_tasks).await?;
+        }
+        InstanceAction::Update => {
+            trace!("handle_instance_change_job - instance updated");
+            // TODO: Broker could have encountered unexpected admission error and need to be removed and added
+        }
+    }
+    Ok(())
+}
+
+/// Called when an Instance has changed that requires a Pod broker.
+/// Action determined by InstanceAction and changes to the Instance's `nodes` list.
+/// Starts broker Pods that are missing and stops Pods that are no longer needed.
+/// InstanceAction::Add =>  Deploy Pod to each Node on Instance's `nodes` list (up to `capacity` total)
+/// InstanceAction::Remove => Delete all Pods labeled with the Instance name
+/// InstanceAction::Update => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod
+pub async fn handle_instance_change_pod(
+    instance: &Instance,
+    podspec: &PodSpec,
+    action: &InstanceAction,
+    kube_interface: &impl KubeInterface,
+) -> anyhow::Result<()> {
+    trace!("handle_instance_change_pod - enter {:?}", action);
+
+    let instance_name = instance.metadata.name.clone().unwrap();
 
     // If InstanceAction::Remove, assume all nodes require PodAction::NoAction (reflect that there is no running Pod unless we find one)
     // Otherwise, assume all nodes require PodAction::Add (reflect that there is no running Pod, unless we find one)
@@ -456,18 +564,31 @@ pub async fn handle_instance_change(
     instance_pods
         .items
         .iter()
-        .for_each(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on));
+        .try_for_each(|x| determine_action_for_pod(x, action, &mut nodes_to_act_on))?;
+
     trace!(
         "handle_instance_change - nodes tracked after querying existing pods={:?}",
         nodes_to_act_on
     );
+    do_pod_action_for_nodes(nodes_to_act_on, instance, podspec, kube_interface).await?;
+    trace!("handle_instance_change - exit");
 
+    Ok(())
+}
+
+pub(crate) async fn do_pod_action_for_nodes(
+    nodes_to_act_on: HashMap<String, PodContext>,
+    instance: &Instance,
+    podspec: &PodSpec,
+    kube_interface: &impl KubeInterface,
+) -> anyhow::Result<()> {
+    trace!("do_pod_action_for_nodes - enter");
     // Iterate over nodes_to_act_on where value == (PodAction::Remove | PodAction::RemoveAndAdd)
     for (node_to_delete_pod, context) in nodes_to_act_on.iter().filter(|&(_, v)| {
         ((v.action) == PodAction::Remove) | ((v.action) == PodAction::RemoveAndAdd)
     }) {
         handle_deletion_work(
-            &instance_name,
+            instance.metadata.name.as_ref().unwrap(),
             &instance.spec.configuration_name,
             instance.spec.shared,
             node_to_delete_pod,
@@ -489,54 +610,20 @@ pub async fn handle_instance_change(
         })
         .collect::<Vec<String>>();
 
-    let instance_configuration_option = if !nodes_to_add.is_empty() {
-        // Only retrieve Config if needed
-        trace!(
-            "handle_instance_change - find configuration for {:?}",
-            &instance.spec.configuration_name
-        );
-        let instance_configuration = match kube_interface
-            .find_configuration(&instance.spec.configuration_name, instance_namespace)
-            .await
-        {
-            Ok(config) => config,
-            _ => {
-                // In this scenario, a configuration has been deleted without a Akri Agent deleting the associated Instances.
-                // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
-                // is designed to shutdown when it's Configuration watcher fails.
-                error!(
-                    "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running propertly",
-                    &instance.spec.configuration_name, &instance.metadata.name
-                );
-                return Ok(());
-            }
-        };
-        trace!(
-            "handle_instance_change - found configuration for {:?}",
-            &instance_configuration.metadata.name
-        );
-        Some(instance_configuration)
-    } else {
-        None
-    };
-
     // Iterate over nodes_to_act_on where value == (PodAction::Add | PodAction::RemoveAndAdd)
     for new_node in nodes_to_add {
         handle_addition_work(
-            &instance_name,
-            instance_uid,
-            instance_namespace,
+            instance.metadata.name.as_ref().unwrap(),
+            instance.metadata.uid.as_ref().unwrap(),
+            instance.metadata.namespace.as_ref().unwrap(),
             &instance.spec.configuration_name,
             instance.spec.shared,
             &new_node,
-            instance_configuration_option.as_ref().unwrap(),
+            podspec,
             kube_interface,
         )
         .await?;
     }
-
-    trace!("handle_instance_change - exit");
-
     Ok(())
 }
 
@@ -643,14 +730,29 @@ mod handle_instance_tests {
         find_pods_phase: Option<&'static str>,
         find_pods_start_time: Option<DateTime<Utc>>,
         find_pods_delete_start_time: bool,
+        config_work: HandleConfigWork,
         deletion_work: Option<HandleDeletionWork>,
         addition_work: Option<HandleAdditionWork>,
+    }
+
+    #[derive(Clone)]
+    struct HandleConfigWork {
+        find_config_name: &'static str,
+        find_config_namespace: &'static str,
+        find_config_result: &'static str,
     }
 
     fn configure_for_handle_instance_change(
         mock: &mut MockKubeInterface,
         work: &HandleInstanceWork,
     ) {
+        config_for_tests::configure_find_config(
+            mock,
+            work.config_work.find_config_name,
+            work.config_work.find_config_namespace,
+            work.config_work.find_config_result,
+            false,
+        );
         if let Some(phase) = work.find_pods_phase {
             if let Some(start_time) = work.find_pods_start_time {
                 configure_find_pods_with_phase_and_start_time(
@@ -689,13 +791,6 @@ mod handle_instance_tests {
         }
 
         if let Some(addition_work) = &work.addition_work {
-            config_for_tests::configure_find_config(
-                mock,
-                addition_work.find_config_name,
-                addition_work.find_config_namespace,
-                addition_work.find_config_result,
-                false,
-            );
             configure_for_handle_addition_work(mock, addition_work);
         }
     }
@@ -734,9 +829,6 @@ mod handle_instance_tests {
 
     #[derive(Clone)]
     struct HandleAdditionWork {
-        find_config_name: &'static str,
-        find_config_namespace: &'static str,
-        find_config_result: &'static str,
         new_pod_names: Vec<&'static str>,
         new_pod_instance_names: Vec<&'static str>,
         new_pod_namespaces: Vec<&'static str>,
@@ -744,20 +836,20 @@ mod handle_instance_tests {
 
     fn configure_add_shared_config_a_359973(pod_name: &'static str) -> HandleAdditionWork {
         HandleAdditionWork {
-            find_config_name: "config-a",
-            find_config_namespace: "config-a-namespace",
-            find_config_result: "../test/json/config-a.json",
             new_pod_names: vec![pod_name],
             new_pod_instance_names: vec!["config-a-359973"],
             new_pod_namespaces: vec!["config-a-namespace"],
         }
     }
-
-    fn configure_add_local_config_a_b494b6() -> HandleAdditionWork {
-        HandleAdditionWork {
+    fn get_config_work() -> HandleConfigWork {
+        HandleConfigWork {
             find_config_name: "config-a",
             find_config_namespace: "config-a-namespace",
             find_config_result: "../test/json/config-a.json",
+        }
+    }
+    fn configure_add_local_config_a_b494b6() -> HandleAdditionWork {
+        HandleAdditionWork {
             new_pod_names: vec!["config-a-b494b6-pod"],
             new_pod_instance_names: vec!["config-a-b494b6"],
             new_pod_namespaces: vec!["config-a-namespace"],
@@ -841,6 +933,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: None,
                 addition_work: Some(configure_add_local_config_a_b494b6()),
             },
@@ -866,6 +959,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: Some(configure_deletion_work_for_config_a_b494b6()),
                 addition_work: None,
             },
@@ -891,6 +985,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: None,
                 addition_work: Some(configure_add_shared_config_a_359973(
                     "node-a-config-a-359973-pod",
@@ -918,6 +1013,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: Some(configure_deletion_work_for_config_a_359973()),
                 addition_work: None,
             },
@@ -943,6 +1039,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: Some(configure_deletion_work_for_config_a_359973()),
                 addition_work: Some(configure_add_shared_config_a_359973(
                     "node-b-config-a-359973-pod",
@@ -998,6 +1095,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: Some(configure_deletion_work_for_config_a_359973()),
                 addition_work: Some(configure_add_shared_config_a_359973(
                     "node-b-config-a-359973-pod",
@@ -1030,6 +1128,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: None,
                 addition_work: Some(configure_add_local_config_a_b494b6()),
             },
@@ -1057,6 +1156,7 @@ mod handle_instance_tests {
                 find_pods_phase: None,
                 find_pods_start_time: None,
                 find_pods_delete_start_time: false,
+                config_work: get_config_work(),
                 deletion_work: Some(configure_deletion_work_for_config_a_b494b6()),
                 addition_work: None,
             },

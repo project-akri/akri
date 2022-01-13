@@ -19,55 +19,90 @@ spec:
         {{- else }}
         items: []
         {{- end }}
-  {{- if .Values.opcua.configuration.brokerPod.image.repository }}
-  {{- /* Only add broker pod spec if a broker image is provided */}}
-  brokerPodSpec:
-    containers:
-    - name: {{ .Values.opcua.configuration.name }}-broker
-      image: {{ printf "%s:%s" .Values.opcua.configuration.brokerPod.image.repository .Values.opcua.configuration.brokerPod.image.tag | quote }}
-      {{- with .Values.opcua.configuration.brokerPod.image.pullPolicy }}
-      imagePullPolicy: {{ . }}
-      {{- end }}
-      {{- if .Values.opcua.configuration.brokerPod.env }}
-      env:
-        {{- range $key, $val := .Values.opcua.configuration.brokerPod.env }}
-        - name: {{ $key }}
-          value: {{ $val | quote }}
+  
+  {{- if or .Values.opcua.configuration.brokerPod.image.repository .Values.opcua.configuration.brokerJob.image.repository }}
+  {{- /* Only add brokerSpec if a broker image is provided */}}
+  brokerSpec:
+    {{- if .Values.opcua.configuration.brokerPod.image.repository }}
+    brokerPodSpec:
+      containers:
+      - name: {{ .Values.opcua.configuration.name }}-broker
+        image: {{ printf "%s:%s" .Values.opcua.configuration.brokerPod.image.repository .Values.opcua.configuration.brokerPod.image.tag | quote }}
+        {{- with .Values.opcua.configuration.brokerPod.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
         {{- end }}
+        {{- if .Values.opcua.configuration.brokerPod.env }}
+        env:
+          {{- range $key, $val := .Values.opcua.configuration.brokerPod.env }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
+        resources:
+          requests:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryRequest }}
+            cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuRequest }}
+          limits:
+            {{`"{{PLACEHOLDER}}"`}} : "1"
+            memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
+            cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
+        {{- if .Values.opcua.configuration.mountCertificates}}
+        volumeMounts:
+        - name: credentials
+          mountPath: "/etc/opcua-certs/client-pki"
+          readOnly: false
+        {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 6 }}
       {{- end }}
-      resources:
-        requests:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryRequest }}
-          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuRequest }}
-        limits:
-          {{`"{{PLACEHOLDER}}"`}} : "1"
-          memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
-          cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
-      {{- if .Values.opcua.configuration.mountCertificates}}
-      volumeMounts:
+      {{- if .Values.opcua.configuration.mountCertificates }}
+      volumes:
       - name: credentials
-        mountPath: "/etc/opcua-certs/client-pki"
-        readOnly: false
+        secret:
+          secretName: opcua-broker-credentials
+          items:
+          - key: client_certificate
+            path: own/certs/AkriBroker.der
+          - key: client_key
+            path: own/private/AkriBroker.pfx
+          - key: ca_certificate
+            path: trusted/certs/SomeCA.der
+          - key: ca_crl
+            path: trusted/crl/SomeCA.crl
       {{- end }}
-    {{- with .Values.imagePullSecrets }}
-    imagePullSecrets:
-      {{- toYaml . | nindent 6 }}
-    {{- end }}
-    {{- if .Values.opcua.configuration.mountCertificates }}
-    volumes:
-    - name: credentials
-      secret:
-        secretName: opcua-broker-credentials
-        items:
-        - key: client_certificate
-          path: own/certs/AkriBroker.der
-        - key: client_key
-          path: own/private/AkriBroker.pfx
-        - key: ca_certificate
-          path: trusted/certs/SomeCA.der
-        - key: ca_crl
-          path: trusted/crl/SomeCA.crl
+    {{- else }}
+    brokerJobSpec:
+      template:
+        spec:
+          containers:
+          - name: {{ .Values.opcua.configuration.name }}-broker
+            image: {{ printf "%s:%s" .Values.opcua.configuration.brokerJob.image.repository .Values.opcua.configuration.brokerPod.image.tag | quote }}
+            {{- if .Values.opcua.configuration.brokerJob.command }}
+            command: 
+              {{- toYaml .Values.opcua.configuration.brokerJob.command | nindent 14 }}
+            {{- end }}
+            {{- with .Values.opcua.configuration.pullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
+            resources:
+              requests:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.opcua.configuration.brokerJob.resources.memoryRequest }}
+                cpu: {{ .Values.opcua.configuration.brokerJob.resources.cpuRequest }}
+              limits:
+                {{`"{{PLACEHOLDER}}"`}} : "1"
+                memory: {{ .Values.opcua.configuration.brokerJob.resources.memoryLimit }}
+                cpu: {{ .Values.opcua.configuration.brokerJob.resources.cpuLimit }}
+          restartPolicy: {{ .Values.opcua.configuration.brokerJob.restartPolicy }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 6 }}
+          {{- end }}
+      backoffLimit: {{ .Values.opcua.configuration.brokerJob.backoffLimit }}
+      parallelism: {{ .Values.opcua.configuration.brokerJob.parallelism }}
+      completions: {{ .Values.opcua.configuration.brokerJob.completions }}
     {{- end }}
   {{- end }}
   {{- /* Only add service specs if a broker image was specified and service

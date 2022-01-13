@@ -158,6 +158,42 @@ custom:
         memoryLimit: 24Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 24m
+    brokerJob: 
+      # container used by custom
+      image:
+        # repository is the custom broker container reference
+        repository: 
+        # tag is the custom broker image tag
+        tag: latest
+        # pullPolicy is the custom pull policy
+        pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set custom.configuration.brokerJob.command[0]="sh" \
+      # --set custom.configuration.brokerJob.command[1]="-c" \
+      # --set custom.configuration.brokerJob.command[2]="echo 'Hello World'"
+      command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
+      restartPolicy: OnFailure
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 11Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 24Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 24m
+      # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
+      backoffLimit: 2
+      # parallelism defines how many Pods of a Job should run in parallel. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs
+      parallelism: 1
+      # completions defines how many Pods of a Job should successfully complete. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job
+      completions: 1
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -241,9 +277,9 @@ debugEcho:
       # container used by debugEcho
       image:
         # repository is the debugEcho broker container reference
-        repository: nginx
+        repository:
         # tag is the debugEcho broker image tag
-        tag: stable-alpine
+        tag: latest
         # pullPolicy is the debugEcho pull policy
         pullPolicy: ""
       resources:
@@ -257,6 +293,42 @@ debugEcho:
         memoryLimit: 30Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 29m
+    brokerJob: 
+      # container used by debugEcho
+      image:
+        # repository is the debugEcho broker container reference
+        repository: 
+        # tag is the debugEcho broker image tag
+        tag: latest
+        # pullPolicy is the debugEcho pull policy
+        pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set debugEcho.configuration.brokerJob.command[0]="sh" \
+      # --set debugEcho.configuration.brokerJob.command[1]="-c" \
+      # --set debugEcho.configuration.brokerJob.command[2]="echo 'Hello World'" \
+      command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
+      restartPolicy: OnFailure
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
+      # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
+      backoffLimit: 2
+      # parallelism defines how many Pods of a Job should run in parallel. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs
+      parallelism: 1
+      # completions defines how many Pods of a Job should successfully complete. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job
+      completions: 1
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -361,6 +433,42 @@ onvif:
         memoryLimit: 400Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 2800m
+    brokerJob: 
+      # container used by onvif
+      image:
+        # repository is the onvif broker container reference
+        repository: 
+        # tag is the onvif broker image tag
+        tag: latest
+        # pullPolicy is the onvif pull policy
+        pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set onvif.configuration.brokerJob.command[0]="sh" \
+      # --set onvif.configuration.brokerJob.command[1]="-c" \
+      # --set onvif.configuration.brokerJob.command[2]="echo 'Hello World'"
+      command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
+      restartPolicy: OnFailure
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 98Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 134m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 400Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 2800m
+      # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
+      backoffLimit: 2
+      # parallelism defines how many Pods of a Job should run in parallel. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs
+      parallelism: 1
+      # completions defines how many Pods of a Job should successfully complete. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job
+      completions: 1
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -472,6 +580,42 @@ opcua:
         memoryLimit: 200Mi
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 30m
+    brokerJob: 
+      # container used by opcua
+      image:
+        # repository is the opcua broker container reference
+        repository: 
+        # tag is the opcua broker image tag
+        tag: latest
+        # pullPolicy is the opcua pull policy
+        pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set opcua.configuration.brokerJob.command[0]="sh" \
+      # --set opcua.configuration.brokerJob.command[1]="-c" \
+      # --set opcua.configuration.brokerJob.command[2]="echo 'Hello World'"
+      command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
+      restartPolicy: OnFailure
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 76Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 9m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 200Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 30m
+      # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
+      backoffLimit: 2
+      # parallelism defines how many Pods of a Job should run in parallel. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs
+      parallelism: 1
+      # completions defines how many Pods of a Job should successfully complete. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job
+      completions: 1
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true
@@ -570,6 +714,42 @@ udev:
         # cpuLimit defines the maximum amount of CPU this Pod can consume.
         cpuLimit: 29m
       securityContext: {}
+    brokerJob: 
+      # container used by udev
+      image:
+        # repository is the udev broker container reference
+        repository: 
+        # tag is the udev broker image tag
+        tag: latest
+        # pullPolicy is the udev pull policy
+        pullPolicy: ""
+      # command to be executed in the Pod. An array of arguments. Can be set like:
+      # --set udev.configuration.brokerJob.command[0]="sh" \
+      # --set udev.configuration.brokerJob.command[1]="-c" \
+      # --set udev.configuration.brokerJob.command[2]="echo 'Hello World'"
+      command:
+      # restartPolicy for the Job. Can either be OnFailure or Never.
+      restartPolicy: OnFailure
+      resources:
+        # memoryRequest defines the minimum amount of RAM that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        memoryRequest: 10Mi
+        # cpuRequest defines the minimum amount of CPU that must be available to this Pod
+        # for it to be scheduled by the Kubernetes Scheduler
+        cpuRequest: 10m
+        # memoryLimit defines the maximum amount of RAM this Pod can consume.
+        memoryLimit: 30Mi
+        # cpuLimit defines the maximum amount of CPU this Pod can consume.
+        cpuLimit: 29m
+      # backoffLimit defines the Kubernetes Job backoff failure policy. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
+      backoffLimit: 2
+      # parallelism defines how many Pods of a Job should run in parallel. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs
+      parallelism: 1
+      # completions defines how many Pods of a Job should successfully complete. More info:
+      # https://kubernetes.io/docs/concepts/workloads/controllers/job
+      completions: 1
     # createInstanceServices is specified if a service should automatically be
     # created for each broker pod
     createInstanceServices: true

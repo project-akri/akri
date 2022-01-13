@@ -24,10 +24,17 @@ spec:
                       type: string
                 capacity:
                   type: integer
-                brokerPodSpec: # {{PodSpec}}
-                  x-kubernetes-preserve-unknown-fields: true
+                brokerSpec: # {{BrokerSpec}}
                   type: object
-                  nullable: true
+                  properties: 
+                    brokerJobSpec: # {{JobSpec}}
+                      x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                      nullable: true
+                    brokerPodSpec: # {{PodSpec}}
+                      x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                      nullable: true
                 instanceServiceSpec: # {{ServiceSpec}}
                   x-kubernetes-preserve-unknown-fields: true
                   type: object

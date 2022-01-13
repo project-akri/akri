@@ -8,24 +8,25 @@ spec:
     discoveryDetails: |+
         udevRules:
         -  'KERNEL=="video[0-9]*"'
-  brokerPodSpec:
-    containers:
-    - name: akri-udev-video-broker
-      image: "ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
-      env: 
-        - name: FORMAT # default: MJPG
-          value: "YUYV"
-        - name: RESOLUTION_WIDTH # default: 640
-          value: "1280"
-        - name: RESOLUTION_HEIGHT # default: 480
-          value: "720"
-        - name: FRAMES_PER_SECOND # default: 10
-          value: "20"
-      securityContext:
-        privileged: true
-      resources:
-        limits:
-          "{{PLACEHOLDER}}" : "1"
+  brokerSpec:
+    brokerPodSpec:
+      containers:
+      - name: akri-udev-video-broker
+        image: "ghcr.io/project-akri/akri/udev-video-broker:latest-dev"
+        env:
+          - name: FORMAT # default: MJPG
+            value: "YUYV"
+          - name: RESOLUTION_WIDTH # default: 640
+            value: "1280"
+          - name: RESOLUTION_HEIGHT # default: 480
+            value: "720"
+          - name: FRAMES_PER_SECOND # default: 10
+            value: "20"
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            "{{PLACEHOLDER}}" : "1"
   instanceServiceSpec:
     ports:
     - name: grpc

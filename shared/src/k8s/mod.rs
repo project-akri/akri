@@ -7,10 +7,12 @@ use super::akri::{
     API_NAMESPACE, API_VERSION,
 };
 use async_trait::async_trait;
+use k8s_openapi::api::batch::v1::Job;
 use k8s_openapi::api::core::v1::{Node, Pod, Service};
 use kube::{api::ObjectList, client::Client};
 use mockall::{automock, predicate::*};
 
+pub mod job;
 pub mod node;
 pub mod pod;
 pub mod service;
@@ -96,6 +98,11 @@ pub trait KubeInterface: Send + Sync {
     async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error>;
     async fn create_pod(&self, pod_to_create: &Pod, namespace: &str) -> Result<(), anyhow::Error>;
     async fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
+
+    async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error>;
+    async fn find_jobs_with_field(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error>;
+    async fn create_job(&self, job_to_create: &Job, namespace: &str) -> Result<(), anyhow::Error>;
+    async fn remove_job(&self, job_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error>;
 
     async fn find_services(&self, selector: &str) -> Result<ObjectList<Service>, anyhow::Error>;
     async fn create_service(
@@ -248,6 +255,77 @@ impl KubeInterface for KubeImpl {
     /// ```
     async fn remove_pod(&self, pod_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error> {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
+    }
+
+    /// Find Kuberenetes Jobs with specified label selector
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// let interesting_jobs = kube.find_jobs_with_label("label=interesting").await.unwrap();
+    /// # }
+    /// ```
+    async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
+        job::find_jobs_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
+    }
+    /// Find Kuberenetes Jobs with specified field selector
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// let jobs_on_node_a = kube.find_jobs_with_field("spec.nodeName=node-a").await.unwrap();
+    /// # }
+    /// ```
+    async fn find_jobs_with_field(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
+        job::find_jobs_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
+    }
+
+    /// Create Kuberenetes job
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    /// use k8s_openapi::api::batch::v1::Job;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// kube.create_job(&Job::default(), "job_namespace").await.unwrap();
+    /// # }
+    /// ```
+    async fn create_job(&self, job_to_create: &Job, namespace: &str) -> Result<(), anyhow::Error> {
+        job::create_job(job_to_create, namespace, self.get_kube_client()).await
+    }
+    /// Remove Kubernetes job
+    ///
+    /// Example:
+    ///
+    /// ```no_run
+    /// use akri_shared::k8s;
+    /// use akri_shared::k8s::KubeInterface;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let kube = k8s::KubeImpl::new().await.unwrap();
+    /// kube.remove_job("job_to_remove", "job_namespace").await.unwrap();
+    /// # }
+    /// ```
+    async fn remove_job(&self, job_to_remove: &str, namespace: &str) -> Result<(), anyhow::Error> {
+        job::remove_job(job_to_remove, namespace, self.get_kube_client()).await
     }
 
     /// Get Kuberenetes services with specified label selector
@@ -415,6 +493,7 @@ impl KubeInterface for KubeImpl {
     async fn get_instances(&self) -> Result<InstanceList, anyhow::Error> {
         instance::get_instances(&self.get_kube_client()).await
     }
+
     /// Create Akri Instance
     ///
     /// Example:

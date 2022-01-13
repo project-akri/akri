@@ -245,8 +245,8 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use actix_web::test;
-
-    const VALID: &str = r#"
+    const BROKER_SPEC_INSERTION_KEYWORD: &str = "INSERT_BROKER_SPEC_HERE";
+    const ADMISSION_REVIEW: &str = r#"
     {
         "kind": "AdmissionReview",
         "apiVersion": "admission.k8s.io/v1",
@@ -299,26 +299,9 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "descriptions:\n- \"foo0\"\n- \"foo1\"\n"
                     },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name",
-                                "resources": {
-                                    "limits": {
-                                        "{{PLACEHOLDER}}": "1"
-                                    }
-                                }
-                            }
-                        ],
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
-                    },
-                    "capacity": 1,
-                    "brokerProperties": {}
+                    "brokerSpec": {
+                        INSERT_BROKER_SPEC_HERE
+                    }
                 }
             },
             "oldObject": null,
@@ -328,14 +311,9 @@ mod tests {
                 "apiVersion": "meta.k8s.io/v1"
             }
         }
-    }
-    "#;
+    }"#;
 
-    // Valid JSON but invalid akri.sh/v0/Configuration
-    // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerPodSpec.containers[*].resources
-    // Invalid: .request.object.spec.brokerPodSpec.resources
-    const INVALID: &str = r#"
+    const EXTENDED_ADMISSION_REVIEW: &str = r#"
     {
         "kind": "AdmissionReview",
         "apiVersion": "admission.k8s.io/v1",
@@ -388,107 +366,8 @@ mod tests {
                         "name": "debugEcho",
                         "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
                     },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name"
-                            }
-                        ],
-                        "resources": {
-                            "limits": {
-                                "{{PLACEHOLDER}}": "1"
-                            }
-                        },
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
-                    },
-                    "capacity": 1
-                }
-            },
-            "oldObject": null,
-            "dryRun": false,
-            "options": {
-                "kind": "CreateOptions",
-                "apiVersion": "meta.k8s.io/v1"
-            }
-        }
-    }
-    "#;
-
-    const EXTENDED: &str = r#"
-    {
-        "kind": "AdmissionReview",
-        "apiVersion": "admission.k8s.io/v1",
-        "request": {
-            "uid": "00000000-0000-0000-0000-000000000000",
-            "kind": {
-                "group": "akri.sh",
-                "version": "v0",
-                "kind": "Configuration"
-            },
-            "resource": {
-                "group": "akri.sh",
-                "version": "v0",
-                "resource": "configurations"
-            },
-            "requestKind": {
-                "group": "akri.sh",
-                "version": "v0",
-                "kind": "Configuration"
-            },
-            "requestResource": {
-                "group": "akri.sh",
-                "version": "v0",
-                "resource": "configurations"
-            },
-            "name": "name",
-            "namespace": "default",
-            "operation": "CREATE",
-            "userInfo": {
-                "username": "admin",
-                "uid": "admin",
-                "groups": []
-            },
-            "object": {
-                "apiVersion": "akri.sh/v0",
-                "kind": "Configuration",
-                "metadata": {
-                    "annotations": {
-                        "kubectl.kubernetes.io/last-applied-configuration": ""
-                    },
-                    "creationTimestamp": "2021-01-01T00:00:00Z",
-                    "generation": 1,
-                    "managedFields": [],
-                    "name": "name",
-                    "namespace": "default",
-                    "uid": "00000000-0000-0000-0000-000000000000"
-                },
-                "spec": {
-                    "discoveryHandler": {
-                        "name": "debugEcho",
-                        "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
-                    },
-                    "brokerPodSpec": {
-                        "containers": [
-                            {
-                                "image": "image",
-                                "name": "name",
-                                "resources": {
-                                    "limits": {
-                                        "{{PLACEHOLDER}}": "1"
-                                    }
-                                }
-                            }
-                        ],
-                        "imagePullSecrets": [
-                            {
-                                "name": "name"
-                            }
-                        ]
+                    "brokerSpec": {
+                        INSERT_BROKER_SPEC_HERE
                     },
                     "instanceServiceSpec": {
                         "type": "ClusterIP",
@@ -518,8 +397,110 @@ mod tests {
                 "apiVersion": "meta.k8s.io/v1"
             }
         }
-    }
-    "#;
+    }"#;
+
+    const VALID_BROKER_POD_SPEC: &str = r#"
+    "brokerPodSpec": {
+        "containers": [
+            {
+                "image": "image",
+                "name": "name",
+                "resources": {
+                    "limits": {
+                        "{{PLACEHOLDER}}": "1"
+                    }
+                }
+            }
+        ],
+        "imagePullSecrets": [
+            {
+                "name": "name"
+            }
+        ]
+    }"#;
+
+    // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
+    // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
+    // Misplaced `resources`
+    //   Valid: .request.object.spec.brokerSpec.brokerPodSpec.containers[*].resources
+    // Invalid: .request.object.spec.brokerSpec.brokerPodSpec.resources
+    const INVALID_BROKER_POD_SPEC: &str = r#"
+    "brokerPodSpec": {
+        "containers": [
+            {
+                "image": "image",
+                "name": "name"
+            }
+        ],
+        "resources": {
+            "limits": {
+                "{{PLACEHOLDER}}": "1"
+            }
+        },
+        "imagePullSecrets": [
+            {
+                "name": "name"
+            }
+        ]
+    }"#;
+
+    const VALID_BROKER_JOB_SPEC: &str = r#"
+    "brokerJobSpec": {
+        "template": {
+            "spec": {
+                "containers": [
+                    {
+                        "image": "image",
+                        "name": "name",
+                        "resources": {
+                            "limits": {
+                                "{{PLACEHOLDER}}": "1"
+                            }
+                        }
+                    }
+                ],
+                "imagePullSecrets": [
+                    {
+                        "name": "name"
+                    }
+                ]
+            }
+        }
+    }"#;
+
+    // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
+    // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
+    // Misplaced `resources`
+    //   Valid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.containers[*].resources
+    // Invalid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.resources
+    const INVALID_BROKER_JOB_SPEC: &str = r#"
+    "brokerJobSpec": {
+        "template": {
+            "spec": {
+                "containers": [
+                    {
+                        "image": "image",
+                        "name": "name",
+                        "resources": {
+                            "limits": {
+                                "{{PLACEHOLDER}}": "1"
+                            }
+                        }
+                    }
+                ],
+                "resources": {
+                    "limits": {
+                        "{{PLACEHOLDER}}": "1"
+                    }
+                },
+                "imagePullSecrets": [
+                    {
+                        "name": "name"
+                    }
+                ]
+            }
+        }
+    }"#;
 
     const METADATA: &str = r#"
     {
@@ -537,8 +518,36 @@ mod tests {
             "uid": "00000000-0000-0000-0000-000000000000"
         },
         "spec": {}
+    }"#;
+
+    fn get_valid_admission_review_with_broker_pod_spec() -> String {
+        ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, VALID_BROKER_POD_SPEC)
     }
-    "#;
+
+    fn get_invalid_admission_review_with_broker_pod_spec() -> String {
+        ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, INVALID_BROKER_POD_SPEC)
+    }
+
+    fn get_extended_admission_review_with_broker_pod_spec() -> String {
+        EXTENDED_ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, VALID_BROKER_POD_SPEC)
+    }
+
+    fn get_valid_admission_review_with_broker_job_spec() -> String {
+        ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, VALID_BROKER_JOB_SPEC)
+    }
+
+    fn get_invalid_admission_review_with_broker_job_spec() -> String {
+        ADMISSION_REVIEW.replace(BROKER_SPEC_INSERTION_KEYWORD, INVALID_BROKER_JOB_SPEC)
+    }
+
+    fn get_invalid_admission_review_with_broker_job_and_pod_spec() -> String {
+        let invalid_setting_both_broker_job_and_pod =
+            format!("{},\n{}", VALID_BROKER_JOB_SPEC, VALID_BROKER_POD_SPEC);
+        ADMISSION_REVIEW.replace(
+            BROKER_SPEC_INSERTION_KEYWORD,
+            &invalid_setting_both_broker_job_and_pod,
+        )
+    }
 
     // JSON Syntax Tests
     #[test]
@@ -718,35 +727,71 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_configuration_valid() {
-        let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
+    fn test_validate_configuration_valid_podspec() {
+        let valid: AdmissionReview =
+            serde_json::from_str(&get_valid_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, true);
     }
 
     #[test]
-    fn test_validate_configuration_invalid() {
+    fn test_validate_configuration_valid_jobspec() {
+        let valid: AdmissionReview =
+            serde_json::from_str(&get_valid_admission_review_with_broker_job_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = valid.request.expect("v1.AdmissionRequest JSON");
+        let resp = validate_configuration(&rqst);
+        assert_eq!(resp.allowed, true);
+    }
+
+    #[test]
+    fn test_validate_configuration_invalid_podspec() {
         let invalid: AdmissionReview =
-            serde_json::from_str(INVALID).expect("v1.AdmissionReview JSON");
+            serde_json::from_str(&get_invalid_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
         let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, false);
     }
 
     #[test]
+    fn test_validate_configuration_invalid_jobspec() {
+        let invalid: AdmissionReview =
+            serde_json::from_str(&get_invalid_admission_review_with_broker_job_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
+        let resp = validate_configuration(&rqst);
+        assert_eq!(resp.allowed, false);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_invalid_jobspec_and_podspec() {
+        let invalid: AdmissionReview =
+            serde_json::from_str(&get_invalid_admission_review_with_broker_job_and_pod_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
+        validate_configuration(&rqst);
+    }
+
+    #[test]
     fn test_validate_configuration_extended() {
         let valid: AdmissionReview =
-            serde_json::from_str(EXTENDED).expect("v1.AdmissionReview JSON");
+            serde_json::from_str(&get_extended_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert_eq!(resp.allowed, true);
     }
 
     #[actix_rt::test]
-    async fn test_validate_valid() {
+    async fn test_validate_valid_podspec() {
         let mut app = test::init_service(App::new().service(validate)).await;
-        let valid: AdmissionReview = serde_json::from_str(VALID).expect("v1.AdmissionReview JSON");
+        let valid: AdmissionReview =
+            serde_json::from_str(&get_valid_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
         let rqst = test::TestRequest::post()
             .uri("/validate")
             .set_json(&valid)
@@ -756,10 +801,39 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn test_validate_invalid() {
+    async fn test_validate_valid_jobspec() {
+        let mut app = test::init_service(App::new().service(validate)).await;
+        let valid: AdmissionReview =
+            serde_json::from_str(&get_valid_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = test::TestRequest::post()
+            .uri("/validate")
+            .set_json(&valid)
+            .to_request();
+        let resp = test::call_service(&mut app, rqst).await;
+        assert_eq!(resp.status().is_success(), true);
+    }
+
+    #[actix_rt::test]
+    async fn test_validate_invalid_podspec() {
         let mut app = test::init_service(App::new().service(validate)).await;
         let invalid: AdmissionReview =
-            serde_json::from_str(INVALID).expect("v1.AdmissionReview JSON");
+            serde_json::from_str(&get_invalid_admission_review_with_broker_pod_spec())
+                .expect("v1.AdmissionReview JSON");
+        let rqst = test::TestRequest::post()
+            .uri("/validate")
+            .set_json(&invalid)
+            .to_request();
+        let resp = test::call_service(&mut app, rqst).await;
+        assert_eq!(resp.status().is_success(), true);
+    }
+
+    #[actix_rt::test]
+    async fn test_validate_invalid_jobspec() {
+        let mut app = test::init_service(App::new().service(validate)).await;
+        let invalid: AdmissionReview =
+            serde_json::from_str(&get_invalid_admission_review_with_broker_job_spec())
+                .expect("v1.AdmissionReview JSON");
         let rqst = test::TestRequest::post()
             .uri("/validate")
             .set_json(&invalid)

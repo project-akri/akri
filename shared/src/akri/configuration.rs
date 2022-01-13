@@ -4,6 +4,7 @@
 // in favor of camelCase)
 //
 #![allow(non_camel_case_types)]
+use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::PodSpec;
 use k8s_openapi::api::core::v1::ServiceSpec;
 use kube::CustomResource;
@@ -19,13 +20,28 @@ pub type ConfigurationList = ObjectList<Configuration>;
 
 /// This specifies which `DiscoveryHandler` should be used for discovery
 /// and any details that need to be sent to the `DiscoveryHandler`.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveryHandlerInfo {
     pub name: String,
     /// A string that a Discovery Handler knows how to parse to obtain necessary discovery details
     #[serde(default)]
     pub discovery_details: String,
+}
+
+/// This defines a workload that should be scheduled to nodes
+/// that can access a capability described by this Configuration.
+/// The enum contents are boxed to use the heap instead of the stack.
+/// See this clippy warning for more details:
+/// https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum BrokerSpec {
+    // PodSpec for Pod that should be scheduled to all nodes that can
+    // access any capability described by this Configuration
+    BrokerPodSpec(Box<PodSpec>),
+    // JobSpec for Job that should be deployed to each capability described by this Configuration
+    BrokerJobSpec(Box<JobSpec>),
 }
 
 /// Defines the information in the Akri Configuration CRD
@@ -53,7 +69,7 @@ pub struct ConfigurationSpec {
     /// node that can access any capability described by this
     /// configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub broker_pod_spec: Option<PodSpec>,
+    pub broker_spec: Option<BrokerSpec>,
 
     /// This defines a service that should be created to access
     /// any specific capability found that is described by this
@@ -198,36 +214,61 @@ mod crd_serialization_tests {
         let json = r#"{"discoveryHandler":{"name":"onvif", "discoveryDetails":"{\"onvif\":{}}"}}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(default_capacity(), deserialized.capacity);
-        assert_eq!(None, deserialized.broker_pod_spec);
+        assert_eq!(None, deserialized.broker_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.broker_properties.len());
     }
 
     #[test]
-    fn test_config_serialization() {
+    fn test_config_serialization_podspec() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "capacity":4}"#;
+        let pod_spec_json = r#"{"containers": [{"image": "nginx:latest","name": "broker"}]}"#;
+        let pod_spec: PodSpec = serde_json::from_str(pod_spec_json).unwrap();
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "brokerSpec":{"brokerPodSpec":{"containers": [{"image": "nginx:latest","name": "broker"}]}}, "capacity":4}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert_eq!(4, deserialized.capacity);
-        assert_eq!(None, deserialized.broker_pod_spec);
         assert_eq!(None, deserialized.instance_service_spec);
         assert_eq!(None, deserialized.configuration_service_spec);
         assert_eq!(0, deserialized.broker_properties.len());
-
+        if let BrokerSpec::BrokerPodSpec(d_pod_spec) = deserialized.broker_spec.as_ref().unwrap() {
+            assert_eq!(&pod_spec, d_pod_spec.as_ref());
+        } else {
+            panic!("Expected BrokerPodSpec");
+        }
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerProperties":{}}"#;
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerSpec":{"brokerPodSpec":{"containers":[{"image":"nginx:latest","name":"broker"}]}},"brokerProperties":{}}"#;
+        assert_eq!(expected_deserialized, serialized);
+    }
+
+    #[test]
+    fn test_config_serialization_jobspec() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let job_spec_json = r#"{"template": {"spec": {"containers": [{"image": "nginx:latest","name": "broker"}], "restartPolicy": "OnFailure"}}}"#;
+        let job_spec: JobSpec = serde_json::from_str(job_spec_json).unwrap();
+        let json = r#"{"discoveryHandler":{"name":"random", "discoveryDetails":""}, "brokerSpec":{"brokerJobSpec":{"template": {"spec": {"containers": [{"image": "nginx:latest","name": "broker"}], "restartPolicy": "OnFailure"}}}}, "capacity":4}"#;
+        let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
+        assert_eq!(4, deserialized.capacity);
+        assert_eq!(None, deserialized.instance_service_spec);
+        assert_eq!(None, deserialized.configuration_service_spec);
+        assert_eq!(0, deserialized.broker_properties.len());
+        if let BrokerSpec::BrokerJobSpec(d_job_spec) = deserialized.broker_spec.as_ref().unwrap() {
+            assert_eq!(&job_spec, d_job_spec.as_ref());
+        } else {
+            panic!("Expected BrokerJobSpec");
+        }
+        let serialized = serde_json::to_string(&deserialized).unwrap();
+        let expected_deserialized = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"capacity":4,"brokerSpec":{"brokerJobSpec":{"template":{"spec":{"containers":[{"image":"nginx:latest","name":"broker"}],"restartPolicy":"OnFailure"}}}},"brokerProperties":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
     #[test]
     fn test_real_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-
         let files = [
             "../test/yaml/akri-onvif-video-configuration.yaml",
-            "../test/yaml/akri-debug-echo-foo-configuration.yaml",
+            "../test/yaml/akri-debug-echo-pod-configuration.yaml",
+            "../test/yaml/akri-debug-echo-job-configuration.yaml",
             "../test/yaml/akri-udev-video-configuration.yaml",
             "../test/yaml/akri-opcua-configuration.yaml",
         ];
@@ -258,23 +299,25 @@ mod crd_serialization_tests {
                     ],
                     "type": "ClusterIP"
                 },
-                "brokerPodSpec": {
-                    "containers": [
-                        {
-                            "image": "nginx:latest",
-                            "name": "usb-camera-broker",
-                            "resources": {
-                                "limits": {
-                                    "{{PLACEHOLDER}}": "1"
+                "brokerSpec": {
+                    "brokerPodSpec": {
+                        "containers": [
+                            {
+                                "image": "nginx:latest",
+                                "name": "usb-camera-broker",
+                                "resources": {
+                                    "limits": {
+                                        "{{PLACEHOLDER}}": "1"
+                                    }
                                 }
                             }
-                        }
-                    ],
-                    "imagePullSecrets": [
-                        {
-                            "name": "regcred"
-                        }
-                    ]
+                        ],
+                        "imagePullSecrets": [
+                            {
+                                "name": "regcred"
+                            }
+                        ]
+                    }
                 },
                 "capacity": 5,
                 "configurationServiceSpec": {
@@ -302,7 +345,9 @@ mod crd_serialization_tests {
         assert_eq!(deserialized.discovery_handler.name, "random".to_string());
         assert!(deserialized.discovery_handler.discovery_details.is_empty());
         assert_eq!(5, deserialized.capacity);
-        assert_ne!(None, deserialized.broker_pod_spec);
+        if let BrokerSpec::BrokerJobSpec(_j) = deserialized.broker_spec.unwrap() {
+            panic!("Expected BrokerPodSpec");
+        }
         assert_ne!(None, deserialized.instance_service_spec);
         assert_ne!(None, deserialized.configuration_service_spec);
         assert_eq!(2, deserialized.broker_properties.len());

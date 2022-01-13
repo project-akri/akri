@@ -5,9 +5,7 @@ use akri_shared::{
     },
     k8s,
     k8s::{
-        pod::{
-            AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME,
-        },
+        pod::{AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME},
         service, KubeInterface, OwnershipInfo, OwnershipType,
     },
 };
@@ -42,12 +40,60 @@ enum PodState {
     Ended,
     /// Pod is in Deleted state and needs to remove any
     /// instance and configuration services that are not
-    /// supported by other Running Pods.  Also, at this
-    /// point, if an Instance still exists,
-    /// instance_action::handle_instance_change
-    /// needs to be called to ensure that Pods are
-    /// restarted
+    /// supported by other Running Pods. Also, at this
+    /// point, if an Instance still exists, and the Pod is
+    /// owned by the Instance,
+    /// instance_action::handle_instance_change needs to be
+    /// called to ensure that Pods are restarted. Akri
+    /// places an Instance OwnerReference on all the Pods it
+    /// deploys. This declares that the Instance owns that
+    /// Pod and Akri's Controller explicitly manages its
+    /// deployment. However, if the Pod is not owned by the
+    /// Instance, Akri should not assume retry logic and
+    /// should cease action. The owning object (ie Job) will
+    /// handle retries as necessary.
     Deleted,
+}
+
+/// The `kind` of a broker Pod's controlling OwnerReference
+///
+/// Determines what controls the deployment of the broker Pod.
+#[derive(Debug, PartialEq)]
+enum BrokerPodOwnerKind {
+    /// An Instance "owns" this broker Pod, since the broker pod
+    /// has an OwnerReference where `kind == "Instance"` and `controller=true`.
+    Instance,
+    /// A Job "owns" this broker Pod, since the broker pod
+    /// has an OwnerReference where `kind == "Job"` and `controller=true`.
+    Job,
+    /// The broker Pod does not have a Job nor Instance OwnerReference
+    Other,
+}
+
+/// Determines whether a Pod is owned by an Instance (has an ownerReference of Kind = "Instance")
+/// Pods deployed directly by the Controller will have this ownership, while Pods
+/// created by Jobs will not.
+fn get_broker_pod_owner_kind(pod: &Pod) -> BrokerPodOwnerKind {
+    let instance_kind = "Instance".to_string();
+    let job_kind = "Job".to_string();
+    match &pod.metadata.owner_references {
+        Some(or) => {
+            if or
+                .iter()
+                .any(|r| r.kind == instance_kind && r.controller.unwrap_or(false))
+            {
+                BrokerPodOwnerKind::Instance
+            } else if or
+                .iter()
+                .any(|r| r.kind == job_kind && r.controller.unwrap_or(false))
+            {
+                BrokerPodOwnerKind::Job
+            } else {
+                BrokerPodOwnerKind::Other
+            }
+        }
+        None => BrokerPodOwnerKind::Other,
+    }
 }
 
 /// This is used to handle broker Pods entering and leaving
@@ -84,7 +130,7 @@ impl BrokerPodWatcher {
         let resource = Api::<Pod>::all(kube_interface.get_kube_client());
         let watcher = watcher(
             resource,
-            ListParams::default().labels(AKRI_TARGET_NODE_LABEL_NAME),
+            ListParams::default().labels(AKRI_CONFIGURATION_LABEL_NAME),
         );
         let mut informer = watcher.boxed();
         let synchronization = Arc::new(Mutex::new(()));
@@ -288,7 +334,7 @@ impl BrokerPodWatcher {
     }
 
     /// This is called when a broker Pod exits the Running phase and ensures
-    /// that isntance and configuration services are only running when
+    /// that instance and configuration services are only running when
     /// supported by Running broker Pods.
     async fn handle_non_running_pod(
         &self,
@@ -317,16 +363,18 @@ impl BrokerPodWatcher {
         )
         .await?;
 
-        // Make sure instance has required Pods
-        if let Ok(instance) = kube_interface.find_instance(&instance_id, namespace).await {
-            super::instance_action::handle_instance_change(
-                &instance,
-                &super::instance_action::InstanceAction::Update,
-                kube_interface,
-            )
-            .await?;
+        // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
+        if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
+            // Make sure instance has required Pods
+            if let Ok(instance) = kube_interface.find_instance(&instance_id, namespace).await {
+                super::instance_action::handle_instance_change(
+                    &instance,
+                    &super::instance_action::InstanceAction::Update,
+                    kube_interface,
+                )
+                .await?;
+            }
         }
-
         Ok(())
     }
 
@@ -387,7 +435,7 @@ impl BrokerPodWatcher {
                     match &status.phase {
                         Some(phase) => {
                             trace!("cleanup_svc_if_unsupported - finding num_non_terminating_pods: pod:{:?} phase:{:?}", &x.metadata.name, &phase);
-                            phase != "Terminating" && phase != "Failed"
+                            phase != "Terminating" && phase != "Failed" && phase != "Succeeded"
                         },
                         _ => true,
                     }
@@ -554,7 +602,6 @@ impl BrokerPodWatcher {
             "add_instance_and_configuration_services - instance={:?}",
             instance_name
         );
-
         if let Some(instance_service_spec) = &configuration.spec.instance_service_spec {
             let ownership = OwnershipInfo::new(
                 OwnershipType::Instance,
@@ -633,6 +680,8 @@ mod tests {
     use super::super::shared_test_utils::config_for_tests::PodList;
     use super::*;
     use akri_shared::{k8s::MockKubeInterface, os::file};
+    use k8s_openapi::api::core::v1::PodSpec;
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 
     fn create_pods_with_phase(result_file: &'static str, specified_phase: &'static str) -> PodList {
         let pods_json = file::read_file_to_string(result_file);
@@ -642,6 +691,91 @@ mod tests {
         );
         let pods: PodList = serde_json::from_str(&phase_adjusted_json).unwrap();
         pods
+    }
+
+    fn make_pod_with_owner_references(owner_references: Vec<OwnerReference>) -> Pod {
+        Pod {
+            spec: Some(PodSpec::default()),
+            metadata: ObjectMeta {
+                owner_references: Some(owner_references),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_instance() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Instance".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Instance
+        );
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_job() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Job".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Job
+        );
+    }
+
+    #[test]
+    fn test_get_broker_pod_owner_kind_other() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "OtherOwner".to_string(),
+            controller: Some(true),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Other
+        );
+    }
+
+    // Test that is only labeled as Instance owned if it is the controller OwnerReference
+    #[test]
+    fn test_get_broker_pod_owner_kind_non_controlling() {
+        let owner_references: Vec<OwnerReference> = vec![OwnerReference {
+            kind: "Instance".to_string(),
+            controller: Some(false),
+            ..Default::default()
+        }];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Other
+        );
+    }
+
+    // Test that if multiple OwnerReferences exist, the controlling one is returned.
+    #[test]
+    fn test_get_broker_pod_owner_kind_both() {
+        let owner_references: Vec<OwnerReference> = vec![
+            OwnerReference {
+                kind: "Instance".to_string(),
+                controller: Some(false),
+                ..Default::default()
+            },
+            OwnerReference {
+                kind: "Job".to_string(),
+                controller: Some(true),
+                ..Default::default()
+            },
+        ];
+        assert_eq!(
+            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            BrokerPodOwnerKind::Job
+        );
     }
 
     // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
@@ -978,6 +1112,68 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_handle_pod_succeeded() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let pod_list = create_pods_with_phase(
+            "../test/json/running-pod-list-for-config-a-local.json",
+            "Succeeded",
+        );
+        let pod = pod_list.items.first().unwrap().clone();
+        let mut pod_watcher = BrokerPodWatcher::new();
+        let mut mock = MockKubeInterface::new();
+        configure_for_handle_pod(
+            &mut mock,
+            &HandlePod {
+                running: None,
+                ended: Some(CleanupServices {
+                    find_svc_selector: "controller=akri.sh",
+                    find_svc_result: "../test/json/running-svc-list-for-config-a-local.json",
+                    cleanup_services: vec![
+                        CleanupService {
+                            find_pod_selector: "akri.sh/configuration=config-a",
+                            find_pod_result: "../test/json/empty-list.json",
+                            remove_service: Some(RemoveService {
+                                remove_service_name: "config-a-svc",
+                                remove_service_namespace: "config-a-namespace",
+                            }),
+                        },
+                        CleanupService {
+                            find_pod_selector: "akri.sh/instance=config-a-b494b6",
+                            find_pod_result: "../test/json/empty-list.json",
+                            remove_service: Some(RemoveService {
+                                remove_service_name: "config-a-b494b6-svc",
+                                remove_service_namespace: "config-a-namespace",
+                            }),
+                        },
+                    ],
+                    find_instance_id: "config-a-b494b6",
+                    find_instance_namespace: "config-a-namespace",
+                    find_instance_result: "",
+                    find_instance_result_error: true,
+                }),
+            },
+        );
+
+        pod_watcher
+            .handle_pod(Event::Applied(pod), &mock, &mut false)
+            .await
+            .unwrap();
+        trace!(
+            "test_handle_pod_added_unready pod_watcher:{:?}",
+            &pod_watcher
+        );
+        assert_eq!(1, pod_watcher.known_pods.len());
+        assert_eq!(
+            &PodState::Ended,
+            pod_watcher
+                .known_pods
+                .get(&"config-a-b494b6-pod".to_string())
+                .unwrap()
+        )
+    }
+
+    #[tokio::test]
     async fn test_handle_pod_add_or_modify_unknown_phase() {
         let _ = env_logger::builder().is_test(true).try_init();
 
@@ -1143,6 +1339,27 @@ mod tests {
 
             assert_eq!("Unknown", pod_watcher.get_pod_phase(&pod));
         }
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_svc_if_unsupported() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let watcher = BrokerPodWatcher::new();
+        let pod_list = create_pods_with_phase(
+            "../test/json/running-pod-list-for-config-a-local.json",
+            "Succeeded",
+        );
+        let pod = pod_list.items.first().unwrap().to_owned();
+        let svc_name = "some-service";
+        let svc_namespace = "default";
+        let mut mock = MockKubeInterface::new();
+        mock.expect_remove_service()
+            .times(1)
+            .returning(|_, _| Ok(()));
+        watcher
+            .cleanup_svc_if_unsupported(&[pod], svc_name, svc_namespace, &mock)
+            .await
+            .unwrap();
     }
 
     #[test]

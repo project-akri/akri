@@ -1,22 +1,22 @@
 apiVersion: akri.sh/v0
 kind: Configuration
 metadata:
-  name: config-a
-  namespace: config-a-namespace
-  uid: e9fbe880-99da-47c1-bea3-5398f21ee747
-  generation: 1
+  name: akri-debug-echo-foo
 spec:
   discoveryHandler: 
     name: debugEcho
     discoveryDetails: |+
         descriptions:
-        - "filter1"
-        - "filter2"
+        - "foo0"
+        - "foo1"
   brokerSpec:
     brokerPodSpec:
       containers:
-      - name: broker
+      - name: akri-debug-echo-foo-broker
         image: "nginx:latest"
+        resources:
+          limits:
+            "{{PLACEHOLDER}}" : "1"
   instanceServiceSpec:
     type: ClusterIP
     ports:
@@ -31,8 +31,6 @@ spec:
       port: 6052
       protocol: TCP
       targetPort: 6052
-  brokerProperties:
-    RESOLUTION_WIDTH: "800"
-    RESOLUTION_HEIGHT: "600"
+  brokerProperties: {}
   capacity: 5
   

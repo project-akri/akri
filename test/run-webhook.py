@@ -68,12 +68,14 @@ TEMPLATE = {
             "name": "debugEcho",
             "discoveryDetails": "{\"descriptions\": [\"foo\",\"bar\"]}"
         },
-        "brokerPodSpec": {
-            "containers": [{
-                "name": "test-broker",
-                "image": "nginx:latest",
-                "imagePullPolicy": "Always",
-            }],
+        "brokerSpec": {
+            "brokerPodSpec": {
+                "containers": [{
+                    "name": "test-broker",
+                    "image": "nginx:stable-alpine",
+                    "imagePullPolicy": "Always",
+                }],
+            }
         },
         "instanceServiceSpec": SERVICE,
         "configurationServiceSpec": SERVICE,
@@ -227,7 +229,7 @@ def do_test() -> bool:
 
     # Use the template and place resources in the correct location
     body = TEMPLATE
-    body["spec"]["brokerPodSpec"]["containers"][0]["resources"] = RESOURCES
+    body["spec"]["brokerSpec"]["brokerPodSpec"]["containers"][0]["resources"] = RESOURCES
 
     api = client.CustomObjectsApi()
     api.create_namespaced_custom_object(group=GROUP,
@@ -262,7 +264,7 @@ def do_test() -> bool:
 
         # Use the template but(!) place resources in an incorrect location
         body = TEMPLATE
-        body["spec"]["brokerPodSpec"]["resources"] = RESOURCES
+        body["spec"]["brokerSpec"]["brokerPodSpec"]["resources"] = RESOURCES
 
         api.create_namespaced_custom_object(group=GROUP,
                                             version=VERSION,
