@@ -72,7 +72,7 @@ spec:
           restartPolicy: {{ .Values.udev.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
-            {{- toYaml . | nindent 6 }}
+            {{- toYaml . | nindent 10 }}
           {{- end }}
       backoffLimit: {{ .Values.udev.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.udev.configuration.brokerJob.parallelism }}

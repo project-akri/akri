@@ -1,0 +1,80 @@
+# This document provides values to be passed to `helm lint` to provide more exhaustive linting in our workflows for scenarios with Job brokers.
+# Can also be used locally from base of Akri repository: `helm lint deployment/helm --values test/helm-lint-values-jobs.yaml`
+# Alternatively, linting can be done in line by setting values: 
+# `helm lint deployment/helm/ --set debugEcho.configuration.enabled=true,udev.configuration.enabled=true,udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'...`
+debugEcho:
+  configuration:
+    enabled: true
+    brokerJob:
+      image:
+        repository: "busybox"
+      backoffLimit: 4
+      parallelism: 2
+      completions: 2
+      restartPolicy: Never
+      command: 
+      - "sh"
+      - "c"
+      - "ls"
+udev:
+  configuration:
+    enabled: true
+    discoveryDetails:
+      udevRules:
+        - 'KERNEL=="video[0-9]*"'
+    brokerJob:
+      image:
+        repository: "busybox"
+      backoffLimit: 4
+      parallelism: 2
+      completions: 2
+      restartPolicy: Never
+      command: 
+      - "sh"
+      - "c"
+      - "ls"
+opcua: 
+  configuration:
+    enabled: true
+    brokerJob:
+      image:
+        repository: "busybox"
+      backoffLimit: 4
+      parallelism: 2
+      completions: 2
+      restartPolicy: Never
+      command: 
+      - "sh"
+      - "c"
+      - "ls"
+onvif: 
+  configuration: 
+    enabled: true
+    brokerJob:
+      image:
+        repository: "busybox"
+      backoffLimit: 4
+      parallelism: 2
+      completions: 2
+      restartPolicy: Never
+      command: 
+      - "sh"
+      - "c"
+      - "ls"
+custom: 
+  configuration: 
+    enabled: true
+    discoveryHandlerName: "some name"
+    brokerJob:
+      image:
+        repository: "busybox"
+      backoffLimit: 4
+      parallelism: 2
+      completions: 2
+      restartPolicy: Never
+      command: 
+      - "sh"
+      - "c"
+      - "ls"
+imagePullSecrets:
+- name: "my-image-registry-creds"

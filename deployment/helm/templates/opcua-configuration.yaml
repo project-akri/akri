@@ -98,7 +98,7 @@ spec:
           restartPolicy: {{ .Values.opcua.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
-            {{- toYaml . | nindent 6 }}
+            {{- toYaml . | nindent 10 }}
           {{- end }}
       backoffLimit: {{ .Values.opcua.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.opcua.configuration.brokerJob.parallelism }}
