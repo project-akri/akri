@@ -54,3 +54,5 @@ custom:
 webhookConfiguration: 
   enabled: true
   caBundle: certificate.crt
+imagePullSecrets:
+- name: "my-image-registry-creds"

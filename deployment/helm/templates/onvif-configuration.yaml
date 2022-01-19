@@ -89,7 +89,7 @@ spec:
           restartPolicy: {{ .Values.onvif.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
-            {{- toYaml . | nindent 6 }}
+            {{- toYaml . | nindent 10 }}
           {{- end }}
       backoffLimit: {{ .Values.onvif.configuration.brokerJob.backoffLimit }}
       parallelism: {{ .Values.onvif.configuration.brokerJob.parallelism }}
