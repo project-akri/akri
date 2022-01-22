@@ -146,6 +146,7 @@ type ResourceQuantityType = BTreeMap<String, Quantity>;
 ///     &PodSpec::default()).unwrap();
 /// # }
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn create_new_pod_from_spec(
     pod_namespace: &str,
     instance_name: &str,

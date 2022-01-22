@@ -140,8 +140,8 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
                     UnixListener::bind(task_socket_path).expect("Failed to bind to socket path");
 
                 async_stream::stream! {
-                    while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
-                        yield item;
+                    loop {
+                        yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
                     }
                 }
             };
@@ -270,8 +270,8 @@ pub mod tests {
             let uds = UnixListener::bind(socket).expect("Failed to bind to socket path");
 
             async_stream::stream! {
-                while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
-                    yield item;
+                loop {
+                    yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
                 }
             }
         };
@@ -348,7 +348,7 @@ pub mod tests {
         });
 
         // Make sure registration server has started
-        akri_shared::uds::unix_stream::try_connect(&kubelet_socket_str)
+        akri_shared::uds::unix_stream::try_connect(kubelet_socket_str)
             .await
             .unwrap();
 

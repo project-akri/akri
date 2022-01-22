@@ -383,7 +383,7 @@ mod crd_serializeation_tests {
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("blah".to_string(), deserialized.configuration_name);
         assert_eq!(1, deserialized.broker_properties.len());
-        assert_eq!(true, deserialized.shared);
+        assert!(deserialized.shared);
         assert_eq!(2, deserialized.nodes.len());
         assert_eq!(2, deserialized.device_usage.len());
 

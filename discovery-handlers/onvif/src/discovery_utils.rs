@@ -364,7 +364,7 @@ async fn inner_get_device_profile_streaming_uri(
 /// Gets the streaming uri for a given profile for an ONVIF camera
 async fn inner_is_device_responding(url: &str, http: &impl Http) -> Result<String, anyhow::Error> {
     http.post(
-        &url,
+        url,
         &get_action(DEVICE_WSDL, "GetSystemDateAndTime"),
         &GET_SYSTEM_DATE_AND_TIME_TEMPLATE.to_string(),
     )

@@ -33,7 +33,7 @@ pub struct DiscoveryHandlerInfo {
 /// that can access a capability described by this Configuration.
 /// The enum contents are boxed to use the heap instead of the stack.
 /// See this clippy warning for more details:
-/// https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant
+/// <https://rust-lang.github.io/rust-clippy/master/index.html#large_enum_variant>
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum BrokerSpec {

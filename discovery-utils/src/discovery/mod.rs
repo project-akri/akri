@@ -228,8 +228,8 @@ pub mod server {
                 let uds = UnixListener::bind(discovery_endpoint)?;
 
                 async_stream::stream! {
-                    while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
-                        yield item;
+                    loop {
+                        yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
                     }
                 }
             };

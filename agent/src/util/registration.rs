@@ -186,8 +186,8 @@ pub async fn internal_run_registration_server(
             tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
 
         async_stream::stream! {
-            while let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await {
-                yield item;
+            loop {
+                yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
             }
         }
     };

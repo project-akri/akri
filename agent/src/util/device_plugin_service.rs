@@ -83,7 +83,7 @@ pub struct DevicePluginService {
     pub config_uid: String,
     /// Namespace of Instance's Configuration CRD
     pub config_namespace: String,
-    /// Instance is [not]shared
+    /// Instance is \[not\]shared
     pub shared: bool,
     /// Hostname of node this Device Plugin is running on
     pub node_name: String,
@@ -340,11 +340,11 @@ impl DevicePluginService {
 /// This returns the value that should be inserted at `device_usage_id` slot for an instance else an error.
 /// # More details
 /// Cases based on the usage slot (`device_usage_id`) value
-/// 1. device_usage[id] == "" ... this means that the device is available for use
+/// 1. device_usage\[id\] == "" ... this means that the device is available for use
 ///     * <ACTION> return this node name
-/// 2. device_usage[id] == self.nodeName ... this means THIS node previously used id, but the DevicePluginManager knows that this is no longer true
+/// 2. device_usage\[id\] == self.nodeName ... this means THIS node previously used id, but the DevicePluginManager knows that this is no longer true
 ///     * <ACTION> return ""
-/// 3. device_usage[id] == <some other node> ... this means that we believe this device is in use by another node and should be marked unhealthy
+/// 3. device_usage\[id\] == <some other node> ... this means that we believe this device is in use by another node and should be marked unhealthy
 ///     * <ACTION> return error
 /// 4. No corresponding id found ... this is an unknown error condition (BAD)
 ///     * <ACTION> return error
@@ -894,6 +894,7 @@ mod device_plugin_service_tests {
             .collect();
         assert_eq!(devices.len(), capacity);
         // Can't use map on Device type
+        #[allow(clippy::needless_collect)]
         let device_ids: Vec<String> = devices.into_iter().map(|device| device.id).collect();
         for device in expected_device_ids {
             assert!(device_ids.contains(&device));

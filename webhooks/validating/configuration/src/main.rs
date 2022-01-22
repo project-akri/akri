@@ -386,7 +386,7 @@ mod tests {
                             "targetPort": 0,
                             "protocol": "TCP"
                         }]
-                    },           
+                    },
                     "capacity": 1
                 }
             },
@@ -733,7 +733,7 @@ mod tests {
                 .expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
-        assert_eq!(resp.allowed, true);
+        assert!(resp.allowed);
     }
 
     #[test]
@@ -743,7 +743,7 @@ mod tests {
                 .expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
-        assert_eq!(resp.allowed, true);
+        assert!(resp.allowed);
     }
 
     #[test]
@@ -753,7 +753,7 @@ mod tests {
                 .expect("v1.AdmissionReview JSON");
         let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
-        assert_eq!(resp.allowed, false);
+        assert!(!resp.allowed);
     }
 
     #[test]
@@ -763,7 +763,7 @@ mod tests {
                 .expect("v1.AdmissionReview JSON");
         let rqst = invalid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
-        assert_eq!(resp.allowed, false);
+        assert!(!resp.allowed);
     }
 
     #[test]
@@ -783,7 +783,7 @@ mod tests {
                 .expect("v1.AdmissionReview JSON");
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
-        assert_eq!(resp.allowed, true);
+        assert!(resp.allowed);
     }
 
     #[actix_rt::test]
@@ -797,7 +797,7 @@ mod tests {
             .set_json(&valid)
             .to_request();
         let resp = test::call_service(&mut app, rqst).await;
-        assert_eq!(resp.status().is_success(), true);
+        assert!(resp.status().is_success());
     }
 
     #[actix_rt::test]
@@ -811,7 +811,7 @@ mod tests {
             .set_json(&valid)
             .to_request();
         let resp = test::call_service(&mut app, rqst).await;
-        assert_eq!(resp.status().is_success(), true);
+        assert!(resp.status().is_success());
     }
 
     #[actix_rt::test]
@@ -825,7 +825,7 @@ mod tests {
             .set_json(&invalid)
             .to_request();
         let resp = test::call_service(&mut app, rqst).await;
-        assert_eq!(resp.status().is_success(), true);
+        assert!(resp.status().is_success());
     }
 
     #[actix_rt::test]
@@ -839,6 +839,6 @@ mod tests {
             .set_json(&invalid)
             .to_request();
         let resp = test::call_service(&mut app, rqst).await;
-        assert_eq!(resp.status().is_success(), true);
+        assert!(resp.status().is_success());
     }
 }
