@@ -893,11 +893,11 @@ mod device_plugin_service_tests {
             .map(|x| format!("{}-{}", instance_name, x))
             .collect();
         assert_eq!(devices.len(), capacity);
-        // Can't use map on Device type
-        #[allow(clippy::needless_collect)]
-        let device_ids: Vec<String> = devices.into_iter().map(|device| device.id).collect();
         for device in expected_device_ids {
-            assert!(device_ids.contains(&device));
+            assert!(devices
+                .iter()
+                .map(|device| device.id.clone())
+                .any(|d| d == device));
         }
     }
 
