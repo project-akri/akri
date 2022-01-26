@@ -141,7 +141,8 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
 
                 async_stream::stream! {
                     loop {
-                        yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                        let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                        yield item;
                     }
                 }
             };
@@ -271,7 +272,8 @@ pub mod tests {
 
             async_stream::stream! {
                 loop {
-                    yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                    let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                    yield item;
                 }
             }
         };

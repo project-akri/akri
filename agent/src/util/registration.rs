@@ -187,7 +187,8 @@ pub async fn internal_run_registration_server(
 
         async_stream::stream! {
             loop {
-                yield uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                yield item;
             }
         }
     };
