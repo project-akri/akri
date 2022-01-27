@@ -304,7 +304,7 @@ pub mod util {
 
         let envelope_as_string = create_onvif_discovery_message(&uuid_str);
         socket
-            .send_to(&envelope_as_string.as_bytes(), multi_socket_addr)
+            .send_to(envelope_as_string.as_bytes(), multi_socket_addr)
             .await?;
         Ok(socket)
     }

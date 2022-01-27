@@ -57,7 +57,7 @@ pub mod config_for_tests {
         "selfLink": ""
     }
 }"#;
-    fn listify_kube_object(node_json: &String) -> String {
+    fn listify_kube_object(node_json: &str) -> String {
         format!("{}\n{}\n{}", LIST_PREFIX, node_json, LIST_SUFFIX)
     }
 

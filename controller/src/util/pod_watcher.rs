@@ -523,6 +523,7 @@ impl BrokerPodWatcher {
     }
 
     /// This creates new service or updates existing service with ownership.
+    #[allow(clippy::too_many_arguments)]
     async fn create_or_update_service(
         &self,
         instance_name: &str,
@@ -1584,7 +1585,11 @@ mod tests {
 
     #[derive(Clone)]
     struct CleanupServices {
+        // This field is used for testing
+        #[allow(dead_code)]
         find_svc_selector: &'static str,
+        // This field is used for testing
+        #[allow(dead_code)]
         find_svc_result: &'static str,
         cleanup_services: Vec<CleanupService>,
         find_instance_id: &'static str,

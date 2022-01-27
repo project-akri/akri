@@ -108,7 +108,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 let futures: Vec<_> = latest_cameras
                     .iter()
                     .filter(|c| !previous_cameras.contains(c))
-                    .map(|c| apply_filters(&discovery_handler_config, &c, &onvif_query))
+                    .map(|c| apply_filters(&discovery_handler_config, c, &onvif_query))
                     .collect();
                 let options = futures_util::future::join_all(futures).await;
                 // Insert newly discovered camera that are not filtered out
@@ -154,7 +154,7 @@ async fn apply_filters(
 ) -> Option<(String, Device)> {
     info!("apply_filters - device service url {}", device_service_uri);
     let (ip_address, mac_address) = match onvif_query
-        .get_device_ip_and_mac_address(&device_service_uri)
+        .get_device_ip_and_mac_address(device_service_uri)
         .await
     {
         Ok(ip_and_mac) => ip_and_mac,

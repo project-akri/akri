@@ -334,6 +334,7 @@ mod handle_deletion_work_tests {
 /// broker Pod, the broker Service, and the capability Service.
 /// TODO: reduce parameters by passing Instance object instead of
 /// individual fields
+#[allow(clippy::too_many_arguments)]
 async fn handle_addition_work(
     instance_name: &str,
     instance_uid: &str,
@@ -689,7 +690,7 @@ mod handle_instance_tests {
                     "\"startTime\": \"2020-02-25T20:48:03Z\"",
                     &format!(
                         "\"startTime\": \"{}\"",
-                        start_time.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+                        start_time.format("%Y-%m-%dT%H:%M:%SZ")
                     ),
                 );
                 let pods: PodList = serde_json::from_str(&start_time_adjusted_json).unwrap();

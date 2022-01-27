@@ -603,6 +603,7 @@ mod discovery_tests {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_mock_device<'a>(
         devpath: &str,
         devnode: &str,
