@@ -701,8 +701,8 @@ pub mod test_ownership {
             ownership.get_api_version()
         );
         assert_eq!("Configuration", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller().unwrap());
-        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
+        assert!(ownership.get_controller().unwrap());
+        assert!(ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -717,8 +717,8 @@ pub mod test_ownership {
             ownership.get_api_version()
         );
         assert_eq!("Instance", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller().unwrap());
-        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
+        assert!(ownership.get_controller().unwrap());
+        assert!(ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -729,8 +729,8 @@ pub mod test_ownership {
         let ownership = OwnershipInfo::new(OwnershipType::Pod, name.to_string(), uid.to_string());
         assert_eq!("core/v1", ownership.get_api_version());
         assert_eq!("Pod", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller().unwrap());
-        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
+        assert!(ownership.get_controller().unwrap());
+        assert!(ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }
@@ -742,8 +742,8 @@ pub mod test_ownership {
             OwnershipInfo::new(OwnershipType::Service, name.to_string(), uid.to_string());
         assert_eq!("core/v1", ownership.get_api_version());
         assert_eq!("Service", &ownership.get_kind());
-        assert_eq!(true, ownership.get_controller().unwrap());
-        assert_eq!(true, ownership.get_block_owner_deletion().unwrap());
+        assert!(ownership.get_controller().unwrap());
+        assert!(ownership.get_block_owner_deletion().unwrap());
         assert_eq!(name, &ownership.get_name());
         assert_eq!(uid, &ownership.get_uid());
     }

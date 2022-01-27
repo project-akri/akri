@@ -46,6 +46,8 @@ jobs:
       run: cargo fmt --all -- --check
     - name: Check clippy
       run: cargo clippy --all
+    - name: Check clippy for tests
+      run: cargo clippy --all-targets --all-features -- -D warnings
     - name: Run check
       run:  cargo check
     - name: Check for H2 patch not being applied
@@ -57,4 +59,4 @@ jobs:
     - name: Run tests --ignored
       run: cargo test -- --ignored
     - name: Run doc
-      run: cargo doc --no-deps
+      run: export RUSTDOCFLAGS="-Dwarnings" && cargo doc --no-deps

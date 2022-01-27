@@ -1,6 +1,6 @@
 [package]
 name = "akri-onvif"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 

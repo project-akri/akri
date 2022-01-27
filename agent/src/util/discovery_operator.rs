@@ -871,7 +871,7 @@ pub mod tests {
             name: name.to_string(),
             endpoint,
             shared,
-            close_discovery_handler_connection: close_discovery_handler_connection,
+            close_discovery_handler_connection,
         }
     }
 
