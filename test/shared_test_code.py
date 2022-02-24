@@ -103,7 +103,7 @@ def save_agent_and_controller_logs(namespace="default"):
 
 def crds_applied():
     print("Checking for CRDs")
-    v1_ext = client.ApiextensionsV1beta1Api()
+    v1_ext = client.ApiextensionsV1Api()
     for x in range(5):
         if x != 0:
             time.sleep(SLEEP_INTERVAL)
