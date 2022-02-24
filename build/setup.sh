@@ -23,10 +23,10 @@ then
     if [ -x "$(command -v sudo)" ];
     then
         echo "Install rustup"
-        sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.55.0
+        sudo curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.58.1
     else
         echo "Install rustup"
-        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.55.0
+        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.58.1
     fi
 else
     echo "Found rustup"
