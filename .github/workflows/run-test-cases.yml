@@ -115,6 +115,10 @@ jobs:
             version: 1.20/stable
           - runtime: MicroK8s-1.21
             version: 1.21/stable
+          - runtime: MicroK8s-1.22
+            version: 1.22/stable
+          - runtime: MicroK8s-1.23
+            version: 1.23/stable
           - runtime: K3s-1.16
             version: v1.16.14+k3s1
           - runtime: K3s-1.17
@@ -127,6 +131,8 @@ jobs:
             version: v1.20.6+k3s1
           - runtime: K3s-1.21
             version: v1.21.5+k3s1
+          - runtime: K3s-1.22
+            version: v1.22.6+k3s1
           - runtime: Kubernetes-1.16
             version: 1.16.15-00
           - runtime: Kubernetes-1.17
@@ -139,6 +145,10 @@ jobs:
             version: 1.20.1-00
           - runtime: Kubernetes-1.21
             version: 1.21.0-00
+          - runtime: Kubernetes-1.22
+            version: 1.22.6-00
+          - runtime: Kubernetes-1.23
+            version: 1.23.4-00
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
