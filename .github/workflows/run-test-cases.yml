@@ -229,11 +229,21 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
           sudo apt-get update
           sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} 
+          sudo apt-mark hold kubelet kubeadm kubectl
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
-          sudo swapoff -a              
-          sudo kubeadm init
+          sudo swapoff -a      
+          echo "
+          > kind: ClusterConfiguration
+          > apiVersion: kubeadm.k8s.io/v1beta3
+          > kubernetesVersion: v1.21.0
+          > ---
+          > kind: KubeletConfiguration
+          > apiVersion: kubelet.config.k8s.io/v1beta1
+          > cgroupDriver: systemd
+          > " > kubeadm-config.yaml       
+          sudo kubeadm init --config kubeadm-config.yaml
           sudo mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
