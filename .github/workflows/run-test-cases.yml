@@ -146,9 +146,9 @@ jobs:
           - runtime: Kubernetes-1.21
             version: 1.21.0-00
           - runtime: Kubernetes-1.22
-            version: 1.22.6-00
+            version: 1.22.6
           - runtime: Kubernetes-1.23
-            version: 1.23.4-00
+            version: 1.23.4
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
@@ -234,16 +234,20 @@ jobs:
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
           sudo swapoff -a      
-          echo "
-          kind: ClusterConfiguration
-          apiVersion: kubeadm.k8s.io/v1beta3
-          kubernetesVersion: ${{ matrix.kube.version }}
-          ---
-          kind: KubeletConfiguration
-          apiVersion: kubelet.config.k8s.io/v1beta1
-          cgroupDriver: cgroupfs
-          " > kubeadm-config.yaml       
-          sudo kubeadm init --config kubeadm-config.yaml
+          if [ "${{ matrix.kube.runtime }}" == "Kubernetes-1.22" || "${{ matrix.kube.runtime }}" == "Kubernetes-1.23" ]; then
+            echo "
+            kind: ClusterConfiguration
+            apiVersion: kubeadm.k8s.io/v1beta3
+            kubernetesVersion: ${{ matrix.kube.version }}
+            ---
+            kind: KubeletConfiguration
+            apiVersion: kubelet.config.k8s.io/v1beta1
+            cgroupDriver: cgroupfs
+            " > kubeadm-config.yaml       
+            sudo kubeadm init --config kubeadm-config.yaml
+          else
+            sudo kubeadm init 
+          fi
           sudo mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
