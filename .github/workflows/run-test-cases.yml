@@ -235,11 +235,10 @@ jobs:
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
           sudo swapoff -a      
           if [ "${{ matrix.kube.runtime }}" == "Kubernetes-1.22" || "${{ matrix.kube.runtime }}" == "Kubernetes-1.23" ]; then
-            FORMATTED_VERSION=${{ matrix.kube.version }}
             echo "
             kind: ClusterConfiguration
             apiVersion: kubeadm.k8s.io/v1beta3
-            kubernetesVersion: ${FORMATTED_VERSION::-3}
+            kubernetesVersion: $(sed 's/.\{3\}$//' <<< "${{matrix.kube.version}}")
             ---
             kind: KubeletConfiguration
             apiVersion: kubelet.config.k8s.io/v1beta1
