@@ -1,3 +1,94 @@
+# v0.8.4
+
+## Announcing Akri v0.8.4!
+Akri v0.8.4 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.8.4 release contains the following major changes: 
+
+1. **Support for Kubernetes Job brokers** (https://github.com/project-akri/akri/pull/437). Now Akri has support for deploying Jobs to devices discovered by the Akri Agent. Previously, Akri only supported deploying Pods that were not intended to terminate (and would be restarted if they did). Adding Jobs enables more device use scenarios. More background can be found in the [Jobs proposal](https://github.com/project-akri/akri-docs/blob/main/proposals/job-brokers.md). This is a **breaking change** as it required changes to Akri's Configuration CRD.
+2. Fix to re-enable **applying multiple Configurations that use the same Discovery Handler** (https://github.com/project-akri/akri/pull/432). This adds back functionality that was removed in `v0.6.5` when enabling Akri's new extensibility model. 
+3. Akri depends on `crictl` to track whether Pods deployed by the Akri Controller are still running. This release adds new functionality (https://github.com/project-akri/akri/pull/418) such that **crictl is pre-installed in the Agent container**  so that it does not need to be installed on each node.
+
+**Fixes, features, and optimizations**
+- fix: Make debug echo capacity configurable (https://github.com/project-akri/akri/pull/419)
+- fix: Return okay if get 404 when trying to delete an Instance (https://github.com/project-akri/akri/pull/420)
+- opt: Update .NET dependencies, removing vulnerabilities and reducing size (https://github.com/project-akri/akri/pull/422)
+- feat: Execute test workloads based on labels instead of flags in PR titles (https://github.com/project-akri/akri/pull/426)
+- opt: Set K8s distribution with Helm to simplify choosing container runtime socket (https://github.com/project-akri/akri/pull/427)
+- fix: Fix all clippy errors and update dependency versions (https://github.com/project-akri/akri/pull/442)
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...0.8.4)
+
+## Breaking Changes
+Akri's Configuration CRD has been updated to support Job brokers. If Akri has previously been installed on a cluster, delete the previous Configuration CRD before installing the latest version of Akri:
+
+```sh
+kubectl delete crd configurations.akri.sh
+```
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.21.0 |
+| Kubernetes | v1.20.1 |
+| Kubernetes | v1.19.4 |
+| Kubernetes | v1.18.12 |
+| Kubernetes | v1.17.14 |
+| Kubernetes | v1.16.15 |
+| K3s | v1.22.6+k3s1 |
+| K3s | v1.21.5+k3s1 |
+| K3s | v1.20.6+k3s1 |
+| K3s | v1.19.10+k3s1 |
+| K3s | v1.18.9+k3s1 |
+| K3s | v1.17.17+k3s1 |
+| K3s | v1.16.14+k3s1 |
+| MicroK8s | 1.23/stable |
+| MicroK8s | 1.22/stable |
+| MicroK8s | 1.21/stable |
+| MicroK8s | 1.20/stable |
+| MicroK8s | 1.19/stable |
+| MicroK8s | 1.18/stable |
+| MicroK8s | 1.17/stable |
+| MicroK8s | 1.16/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper. 
+
+**⭐ Contributors to v0.8.4 ⭐**
+- @bfjelds
+- @kate-goldenring
+- @romoh
+- @vincepnguyen
+- @Ragnyll
+- (Please send us (`@Kate Goldenring` or `@Edrick Wong`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.8.4 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.8.4/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
 # v0.7.0
 
 ## Announcing Akri v0.7.0!
