@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 
@@ -25,9 +25,9 @@ futures-core = "0.3"
 futures-util = "0.3"
 hyper = "0.14.2"
 h2 = "=0.3.3"
-kube = { version = "0.59.0",  features = ["derive"] }
-kube-runtime = "0.59.0"
-k8s-openapi = { version = "0.13.0", default-features = false, features = ["schemars", "v1_16"] }
+kube = { version = "0.69.1",  features = ["derive"] }
+kube-runtime = "0.69.1"
+k8s-openapi = { version = "0.14.0", default-features = false, features = ["schemars", "v1_23"] }
 lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.2.0"
@@ -42,7 +42,7 @@ serde_derive = "1.0.104"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
 tonic = "0.5.2"
-tower = "0.4.8" 
+tower = "0.4.8"
 url = "2.1.0"
 uuid = { version = "0.8.1", features = ["v4"] }
 
@@ -61,7 +61,7 @@ tempfile = "3.1.0"
 
 [features]
 # To embed discovery handlers, add the desired discovery handler features to default and "agent-full".
-# Or set the features when building the agent with  
+# Or set the features when building the agent with
 # `cargo build --manifest-path agent/Cargo.toml --features "agent-full onvif-feat opcua-feat udev-feat"`
 default = []
 onvif-feat = [ "akri-onvif"]
