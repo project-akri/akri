@@ -58,4 +58,4 @@ You can reach the Akri community via the [#akri](https://kubernetes.slack.com/me
 Akri welcomes contributions, whether by [creating new issues](https://github.com/project-akri/akri/issues/new/choose) or pull requests. See our [contributing document](https://docs.akri.sh/community/contributing) on how to get started!
 
 ## Licensing
-This project is released under the [MIT License](./LICENSE).
+This project is released under the [Apache 2.0 license](./LICENSE).
