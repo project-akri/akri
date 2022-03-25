@@ -133,7 +133,7 @@ def main():
     {webhook_config} \
     {k8s_distro_arg} \
     {helm_args} \
-    --debug -n deleteme\
+    --debug\
     ".format(chart_name=HELM_CHART_NAME,
              location=helm_chart_location,
              namespace=NAMESPACE,
