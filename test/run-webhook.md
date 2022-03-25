@@ -194,7 +194,7 @@ CABUNDLE=$(\
 
 ## Validate
 
-> **NOTE** Certificate is bound to `akri-webhook-configuration.default.svc`
+> **NOTE** Certificate is bound to `akri-webhook-configuration.$NAMESPACE.svc`
 
 ```bash
 echo ${CRT} \
