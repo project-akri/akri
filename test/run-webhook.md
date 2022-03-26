@@ -106,6 +106,7 @@ def run(command):
 ```
 
 ## Generate Certificate|Key
+First, [install the Kubernetes cert-manager](https://cert-manager.io/docs/installation/#default-static-install) on your cluster.
 
 ```bash
 NAMESPACE="deleteme"
@@ -141,7 +142,7 @@ spec:
     secretName: ca
 " | kubectl apply --filename=-
 
-# Create Certificate using this CA
+# Create Certificate using this CA. The following will last 5 years.
 echo "
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -150,8 +151,8 @@ metadata:
   namespace: ${NAMESPACE}
 spec:
   secretName: ${WEBHOOK}
-  duration: 8760h
-  renewBefore: 720h
+  duration: 43800h
+  renewBefore: 43700h
   isCA: false
   privateKey:
     algorithm: RSA
@@ -193,7 +194,7 @@ CABUNDLE=$(\
 
 ## Validate
 
-> **NOTE** Certificate is bound to `akri-webhook-configuration.default.svc`
+> **NOTE** Certificate is bound to `akri-webhook-configuration.$NAMESPACE.svc`
 
 ```bash
 echo ${CRT} \
