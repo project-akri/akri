@@ -3,6 +3,7 @@ name = "akri-shared"
 version = "0.8.7"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
+rust-version = "1.58.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
