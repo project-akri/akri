@@ -569,7 +569,7 @@ mod tests {
         mock.expect_update_instance()
             .times(MAX_INSTANCE_UPDATE_TRIES as usize)
             .withf(move |_instance, n, ns| n == "config-a-359973" && ns == "config-a-namespace")
-            .returning(move |_, _, _| Err(None.ok_or(anyhow::anyhow!("failure"))?));
+            .returning(move |_, _, _| Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?));
         mock.expect_find_instance()
             .times((MAX_INSTANCE_UPDATE_TRIES - 1) as usize)
             .withf(move |n, ns| n == "config-a-359973" && ns == "config-a-namespace")
