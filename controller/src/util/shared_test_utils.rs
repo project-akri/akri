@@ -102,7 +102,7 @@ pub mod config_for_tests {
             })
             .returning(move |_, _, _| {
                 if result_error {
-                    Err(None.ok_or(anyhow::anyhow!("failure"))?)
+                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
                 } else {
                     Ok(())
                 }
@@ -122,7 +122,7 @@ pub mod config_for_tests {
             .withf(move |name, namespace| name == config_name && namespace == config_namespace)
             .returning(move |_, _| {
                 if result_error {
-                    Err(None.ok_or(anyhow::anyhow!("failure"))?)
+                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
                 } else {
                     let config_json = file::read_file_to_string(result_file);
                     let config: Configuration = serde_json::from_str(&config_json).unwrap();
@@ -143,7 +143,7 @@ pub mod config_for_tests {
             .withf(move |selector| selector == svc_selector)
             .returning(move |_| {
                 if result_error {
-                    Err(None.ok_or(anyhow::anyhow!("failure"))?)
+                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
                 } else {
                     let svcs_json = file::read_file_to_string(result_file);
                     let svcs: ServiceList = serde_json::from_str(&svcs_json).unwrap();
@@ -216,7 +216,7 @@ pub mod config_for_tests {
             .withf(move |_svc, name, namespace| name == svc_name && namespace == svc_namespace)
             .returning(move |_, _, _| {
                 if result_error {
-                    Err(None.ok_or(anyhow::anyhow!("failure"))?)
+                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
                 } else {
                     Ok(())
                 }
@@ -238,7 +238,7 @@ pub mod config_for_tests {
             .withf(move |selector| selector == pod_selector)
             .returning(move |_| {
                 if result_error {
-                    Err(None.ok_or(anyhow::anyhow!("failure"))?)
+                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
                 } else {
                     let pods_json = file::read_file_to_string(result_file);
                     let pods: PodList = serde_json::from_str(&pods_json).unwrap();
