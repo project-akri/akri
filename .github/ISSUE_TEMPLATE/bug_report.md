@@ -24,7 +24,7 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 **Logs (please share snips of applicable logs)**
- - To get the logs of any pod, run `kubectl get logs <pod name>`
+ - To get the logs of any pod, run `kubectl logs <pod name>`
  - To get the logs of a pod that has already terminated, `kubectl get logs <pod name> --previous`
  - If you believe that the problem is with the Kubelet, run `journalctl -u kubelet` or `journalctl -u snap.microk8s.daemon-kubelet` if you are using a MicroK8s cluster.
 
