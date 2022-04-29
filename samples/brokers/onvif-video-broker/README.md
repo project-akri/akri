@@ -15,7 +15,3 @@ interface.
     ```sh
     ONVIF_DEVICE_SERVICE_URL=http://10.1.2.3:1000/onvif/device_service dotnet run
     ```
-
-    The broker will attempt to connect to the OPC UA server without credentials unless it sees certificates at
-    `/etc/opcua-certs/client-pki`. The [OPC UA certificate generator](../../opcua-certificate-generator) can be used to
-    generate certificates with the same root certificate for both the OPC UA server and this broker.
