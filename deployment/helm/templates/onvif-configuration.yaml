@@ -50,6 +50,24 @@ spec:
             value: {{ $val | quote }}
           {{- end }}
         {{- end }}
+        {{- if .Values.onvif.configuration.brokerPod.env }}
+        env:
+          {{- range $key, $val := .Values.onvif.configuration.brokerPod.env }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.onvif.configuration.brokerPod.envFrom }}
+        envFrom:
+        {{- range $val := .Values.onvif.configuration.brokerPod.envFrom.secretRef }}
+        - secretRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- range $val := .Values.onvif.configuration.brokerPod.envFrom.configMapRef }}
+        - configMapRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- end }}
         resources:
           requests:
             {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -59,6 +77,14 @@ spec:
             {{`"{{PLACEHOLDER}}"`}} : "1"
             memory: {{ .Values.onvif.configuration.brokerPod.resources.memoryLimit }}
             cpu: {{ .Values.onvif.configuration.brokerPod.resources.cpuLimit }}
+        {{- with .Values.onvif.configuration.brokerPod.volumeMounts}}
+        volumeMounts:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.onvif.configuration.brokerPod.volumes}}
+      volumes:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}
@@ -77,6 +103,24 @@ spec:
             {{- with .Values.onvif.configuration.pullPolicy }}
             imagePullPolicy: {{ . }}
             {{- end }}
+            {{- if .Values.onvif.configuration.brokerJob.env }}
+            env:
+              {{- range $key, $val := .Values.onvif.configuration.brokerJob.env }}
+              - name: {{ $key }}
+                value: {{ $val | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.onvif.configuration.brokerJob.envFrom }}
+            envFrom:
+            {{- range $val := .Values.onvif.configuration.brokerJob.envFrom.secretRef }}
+            - secretRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- range $val := .Values.onvif.configuration.brokerJob.envFrom.configMapRef }}
+            - configMapRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- end }}
             resources:
               requests:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -86,6 +130,14 @@ spec:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
                 memory: {{ .Values.onvif.configuration.brokerJob.resources.memoryLimit }}
                 cpu: {{ .Values.onvif.configuration.brokerJob.resources.cpuLimit }}
+            {{- with .Values.onvif.configuration.brokerJob.volumeMounts}}
+            volumeMounts:
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.onvif.configuration.brokerJob.volumes}}
+          volumes:
+            {{- toYaml . | nindent 10 }}
+          {{- end }}
           restartPolicy: {{ .Values.onvif.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:

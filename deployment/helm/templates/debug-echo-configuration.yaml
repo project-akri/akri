@@ -24,6 +24,24 @@ spec:
         {{- with .Values.debugEcho.configuration.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
+        {{- if .Values.debugEcho.configuration.brokerPod.env }}
+        env:
+          {{- range $key, $val := .Values.debugEcho.configuration.brokerPod.env }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.debugEcho.configuration.brokerPod.envFrom }}
+        envFrom:
+        {{- range $val := .Values.debugEcho.configuration.brokerPod.envFrom.secretRef }}
+        - secretRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- range $val := .Values.debugEcho.configuration.brokerPod.envFrom.configMapRef }}
+        - configMapRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- end }}
         resources:
           requests:
             {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -33,6 +51,14 @@ spec:
             {{`"{{PLACEHOLDER}}"`}} : "1"
             memory: {{ .Values.debugEcho.configuration.brokerPod.resources.memoryLimit }}
             cpu: {{ .Values.debugEcho.configuration.brokerPod.resources.cpuLimit }}
+        {{- with .Values.debugEcho.configuration.brokerPod.volumeMounts}}
+        volumeMounts:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.debugEcho.configuration.brokerPod.volumes}}
+      volumes:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}
@@ -51,6 +77,24 @@ spec:
             {{- with .Values.debugEcho.configuration.pullPolicy }}
             imagePullPolicy: {{ . }}
             {{- end }}
+            {{- if .Values.debugEcho.configuration.brokerJob.env }}
+            env:
+              {{- range $key, $val := .Values.debugEcho.configuration.brokerJob.env }}
+              - name: {{ $key }}
+                value: {{ $val | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.debugEcho.configuration.brokerJob.envFrom }}
+            envFrom:
+            {{- range $val := .Values.debugEcho.configuration.brokerJob.envFrom.secretRef }}
+            - secretRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- range $val := .Values.debugEcho.configuration.brokerJob.envFrom.configMapRef }}
+            - configMapRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- end }}
             resources:
               requests:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -60,6 +104,14 @@ spec:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
                 memory: {{ .Values.debugEcho.configuration.brokerJob.resources.memoryLimit }}
                 cpu: {{ .Values.debugEcho.configuration.brokerJob.resources.cpuLimit }}
+            {{- with .Values.debugEcho.configuration.brokerJob.volumeMounts}}
+            volumeMounts:
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.debugEcho.configuration.brokerJob.volumes}}
+          volumes:
+            {{- toYaml . | nindent 10 }}
+          {{- end }}
           restartPolicy: {{ .Values.debugEcho.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
