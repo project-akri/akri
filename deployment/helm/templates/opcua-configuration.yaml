@@ -65,8 +65,9 @@ spec:
             {{`"{{PLACEHOLDER}}"`}} : "1"
             memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
             cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
-        {{- with .Values.opcua.configuration.brokerPod.volumeMounts}}
+        {{- if or .Values.opcua.configuration.brokerPod.volumeMounts .Values.opcua.configuration.mountCertificates }}
         volumeMounts:
+        {{- with .Values.opcua.configuration.brokerPod.volumeMounts}}
           {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if .Values.opcua.configuration.mountCertificates}}
@@ -74,12 +75,14 @@ spec:
           mountPath: "/etc/opcua-certs/client-pki"
           readOnly: false
         {{- end }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- with .Values.opcua.configuration.brokerPod.volumes}}
+      {{- if or .Values.opcua.configuration.brokerPod.volumeMounts .Values.opcua.configuration.mountCertificates }}
       volumes:
+      {{- with .Values.opcua.configuration.brokerPod.volumes}}
         {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- if .Values.opcua.configuration.mountCertificates }}
@@ -95,6 +98,7 @@ spec:
             path: trusted/certs/SomeCA.der
           - key: ca_crl
             path: trusted/crl/SomeCA.crl
+      {{- end }}
       {{- end }}
     {{- else }}
     brokerJobSpec:
