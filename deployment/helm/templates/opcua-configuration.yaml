@@ -38,6 +38,24 @@ spec:
             value: {{ $val | quote }}
           {{- end }}
         {{- end }}
+        {{- if .Values.opcua.configuration.brokerPod.envFrom }}
+        envFrom:
+        {{- range $val := .Values.opcua.configuration.brokerPod.envFrom.secretRef }}
+        - secretRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- range $val := .Values.opcua.configuration.brokerPod.envFrom.configMapRef }}
+        - configMapRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.opcua.configuration.brokerPod.env }}
+        env:
+          {{- range $key, $val := .Values.opcua.configuration.brokerPod.env }}
+          - name: {{ $key }}
+            value: {{ $val | quote }}
+          {{- end }}
+        {{- end }}
         resources:
           requests:
             {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -47,18 +65,27 @@ spec:
             {{`"{{PLACEHOLDER}}"`}} : "1"
             memory: {{ .Values.opcua.configuration.brokerPod.resources.memoryLimit }}
             cpu: {{ .Values.opcua.configuration.brokerPod.resources.cpuLimit }}
-        {{- if .Values.opcua.configuration.mountCertificates}}
+        {{- if or .Values.opcua.configuration.brokerPod.volumeMounts .Values.opcua.configuration.mountCertificates }}
         volumeMounts:
+        {{- with .Values.opcua.configuration.brokerPod.volumeMounts}}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.opcua.configuration.mountCertificates}}
         - name: credentials
           mountPath: "/etc/opcua-certs/client-pki"
           readOnly: false
+        {{- end }}
         {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- if .Values.opcua.configuration.mountCertificates }}
+      {{- if or .Values.opcua.configuration.brokerPod.volumeMounts .Values.opcua.configuration.mountCertificates }}
       volumes:
+      {{- with .Values.opcua.configuration.brokerPod.volumes}}
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.opcua.configuration.mountCertificates }}
       - name: credentials
         secret:
           secretName: opcua-broker-credentials
@@ -71,6 +98,7 @@ spec:
             path: trusted/certs/SomeCA.der
           - key: ca_crl
             path: trusted/crl/SomeCA.crl
+      {{- end }}
       {{- end }}
     {{- else }}
     brokerJobSpec:
@@ -86,6 +114,24 @@ spec:
             {{- with .Values.opcua.configuration.pullPolicy }}
             imagePullPolicy: {{ . }}
             {{- end }}
+            {{- if .Values.opcua.configuration.brokerJob.env }}
+            env:
+              {{- range $key, $val := .Values.opcua.configuration.brokerJob.env }}
+              - name: {{ $key }}
+                value: {{ $val | quote }}
+              {{- end }}
+            {{- end }}
+            {{- if .Values.opcua.configuration.brokerJob.envFrom }}
+            envFrom:
+            {{- range $val := .Values.opcua.configuration.brokerJob.envFrom.secretRef }}
+            - secretRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- range $val := .Values.opcua.configuration.brokerJob.envFrom.configMapRef }}
+            - configMapRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- end }}
             resources:
               requests:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
@@ -95,6 +141,14 @@ spec:
                 {{`"{{PLACEHOLDER}}"`}} : "1"
                 memory: {{ .Values.opcua.configuration.brokerJob.resources.memoryLimit }}
                 cpu: {{ .Values.opcua.configuration.brokerJob.resources.cpuLimit }}
+            {{- with .Values.opcua.configuration.brokerJob.volumeMounts}}
+            volumeMounts:
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.opcua.configuration.brokerJob.volumes}}
+          volumes:
+            {{- toYaml . | nindent 10 }}
+          {{- end }}
           restartPolicy: {{ .Values.opcua.configuration.brokerJob.restartPolicy }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:

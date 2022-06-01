@@ -27,6 +27,17 @@ spec:
             value: {{ $val | quote }}
           {{- end }}
         {{- end }}
+        {{- if .Values.udev.configuration.brokerPod.envFrom }}
+        envFrom:
+        {{- range $val := .Values.udev.configuration.brokerPod.envFrom.secretRef }}
+        - secretRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- range $val := .Values.udev.configuration.brokerPod.envFrom.configMapRef }}
+        - configMapRef:
+            name: {{ $val | quote }}
+        {{- end }}
+        {{- end }}
         securityContext:
         {{- if .Values.udev.configuration.brokerPod.securityContext }}
           {{- toYaml .Values.udev.configuration.brokerPod.securityContext | nindent 8 }}
@@ -42,6 +53,14 @@ spec:
             {{`"{{PLACEHOLDER}}"`}} : "1"
             memory: {{ .Values.udev.configuration.brokerPod.resources.memoryLimit }}
             cpu: {{ .Values.udev.configuration.brokerPod.resources.cpuLimit }}
+        {{- with .Values.udev.configuration.brokerPod.volumeMounts}}
+        volumeMounts:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.udev.configuration.brokerPod.volumes}}
+      volumes:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}
