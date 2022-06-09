@@ -233,6 +233,7 @@ jobs:
           sudo mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
           kubectl taint nodes --all node-role.kubernetes.io/master-
           echo '--set kubernetesDistro=k8s' > /tmp/k8s_distro_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
