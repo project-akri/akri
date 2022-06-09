@@ -233,11 +233,11 @@ jobs:
           sudo mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
-          kubectl taint nodes --all node-role.kubernetes.io/control-plane- node-role.kubernetes.io/master-
+          kubectl taint nodes --all node-role.kubernetes.io/master-
           echo '--set kubernetesDistro=k8s' > /tmp/k8s_distro_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
-          until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
+          until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready" && kubectl describe node ${HOSTNAME,,}; sleep 10; done
 
       - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'Kubernetes'))
         name: Import local agent and controller to Kubernetes
