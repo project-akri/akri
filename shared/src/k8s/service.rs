@@ -68,7 +68,7 @@ pub fn create_service_app_name(
     svc_suffix: &str,
     node_specific_svc: bool,
 ) -> String {
-    let normalized_instance_name = instance_name.replace(".", "-");
+    let normalized_instance_name = instance_name.replace('.', "-");
     if node_specific_svc {
         // If this is the node specific service, use the insrtance name which
         // contains node-specific content.
@@ -258,18 +258,18 @@ mod svcspec_tests {
         assert_eq!(
             "node-a-suffix",
             create_service_app_name(
-                &"foo".to_string(),
-                &"node.a".to_string(),
-                &"suffix".to_string(),
+                "foo",
+                "node.a",
+                "suffix",
                 true
             )
         );
         assert_eq!(
             "foo-suffix",
             create_service_app_name(
-                &"foo".to_string(),
-                &"node.a".to_string(),
-                &"suffix".to_string(),
+                "foo",
+                "node.a",
+                "suffix",
                 false
             )
         );
@@ -277,18 +277,18 @@ mod svcspec_tests {
         assert_eq!(
             "node-a-suffix",
             create_service_app_name(
-                &"foo".to_string(),
-                &"node-a".to_string(),
-                &"suffix".to_string(),
+                "foo",
+                "node-a",
+                "suffix",
                 true
             )
         );
         assert_eq!(
             "foo-suffix",
             create_service_app_name(
-                &"foo".to_string(),
-                &"node-a".to_string(),
-                &"suffix".to_string(),
+                "foo",
+                "node-a",
+                "suffix",
                 false
             )
         );
@@ -472,7 +472,7 @@ mod svcspec_tests {
             let app_name = create_service_app_name(
                 &configuration_name,
                 &instance_name,
-                &"svc".to_string(),
+                "svc",
                 *node_specific_svc,
             );
 
@@ -586,7 +586,7 @@ mod svcspec_tests {
 
             // Validate the existing selector unchanged
             assert_eq!(
-                &&"this-node-selector".to_string(),
+                &&"this-node-selector",
                 &svc.spec
                     .as_ref()
                     .unwrap()
