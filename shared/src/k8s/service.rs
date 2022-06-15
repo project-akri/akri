@@ -257,20 +257,40 @@ mod svcspec_tests {
 
         assert_eq!(
             "node-a-suffix",
-            create_service_app_name("foo", "node.a", "suffix", true)
+            create_service_app_name(
+                "foo",
+                "node.a",
+                "suffix",
+                true
+            )
         );
         assert_eq!(
             "foo-suffix",
-            create_service_app_name("foo", "node.a", "suffix", false)
+            create_service_app_name(
+                "foo",
+                "node.a",
+                "suffix",
+                false
+            )
         );
 
         assert_eq!(
             "node-a-suffix",
-            create_service_app_name("foo", "node-a", "suffix", true)
+            create_service_app_name(
+                "foo",
+                "node-a",
+                "suffix",
+                true
+            )
         );
         assert_eq!(
             "foo-suffix",
-            create_service_app_name("foo", "node-a", "suffix", false)
+            create_service_app_name(
+                "foo",
+                "node-a",
+                "suffix",
+                false
+            )
         );
     }
 
