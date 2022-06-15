@@ -96,7 +96,7 @@ pub fn create_broker_app_name(
     capability_is_shared: bool,
     app_name_suffix: &str,
 ) -> String {
-    let normalized_instance_name = instance_name.replace(".", "-");
+    let normalized_instance_name = instance_name.replace('.', "-");
     if capability_is_shared {
         // If the device capability is shared, the instance name will not contain any
         // node-specific content.  To ensure uniqueness of the Pod/Job we are creating,
@@ -163,7 +163,7 @@ pub fn create_new_pod_from_spec(
         instance_name,
         Some(node_to_run_pod_on),
         capability_is_shared,
-        &"pod".to_string(),
+        "pod",
     );
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     labels.insert(APP_LABEL_ID.to_string(), app_name.clone());
@@ -289,59 +289,29 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_broker_app_name(
-                &"instance.name".to_string(),
-                Some("node"),
-                true,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("instance.name", Some("node"), true, "suffix")
         );
         assert_eq!(
             "instance-name-suffix",
-            create_broker_app_name(
-                &"instance.name".to_string(),
-                Some("node"),
-                false,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("instance.name", Some("node"), false, "suffix")
         );
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_broker_app_name(
-                &"instance-name".to_string(),
-                Some("node"),
-                true,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("instance-name", Some("node"), true, "suffix")
         );
         assert_eq!(
             "instance-name-suffix",
-            create_broker_app_name(
-                &"instance-name".to_string(),
-                Some("node"),
-                false,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("instance-name", Some("node"), false, "suffix")
         );
 
         assert_eq!(
             "node-1-0-0-1-suffix",
-            create_broker_app_name(
-                &"1-0-0-1".to_string(),
-                Some("node"),
-                true,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("1-0-0-1", Some("node"), true, "suffix")
         );
         assert_eq!(
             "1-0-0-1-suffix",
-            create_broker_app_name(
-                &"1-0-0-1".to_string(),
-                Some("node"),
-                false,
-                &"suffix".to_string()
-            )
+            create_broker_app_name("1-0-0-1", Some("node"), false, "suffix")
         );
     }
 
@@ -351,12 +321,7 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-1-job",
-            create_broker_app_name(
-                &"instance.name".to_string(),
-                Some("node"),
-                true,
-                &"1-job".to_string()
-            )
+            create_broker_app_name("instance.name", Some("node"), true, "1-job")
         );
     }
 
@@ -466,7 +431,7 @@ mod broker_podspec_tests {
                 &instance_name,
                 Some(&node_to_run_pod_on),
                 *capability_is_shared,
-                &"pod".to_string(),
+                "pod",
             );
 
             // Validate the metadata name/namesapce

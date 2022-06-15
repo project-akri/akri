@@ -746,8 +746,8 @@ pub async fn terminate_device_plugin_service(
 /// This creates an Instance's unique name
 pub fn get_device_instance_name(id: &str, config_name: &str) -> String {
     format!("{}-{}", config_name, &id)
-        .replace(".", "-")
-        .replace("/", "-")
+        .replace('.', "-")
+        .replace('/', "-")
 }
 
 // Aggregate a Configuration and Device's properties so they can be displayed in an Instance and injected into brokers as environment variables.
@@ -918,11 +918,11 @@ mod device_plugin_service_tests {
         let instance_name2: String = "10.1.2.3".to_string();
         assert_eq!(
             "usb-camera--dev-video0",
-            get_device_instance_name(&instance_name1, &"usb-camera".to_string())
+            get_device_instance_name(&instance_name1, "usb-camera")
         );
         assert_eq!(
             "ip-camera-10-1-2-3".to_string(),
-            get_device_instance_name(&instance_name2, &"ip-camera".to_string())
+            get_device_instance_name(&instance_name2, "ip-camera")
         );
     }
 
@@ -1226,8 +1226,7 @@ mod device_plugin_service_tests {
         }
 
         // Test shared all healthy
-        let mut devices: Vec<v1beta1::Device> =
-            build_virtual_devices(&device_usage, true, &"nodeA".to_string());
+        let mut devices: Vec<v1beta1::Device> = build_virtual_devices(&device_usage, true, "nodeA");
         for device in devices {
             assert_eq!(
                 expected_devices_nodea.get(&device.id).unwrap(),
@@ -1236,7 +1235,7 @@ mod device_plugin_service_tests {
         }
 
         // Test unshared all healthy
-        devices = build_virtual_devices(&device_usage, false, &"nodeA".to_string());
+        devices = build_virtual_devices(&device_usage, false, "nodeA");
         for device in devices {
             assert_eq!(
                 expected_devices_nodea.get(&device.id).unwrap(),
@@ -1245,7 +1244,7 @@ mod device_plugin_service_tests {
         }
 
         // Test shared some unhealthy (taken by another node)
-        devices = build_virtual_devices(&device_usage, true, &"nodeB".to_string());
+        devices = build_virtual_devices(&device_usage, true, "nodeB");
         for device in devices {
             assert_eq!(
                 expected_devices_nodeb.get(&device.id).unwrap(),
@@ -1254,9 +1253,8 @@ mod device_plugin_service_tests {
         }
 
         // Test unshared panic. A different node should never be listed under any device usage slots
-        let result = std::panic::catch_unwind(|| {
-            build_virtual_devices(&device_usage, false, &"nodeB".to_string())
-        });
+        let result =
+            std::panic::catch_unwind(|| build_virtual_devices(&device_usage, false, "nodeB"));
         assert!(result.is_err());
     }
 
