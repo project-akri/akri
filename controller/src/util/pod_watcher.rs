@@ -411,7 +411,7 @@ impl BrokerPodWatcher {
         let svc_name = service::create_service_app_name(
             configuration_name,
             instance_id,
-            &"svc".to_string(),
+            "svc",
             handle_instance_svc,
         );
 

@@ -257,13 +257,13 @@ async fn handle_deletion_work(
         &instance_name,
         context_node_name,
         instance_shared,
-        &"pod".to_string()
+        "pod"
     );
     let pod_app_name = pod::create_broker_app_name(
         instance_name,
         Some(context_node_name),
         instance_shared,
-        &"pod".to_string(),
+        "pod",
     );
     trace!(
         "handle_deletion_work - pod::remove_pod name={:?}, namespace={:?}",
@@ -360,7 +360,7 @@ async fn handle_addition_work(
             instance_uid.to_string(),
         ),
         &capability_id,
-        &new_node.to_string(),
+        new_node,
         instance_shared,
         podspec,
     )?;
