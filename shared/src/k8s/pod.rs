@@ -289,59 +289,29 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_broker_app_name(
-                "instance.name",
-                Some("node"),
-                true,
-                "suffix"
-            )
+            create_broker_app_name("instance.name", Some("node"), true, "suffix")
         );
         assert_eq!(
             "instance-name-suffix",
-            create_broker_app_name(
-                "instance.name",
-                Some("node"),
-                false,
-                "suffix"
-            )
+            create_broker_app_name("instance.name", Some("node"), false, "suffix")
         );
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_broker_app_name(
-                "instance-name",
-                Some("node"),
-                true,
-                "suffix"
-            )
+            create_broker_app_name("instance-name", Some("node"), true, "suffix")
         );
         assert_eq!(
             "instance-name-suffix",
-            create_broker_app_name(
-                "instance-name",
-                Some("node"),
-                false,
-                "suffix"
-            )
+            create_broker_app_name("instance-name", Some("node"), false, "suffix")
         );
 
         assert_eq!(
             "node-1-0-0-1-suffix",
-            create_broker_app_name(
-                "1-0-0-1",
-                Some("node"),
-                true,
-                "suffix"
-            )
+            create_broker_app_name("1-0-0-1", Some("node"), true, "suffix")
         );
         assert_eq!(
             "1-0-0-1-suffix",
-            create_broker_app_name(
-                "1-0-0-1",
-                Some("node"),
-                false,
-                "suffix"
-            )
+            create_broker_app_name("1-0-0-1", Some("node"), false, "suffix")
         );
     }
 
@@ -351,12 +321,7 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-1-job",
-            create_broker_app_name(
-                "instance.name",
-                Some("node"),
-                true,
-                "1-job"
-            )
+            create_broker_app_name("instance.name", Some("node"), true, "1-job")
         );
     }
 
