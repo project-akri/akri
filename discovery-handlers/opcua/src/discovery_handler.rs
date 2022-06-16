@@ -100,10 +100,13 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
                 let discovery_urls: Vec<String> = match discovery_method.clone() {
                     OpcuaDiscoveryMethod::Standard(standard_opcua_discovery) => {
-                        do_standard_discovery(
-                            standard_opcua_discovery.discovery_urls.clone(),
-                            application_names.clone(),
-                        )
+                        let discovery_urls = standard_opcua_discovery.discovery_urls.clone();
+                        let application_names = application_names.clone();
+                        tokio::task::spawn_blocking(move || {
+                            do_standard_discovery(discovery_urls, application_names)
+                        })
+                        .await
+                        .unwrap()
                     } // No other discovery methods implemented yet
                 };
 
