@@ -5,7 +5,7 @@ use super::wrappers::{
 use ::url::Url;
 use akri_discovery_utils::filtering::{should_include, FilterList};
 use log::{error, info, trace};
-use opcua_client::prelude::*;
+use opcua::client::prelude::*;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Duration,

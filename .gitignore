@@ -4,3 +4,4 @@
 **/cobertura.xml
 .idea
 *.pyc
+pki/*
