@@ -2,7 +2,7 @@
 pub mod opcua_client_wrapper {
     #[cfg(test)]
     use mockall::{automock, predicate::*};
-    use opcua_client::prelude::*;
+    use opcua::client::prelude::*;
 
     #[cfg_attr(test, automock)]
     pub trait OpcuaClient {
@@ -45,8 +45,9 @@ pub mod opcua_client_wrapper {
     }
     /// Returns an OPC UA Client that will only be used to connect to OPC UA Server and Local Discovery Servers' DiscoveryEndpoints
     pub fn create_opcua_discovery_client() -> impl OpcuaClient {
-        // No security is needed to connect to these DisoveryEndpoints; therefore, creating a keypair for the Client is unneccessary.
-        let create_sample_keypair = false;
+        // Automatically create a self-signed private key and public cert.
+        // This will not be used to authenticate as only public endpoints will be accessed by the discovery client.
+        let create_sample_keypair = true;
         // Do not try to create a session again
         let session_retry_limit = 0;
         OpcuaClientImpl::new(
