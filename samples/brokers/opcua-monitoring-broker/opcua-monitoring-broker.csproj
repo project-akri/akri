@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.40.0" />
-    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.4.367.42" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.4.368.58" />
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Symbols" Version="1.4.367.42" />
   </ItemGroup>
 
