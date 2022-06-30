@@ -812,7 +812,7 @@ udev:
     nodeSelectors: {}
     host: 
       # udev is the node path of udev, usually at `/run/udev`
-      udev:
+      udev: /run/udev
     resources:
       # memoryRequest defines the minimum amount of RAM that must be available to this Pod
       # for it to be scheduled by the Kubernetes Scheduler
