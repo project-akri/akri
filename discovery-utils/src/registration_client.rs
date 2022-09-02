@@ -14,7 +14,7 @@ pub async fn register_discovery_handler(
     info!("register_discovery_handler - entered");
     loop {
         // We will ignore this dummy uri because UDS does not use it.
-        if let Ok(channel) = Endpoint::try_from("dummy://[::]:50051")?
+        if let Ok(channel) = Endpoint::try_from("http://[::]:50051")?
             .connect_with_connector(tower::service_fn(move |_: Uri| {
                 tokio::net::UnixStream::connect(super::get_registration_socket())
             }))
