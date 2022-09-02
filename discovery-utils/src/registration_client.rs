@@ -27,7 +27,14 @@ pub async fn register_discovery_handler(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("register_discovery_handler - entered");
     loop {
-        if let Ok(mut client) = get_client().await {
+        // We will ignore this dummy uri because UDS does not use it.
+        if let Ok(channel) = Endpoint::try_from("http://[::]:50051")?
+            .connect_with_connector(tower::service_fn(move |_: Uri| {
+                tokio::net::UnixStream::connect(super::get_registration_socket())
+            }))
+            .await
+        {
+            let mut client = RegistrationClient::new(channel);
             let request = Request::new(register_request.clone());
             client.register_discovery_handler(request).await?;
             break;
