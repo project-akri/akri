@@ -187,7 +187,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
 
         // We will ignore this dummy uri because UDS does not use it.
         let kubelet_socket_closure = kubelet_socket.to_string();
-        let channel = Endpoint::try_from("dummy://[::]:50051")?
+        let channel = Endpoint::try_from("http://[::]:50051")?
             .connect_with_connector(service_fn(move |_: Uri| {
                 UnixStream::connect(kubelet_socket_closure.clone())
             }))
