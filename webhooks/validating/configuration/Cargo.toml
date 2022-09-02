@@ -3,7 +3,7 @@ name = "webhook-configuration"
 version = "0.8.22"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
-rust-version = "1.61.0"
+rust-version = "1.63.0"
 
 [dependencies]
 actix = "0.12.0"
