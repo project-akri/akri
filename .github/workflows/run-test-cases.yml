@@ -228,6 +228,21 @@ jobs:
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
+          cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+          overlay
+          br_netfilter
+          EOF
+          sudo modprobe overlay
+          sudo modprobe br_netfilter
+          cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
+          net.bridge.bridge-nf-call-iptables = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward = 1
+          EOF
+          sudo sysctl --system
+          sudo mkdir -p /etc/containerd
+          containerd config default | sudo tee /etc/containerd/config.toml
+          sudo systemctl restart containerd
           sudo swapoff -a              
           sudo kubeadm init --pod-network-cidr=10.244.0.0/16
           sudo mkdir -p $HOME/.kube
