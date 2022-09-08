@@ -4,7 +4,7 @@
 # `helm lint deployment/helm/ --set debugEcho.discovery.enabled=true,debugEcho.configuration.enabled=true,udev.discovery.enabled=true,udev.configuration.enabled=true,udev.configuration.discoveryDetails.udevRules[0]='KERNEL=="video[0-9]*"'...`
 agent:
   host:
-    containerRuntimeSocket: "/var/run/dockershim.sock"
+    containerRuntimeSocket: "/run/containerd/containerd.sock"
 debugEcho:
   discovery: 
     enabled: true

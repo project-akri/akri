@@ -101,7 +101,7 @@ agent:
     # containerRuntimeSocket is the default node path of the container runtime socket. 
     # For MicroK8s, set to "/var/snap/microk8s/common/run/containerd.sock"
     # For K3s, set to "/run/k3s/containerd/containerd.sock"
-    # For standard K8s, set to "/var/run/dockershim.sock"
+    # For standard K8s, set to "/run/containerd/containerd.sock"
     containerRuntimeSocket: ""
     # udev is the node path of udev, usually at `/run/udev`
     udev:
