@@ -65,9 +65,9 @@ spec:
           - name: HOST_CRICTL_PATH
             value: /usr/local/bin/crictl
           - name: HOST_RUNTIME_ENDPOINT
-            value: unix:///host/var/run/dockershim.sock
+            value: unix:///host/run/containerd/containerd.sock
           - name: HOST_IMAGE_ENDPOINT
-            value: unix:///host/var/run/dockershim.sock
+            value: unix:///host/run/containerd/containerd.sock
           - name: AGENT_NODE_NAME
             valueFrom:
               fieldRef:
@@ -80,7 +80,7 @@ spec:
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
           - name: var-run-dockershim
-            mountPath: /host/var/run/dockershim.sock
+            mountPath: /host/run/containerd/containerd.sock
           {{- if .Values.agent.host.udev }}
           - name: devices
             mountPath: /run/udev
@@ -110,13 +110,13 @@ spec:
           {{- else if eq .Values.kubernetesDistro "k3s" }}
           path: "/run/k3s/containerd/containerd.sock"
           {{- else if eq .Values.kubernetesDistro "k8s" }}
-          path: "/var/run/dockershim.sock"
+          path: "/run/containerd/containerd.sock"
           {{- else }}
           # Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro=<k8s|k3s|microk8s>` 
           # or setting `agent.host.containerRuntimeSocket=/container/runtime.sock`. 
           # See https://docs.akri.sh/user-guide/cluster-setup for more information.
-          # Using K8s default "/var/run/dockershim.sock" for now.
-          path: "/var/run/dockershim.sock"
+          # Using K8s default "/run/containerd/containerd.sock" for now.
+          path: "/run/containerd/containerd.sock"
           {{- end }}
       {{- if .Values.agent.host.udev }}
       - name: devices

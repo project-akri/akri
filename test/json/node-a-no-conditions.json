@@ -3,7 +3,7 @@
     "kind": "Node",
     "metadata": {
         "annotations": {
-            "kubeadm.alpha.kubernetes.io/cri-socket": "/var/run/dockershim.sock",
+            "kubeadm.alpha.kubernetes.io/cri-socket": "/run/containerd/containerd.sock",
             "node.alpha.kubernetes.io/ttl": "0",
             "volumes.kubernetes.io/controller-managed-attach-detach": "true"
         },
