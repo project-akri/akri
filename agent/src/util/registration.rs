@@ -204,6 +204,7 @@ pub async fn internal_run_registration_server(
     Ok(())
 }
 
+#[allow(dead_code)]
 #[cfg(any(test, feature = "agent-full"))]
 pub fn register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,

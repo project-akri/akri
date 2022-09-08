@@ -478,11 +478,11 @@ pub mod start_discovery {
         kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
-        info!(
-            "start_discovery - entered for {} discovery handler",
-            config.spec.discovery_handler.name
-        );
         let config_name = config.metadata.name.clone().unwrap();
+        info!(
+            "start_discovery - entered for {} discovery handler with akric {}",
+            config.spec.discovery_handler.name, config_name
+        );
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);
 
