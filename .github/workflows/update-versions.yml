@@ -1,0 +1,62 @@
+name: Auto Bump Versions
+
+on:
+  issue_comment:                                     
+    types: [created, edited, deleted]
+
+jobs:
+  build:
+    if: ${{ github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Checkout PR on which comment was made
+      run: hub pr checkout ${{ github.event.issue.number }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update version minor
+      if: contains(github.event.comment.body, '/version minor')
+      run: |
+        ./version.sh -u -n
+        echo "BUMP_TYPE=minor" >> $GITHUB_ENV
+
+    - name: Update version major
+      if: contains(github.event.comment.body, '/version major')
+      run: |
+        ./version.sh -u -m
+        echo "BUMP_TYPE=major" >> $GITHUB_ENV
+
+    - name: Update version patch
+      if: contains(github.event.comment.body, '/version patch')
+      run: |
+        ./version.sh -u -p
+        echo "BUMP_TYPE=patch" >> $GITHUB_ENV
+    
+    - name: Add labels
+      uses: actions/github-script@v6
+      if: ${{ env.BUMP_TYPE }}
+      with:
+        script: |
+          github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['version/${{ env.BUMP_TYPE }}']
+          })
+
+    - name: Push Changes
+      if: ${{ env.BUMP_TYPE }}
+      run: |
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
+        git pull
+        git add .
+        git commit -m "Update ${{ env.BUMP_TYPE }} version" --signoff
+        git push
+    
