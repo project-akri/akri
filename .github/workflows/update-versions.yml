@@ -7,18 +7,32 @@ on:
 jobs:
   build:
     if: ${{ github.event.issue.pull_request }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Get PR details
+      uses: actions/github-script@v3
+      id: get-pr
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const request = {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          }
+          core.info(`Getting PR #${request.pull_number} from ${request.owner}/${request.repo}`)
+          try {
+            const result = await github.pulls.get(request)
+            return result.data
+          } catch (err) {
+            core.setFailed(`Request failed with error ${err}`)
+          }
 
-    - name: Checkout PR on which comment was made
-      run: hub pr checkout ${{ github.event.issue.number }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout PR
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ fromJSON(steps.get-pr.outputs.result).head.repo.full_name }}
+        ref: ${{ fromJSON(steps.get-pr.outputs.result).head.ref }}
     
     - name: Update version minor
       if: contains(github.event.comment.body, '/version minor')
@@ -59,4 +73,4 @@ jobs:
         git add .
         git commit -m "Update ${{ env.BUMP_TYPE }} version" --signoff
         git push
-    
+        
