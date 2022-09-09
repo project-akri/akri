@@ -15,5 +15,4 @@
 - [ ] code is free of common mistakes (`cargo clippy`)
 - [ ] all Akri tests succeed (`cargo test`)
 - [ ] inline documentation builds (`cargo doc`)
-- [ ] version has been updated appropriately (`./version.sh`)
 - [ ] all commits pass the [DCO bot check](https://probot.github.io/apps/dco/) by being signed off -- see the failing DCO check for instructions on how to retroactively sign commits
