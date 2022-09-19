@@ -133,16 +133,16 @@ jobs:
             version: v1.21.5+k3s1
           - runtime: K3s-1.22
             version: v1.22.6+k3s1
-          - runtime: Kubernetes-1.17
-            version: 1.17.14-00
-          - runtime: Kubernetes-1.18
-            version: 1.18.12-00
-          - runtime: Kubernetes-1.19
-            version: 1.19.4-00
-          - runtime: Kubernetes-1.20
-            version: 1.20.1-00
           - runtime: Kubernetes-1.21
-            version: 1.21.0-00
+            version: 1.21.14-00
+          - runtime: Kubernetes-1.22
+            version: 1.22.14-00
+          - runtime: Kubernetes-1.23
+            version: 1.23.11-00
+          - runtime: Kubernetes-1.24
+            version: 1.24.5-00
+          - runtime: Kubernetes-1.25
+            version: 1.25.1-00
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
