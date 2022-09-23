@@ -4,7 +4,7 @@ use akri_discovery_utils::{
         v0::{discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse},
         DiscoverStream, 
     },
-    call_agent_service::{DeviceQueryInput,query_devices},
+    registration_client::{DeviceQueryInput,query_devices},
 };
 
 use async_trait::async_trait;
