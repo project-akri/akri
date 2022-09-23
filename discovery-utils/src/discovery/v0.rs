@@ -30,6 +30,19 @@ pub mod register_discovery_handler_request {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryDeviceInfoRequest {
+    ///the basic device information that discovery handler can get is used in this request, such as device ipaddress, mac address etc. It will be a JSON string and it will be directly send to external device inventory system REST API. It is external device inventory system's resonsibility to understand this query_device_payload JSON string and respond.
+    #[prost(string, tag = "1")]
+    pub query_device_payload: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub query_device_http: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryDeviceInfoResponse {
+    #[prost(string, tag = "1")]
+    pub query_device_result: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverRequest {
     /// String containing all the details (such as filtering options)
     /// the `DiscoveryHandler` needs to find a set of devices.
@@ -97,7 +110,7 @@ pub mod registration_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     #[doc = " Registration is the service advertised by the Akri Agent."]
-    #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
+    #[doc = " It provides not only registering discovery handler function but also querying device function "]
     #[derive(Debug, Clone)]
     pub struct RegistrationClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -154,6 +167,7 @@ pub mod registration_client {
             self.inner = self.inner.accept_gzip();
             self
         }
+        #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
         pub async fn register_discovery_handler(
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterDiscoveryHandlerRequest>,
@@ -169,12 +183,28 @@ pub mod registration_client {
                 http::uri::PathAndQuery::from_static("/v0.Registration/RegisterDiscoveryHandler");
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = " Accept device information query request from discovery handler. It will query external device inventory system and respond any addtional device info query result to discovery handler."]
+        pub async fn query_device_info(
+            &mut self,
+            request: impl tonic::IntoRequest<super::QueryDeviceInfoRequest>,
+        ) -> Result<tonic::Response<super::QueryDeviceInfoResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/v0.Registration/QueryDeviceInfo");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 #[doc = r" Generated client implementations."]
 pub mod discovery_handler_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    #[doc = "Discovery handler service is the serivce advertised by each seperate discovery handler. When Akri agent monitors an new or updated Akri configuration, it will invoke relevant device handler's this rpc service"]
     #[derive(Debug, Clone)]
     pub struct DiscoveryHandlerClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -257,13 +287,19 @@ pub mod registration_server {
     #[doc = "Generated trait containing gRPC methods that should be implemented for use with RegistrationServer."]
     #[async_trait]
     pub trait Registration: Send + Sync + 'static {
+        #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
         async fn register_discovery_handler(
             &self,
             request: tonic::Request<super::RegisterDiscoveryHandlerRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status>;
+        #[doc = " Accept device information query request from discovery handler. It will query external device inventory system and respond any addtional device info query result to discovery handler."]
+        async fn query_device_info(
+            &self,
+            request: tonic::Request<super::QueryDeviceInfoRequest>,
+        ) -> Result<tonic::Response<super::QueryDeviceInfoResponse>, tonic::Status>;
     }
     #[doc = " Registration is the service advertised by the Akri Agent."]
-    #[doc = " Any `DiscoveryHandler` can register with the Akri Agent."]
+    #[doc = " It provides not only registering discovery handler function but also querying device function "]
     #[derive(Debug)]
     pub struct RegistrationServer<T: Registration> {
         inner: _Inner<T>,
@@ -338,6 +374,39 @@ pub mod registration_server {
                     };
                     Box::pin(fut)
                 }
+                "/v0.Registration/QueryDeviceInfo" => {
+                    #[allow(non_camel_case_types)]
+                    struct QueryDeviceInfoSvc<T: Registration>(pub Arc<T>);
+                    impl<T: Registration> tonic::server::UnaryService<super::QueryDeviceInfoRequest>
+                        for QueryDeviceInfoSvc<T>
+                    {
+                        type Response = super::QueryDeviceInfoResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::QueryDeviceInfoRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).query_device_info(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = QueryDeviceInfoSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 _ => Box::pin(async move {
                     Ok(http::Response::builder()
                         .status(200)
@@ -390,6 +459,7 @@ pub mod discovery_handler_server {
             request: tonic::Request<super::DiscoverRequest>,
         ) -> Result<tonic::Response<Self::DiscoverStream>, tonic::Status>;
     }
+    #[doc = "Discovery handler service is the serivce advertised by each seperate discovery handler. When Akri agent monitors an new or updated Akri configuration, it will invoke relevant device handler's this rpc service"]
     #[derive(Debug)]
     pub struct DiscoveryHandlerServer<T: DiscoveryHandler> {
         inner: _Inner<T>,
