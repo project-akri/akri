@@ -8,7 +8,7 @@ use akri_discovery_utils::{
         },
         DiscoverStream,
     },
-    call_agent_service::{DeviceQueryInput,query_devices},
+    registration_client::{DeviceQueryInput,query_devices},
 };
 use std::env;
 use async_trait::async_trait;

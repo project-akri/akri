@@ -6,7 +6,7 @@ pub type DiscoverStream =
     tokio_stream::wrappers::ReceiverStream<Result<v0::DiscoverResponse, tonic::Status>>;
 
 pub mod discovery_handler {
-    use super::super::call_agent_service::{
+    use super::super::registration_client::{
         register_discovery_handler, register_discovery_handler_again,
     };
     use super::{
