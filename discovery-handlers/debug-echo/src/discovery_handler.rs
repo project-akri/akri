@@ -1,8 +1,12 @@
-use akri_discovery_utils::discovery::{
-    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-    v0::{discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse},
-    DiscoverStream,
+use akri_discovery_utils::{
+    discovery::{
+        discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
+        v0::{discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse},
+        DiscoverStream, 
+    },
+    call_agent_service::{DeviceQueryInput,query_devices},
 };
+
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::time::Duration;
@@ -23,12 +27,23 @@ pub const DEBUG_ECHO_AVAILABILITY_CHECK_PATH: &str = "/tmp/debug-echo-availabili
 /// String to write into DEBUG_ECHO_AVAILABILITY_CHECK_PATH to make Other devices undiscoverable
 pub const OFFLINE: &str = "OFFLINE";
 
+
+#[derive(Serialize, Debug)]
+pub struct QueryDevicePostBody {
+    pub id: String,
+    pub protocol: String
+}
+
 /// DebugEchoDiscoveryDetails describes the necessary information needed to discover and filter debug echo devices.
 /// Specifically, it contains a list (`descriptions`) of fake devices to be discovered.
 /// This information is expected to be serialized in the discovery details map sent during Discover requests.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugEchoDiscoveryDetails {
+    //if there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_device_http: Option<String>,    
+    //for debug echo discovery handler, each string in description will be treated as a discovered device ID
     pub descriptions: Vec<String>,
 }
 
@@ -59,12 +74,11 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: DebugEchoDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
-                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;   
+        let query_device_http = discovery_handler_config.query_device_http;
+        
         let descriptions = discovery_handler_config.descriptions;
-        let mut offline = fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH)
-            .unwrap_or_default()
-            .contains(OFFLINE);
-        let mut first_loop = true;
+        let mut previously_discovered_list: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             loop {
                 // Before each iteration, check if receiver has dropped
@@ -76,53 +90,56 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     break;
                 }
 
+                //Standardize the procedures as same as the method used in OPC protocol discovery handler
+                //1. get a filtered list of current dicovery
+                //2. Query all devices' external info (if there is query uri configuration) 
+                //3. compare current Devices list with the Devices list of last discovery iteration
+                //4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices
+                
+                let mut latest_discovered_list:Vec<Device>= Vec::new();
                 let availability =
                     fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH).unwrap_or_default();
                 trace!(
                     "discover -- debugEcho devices are online? {}",
                     !availability.contains(OFFLINE)
                 );
-                if (availability.contains(OFFLINE) && !offline) || offline && first_loop {
-                    if first_loop {
-                        first_loop = false;
-                    }
-                    // If the device is now offline, return an empty list of instance info
-                    offline = true;
-                    if let Err(e) = discovered_devices_sender
-                        .send(Ok(DiscoverResponse {
-                            devices: Vec::new(),
-                        }))
-                        .await
-                    {
-                        error!("discover - for debugEcho failed to send discovery response with error {}", e);
-                        if let Some(sender) = register_sender {
-                            sender.send(()).await.unwrap();
+
+                if  !availability.contains(OFFLINE) {
+                    let device_query_requests = descriptions.iter()
+                    .map(|description| {
+                        let mut properties = HashMap::new();
+                        properties.insert(
+                            super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
+                            String::from(description),
+                        );
+                        let query_body = QueryDevicePostBody{
+                            id:String::from(description),
+                            protocol: "DebugEcho".to_string()
+                        };
+                        DeviceQueryInput{
+                            id:String::from(description),
+                            properties,
+                            query_device_payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
+                            mounts:Vec::default(),
                         }
-                        break;
+                    }).collect::<Vec<DeviceQueryInput>>();
+                    latest_discovered_list = query_devices(device_query_requests,query_device_http.clone()).await;
+                }
+                let mut changed_device_list = false;
+                let mut matching_device_count = 0;
+                latest_discovered_list.iter().for_each(|device| {
+                    if !previously_discovered_list.contains(device) {
+                        changed_device_list = true;
+                    } else {
+                        matching_device_count += 1;
                     }
-                } else if (!availability.contains(OFFLINE) && offline) || !offline && first_loop {
-                    if first_loop {
-                        first_loop = false;
-                    }
-                    offline = false;
-                    let devices = descriptions
-                        .iter()
-                        .map(|description| {
-                            let mut properties = HashMap::new();
-                            properties.insert(
-                                super::DEBUG_ECHO_DESCRIPTION_LABEL.to_string(),
-                                description.clone(),
-                            );
-                            Device {
-                                id: description.clone(),
-                                properties,
-                                mounts: Vec::default(),
-                                device_specs: Vec::default(),
-                            }
-                        })
-                        .collect::<Vec<Device>>();
+                });
+
+                if changed_device_list || matching_device_count != previously_discovered_list.len() {
+                    info!("Debug Echo detect change in discovered devices, send full list to agent");
+                    previously_discovered_list = latest_discovered_list.clone();
                     if let Err(e) = discovered_devices_sender
-                        .send(Ok(DiscoverResponse { devices }))
+                        .send(Ok(DiscoverResponse {devices: latest_discovered_list }))
                         .await
                     {
                         // TODO: consider re-registering here
