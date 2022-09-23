@@ -3,9 +3,12 @@ syntax = "proto3";
 package v0;
 
 // Registration is the service advertised by the Akri Agent.
-// Any `DiscoveryHandler` can register with the Akri Agent.
+// It provides not only registering discovery handler function but also querying device function 
 service Registration {
+    // Any `DiscoveryHandler` can register with the Akri Agent.
     rpc RegisterDiscoveryHandler(RegisterDiscoveryHandlerRequest) returns (Empty) {}
+    // Accept device information query request from discovery handler. It will query external device inventory system and respond any addtional device info query result to discovery handler.
+    rpc QueryDeviceInfo(QueryDeviceInfoRequest) returns (QueryDeviceInfoResponse) {}
 }
 
 
@@ -29,6 +32,18 @@ message RegisterDiscoveryHandlerRequest {
 message Empty {
 }
 
+message QueryDeviceInfoRequest{
+    //the basic device information that discovery handler can get is used in this request, such as device ipaddress, mac address etc. It will be a JSON string and it will be directly send to external device inventory system REST API. It is external device inventory system's resonsibility to understand this query_device_payload JSON string and respond.
+    string query_device_payload = 1; 
+    string query_device_http = 2;
+}
+
+message QueryDeviceInfoResponse{
+    string query_device_result = 1;
+}
+
+
+//Discovery handler service is the serivce advertised by each seperate discovery handler. When Akri agent monitors an new or updated Akri configuration, it will invoke relevant device handler's this rpc service
 service DiscoveryHandler {
   rpc Discover (DiscoverRequest) returns (stream DiscoverResponse);
 }

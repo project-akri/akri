@@ -8,6 +8,7 @@ use akri_discovery_utils::{
         DiscoverStream,
     },
     filtering::FilterList,
+    registration_client::{DeviceQueryInput,query_devices},
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
@@ -18,6 +19,13 @@ use tonic::{Response, Status};
 
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
+
+
+#[derive(Serialize, Debug)]
+pub struct QueryDevicePostBody {
+    pub discovery_url: String,
+    pub protocol: String
+}
 
 /// Methods for discovering OPC UA Servers
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -52,6 +60,9 @@ fn lds_discovery_url() -> Vec<String> {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OpcuaDiscoveryDetails {
+    //if there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_device_http: Option<String>,
     pub opcua_discovery_method: OpcuaDiscoveryMethod,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub application_names: Option<FilterList>,
@@ -84,6 +95,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let discovery_handler_config: OpcuaDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+        let query_device_http = discovery_handler_config.query_device_http.clone();
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let discovery_method = discovery_handler_config.opcua_discovery_method.clone();
@@ -97,6 +109,11 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
+                //Standardize the procedures as same as the method used in OPC protocol discovery handler
+                //1. get a filtered list of current dicovery
+                //2. Query all devices' external info (if there is query uri configuration) 
+                //3. compare current Devices list with the Devices list of last discovery iteration
+                //4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices
 
                 let discovery_urls: Vec<String> = match discovery_method.clone() {
                     OpcuaDiscoveryMethod::Standard(standard_opcua_discovery) => {
@@ -111,7 +128,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 };
 
                 // Build DiscoveryResult for each server discovered
-                let discovered_devices = discovery_urls
+                let device_query_requests:Vec<DeviceQueryInput> =  discovery_urls
                     .into_iter()
                     .map(|discovery_url| {
                         let mut properties = std::collections::HashMap::new();
@@ -121,14 +138,19 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         );
                         properties
                             .insert(OPCUA_DISCOVERY_URL_LABEL.to_string(), discovery_url.clone());
-                        Device {
-                            id: discovery_url,
+                        let query_body = QueryDevicePostBody{
+                            discovery_url:discovery_url.clone(),
+                            protocol: "OPC".to_string()
+                        };
+                        DeviceQueryInput{
+                            id:discovery_url,
                             properties,
-                            mounts: Vec::default(),
-                            device_specs: Vec::default(),
+                            query_device_payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
+                            mounts:Vec::default(),
                         }
                     })
-                    .collect::<Vec<Device>>();
+                    .collect::<Vec<DeviceQueryInput>>();
+                let discovered_devices= query_devices(device_query_requests,query_device_http.clone()).await;
                 let mut changed_device_list = false;
                 let mut matching_device_count = 0;
                 discovered_devices.iter().for_each(|device| {

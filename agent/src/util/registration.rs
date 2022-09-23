@@ -4,12 +4,14 @@ use super::constants::ENABLE_DEBUG_ECHO_LABEL;
 use akri_discovery_utils::discovery::v0::{
     register_discovery_handler_request::EndpointType,
     registration_server::{Registration, RegistrationServer},
-    Empty, RegisterDiscoveryHandlerRequest,
+    Empty, QueryDeviceInfoRequest, QueryDeviceInfoResponse, RegisterDiscoveryHandlerRequest,
 };
 #[cfg(any(test, feature = "agent-full"))]
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use akri_shared::uds::unix_stream;
 use futures::TryFutureExt;
+
+use hyper::{Body, Client, Request as HTTPRequest};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
@@ -153,6 +155,41 @@ impl Registration for AgentRegistration {
         }
         Ok(Response::new(Empty {}))
     }
+
+    /// Implement rpc method:QueryDeviceInfo
+    /// Based on query_device_payload and query_device_http, http post to the external device inventory system
+    /// and try to fetch additional device information to feed back to device discovery handler
+    async fn query_device_info(
+        &self,
+        request: Request<QueryDeviceInfoRequest>,
+    ) -> Result<Response<QueryDeviceInfoResponse>, Status> {
+        let query_device_req = request.into_inner();
+        let query_response = post_device_query(
+            query_device_req.query_device_http,
+            query_device_req.query_device_payload,
+        )
+        .await
+        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{}", e)))?;
+
+        let response = QueryDeviceInfoResponse {
+            query_device_result: query_response,
+        };
+        Ok(Response::new(response))
+    }
+}
+
+async fn post_device_query(
+    url: String,
+    payload: String,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let client = Client::new();
+    let req = HTTPRequest::post(url)
+        .header("Content-Type", "application/json")
+        .body(Body::from(payload.into_bytes()))?;
+    let res = client.request(req).await?;
+    let body_bytes = hyper::body::to_bytes(res).await?;
+    let query_response = String::from_utf8(body_bytes.to_vec())?;
+    Ok(query_response)
 }
 
 /// Serves the Agent registration service over UDS.
@@ -204,6 +241,7 @@ pub async fn internal_run_registration_server(
     Ok(())
 }
 
+#[allow(dead_code)]
 #[cfg(any(test, feature = "agent-full"))]
 pub fn register_embedded_discovery_handlers(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,

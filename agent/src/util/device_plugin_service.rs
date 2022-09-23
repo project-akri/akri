@@ -604,7 +604,7 @@ async fn build_list_and_watch_response(
     dps: Arc<DevicePluginService>,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<Vec<v1beta1::Device>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
+    trace!(
         "build_list_and_watch_response -- for Instance {} entered",
         dps.instance_name
     );

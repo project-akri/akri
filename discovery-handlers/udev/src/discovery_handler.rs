@@ -1,12 +1,16 @@
 use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
-use akri_discovery_utils::discovery::{
-    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-    v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
-        Mount,
+use akri_discovery_utils::{
+    discovery::{
+        discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
+        v0::{
+            discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
+            Mount,
+        },
+        DiscoverStream,
     },
-    DiscoverStream,
+    registration_client::{DeviceQueryInput,query_devices},
 };
+use std::env;
 use async_trait::async_trait;
 use log::{error, info, trace};
 use std::collections::HashSet;
@@ -18,11 +22,22 @@ use tonic::{Response, Status};
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 
+
+#[derive(Serialize, Debug)]
+pub struct QueryDevicePostBody {
+    pub node_name: String,
+    pub name: String,
+    pub protocol: String
+}
+
 /// This defines the udev data stored in the Configuration
 /// CRD DiscoveryDetails
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UdevDiscoveryDetails {
+    //if there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_device_http: Option<String>,
     pub udev_rules: Vec<String>,
 }
 
@@ -52,6 +67,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+        let query_device_http = discovery_handler_config.query_device_http.clone();
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let udev_rules = discovery_handler_config.udev_rules.clone();
@@ -65,6 +81,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
+                //Standardize the procedures as same as the method used in OPC protocol discovery handler
+                //1. get a filtered list of current dicovery
+                //2. Query all devices' external info (if there is query uri configuration) 
+                //3. compare current Devices list with the Devices list of last discovery iteration
+                //4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices
+
                 let mut devpaths: HashSet<String> = HashSet::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
@@ -77,7 +99,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     "discover - mapping and returning devices at devpaths {:?}",
                     devpaths
                 );
-                let discovered_devices = devpaths
+                let device_query_requests:Vec<DeviceQueryInput> = devpaths
                     .into_iter()
                     .map(|path| {
                         let mut properties = std::collections::HashMap::new();
@@ -88,14 +110,21 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             read_only: true,
                         };
                         // TODO: use device spec
-                        Device {
-                            id: path,
+                        let node_name=env::var("AGENT_NODE_NAME").unwrap_or(String::from(""));
+                        let query_body = QueryDevicePostBody{
+                            node_name,
+                            name:path.clone(),
+                            protocol: "udev".to_string()
+                        };
+                        DeviceQueryInput{
+                            id:path,
                             properties,
-                            mounts: vec![mount],
-                            device_specs: Vec::default(),
+                            query_device_payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
+                            mounts:vec![mount],
                         }
                     })
-                    .collect::<Vec<Device>>();
+                    .collect::<Vec<DeviceQueryInput>>();
+                let discovered_devices= query_devices(device_query_requests,query_device_http.clone()).await;
                 let mut changed_device_list = false;
                 let mut matching_device_count = 0;
                 discovered_devices.iter().for_each(|device| {

@@ -12,6 +12,7 @@ use akri_discovery_utils::{
         DiscoverStream,
     },
     filtering::FilterList,
+    registration_client::{DeviceQueryInput,query_devices},
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
@@ -22,6 +23,12 @@ use tonic::{Response, Status};
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 
+#[derive(Serialize, Debug)]
+pub struct QueryDevicePostBody {
+    pub ip_and_mac_joined: String, //ip_and_mac_joined
+    pub protocol: String
+}
+
 /// This defines the ONVIF data stored in the Configuration
 /// CRD
 ///
@@ -30,6 +37,9 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OnvifDiscoveryDetails {
+    //if there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_device_http: Option<String>, 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip_addresses: Option<FilterList>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -72,9 +82,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let discovery_handler_config: OnvifDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+        let query_device_http = discovery_handler_config.query_device_http.clone();
+        let mut previously_discovered_list: Vec<Device> = Vec::new();
+
         tokio::spawn(async move {
-            let mut previous_cameras = Vec::new();
-            let mut filtered_camera_devices = HashMap::new();
             loop {
                 // Before each iteration, check if receiver has dropped
                 if discovered_devices_sender.is_closed() {
@@ -84,7 +95,13 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
-                let mut changed_camera_list = false;
+
+                //Standardize the procedures as same as the method used in OPC protocol discovery handler
+                //1. get a filtered list of current dicovery
+                //2. Query all devices' external info (if there is query uri configuration) 
+                //3. compare current Devices list with the Devices list of last discovery iteration
+                //4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices
+
                 let onvif_query = OnvifQueryImpl {};
 
                 trace!("discover - filters:{:?}", &discovery_handler_config,);
@@ -97,34 +114,47 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 .await
                 .unwrap();
                 trace!("discover - discovered:{:?}", &latest_cameras);
-                // Remove cameras that have gone offline
-                previous_cameras.iter().for_each(|c| {
-                    if !latest_cameras.contains(c) {
-                        changed_camera_list = true;
-                        filtered_camera_devices.remove(c);
-                    }
-                });
 
                 let futures: Vec<_> = latest_cameras
                     .iter()
-                    .filter(|c| !previous_cameras.contains(c))
                     .map(|c| apply_filters(&discovery_handler_config, c, &onvif_query))
                     .collect();
                 let options = futures_util::future::join_all(futures).await;
                 // Insert newly discovered camera that are not filtered out
+                let mut device_query_requests:Vec<DeviceQueryInput> = vec![];
+
                 options.into_iter().for_each(|o| {
-                    if let Some((service_url, d)) = o {
-                        changed_camera_list = true;
-                        filtered_camera_devices.insert(service_url, d);
+                    if let Some((_service_url, d)) = o {
+                        let query_body = QueryDevicePostBody{
+                            ip_and_mac_joined:d.id.clone(),
+                            protocol: "Onvif".to_string()
+                        };
+                        device_query_requests.push(DeviceQueryInput{
+                            id:d.id.clone(),
+                            properties:d.properties,
+                            query_device_payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
+                            mounts:Vec::default(),
+                        })
+                    }
+                });
+                let latest_discovered_list:Vec<Device> = query_devices(device_query_requests,query_device_http.clone()).await;
+
+                let mut changed_device_list = false;
+                let mut matching_device_count = 0;
+                latest_discovered_list.iter().for_each(|device| {
+                    if !previously_discovered_list.contains(device) {
+                        changed_device_list = true;
+                    } else {
+                        matching_device_count += 1;
                     }
                 });
 
-                if changed_camera_list {
-                    info!("discover - sending updated device list");
-                    previous_cameras = latest_cameras;
+                if changed_device_list || matching_device_count != previously_discovered_list.len() {
+                    info!("Onvif detect change in discovered devices, send full list to agent");
+                    previously_discovered_list = latest_discovered_list.clone();
                     if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
-                            devices: filtered_camera_devices.values().cloned().collect(),
+                            devices: latest_discovered_list,
                         }))
                         .await
                     {
@@ -286,6 +316,7 @@ mod tests {
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
 
@@ -316,6 +347,7 @@ mod tests {
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
 
@@ -344,6 +376,7 @@ mod tests {
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         assert!(apply_filters(&onvif_config, mock_uri, &mock)
             .await
@@ -374,6 +407,7 @@ mod tests {
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
 
@@ -403,6 +437,7 @@ mod tests {
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         assert!(apply_filters(&onvif_config, mock_uri, &mock)
             .await
@@ -433,6 +468,7 @@ mod tests {
             }),
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
 
@@ -461,6 +497,7 @@ mod tests {
             }),
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         assert!(apply_filters(&onvif_config, mock_uri, &mock)
             .await
@@ -491,6 +528,7 @@ mod tests {
             }),
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
 
@@ -520,6 +558,7 @@ mod tests {
             }),
             scopes: None,
             discovery_timeout_seconds: 1,
+            query_device_http: None,
         };
         assert!(apply_filters(&onvif_config, mock_uri, &mock)
             .await

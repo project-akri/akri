@@ -14,6 +14,7 @@ use super::{
 use akri_discovery_utils::discovery::v0::{
     discovery_handler_client::DiscoveryHandlerClient, Device, DiscoverRequest, DiscoverResponse,
 };
+use akri_discovery_utils::DEVICE_EXT_INFO_LABEL;
 use akri_shared::{
     akri::configuration::Configuration,
     k8s,
@@ -208,6 +209,9 @@ impl DiscoveryOperator {
         let discovery_operator = Arc::new(self.clone());
         let stop_discovery_receiver: &mut tokio::sync::broadcast::Receiver<()> =
             &mut dh_details.close_discovery_handler_connection.subscribe();
+
+        let mut saved_instance_name_extinfo_map: HashMap<String, String> = HashMap::new();
+        let config_name = self.config.metadata.name.clone().unwrap();
         loop {
             // Wait for either new discovery results or a message to stop discovery
             tokio::select! {
@@ -218,6 +222,25 @@ impl DiscoveryOperator {
                 result = stream.get_message() => {
                     let response = result?.ok_or_else(|| anyhow::anyhow!("Received response type None. Should not happen."))?;
                     trace!("internal_do_discover - got discovery results {:?}", response.devices);
+
+                    //if device external information update is detected, simply remove the old akri instance
+                    //self.remove_akri_instance(kube_interface.clone(), instance.clone()).await
+                    //saved_instance_name_extinfo_map
+                    let mut new_ext_info_map: HashMap<String, String> = HashMap::new();
+                    for device in response.devices.iter() {
+                        let ext_info = device.properties.get(DEVICE_EXT_INFO_LABEL);
+                        let id = generate_instance_digest(&device.id, dh_details.shared);
+                        let instance_name = get_device_instance_name(&id, &config_name);
+                        if saved_instance_name_extinfo_map.get(&instance_name) != ext_info {
+                            self.remove_akri_instance(kube_interface.clone(), instance_name.clone())
+                                .await?;
+                        }
+                        if let Some(device_ext_info) = ext_info {
+                            new_ext_info_map.insert(instance_name, String::from(device_ext_info));
+                        }
+                    }
+                    saved_instance_name_extinfo_map = new_ext_info_map;
+
                     self.handle_discovery_results(
                         kube_interface.clone(),
                         response.devices,
@@ -293,6 +316,19 @@ impl DiscoveryOperator {
             .map(|discovery_result| {
                 let id = generate_instance_digest(&discovery_result.id, shared);
                 let instance_name = get_device_instance_name(&id, &config_name);
+                if discovery_result
+                    .properties
+                    .contains_key(DEVICE_EXT_INFO_LABEL)
+                {
+                    if let Some(device_ext_info) =
+                        discovery_result.properties.get(DEVICE_EXT_INFO_LABEL)
+                    {
+                        return (
+                            format!("{}-{}", instance_name, device_ext_info),
+                            discovery_result.clone(),
+                        );
+                    }
+                }
                 (instance_name, discovery_result.clone())
             })
             .collect();
@@ -430,23 +466,37 @@ impl DiscoveryOperator {
                     }
                 }
                 if remove_instance {
-                    trace!("update_instance_connectivity_status - instance {} has been offline too long ... terminating device plugin", instance);
-                    device_plugin_service::terminate_device_plugin_service(
-                        &instance,
-                        self.instance_map.clone(),
-                    )
-                    .await
-                    .unwrap();
-                    k8s::try_delete_instance(
-                        kube_interface.as_ref(),
-                        &instance,
-                        self.config.metadata.namespace.as_ref().unwrap(),
-                    )
-                    .await
-                    .unwrap();
+                    self.remove_akri_instance(kube_interface.clone(), instance.clone())
+                        .await?;
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn remove_akri_instance(
+        &self,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
+        instance_name: String,
+    ) -> anyhow::Result<()> {
+        let instance_map = self.instance_map.lock().await.clone();
+        if !instance_map.contains_key(&instance_name) {
+            //do nothing as the instance does not exist
+            return Ok(());
+        }
+        device_plugin_service::terminate_device_plugin_service(
+            &instance_name,
+            self.instance_map.clone(),
+        )
+        .await
+        .unwrap();
+        k8s::try_delete_instance(
+            kube_interface.as_ref(),
+            &instance_name,
+            self.config.metadata.namespace.as_ref().unwrap(),
+        )
+        .await
+        .unwrap();
         Ok(())
     }
 }
@@ -478,11 +528,11 @@ pub mod start_discovery {
         kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
-        info!(
-            "start_discovery - entered for {} discovery handler",
-            config.spec.discovery_handler.name
-        );
         let config_name = config.metadata.name.clone().unwrap();
+        info!(
+            "start_discovery - entered for {} discovery handler with akric {}",
+            config.spec.discovery_handler.name, config_name
+        );
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);
 
