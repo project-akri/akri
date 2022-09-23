@@ -16,6 +16,7 @@ pub trait DiscoveryHandler {
         ) -> Result<tonic::Response<akri_discovery_utils::discovery::v0::DiscoverStream>, tonic::Status>;
 }
 ```
+* **RequestDeviceInfo** - This gRPC service is used by discovery handlers to query external information about the device with the initial information of an discovered device, such as its host ip address. 
 
 ### Private
 * **EnvVarQuery** - This provides a mockable way to query for `get_discovery_handler` to query environment variables.
@@ -25,3 +26,4 @@ trait EnvVarQuery {
 }
 ```
 
+* **QueryDevice** - Upon receive request from remote RequestDeviceInfo call, Agent will contact an external device inventory REST service supplier to fetch device related infomation. This exernal device inventory supplier can be specified in Akri configuration file.
