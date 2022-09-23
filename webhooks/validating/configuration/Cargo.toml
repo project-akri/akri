@@ -1,6 +1,6 @@
 [package]
 name = "webhook-configuration"
-version = "0.8.16"
+version = "0.8.20"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
 rust-version = "1.61.0"
@@ -10,7 +10,7 @@ actix = "0.12.0"
 actix-web = { version = "3.3.2", features = ["openssl"] }
 actix-rt = "2.2.0"
 akri-shared = { path = "../../../shared" }
-clap = "2.33.3"
+clap = "3.2.20"
 kube = { version = "0.69.1",  features = ["derive"] }
 kube-runtime = "0.69.1"
 k8s-openapi = { version = "0.14.0", default-features = false, features = ["schemars", "v1_23"] }

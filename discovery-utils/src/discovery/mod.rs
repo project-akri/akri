@@ -279,7 +279,7 @@ pub mod server {
                 Vec::new(),
             )
             .await;
-            let channel = Endpoint::try_from("dummy://[::]:50051")
+            let channel = Endpoint::try_from("http://[::]:50051")
                 .unwrap()
                 .connect_with_connector(tower::service_fn(move |_: Uri| {
                     UnixStream::connect(discovery_handler_socket.clone())

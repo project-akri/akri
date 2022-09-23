@@ -1179,7 +1179,7 @@ mod device_plugin_service_tests {
             )
             .await
             .unwrap();
-        let channel = Endpoint::try_from("dummy://[::]:50051")
+        let channel = Endpoint::try_from("http://[::]:50051")
             .unwrap()
             .connect_with_connector(service_fn(move |_: Uri| {
                 UnixStream::connect(socket_path.clone())

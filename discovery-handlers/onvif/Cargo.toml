@@ -1,6 +1,6 @@
 [package]
 name = "akri-onvif"
-version = "0.8.16"
+version = "0.8.20"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.61.0"
@@ -27,7 +27,6 @@ tokio = { version = "1.0", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
 tonic = { version = "0.5.2", features = ["tls"] }
 uuid = { version = "0.8.1", features = ["v4"] }
-xml-rs = { version = "0.8.0" }
 yaserde = "0.7.1"
 yaserde_derive = "0.7.1"
 
