@@ -12,7 +12,7 @@ use akri_discovery_utils::{
         DiscoverStream,
     },
     filtering::FilterList,
-    registration_client::{DeviceQueryInput,query_devices},
+    call_agent_service::{DeviceQueryInput,query_devices},
 };
 use async_trait::async_trait;
 use log::{error, info, trace};

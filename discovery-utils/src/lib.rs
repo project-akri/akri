@@ -1,6 +1,6 @@
 pub mod discovery;
 pub mod filtering;
-pub mod registration_client;
+pub mod call_agent_service;
 
 #[macro_use]
 extern crate serde_derive;
