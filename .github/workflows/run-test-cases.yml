@@ -242,7 +242,7 @@ jobs:
           containerd config default | sudo tee /etc/containerd/config.toml
           sudo systemctl restart containerd
           sudo swapoff -a              
-          sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+          sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=/run/containerd/containerd.sock
           sudo mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
@@ -252,6 +252,16 @@ jobs:
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
+
+      - if: startsWith(matrix.kube.runtime, 'Kubernetes')
+        name: Output Kubelet, Containerd, Docker Logs
+        run: |
+          echo "Kubelet Logs:"
+          sudo journalctl -xeu kubelet --no-pager
+          echo "\nContainerd Logs"
+          sudo journalctl -xeu containerd --no-pager
+          echo "\nDocker Logs"
+          sudo journalctl -xeu docker --no-pager
 
       - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'Kubernetes'))
         name: Import local agent and controller to Kubernetes
