@@ -269,6 +269,13 @@ jobs:
           sudo docker load --input agent.tar
           sudo docker load --input controller.tar
           sudo docker load --input webhook-configuration.tar
+          sudo docker image ls
+          # No longer are using docker for container runtime, need to load to containerd with ctr
+          # -n allows kubernetes to see the image
+          sudo ctr -n=k8s.io image import agent.tar
+          sudo ctr -n=k8s.io image import controller.tar
+          sudo ctr -n=k8s.io image import webhook-configuration.tar
+          sudo crictl images
 
       - if: startsWith(matrix.kube.runtime, 'MicroK8s')
         name: Install MicroK8s
@@ -345,6 +352,7 @@ jobs:
 
       - name: Execute test script ${{ matrix.test.file }}
         run: python ${{ matrix.test.file }}
+
       - name: Upload Agent log as artifact
         if: always()
         uses: actions/upload-artifact@v2
