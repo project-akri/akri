@@ -157,19 +157,16 @@ impl Registration for AgentRegistration {
     }
 
     /// Implement rpc method:QueryDeviceInfo
-    /// Based on query_device_payload and query_device_http, http post to the external device inventory system
+    /// Based on payload and query_device_http, http post to the external device inventory system
     /// and try to fetch additional device information to feed back to device discovery handler
     async fn query_device_info(
         &self,
         request: Request<QueryDeviceInfoRequest>,
     ) -> Result<Response<QueryDeviceInfoResponse>, Status> {
         let query_device_req = request.into_inner();
-        let query_response = post_device_query(
-            query_device_req.query_device_http,
-            query_device_req.query_device_payload,
-        )
-        .await
-        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{}", e)))?;
+        let query_response = post_device_query(query_device_req.uri, query_device_req.payload)
+            .await
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{}", e)))?;
 
         let response = QueryDeviceInfoResponse {
             query_device_result: query_response,

@@ -2,7 +2,7 @@ use super::discovery::v0::{
     registration_client::RegistrationClient, RegisterDiscoveryHandlerRequest,
     QueryDeviceInfoRequest,Device,Mount
 };
-use log::{info, trace};
+use log::{info, trace, error};
 use std::convert::TryFrom;
 use tonic::{
     transport::{Endpoint, Uri, Channel},
@@ -63,7 +63,7 @@ pub async fn register_discovery_handler_again(
 pub struct DeviceQueryInput {
     pub id: String,
     pub properties: HashMap<String,String>,
-    pub query_device_payload: Option<String>,
+    pub payload: Option<String>,
     pub mounts: Vec<Mount>,
 }
 
@@ -72,17 +72,22 @@ async fn query_device_info(
 ) -> Device {
     let result = get_client().await;
     if let Ok(mut client) = result{
-        if let Some(query_payload)=query_input.query_device_payload {
+        if let Some(query_payload)=query_input.payload {
             let request = Request::new(QueryDeviceInfoRequest{
-                query_device_payload:query_payload,
-                query_device_http:query_http
+                payload:query_payload.clone(),
+                uri:query_http
             });
         
             let result = client.query_device_info(request).await;
-            if let Ok(query_device_response) = result {
-                let device_ext_info=query_device_response.into_inner().query_device_result;
-                if device_ext_info.len()>0 {
-                    query_input.properties.insert(crate::DEVICE_EXT_INFO_LABEL.to_string(),device_ext_info);
+            match result {
+                Ok(query_device_response)=>{
+                    let device_ext_info=query_device_response.into_inner().query_device_result;
+                    if device_ext_info.len()>0 {
+                        query_input.properties.insert(crate::DEVICE_EXT_INFO_LABEL.to_string(),device_ext_info);
+                    }
+                },
+                Err(error) => {
+                    error!("Fail to query {query_payload}: {error}");
                 }
             }
         }

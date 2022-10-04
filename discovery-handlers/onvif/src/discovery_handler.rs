@@ -37,7 +37,7 @@ pub struct QueryDevicePostBody {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OnvifDiscoveryDetails {
-    //if there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
+    // If there is query_device_http in the discovery detail, discovery handler will call agent QueryDeviceInfo rpc function for each discovered new device
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query_device_http: Option<String>, 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -96,12 +96,6 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     break;
                 }
 
-                //Standardize the procedures as same as the method used in OPC protocol discovery handler
-                //1. get a filtered list of current dicovery
-                //2. Query all devices' external info (if there is query uri configuration) 
-                //3. compare current Devices list with the Devices list of last discovery iteration
-                //4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices
-
                 let onvif_query = OnvifQueryImpl {};
 
                 trace!("discover - filters:{:?}", &discovery_handler_config,);
@@ -132,7 +126,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         device_query_requests.push(DeviceQueryInput{
                             id:d.id.clone(),
                             properties:d.properties,
-                            query_device_payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
+                            payload:Some(serde_json::to_string(&query_body).unwrap_or(String::from("{}"))),
                             mounts:Vec::default(),
                         })
                     }

@@ -210,7 +210,7 @@ impl DiscoveryOperator {
         let stop_discovery_receiver: &mut tokio::sync::broadcast::Receiver<()> =
             &mut dh_details.close_discovery_handler_connection.subscribe();
 
-        let mut saved_instance_name_extinfo_map: HashMap<String, String> = HashMap::new();
+        let mut saved_device_ext_info: HashMap<String, String> = HashMap::new();
         let config_name = self.config.metadata.name.clone().unwrap();
         loop {
             // Wait for either new discovery results or a message to stop discovery
@@ -223,15 +223,20 @@ impl DiscoveryOperator {
                     let response = result?.ok_or_else(|| anyhow::anyhow!("Received response type None. Should not happen."))?;
                     trace!("internal_do_discover - got discovery results {:?}", response.devices);
 
-                    //if device external information update is detected, simply remove the old akri instance
+                    // Remove all confirmed removed instance name out from saved_device_ext_info
+                    let instance_map = self.instance_map.lock().await.clone();
+                    saved_device_ext_info.retain(|key,_value|{
+                        instance_map.contains_key(key)
+                    });
+
+                    // If device external information update is detected, simply remove the old akri instance
                     //self.remove_akri_instance(kube_interface.clone(), instance.clone()).await
-                    //saved_instance_name_extinfo_map
                     let mut new_ext_info_map: HashMap<String, String> = HashMap::new();
                     for device in response.devices.iter() {
                         let ext_info = device.properties.get(DEVICE_EXT_INFO_LABEL);
                         let id = generate_instance_digest(&device.id, dh_details.shared);
                         let instance_name = get_device_instance_name(&id, &config_name);
-                        if saved_instance_name_extinfo_map.get(&instance_name) != ext_info {
+                        if saved_device_ext_info.get(&instance_name) != ext_info {
                             self.remove_akri_instance(kube_interface.clone(), instance_name.clone())
                                 .await?;
                         }
@@ -239,7 +244,9 @@ impl DiscoveryOperator {
                             new_ext_info_map.insert(instance_name, String::from(device_ext_info));
                         }
                     }
-                    saved_instance_name_extinfo_map = new_ext_info_map;
+                    for (key, val) in new_ext_info_map {
+                        saved_device_ext_info.insert(key,val);
+                    }
 
                     self.handle_discovery_results(
                         kube_interface.clone(),
@@ -530,8 +537,8 @@ pub mod start_discovery {
         let config = discovery_operator.get_config();
         let config_name = config.metadata.name.clone().unwrap();
         info!(
-            "start_discovery - entered for {} discovery handler with akric {}",
-            config.spec.discovery_handler.name, config_name
+            "start_discovery - entered for {} discovery handler with akric {config_name}",
+            config.spec.discovery_handler.name
         );
         let mut tasks = Vec::new();
         let discovery_operator = Arc::new(discovery_operator);

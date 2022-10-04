@@ -31,11 +31,11 @@ pub mod register_discovery_handler_request {
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDeviceInfoRequest {
-    ///the basic device information that discovery handler can get is used in this request, such as device ipaddress, mac address etc. It will be a JSON string and it will be directly send to external device inventory system REST API. It is external device inventory system's resonsibility to understand this query_device_payload JSON string and respond.
+    ///the basic device information that discovery handler can get is used in this request, such as device ipaddress, mac address etc. It will be a JSON string and it will be directly send to external device inventory system REST API. It is external device inventory system's resonsibility to understand this payload JSON string and respond.
     #[prost(string, tag = "1")]
-    pub query_device_payload: ::prost::alloc::string::String,
+    pub payload: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub query_device_http: ::prost::alloc::string::String,
+    pub uri: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryDeviceInfoResponse {
@@ -261,6 +261,11 @@ pub mod discovery_handler_client {
             self.inner = self.inner.accept_gzip();
             self
         }
+        #[doc = "Standardize the procedures as same as the method used in OPC protocol discovery handler"]
+        #[doc = "1. get a filtered devices list of current dicovery"]
+        #[doc = "2. Query all devices' external info (if there is query uri configuration) "]
+        #[doc = "3. compare current Devices list with the Devices list of last discovery iteration"]
+        #[doc = "4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices  "]
         pub async fn discover(
             &mut self,
             request: impl tonic::IntoRequest<super::DiscoverRequest>,
@@ -454,6 +459,11 @@ pub mod discovery_handler_server {
             + Send
             + Sync
             + 'static;
+        #[doc = "Standardize the procedures as same as the method used in OPC protocol discovery handler"]
+        #[doc = "1. get a filtered devices list of current dicovery"]
+        #[doc = "2. Query all devices' external info (if there is query uri configuration) "]
+        #[doc = "3. compare current Devices list with the Devices list of last discovery iteration"]
+        #[doc = "4. check if there is no change (two lists have same length, and every component in current list is in previous list). If there is discrepancy, return full list of Devices  "]
         async fn discover(
             &self,
             request: tonic::Request<super::DiscoverRequest>,
