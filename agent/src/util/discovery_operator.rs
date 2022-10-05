@@ -323,19 +323,6 @@ impl DiscoveryOperator {
             .map(|discovery_result| {
                 let id = generate_instance_digest(&discovery_result.id, shared);
                 let instance_name = get_device_instance_name(&id, &config_name);
-                if discovery_result
-                    .properties
-                    .contains_key(DEVICE_EXT_INFO_LABEL)
-                {
-                    if let Some(device_ext_info) =
-                        discovery_result.properties.get(DEVICE_EXT_INFO_LABEL)
-                    {
-                        return (
-                            format!("{}-{}", instance_name, device_ext_info),
-                            discovery_result.clone(),
-                        );
-                    }
-                }
                 (instance_name, discovery_result.clone())
             })
             .collect();
