@@ -121,7 +121,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     if let Some((_service_url, d)) = o {
                         let query_body = QueryDevicePostBody{
                             ip_and_mac_joined:d.id.clone(),
-                            protocol: "Onvif".to_string()
+                            protocol: crate::DISCOVERY_HANDLER_NAME.to_string()
                         };
                         device_query_requests.push(DeviceQueryInput{
                             id:d.id.clone(),

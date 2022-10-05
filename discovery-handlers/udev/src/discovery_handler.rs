@@ -109,7 +109,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         let query_body = QueryDevicePostBody{
                             node_name,
                             name:path.clone(),
-                            protocol: "udev".to_string()
+                            protocol: crate::DISCOVERY_HANDLER_NAME.to_string()
                         };
                         DeviceQueryInput{
                             id:path,

@@ -108,7 +108,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         );
                         let query_body = QueryDevicePostBody{
                             id:String::from(description),
-                            protocol: "DebugEcho".to_string()
+                            protocol: crate::DISCOVERY_HANDLER_NAME.to_string()
                         };
                         DeviceQueryInput{
                             id:String::from(description),

@@ -135,7 +135,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                             .insert(OPCUA_DISCOVERY_URL_LABEL.to_string(), discovery_url.clone());
                         let query_body = QueryDevicePostBody{
                             discovery_url:discovery_url.clone(),
-                            protocol: "OPC".to_string()
+                            protocol: crate::DISCOVERY_HANDLER_NAME.to_string()
                         };
                         DeviceQueryInput{
                             id:discovery_url,
