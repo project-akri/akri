@@ -62,6 +62,9 @@ def main():
             # Save Agent and controller logs
             shared_test_code.save_agent_and_controller_logs() 
         finally:
+            # Get running kube
+            print("On ERROR: check kubectl nodestatus")
+            os.system("kubectl get nodes -o wide")
             # Delete akri and check that controller and Agent pods deleted
             os.system("helm delete akri")
             if res:
