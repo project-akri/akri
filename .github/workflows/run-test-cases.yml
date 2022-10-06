@@ -247,7 +247,19 @@ jobs:
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
           kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-          kubectl taint nodes --all node-role.kubernetes.io/master-
+
+          # Kubernetes 1.25+ replaces the master label with control plane
+          if [ "${{ matrix.kube.version }}" == "1.25.1-00" ]; then
+            kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+          else
+            kubectl taint nodes --all node-role.kubernetes.io/master-
+          fi
+
+          # Kubernetes 1.24 has both labels applicable, to be safe tainting both labels
+          if [ "${{ matrix.kube.version }}" == "1.24.5-00" ]; then
+            kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+          fi
+
           echo '--set kubernetesDistro=k8s' > /tmp/k8s_distro_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
