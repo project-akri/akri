@@ -236,6 +236,11 @@ custom:
       tag: latest
       # pullPolicy is the pull policy
       pullPolicy: ""
+    # useNetworkConnection specifies whether the discovery handler should make a networked connection
+    # with Agents, using its pod IP address when registering
+    useNetworkConnection: false
+    # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
+    port: 10000
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set custom.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
