@@ -6,7 +6,7 @@ metadata:
 spec:
   discoveryHandler: 
     name: {{ required "A custom.configuration.discoveryHandlerName is required." .Values.custom.configuration.discoveryHandlerName }}
-    discoveryDetails: {{ .Values.custom.configuration.discoveryDetails }}
+    discoveryDetails: {{ .Values.custom.configuration.discoveryDetails | quote }}
   {{- if or .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerJob.image.repository }}
   {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
