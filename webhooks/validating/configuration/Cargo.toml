@@ -1,6 +1,6 @@
 [package]
 name = "webhook-configuration"
-version = "0.8.19"
+version = "0.8.20"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
 rust-version = "1.61.0"
