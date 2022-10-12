@@ -796,17 +796,6 @@ udev:
       tag:
       # pullPolicy is the pull policy
       pullPolicy: ""
-    resources:
-      # memoryRequest defines the minimum amount of RAM that must be available to this Pod
-      # for it to be scheduled by the Kubernetes Scheduler
-      memoryRequest: 11Mi
-      # cpuRequest defines the minimum amount of CPU that must be available to this Pod
-      # for it to be scheduled by the Kubernetes Scheduler
-      cpuRequest: 10m
-      # memoryLimit defines the maximum amount of RAM this Pod can consume.
-      memoryLimit: 24Mi
-      # cpuLimit defines the maximum amount of CPU this Pod can consume.
-      cpuLimit: 23m
     # useNetworkConnection specifies whether the discovery handler should make a networked connection
     # with Agents, using its pod IP address when registering
     useNetworkConnection: false
