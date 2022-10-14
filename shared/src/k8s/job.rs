@@ -358,8 +358,7 @@ mod broker_jobspec_tests {
         // Validate that Akri labels are added to Job
         assert_eq!(
             app_name,
-            job
-                .metadata
+            job.metadata
                 .labels
                 .as_ref()
                 .unwrap()
@@ -368,8 +367,7 @@ mod broker_jobspec_tests {
         );
         assert_eq!(
             &API_NAMESPACE,
-            job
-                .metadata
+            job.metadata
                 .labels
                 .as_ref()
                 .unwrap()
@@ -387,8 +385,7 @@ mod broker_jobspec_tests {
         );
         assert_eq!(
             instance_name,
-            job
-                .metadata
+            job.metadata
                 .labels
                 .as_ref()
                 .unwrap()
