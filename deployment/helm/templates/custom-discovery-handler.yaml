@@ -25,7 +25,18 @@ spec:
           limits:
             memory: {{ .Values.custom.discovery.resources.memoryLimit }}
             cpu: {{ .Values.custom.discovery.resources.cpuLimit }}
+        {{- if .Values.custom.discovery.useNetworkConnection }}
+        ports:
+        - name: discovery
+          containerPort: {{ .Values.custom.discovery.port }}
+        {{- end }}
         env:
+        {{- if .Values.custom.discovery.useNetworkConnection }}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{- end }}
         - name: DISCOVERY_HANDLERS_DIRECTORY
           value: /var/lib/akri
         volumeMounts:
