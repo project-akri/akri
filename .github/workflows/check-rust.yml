@@ -33,7 +33,7 @@ jobs:
     - name: Rust install
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: 1.61.0
+        toolchain: 1.63.0
         override: true
         components: clippy, rustfmt
     - name: Install Linux requirements
@@ -47,7 +47,7 @@ jobs:
     - name: Check clippy
       run: cargo clippy --all
     - name: Check clippy for tests
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::derive_partial_eq_without_eq
     - name: Run check
       run:  cargo check
     - name: Check for H2 patch not being applied

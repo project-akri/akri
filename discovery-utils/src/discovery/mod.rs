@@ -315,9 +315,9 @@ pub mod server {
             )
             .await
             {
-                assert!((*e).to_string().contains("invalid IP address syntax"))
+                assert!((*e).to_string().contains("invalid socket address syntax"))
             } else {
-                panic!("should be invalid IP address error")
+                panic!("should be invalid address error")
             }
         }
     }

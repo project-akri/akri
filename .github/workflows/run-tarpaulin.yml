@@ -16,7 +16,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_VERSION: 1.61.0
+  CARGO_VERSION: 1.63.0
 
 jobs:
   build:
@@ -43,9 +43,9 @@ jobs:
     - name: Install linux requirement in tarpaulin instance
       run: docker exec $(cat container_id.txt) sh -c "echo Run apt update and apt install the following dependencies - git curl libssl-dev pkg-config libudev-dev libv4l-dev ; apt update ; apt install -y git curl libssl-dev pkg-config libudev-dev libv4l-dev"
     - name: Install desired rust version
-      run: docker exec $(cat container_id.txt) sh -c "rustup install 1.61.0"
+      run: docker exec $(cat container_id.txt) sh -c "rustup install $CARGO_VERSION"
     - name: Tell cargo to use desired rust version
-      run: docker exec $(cat container_id.txt) sh -c "rustup override set 1.61.0"
+      run: docker exec $(cat container_id.txt) sh -c "rustup override set $CARGO_VERSION"
     - name: Install rust requirements in tarpaulin instance
       run: docker exec $(cat container_id.txt) sh -c "rustup component add rustfmt"
     - name: Run tarpaulin

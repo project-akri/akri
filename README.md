@@ -1,7 +1,7 @@
 <p align="center"><img src="https://github.com/project-akri/akri-docs/blob/main/art/logo-horizontal/akri-logo-horizontal-light.svg" alt="Akri Logo" width="300"></p>
 
 [![Slack channel #akri](https://img.shields.io/badge/slack-akri-blueviolet.svg?logo=slack)](https://kubernetes.slack.com/messages/akri)
-[![Rust Version](https://img.shields.io/badge/rustc-1.61.0-blue.svg)](https://blog.rust-lang.org/2022/01/20/Rust-1.61.0.html)
+[![Rust Version](https://img.shields.io/badge/rustc-1.63.0-blue.svg)](https://blog.rust-lang.org/2022/08/11/Rust-1.63.0.html)
 [![Kubernetes Version](https://img.shields.io/badge/kubernetes-≥%201.16-blue.svg)](https://kubernetes.io/)
 [![codecov](https://codecov.io/gh/project-akri/akri/branch/main/graph/badge.svg?token=V468HO7CDE)](https://codecov.io/gh/project-akri/akri)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5339/badge)](https://bestpractices.coreinfrastructure.org/projects/5339)

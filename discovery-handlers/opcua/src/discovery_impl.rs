@@ -127,7 +127,7 @@ fn get_discovery_url_from_application_description(
             server.application_type
         );
         None
-    } else if !should_include(filter_list, &server.application_name.text.to_string()) {
+    } else if !should_include(filter_list, server.application_name.text.as_ref()) {
         trace!(
             "get_discovery_url_from_application - Application {} has been filtered out by application name",
             server.application_name.text.to_string()

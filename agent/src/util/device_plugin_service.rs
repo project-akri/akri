@@ -246,10 +246,7 @@ impl DevicePlugin for DevicePluginService {
             self.instance_name
         );
         let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
-        match self.internal_allocate(requests, kube_interface).await {
-            Ok(resp) => Ok(resp),
-            Err(e) => Err(e),
-        }
+        self.internal_allocate(requests, kube_interface).await
     }
 
     /// Should never be called, as indicated by DevicePluginService during registration.
