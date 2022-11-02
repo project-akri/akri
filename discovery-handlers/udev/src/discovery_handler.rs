@@ -1,4 +1,7 @@
-use super::{discovery_impl::do_parse_and_find, wrappers::udev_enumerator};
+use super::{
+    discovery_impl::{do_parse_and_find, DeviceProperties},
+    wrappers::udev_enumerator,
+};
 use akri_discovery_utils::discovery::{
     discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
     v0::{
@@ -65,7 +68,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
-                let mut devpaths: HashSet<String> = HashSet::new();
+                let mut devpaths: HashSet<DeviceProperties> = HashSet::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
                     let paths = do_parse_and_find(enumerator, rule).unwrap();
@@ -79,9 +82,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 );
                 let discovered_devices = devpaths
                     .into_iter()
-                    .map(|path| {
+                    .map(|(path, node)| {
                         let mut properties = std::collections::HashMap::new();
-                        properties.insert(super::UDEV_DEVNODE_LABEL_ID.to_string(), path.clone());
+                        if let Some(devnode) = node {
+                            properties.insert(super::UDEV_DEVNODE_LABEL_ID.to_string(), devnode);
+                        }
+                        properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), path.clone());
                         let mount = Mount {
                             container_path: path.clone(),
                             host_path: path.clone(),
