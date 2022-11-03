@@ -116,7 +116,7 @@ jobs:
           - runtime: K3s-1.22
             version: v1.22.6+k3s1
           - runtime: K3s-1.23
-            version: v1.23.12+k3s1
+            version: v1.23.13+k3s1
           - runtime: K3s-1.24
             version: v1.24.6+k3s1
           - runtime: K3s-1.25
