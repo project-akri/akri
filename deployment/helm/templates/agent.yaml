@@ -17,9 +17,14 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       {{- end }}
-      {{- if .Values.agent.linuxOnly }}
+      {{- if or .Values.agent.linuxOnly .Values.agent.nodeSelectors }}
       nodeSelector:
+        {{- if .Values.agent.linuxOnly }}
         "kubernetes.io/os": linux
+        {{- end }}
+        {{- if .Values.agent.nodeSelectors }}
+          {{- toYaml .Values.agent.nodeSelectors | nindent 8 }}
+        {{- end }}
       {{- end }}
       {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-agent-sa'
