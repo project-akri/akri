@@ -179,8 +179,12 @@ impl DevicePlugin for DevicePluginService {
                             .await
                             .unwrap();
                 }
-
-                if prev_virtual_devices != virtual_devices {
+                // Only send the virtual devices if the list has changed
+                if !(prev_virtual_devices
+                    .iter()
+                    .all(|item| virtual_devices.contains(item))
+                    && virtual_devices.len() == prev_virtual_devices.len())
+                {
                     prev_virtual_devices = virtual_devices.clone();
                     let resp = v1beta1::ListAndWatchResponse {
                         devices: virtual_devices,
