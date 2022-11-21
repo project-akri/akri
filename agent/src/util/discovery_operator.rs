@@ -244,7 +244,7 @@ impl DiscoveryOperator {
             self.config.metadata.name
         );
         let kube_interface_clone = kube_interface.clone();
-        let instance_map = self.instance_map.lock().await.clone();
+        let instance_map = self.instance_map.write().await.clone();
         for (instance, instance_info) in instance_map.clone() {
             if let InstanceConnectivityStatus::Offline(instant) = instance_info.connectivity_status
             {
@@ -300,7 +300,7 @@ impl DiscoveryOperator {
             .with_label_values(&[&config_name, &shared.to_string()])
             .set(currently_visible_instances.len() as i64);
         // Update the connectivity status of instances and return list of visible instances that don't have Instance CRs
-        let instance_map = self.instance_map.lock().await.clone();
+        let instance_map = self.instance_map.read().await.clone();
         // Find all visible instances that do not have Instance CRDs yet
         let new_discovery_results: Vec<Device> = currently_visible_instances
             .iter()
@@ -353,7 +353,7 @@ impl DiscoveryOperator {
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
     ) -> anyhow::Result<()> {
-        let instance_map = self.instance_map.lock().await.clone();
+        let instance_map = self.instance_map.read().await.clone();
         for (instance, instance_info) in instance_map {
             trace!(
                 "update_instance_connectivity_status - checking connectivity status of instance {}",
@@ -373,7 +373,7 @@ impl DiscoveryOperator {
                         list_and_watch_message_sender: list_and_watch_message_sender.clone(),
                     };
                     self.instance_map
-                        .lock()
+                        .write()
                         .await
                         .insert(instance.clone(), updated_instance_info);
                     // Signal list_and_watch to update kubelet that the devices are healthy.
@@ -409,7 +409,7 @@ impl DiscoveryOperator {
                                     .clone(),
                             };
                             self.instance_map
-                                .lock()
+                                .write()
                                 .await
                                 .insert(instance.clone(), updated_instance_info);
                             trace!(
@@ -791,7 +791,7 @@ pub mod tests {
         connectivity_status: InstanceConnectivityStatus,
         config_name: &str,
     ) -> InstanceMap {
-        Arc::new(tokio::sync::Mutex::new(
+        Arc::new(tokio::sync::RwLock::new(
             discovery_results
                 .iter()
                 .map(|device| {
@@ -894,7 +894,7 @@ pub mod tests {
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         );
         (discovery_operator, discovery_handler_map)
     }
@@ -954,7 +954,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         ));
         tokio::spawn(async move {
             discovery_operator.stop_all_discovery().await;
@@ -1140,7 +1140,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         ));
         let mut mock_device_plugin_builder = MockDevicePluginBuilderInterface::new();
         mock_device_plugin_builder
@@ -1181,7 +1181,7 @@ pub mod tests {
             println!("try number {}", _x);
             keep_looping = false;
             tokio::time::sleep(Duration::from_millis(100)).await;
-            let unwrapped_instance_map = instance_map.lock().await.clone();
+            let unwrapped_instance_map = instance_map.read().await.clone();
             if check_empty && unwrapped_instance_map.is_empty() {
                 map_is_empty = true;
                 break;
@@ -1478,7 +1478,7 @@ pub mod tests {
         DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         )
     }
 
@@ -1496,7 +1496,7 @@ pub mod tests {
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         );
         // test embedded debugEcho socket
         if let Some(StreamType::Embedded(_)) = discovery_operator
