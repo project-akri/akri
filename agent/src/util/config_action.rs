@@ -18,9 +18,9 @@ use kube::api::{Api, ListParams};
 use kube_runtime::watcher::{watcher, Event};
 use log::{info, trace};
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::sync::{broadcast, mpsc, RwLock};
 
-type ConfigMap = Arc<Mutex<HashMap<String, ConfigInfo>>>;
+type ConfigMap = Arc<RwLock<HashMap<String, ConfigInfo>>>;
 
 /// Information for managing a Configuration, such as all applied Instances of that Configuration
 /// and senders for ceasing to discover instances upon Configuration deletion.
@@ -47,7 +47,7 @@ pub async fn do_config_watch(
     new_discovery_handler_sender: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
-    let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
+    let config_map: ConfigMap = Arc::new(RwLock::new(HashMap::new()));
     let kube_interface = k8s::KubeImpl::new().await?;
     let mut tasks = Vec::new();
 
@@ -137,7 +137,7 @@ async fn handle_config(
             // If modified delete all associated instances and device plugins and then recreate them to reflect updated config
             // TODO: more gracefully handle modified Configurations by determining what changed rather than delete/re-add
             if config_map
-                .lock()
+                .read()
                 .await
                 .contains_key(config.metadata.name.as_ref().unwrap())
             {
@@ -200,7 +200,7 @@ async fn handle_config_add(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config_name = config.metadata.name.clone();
     // Create a new instance map for this config and add it to the config map
-    let instance_map: InstanceMap = Arc::new(Mutex::new(HashMap::new()));
+    let instance_map: InstanceMap = Arc::new(RwLock::new(HashMap::new()));
     let (stop_discovery_sender, _): (broadcast::Sender<()>, broadcast::Receiver<()>) =
         broadcast::channel(DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY);
     let (mut finished_discovery_sender, finished_discovery_receiver) =
@@ -212,7 +212,7 @@ async fn handle_config_add(
         last_generation: config.metadata.generation,
     };
     config_map
-        .lock()
+        .write()
         .await
         .insert(config_name.clone().unwrap(), config_info);
 
@@ -250,7 +250,7 @@ async fn handle_config_delete(
     );
     // Send message to stop observing instances' availability and waits until response is received
     if config_map
-        .lock()
+        .read()
         .await
         .get(&name)
         .unwrap()
@@ -260,7 +260,7 @@ async fn handle_config_delete(
         .is_ok()
     {
         config_map
-            .lock()
+            .write()
             .await
             .get_mut(&name)
             .unwrap()
@@ -282,7 +282,7 @@ async fn handle_config_delete(
     // Get map of instances for the Configuration and then remove Configuration from ConfigMap
     let instance_map: InstanceMap;
     {
-        let mut config_map_locked = config_map.lock().await;
+        let mut config_map_locked = config_map.write().await;
         instance_map = config_map_locked.get(&name).unwrap().instance_map.clone();
         config_map_locked.remove(&name);
     }
@@ -299,7 +299,7 @@ async fn should_recreate_config(
 ) -> Result<bool, anyhow::Error> {
     let name = config.metadata.name.as_ref().unwrap();
     let last_generation = config_map
-        .lock()
+        .read()
         .await
         .get(name)
         .ok_or_else(|| anyhow::anyhow!("Configuration {} not found in ConfigMap", &name))?
@@ -318,7 +318,7 @@ pub async fn delete_all_instances_in_map(
     instance_map: InstanceMap,
     config: &Configuration,
 ) -> anyhow::Result<()> {
-    let mut instance_map_locked = instance_map.lock().await;
+    let mut instance_map_locked = instance_map.write().await;
     let instances_to_delete_map = instance_map_locked.clone();
     let namespace = config.metadata.namespace.as_ref().unwrap();
     for (instance_name, instance_info) in instances_to_delete_map {
@@ -347,13 +347,13 @@ mod config_action_tests {
     use super::*;
     use akri_shared::{akri::configuration::Configuration, k8s::MockKubeInterface};
     use std::{collections::HashMap, fs, sync::Arc};
-    use tokio::sync::{broadcast, Mutex};
+    use tokio::sync::{broadcast, RwLock};
 
     // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
     #[tokio::test]
     async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let config_map = Arc::new(Mutex::new(HashMap::new()));
+        let config_map = Arc::new(RwLock::new(HashMap::new()));
         let dh_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let (tx, mut _rx1) = broadcast::channel(1);
         let mut first_event = true;
@@ -409,7 +409,7 @@ mod config_action_tests {
                 last_generation: config.metadata.generation,
             },
         );
-        let config_map: ConfigMap = Arc::new(Mutex::new(map));
+        let config_map: ConfigMap = Arc::new(RwLock::new(map));
 
         mock.expect_delete_instance()
             .times(2)
@@ -419,7 +419,7 @@ mod config_action_tests {
                 .await
                 .unwrap();
             // Assert that config is removed from map after it has been deleted
-            assert!(!config_map.lock().await.contains_key(&config_name));
+            assert!(!config_map.read().await.contains_key(&config_name));
         });
 
         // Assert that handle_config_delete tells start_discovery to end
@@ -440,7 +440,7 @@ mod config_action_tests {
         futures::future::join_all(tasks).await;
 
         // Assert that all instances have been removed from the instance map
-        assert_eq!(instance_map.lock().await.len(), 0);
+        assert_eq!(instance_map.read().await.len(), 0);
     }
 
     // Tests that when a Configuration is updated,
@@ -497,14 +497,14 @@ mod config_action_tests {
         let (_, finished_discovery_receiver) = mpsc::channel(2);
 
         let config_info = ConfigInfo {
-            instance_map: Arc::new(Mutex::new(HashMap::new())),
+            instance_map: Arc::new(RwLock::new(HashMap::new())),
             stop_discovery_sender: stop_discovery_sender.clone(),
             finished_discovery_receiver,
             last_generation: Some(1),
         };
         let config_name = config.metadata.name.clone().unwrap();
-        let config_map: ConfigMap = Arc::new(Mutex::new(HashMap::new()));
-        config_map.lock().await.insert(config_name, config_info);
+        let config_map: ConfigMap = Arc::new(RwLock::new(HashMap::new()));
+        config_map.write().await.insert(config_name, config_info);
         (config, config_map)
     }
 }
