@@ -25,7 +25,7 @@ use mock_instant::Instant;
 use std::time::Instant;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
-    sync::{broadcast, mpsc, Mutex},
+    sync::{broadcast, mpsc, RwLock},
     time::timeout,
 };
 use tokio_stream::wrappers::ReceiverStream;
@@ -59,7 +59,7 @@ pub struct InstanceInfo {
     pub connectivity_status: InstanceConnectivityStatus,
 }
 
-pub type InstanceMap = Arc<Mutex<HashMap<String, InstanceInfo>>>;
+pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
 
 /// Kubernetes Device-Plugin for an Instance.
 ///
@@ -592,7 +592,7 @@ async fn try_create_instance(
     }
 
     // Successfully created or updated instance. Add it to instance_map.
-    dps.instance_map.lock().await.insert(
+    dps.instance_map.write().await.insert(
         dps.instance_name.clone(),
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
@@ -617,7 +617,7 @@ async fn build_list_and_watch_response(
     // If instance has been removed from map, send back all unhealthy device slots
     if !dps
         .instance_map
-        .lock()
+        .read()
         .await
         .contains_key(&dps.instance_name)
     {
@@ -630,7 +630,7 @@ async fn build_list_and_watch_response(
     // If instance is offline, send back all unhealthy device slots
     if dps
         .instance_map
-        .lock()
+        .read()
         .await
         .get(&dps.instance_name)
         .unwrap()
@@ -728,7 +728,7 @@ pub async fn terminate_device_plugin_service(
     instance_name: &str,
     instance_map: InstanceMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut instance_map = instance_map.lock().await;
+    let mut instance_map = instance_map.write().await;
     info!(
         "terminate_device_plugin_service -- forcing list_and_watch to end for Instance {}",
         instance_name
@@ -859,7 +859,7 @@ mod device_plugin_service_tests {
             };
             map.insert(device_instance_name.clone(), instance_info);
         }
-        let instance_map: InstanceMap = Arc::new(Mutex::new(map));
+        let instance_map: InstanceMap = Arc::new(RwLock::new(map));
         let mut properties = HashMap::new();
         properties.insert("DEVICE_LOCATION_INFO".to_string(), "endpoint".to_string());
         let device = Device {
@@ -1009,7 +1009,7 @@ mod device_plugin_service_tests {
             .is_ok());
         assert!(dps
             .instance_map
-            .lock()
+            .read()
             .await
             .contains_key(&dps.instance_name));
     }
@@ -1051,7 +1051,7 @@ mod device_plugin_service_tests {
             .is_ok());
         assert!(dps
             .instance_map
-            .lock()
+            .read()
             .await
             .contains_key(&dps.instance_name));
     }
@@ -1083,7 +1083,7 @@ mod device_plugin_service_tests {
             .is_ok());
         assert!(dps
             .instance_map
-            .lock()
+            .read()
             .await
             .contains_key(&dps.instance_name));
     }
@@ -1154,7 +1154,7 @@ mod device_plugin_service_tests {
             .is_err());
         assert!(!dps
             .instance_map
-            .lock()
+            .read()
             .await
             .contains_key(&dps.instance_name));
     }
