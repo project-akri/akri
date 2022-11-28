@@ -198,7 +198,7 @@ impl DevicePlugin for DevicePluginService {
                         );
                         // This means kubelet is down/has been restarted. Remove instance from instance map so
                         // do_periodic_discovery will create a new device plugin service for this instance.
-                        dps.instance_map.lock().await.remove(&dps.instance_name);
+                        dps.instance_map.write().await.remove(&dps.instance_name);
                         dps.server_ender_sender.clone().send(()).await.unwrap();
                         keep_looping = false;
                     }
