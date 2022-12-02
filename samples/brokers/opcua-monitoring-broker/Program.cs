@@ -423,7 +423,8 @@ namespace OpcuaNodeMonitoring
             foreach (var value in item.DequeueValues())
             {
                 Console.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
-                MonitoringClient.LatestValue = (int)value.Value;
+                // OPC PLC server demo uses uint so need extra casting
+                MonitoringClient.LatestValue = (int)(uint)value.Value;
             }
         }
 
