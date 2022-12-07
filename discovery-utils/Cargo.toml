@@ -1,6 +1,6 @@
 [package]
 name = "akri-discovery-utils"
-version = "0.8.27"
+version = "0.9.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.63.0"
