@@ -45,7 +45,7 @@ on:
 
 jobs:
   build-containers:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
@@ -96,7 +96,7 @@ jobs:
 
   test-cases:
     needs: build-containers
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
