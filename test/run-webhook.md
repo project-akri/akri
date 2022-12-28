@@ -45,7 +45,7 @@ KEY = "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBdk1CM2VsS
 
 The script uses functions (shared with `/test/run-end-to-end.py`) defined in `/test/shared_test_code.py`
 
-The script depends on [Python Client for Kubernetes](https://pypi.org/project/kubernetes/). This SDK is used by the script(s) to access Kubernetes cluster resources during the test. However, the shared functions use `sudo kubectl logs` through Python's `os.system` function to obtain logs.
+The script depends on [Python Client for Kubernetes](https://pypi.org/project/kubernetes/). This SDK is used by the script(s) to access Kubernetes cluster resources during the test. However, the shared functions use `kubectl logs` through Python's `os.system` function to obtain logs.
 
 No SDK is used for Helm. Helm commands are effected through Python's `os.system` function.
 
