@@ -172,13 +172,9 @@ jobs:
           sudo curl -sfL https://get.k3s.io -o install.sh
           sudo chmod +x install.sh
           ./install.sh server --kubelet-arg=eviction-hard="imagefs.available<1%,nodefs.available<1%" --kubelet-arg=eviction-minimum-reclaim="imagefs.available=1%,nodefs.available=1%"
-          sudo addgroup k3s-admin
-          sudo adduser $USER k3s-admin  
-          sudo usermod -a -G k3s-admin $USER
-          sudo chgrp k3s-admin /etc/rancher/k3s/k3s.yaml
-          sudo chmod g+r /etc/rancher/k3s/k3s.yaml
-          sudo chmod 666 /etc/rancher/k3s/*
-          mkdir -p ~/.kube/ && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+          mkdir -p $HOME/.kube
+          sudo cp -i /etc/rancher/k3s/k3s.yaml  $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
           echo "--set kubernetesDistro=k3s" > /tmp/k8s_distro_to_test.txt
           echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
           echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
@@ -226,10 +222,11 @@ jobs:
           sudo sysctl --system
           sudo mkdir -p /etc/containerd
           containerd config default | sudo tee /etc/containerd/config.toml
+          sudo sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
           sudo systemctl restart containerd
           sudo swapoff -a              
-          sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=/run/containerd/containerd.sock
-          sudo mkdir -p $HOME/.kube
+          sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
+          mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
           kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
@@ -278,11 +275,9 @@ jobs:
           sudo snap install microk8s --classic --channel=${{ matrix.kube.version }}
           sudo microk8s status --wait-ready
           sudo usermod -a -G microk8s $USER
-          sudo ls -la $HOME/.kube
-          echo sudo chown $(id -u):$(id -g) $HOME/.kube
-          sudo chown -f -R $USER $HOME/.kube --verbose
-          sudo sh -c "microk8s.kubectl config view --raw >~/.kube/config"
-          sudo cat ~/.kube/config
+          mkdir -p $HOME/.kube
+          sudo microk8s.kubectl config view --raw > $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
           sudo microk8s.enable rbac dns
           sudo sed -i 's/memory.available<100Mi,nodefs.available<1Gi,imagefs.available<1Gi/memory.available<25Mi,nodefs.available<50Mi,imagefs.available<50Mi/' /var/snap/microk8s/current/args/kubelet
           sudo systemctl restart snap.microk8s.daemon-kubelite
