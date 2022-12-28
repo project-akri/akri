@@ -51,7 +51,14 @@ controller:
     # with `-dev` added if `useDevelopmentContainers` is specified
     tag:
     # pullPolicy is the Akri Controller pull policy
-    pullPolicy: ""
+    pullPolicy: "Always"
+  # ensures container doesn't run with unnecessary priviledges
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
   # onlyOnControlPlane dictates whether the Akri Controller will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false
@@ -91,7 +98,13 @@ agent:
     tag:
     # pullPolicy is the Akri Agent pull policy
     pullPolicy: ""
-  securityContext: {}
+  # ensures container doesn't run with unnecessary priviledges
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
   host:
     # discoveryHandlers is the location of Akri Discovery Handler sockets and
     # the agent registration service

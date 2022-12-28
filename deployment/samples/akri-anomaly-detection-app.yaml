@@ -16,6 +16,19 @@ spec:
       - name: akri-anomaly-detection-app
         image: ghcr.io/project-akri/akri/anomaly-detection-app:latest-dev
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          requests:
+            memory: 11Mi
+            cpu: 10Mi
+          limits:
+            memory: 100Mi
+            cpu: 26Mi
         env:
         - name: CONFIGURATION_NAME
           value: akri-opcua-monitoring
