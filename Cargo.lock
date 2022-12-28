@@ -2433,7 +2433,11 @@ checksum = "e82dad04139b71a90c080c8463fe0dc7902db5192d939bd0950f074d014339e1"
 
 [[package]]
 name = "onvif-discovery-handler"
+version = "0.9.0"
+dependencies = [
+ "akri-discovery-utils",
  "akri-onvif",
+ "env_logger",
  "log",
  "tokio 1.21.2",
 ]
