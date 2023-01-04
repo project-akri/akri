@@ -98,12 +98,7 @@ agent:
     tag:
     # pullPolicy is the Akri Agent pull policy
     pullPolicy: ""
-  # ensures container doesn't run with unnecessary priviledges
-  securityContext:
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: true
-    capabilities:
-      drop: ["ALL"]
+  securityContext: {}
   host:
     # discoveryHandlers is the location of Akri Discovery Handler sockets and
     # the agent registration service
