@@ -67,7 +67,7 @@ jobs:
     
     steps:
     - name: Checkout the head commit of the branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
 
@@ -95,7 +95,7 @@ jobs:
         tar -cvf /tmp/rust-${{ matrix.arch.label }}-binaries.tar `cat $tar_manifest`
 
     - name: Upload target binaries as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: rust-${{ matrix.arch.label }}-binaries
         path: /tmp/rust-${{ matrix.arch.label }}-binaries.tar
