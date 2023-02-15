@@ -197,7 +197,7 @@ def do_test() -> bool:
 
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state")
-        run("sudo {kubectl} get pods,services,akric,akrii --show-labels".
+        run("{kubectl} get pods,services,akric,akrii --show-labels".
             format(kubectl=kubectl_cmd))
         return False
 
@@ -205,20 +205,20 @@ def do_test() -> bool:
     print("Debugging:")
 
     print("Deployment:")
-    run("sudo {kubectl} describe deployment/{service}\
+    run("{kubectl} describe deployment/{service}\
         --namespace={namespace}".format(kubectl=kubectl_cmd,
                                         service=WEBHOOK_NAME,
                                         namespace=NAMESPACE))
 
     print("ReplicaSet:")
-    run("sudo {kubectl} describe replicaset \
+    run("{kubectl} describe replicaset \
         --selector=app={service} \
         --namespace={namespace}".format(kubectl=kubectl_cmd,
                                         service=WEBHOOK_NAME,
                                         namespace=NAMESPACE))
 
     print("Pod:")
-    run("sudo {kubectl} describe pod \
+    run("{kubectl} describe pod \
         --selector=app={service} \
         --namespace={namespace}".format(kubectl=kubectl_cmd,
                                         service=WEBHOOK_NAME,
@@ -282,7 +282,7 @@ def do_test() -> bool:
 
         # Debugging: check the Webhook's logs
         print("Webhook logs")
-        run("sudo {kubectl} logs deployment/{service} --namespace={namespace}".
+        run("{kubectl} logs deployment/{service} --namespace={namespace}".
             format(kubectl=kubectl_cmd,
                    service=WEBHOOK_NAME,
                    namespace=NAMESPACE))
