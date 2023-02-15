@@ -40,7 +40,7 @@ spec:
         {{- end }}
         securityContext:
         {{- if .Values.udev.configuration.brokerPod.securityContext }}
-          {{- toYaml .Values.udev.configuration.brokerPod.securityContext | nindent 8 }}
+          {{- toYaml .Values.udev.configuration.brokerPod.securityContext | nindent 10 }}
         {{- else}}
           privileged: true
         {{- end}}

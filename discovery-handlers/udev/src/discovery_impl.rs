@@ -23,18 +23,21 @@ pub struct UdevFilter<'a> {
     value: String,
 }
 
+/// A udev device is defined by its devpath and devnode (if exists)
+pub(crate) type DeviceProperties = (String, Option<String>);
+
 /// This parses the udev rule into UdevFilters and finds all devices that match those filters
 pub fn do_parse_and_find(
     enumerator: impl Enumerator,
     udev_rule_string: &str,
-) -> Result<Vec<String>, anyhow::Error> {
+) -> Result<Vec<DeviceProperties>, anyhow::Error> {
     let udev_filters = parse_udev_rule(udev_rule_string)?;
-    let devpaths = find_devices(enumerator, udev_filters)?;
+    let devices = find_devices(enumerator, udev_filters)?;
     trace!(
         "do_parse_and_find - returning discovered devices with devpaths: {:?}",
-        devpaths
+        devices
     );
-    Ok(devpaths)
+    Ok(devices)
 }
 
 /// This parses a udev rule and returns a list of UdevFilter objects that specify which devices to search for.
@@ -103,7 +106,7 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Er
 fn find_devices(
     enumerator: impl Enumerator,
     udev_filters: Vec<UdevFilter>,
-) -> std::io::Result<Vec<String>> {
+) -> std::io::Result<Vec<DeviceProperties>> {
     let mut enumerator = enumerator;
     trace!("find_devices - enter with udev_filters {:?}", udev_filters);
 
@@ -147,18 +150,13 @@ fn find_devices(
     let devices: Vec<udev::Device> = enumerator.scan_devices()?.collect();
     let final_devices = filter_by_remaining_udev_filters(devices, remaining_udev_filters);
 
-    let device_devpaths: Vec<String> = final_devices
+    let device_devpaths: Vec<DeviceProperties> = final_devices
         .into_iter()
-        .filter_map(|device| {
-            if let Some(devnode) = get_devnode(&device) {
-                Some(devnode.to_str().unwrap().to_string())
-            } else {
-                trace!(
-                    "find_devices - ignoring device with devpath {:?} due to having no devnode",
-                    get_devpath(&device)
-                );
-                None
-            }
+        .map(|device| {
+            (
+                get_devpath(&device).to_str().unwrap().to_string(),
+                get_devnode(&device).map(|devnode| devnode.to_str().unwrap().to_string()),
+            )
         })
         .collect();
 

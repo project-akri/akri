@@ -159,6 +159,7 @@ impl DevicePlugin for DevicePluginService {
                 }
             }
 
+            let mut prev_virtual_devices: Vec<v1beta1::Device> = Vec::new();
             while keep_looping {
                 trace!(
                     "list_and_watch - loop iteration for Instance {}",
@@ -178,24 +179,31 @@ impl DevicePlugin for DevicePluginService {
                             .await
                             .unwrap();
                 }
-
-                let resp = v1beta1::ListAndWatchResponse {
-                    devices: virtual_devices,
-                };
-
-                // Send virtual devices list back to kubelet
-                if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
-                    trace!(
-                        "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
-                        dps.instance_name,
-                        e
-                    );
-                    // This means kubelet is down/has been restarted. Remove instance from instance map so
-                    // do_periodic_discovery will create a new device plugin service for this instance.
-                    dps.instance_map.write().await.remove(&dps.instance_name);
-                    dps.server_ender_sender.clone().send(()).await.unwrap();
-                    keep_looping = false;
+                // Only send the virtual devices if the list has changed
+                if !(prev_virtual_devices
+                    .iter()
+                    .all(|item| virtual_devices.contains(item))
+                    && virtual_devices.len() == prev_virtual_devices.len())
+                {
+                    prev_virtual_devices = virtual_devices.clone();
+                    let resp = v1beta1::ListAndWatchResponse {
+                        devices: virtual_devices,
+                    };
+                    // Send virtual devices list back to kubelet
+                    if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
+                        trace!(
+                            "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
+                            dps.instance_name,
+                            e
+                        );
+                        // This means kubelet is down/has been restarted. Remove instance from instance map so
+                        // do_periodic_discovery will create a new device plugin service for this instance.
+                        dps.instance_map.write().await.remove(&dps.instance_name);
+                        dps.server_ender_sender.clone().send(()).await.unwrap();
+                        keep_looping = false;
+                    }
                 }
+
                 // Sleep for LIST_AND_WATCH_SLEEP_SECS unless receive message to shutdown the server
                 // or continue (and send another list of devices)
                 match timeout(

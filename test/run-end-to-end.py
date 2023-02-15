@@ -95,32 +95,32 @@ def do_test():
     print("Checking for initial Akri state")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
         print("Akri not running in expected state")
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
     
     #
     # Check agent responds to dynamic offline/online resource
     # 
     print("Writing to Agent pod {} that device offline".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('{} exec -i {} -- /bin/sh -c "echo "OFFLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
 
     print("Checking Akri state after taking device offline")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state after taking device offline")
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     # Do back online scenario
     print("Writing to Agent pod {} that device online".format(shared_test_code.agent_pod_name))
-    os.system('sudo {} exec -i {} -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
+    os.system('{} exec -i {} -- /bin/sh -c "echo "ONLINE" > /tmp/debug-echo-availability.txt"'.format(kubectl_cmd, shared_test_code.agent_pod_name))
     
     print("Checking Akri state after bringing device back online")
     if not shared_test_code.check_akri_state(1, 1, 2, 2, 1, 2):
         print("Akri not running in expected state after bringing device back online")
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     #
@@ -129,7 +129,7 @@ def do_test():
     print("Check logs for Agent slot-reconciliation for pod {}".format(shared_test_code.agent_pod_name))
     temporary_agent_log_path = "/tmp/agent_log.txt"
     for x in range(3):
-        log_result = subprocess.run('sudo {} logs {} > {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path), shell=True)
+        log_result = subprocess.run('{} logs {} > {}'.format(kubectl_cmd, shared_test_code.agent_pod_name, temporary_agent_log_path), shell=True)
         if log_result.returncode == 0:
             print("Successfully stored Agent logs in {}".format(temporary_agent_log_path))
             break
@@ -140,7 +140,7 @@ def do_test():
     if grep_result.returncode != 0:
         print("Akri failed to successfully connect to crictl via the CRI socket with return value of {}", grep_result)
         # Log information to understand why error occurred
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
         os.system('grep get_node_slots {}'.format(temporary_agent_log_path))
         return False
 
@@ -151,8 +151,8 @@ def do_test():
     brokers_info = shared_test_code.get_running_pod_names_and_uids(broker_pod_selector)
     if len(brokers_info) != 2:
         print("Expected to find 2 broker pods but found: {}", len(brokers_info))
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     # There is a possible race condition here between when the `kubectl delete pod` returns,
@@ -160,7 +160,7 @@ def do_test():
     # validates that the broker pod has been restarted
 
     broker_pod_name = sorted(brokers_info.keys())[0]
-    delete_pod_command = 'sudo {} delete pod {}'.format(kubectl_cmd, broker_pod_name)
+    delete_pod_command = '{} delete pod {}'.format(kubectl_cmd, broker_pod_name)
     print("Deleting broker pod: {}".format(delete_pod_command))
     os.system(delete_pod_command)
 
@@ -170,15 +170,15 @@ def do_test():
     # Wait for there to be 2 brokers pods again
     if not shared_test_code.check_broker_pods_state(v1, 2):
         print("Akri not running in expected state after broker pod restoration should have happened")
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     restored_brokers_info = shared_test_code.get_running_pod_names_and_uids(broker_pod_selector)
     if len(restored_brokers_info) != 2:
         print("Expected to find 2 broker pods but found: {}", len(restored_brokers_info))
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     # Make sure that the deleted broker uid is different from the restored broker pod uid ... signifying
@@ -186,19 +186,19 @@ def do_test():
     print("Restored broker pod uid should differ from original broker pod uid")
     if brokers_info[broker_pod_name] == restored_brokers_info[broker_pod_name]:
         print("Restored broker pod uid [{}] should differ from original broker pod uid [{}]".format(brokers_info[broker_pod_name], restored_brokers_info[broker_pod_name]))
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     # Do cleanup scenario
     print("Deleting Akri configuration: {}".format(shared_test_code.DEBUG_ECHO_NAME))
-    os.system("sudo {} delete akric {}".format(kubectl_cmd, shared_test_code.DEBUG_ECHO_NAME))
+    os.system("{} delete akric {}".format(kubectl_cmd, shared_test_code.DEBUG_ECHO_NAME))
 
     print("Checking Akri state after deleting configuration")
     if not shared_test_code.check_akri_state(1, 1, 0, 0, 0, 0):
         print("Akri not running in expected state after deleting configuration")
-        os.system('sudo {} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
-        os.system('sudo {} describe pod'.format(kubectl_cmd))
+        os.system('{} get pods,services,akric,akrii --show-labels'.format(kubectl_cmd))
+        os.system('{} describe pod'.format(kubectl_cmd))
         return False
 
     return True    
