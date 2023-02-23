@@ -259,7 +259,7 @@ jobs:
           sudo ctr -n=k8s.io image import agent.tar
           sudo ctr -n=k8s.io image import controller.tar
           sudo ctr -n=k8s.io image import webhook-configuration.tar
-          sudo crictl images
+          sudo crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock images
 
       - if: startsWith(matrix.kube.runtime, 'MicroK8s')
         name: Install MicroK8s
