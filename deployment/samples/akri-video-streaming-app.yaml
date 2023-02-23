@@ -17,6 +17,12 @@ spec:
       - name: akri-video-streaming-app
         image: ghcr.io/project-akri/akri/video-streaming-app:latest-dev
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         # Streamer works in two modes; either specify the following commented
         # block of env vars to explicitly target cameras (update the <id>s for
