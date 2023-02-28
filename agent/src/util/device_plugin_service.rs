@@ -111,7 +111,7 @@ impl DevicePlugin for DevicePluginService {
     ) -> Result<Response<DevicePluginOptions>, Status> {
         trace!("get_device_plugin_options - kubelet called get_device_plugin_options");
         let resp = DevicePluginOptions {
-            pre_start_required: true,
+            pre_start_required: false,
         };
         Ok(Response::new(resp))
     }
