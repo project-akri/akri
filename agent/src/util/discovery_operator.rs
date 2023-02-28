@@ -724,8 +724,12 @@ pub fn inner_generate_instance_digest(
             query.get_env_var("AGENT_NODE_NAME").unwrap()
         );
     }
+    generate_digest(&id_to_digest, 3)
+}
+
+pub fn generate_digest(id_to_digest: &str, output_size: usize) -> String {
     let mut digest = String::new();
-    let mut hasher = VarBlake2b::new(3).unwrap();
+    let mut hasher = VarBlake2b::new(output_size).unwrap();
     hasher.update(id_to_digest);
     hasher.finalize_variable(|var| {
         digest = var
