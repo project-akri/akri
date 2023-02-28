@@ -13,7 +13,7 @@ use akri_shared::{
         configuration::ConfigurationSpec,
         instance::InstanceSpec,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-        AKRI_SLOT_ANNOTATION_NAME,
+        AKRI_SLOT_ANNOTATION_NAME_PREFIX,
     },
     k8s,
     k8s::KubeInterface,
@@ -287,7 +287,7 @@ impl DevicePluginService {
                 &self.instance_name,
                 request,
             );
-            let mut akri_annotations = std::collections::HashMap::new();
+            let mut akri_annotations = HashMap::new();
             for device_usage_id in request.devices_i_ds {
                 trace!(
                     "internal_allocate - for Instance {} processing request for device usage slot id {}",
@@ -296,7 +296,7 @@ impl DevicePluginService {
                 );
 
                 akri_annotations.insert(
-                    AKRI_SLOT_ANNOTATION_NAME.to_string(),
+                    format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
                     device_usage_id.clone(),
                 );
 
