@@ -1,6 +1,7 @@
 use super::constants::{
     HEALTHY, KUBELET_UPDATE_CHANNEL_CAPACITY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
 };
+use super::discovery_operator::generate_digest;
 use super::v1beta1;
 use super::v1beta1::{
     device_plugin_server::DevicePlugin, AllocateRequest, AllocateResponse, DevicePluginOptions,
@@ -288,6 +289,7 @@ impl DevicePluginService {
                 request,
             );
             let mut akri_annotations = HashMap::new();
+            let mut akri_device_properties = HashMap::new();
             for device_usage_id in request.devices_i_ds {
                 trace!(
                     "internal_allocate - for Instance {} processing request for device usage slot id {}",
@@ -299,6 +301,16 @@ impl DevicePluginService {
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
                     device_usage_id.clone(),
                 );
+
+                let hash_id_value = generate_digest(&device_usage_id, 3);
+                // add suffix _<usage_id> to each device property
+                let converted_properties = self
+                    .device
+                    .properties
+                    .iter()
+                    .map(|(key, value)| (format!("{}_{}", key, &hash_id_value), value.to_string()))
+                    .collect::<HashMap<String, String>>();
+                akri_device_properties.extend(converted_properties);
 
                 if let Err(e) = try_update_instance_device_usage(
                     &device_usage_id,
@@ -324,7 +336,7 @@ impl DevicePluginService {
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
             let broker_properties =
-                get_all_broker_properties(&self.config.broker_properties, &self.device.properties);
+                get_all_broker_properties(&self.config.broker_properties, &akri_device_properties);
             let response = build_container_allocate_response(
                 broker_properties,
                 akri_annotations,
@@ -1379,7 +1391,10 @@ mod device_plugin_service_tests {
         assert_eq!(broker_envs.get("RESOLUTION_HEIGHT").unwrap(), "600");
         // Check that Device properties are set as env vars by checking for
         // property of device created in `create_device_plugin_service`
-        assert_eq!(broker_envs.get("DEVICE_LOCATION_INFO").unwrap(), "endpoint");
+        assert_eq!(
+            broker_envs.get("DEVICE_LOCATION_INFO_76cc26").unwrap(),
+            "endpoint"
+        );
         assert!(device_plugin_service_receivers
             .list_and_watch_message_receiver
             .try_recv()
