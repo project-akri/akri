@@ -782,7 +782,7 @@ pub fn get_all_broker_properties(
 #[cfg(test)]
 mod device_plugin_service_tests {
     use super::super::{
-        device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
+        device_plugin_builder::DevicePluginBuilder,
         v1beta1::device_plugin_client::DevicePluginClient,
     };
     use super::*;
