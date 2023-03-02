@@ -340,7 +340,7 @@ impl DevicePluginService {
             let response = build_container_allocate_response(
                 broker_properties,
                 akri_annotations,
-                &self.device,
+                &vec![self.device.clone()],
             );
             container_responses.push(response);
         }
@@ -463,29 +463,36 @@ async fn try_update_instance_device_usage(
 fn build_container_allocate_response(
     broker_properties: HashMap<String, String>,
     annotations: HashMap<String, String>,
-    device: &Device,
+    devices: &Vec<Device>,
 ) -> v1beta1::ContainerAllocateResponse {
     // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
-    let mounts: Vec<Mount> = device
-        .mounts
-        .clone()
-        .into_iter()
-        .map(|mount| Mount {
-            container_path: mount.container_path,
-            host_path: mount.host_path,
-            read_only: mount.read_only,
-        })
-        .collect();
-    let device_specs: Vec<DeviceSpec> = device
-        .device_specs
-        .clone()
-        .into_iter()
-        .map(|device_spec| DeviceSpec {
-            container_path: device_spec.container_path,
-            host_path: device_spec.host_path,
-            permissions: device_spec.permissions,
-        })
-        .collect();
+    let mut mounts = Vec::new();
+    let mut device_specs = Vec::new();
+    for device in devices {
+        let per_device_mounts: Vec<Mount> = device
+            .mounts
+            .clone()
+            .into_iter()
+            .map(|mount| Mount {
+                container_path: mount.container_path,
+                host_path: mount.host_path,
+                read_only: mount.read_only,
+            })
+            .collect();
+        mounts.extend(per_device_mounts);
+
+        let per_device_device_specs: Vec<DeviceSpec> = device
+            .device_specs
+            .clone()
+            .into_iter()
+            .map(|device_spec| DeviceSpec {
+                container_path: device_spec.container_path,
+                host_path: device_spec.host_path,
+                permissions: device_spec.permissions,
+            })
+            .collect();
+        device_specs.extend(per_device_device_specs);
+    }
 
     // Create response, setting environment variables to be an instance's properties.
     v1beta1::ContainerAllocateResponse {
