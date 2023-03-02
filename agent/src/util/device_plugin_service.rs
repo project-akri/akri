@@ -297,47 +297,27 @@ impl DevicePluginService {
             let mut akri_annotations = HashMap::new();
             let mut akri_device_properties = HashMap::new();
             for device_usage_id in request.devices_i_ds {
-                trace!(
-                    "internal_allocate - for Instance {} processing request for device usage slot id {}",
+                match allocate_for_instance(
                     &self.instance_name,
-                    device_usage_id
-                );
-
-                akri_annotations.insert(
-                    format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    device_usage_id.clone(),
-                );
-
-                let hash_id_value = generate_digest(&device_usage_id, 3);
-                // add suffix _<usage_id> to each device property
-                let converted_properties = self
-                    .device
-                    .properties
-                    .iter()
-                    .map(|(key, value)| (format!("{}_{}", key, &hash_id_value), value.to_string()))
-                    .collect::<HashMap<String, String>>();
-                akri_device_properties.extend(converted_properties);
-
-                if let Err(e) = try_update_instance_device_usage(
                     &device_usage_id,
-                    &self.node_name,
-                    &self.instance_name,
+                    &self.device,
                     &self.config_namespace,
+                    &self.node_name,
                     kube_interface.clone(),
                 )
                 .await
                 {
-                    trace!("internal_allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &self.node_name);
-                    self.list_and_watch_message_sender
-                        .send(ListAndWatchMessageKind::Continue)
-                        .unwrap();
-                    return Err(e);
+                    Ok((annotations, device_properties)) => {
+                        akri_annotations.extend(annotations);
+                        akri_device_properties.extend(device_properties);
+                    }
+                    Err(e) => {
+                        self.list_and_watch_message_sender
+                            .send(ListAndWatchMessageKind::Continue)
+                            .unwrap();
+                        return Err(e);
+                    }
                 }
-
-                trace!(
-                    "internal_allocate - finished processing device_usage_id {}",
-                    device_usage_id
-                );
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
@@ -734,6 +714,56 @@ fn build_virtual_devices(
         });
     }
     devices
+}
+
+async fn allocate_for_instance(
+    instance_name: &str,
+    device_usage_id: &str,
+    device: &Device,
+    config_namespace: &str,
+    node_name: &str,
+    kube_interface: Arc<impl KubeInterface>,
+) -> Result<(HashMap<String, String>, HashMap<String, String>), Status> {
+    trace!(
+        "allocate_for_instance - for Instance {} processing request for device usage slot id {}",
+        instance_name,
+        device_usage_id
+    );
+
+    let mut akri_annotations = HashMap::new();
+    let mut akri_device_properties = HashMap::new();
+    akri_annotations.insert(
+        format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, device_usage_id),
+        device_usage_id.to_string(),
+    );
+
+    let hash_id_value = generate_digest(&device_usage_id, 3);
+    // add suffix _<usage_id> to each device property
+    let converted_properties = device
+        .properties
+        .iter()
+        .map(|(key, value)| (format!("{}_{}", key, &hash_id_value), value.to_string()))
+        .collect::<HashMap<String, String>>();
+    akri_device_properties.extend(converted_properties);
+
+    if let Err(e) = try_update_instance_device_usage(
+        device_usage_id,
+        node_name,
+        instance_name,
+        config_namespace,
+        kube_interface.clone(),
+    )
+    .await
+    {
+        trace!("allocate_for_instance - could not assign {} slot to {} node... forcing list_and_watch to continue", device_usage_id, node_name);
+        return Err(e);
+    }
+
+    trace!(
+        "internal_allocate_for_instance - finished processing device_usage_id {}",
+        device_usage_id
+    );
+    Ok((akri_annotations, akri_device_properties))
 }
 
 /// This sends message to end `list_and_watch` and removes instance from InstanceMap.
