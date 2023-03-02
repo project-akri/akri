@@ -175,10 +175,16 @@ impl DevicePlugin for DevicePluginService {
                 }
                 #[cfg(not(test))]
                 {
-                    virtual_devices =
-                        build_list_and_watch_response(dps.clone(), kube_interface.clone())
-                            .await
-                            .unwrap();
+                    virtual_devices = build_list_and_watch_response(
+                        &dps.instance_name,
+                        dps.instance_map.clone(),
+                        &dps.config_namespace,
+                        dps.config.capacity,
+                        &dps.node_name,
+                        kube_interface.clone(),
+                    )
+                    .await
+                    .unwrap();
                 }
                 // Only send the virtual devices if the list has changed
                 if !(prev_virtual_devices
@@ -625,64 +631,53 @@ async fn try_create_instance(
 /// Returns list of "virtual" Devices and their health.
 /// If the instance is offline, returns all unhealthy virtual Devices.
 async fn build_list_and_watch_response(
-    dps: Arc<DevicePluginService>,
+    instance_name: &str,
+    instance_map: InstanceMap,
+    config_namespace: &str,
+    capacity: i32,
+    node_name: &str,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<Vec<v1beta1::Device>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!(
         "build_list_and_watch_response -- for Instance {} entered",
-        dps.instance_name
+        instance_name
     );
 
     // If instance has been removed from map, send back all unhealthy device slots
-    if !dps
-        .instance_map
-        .read()
-        .await
-        .contains_key(&dps.instance_name)
-    {
-        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
-        return Ok(build_unhealthy_virtual_devices(
-            dps.config.capacity,
-            &dps.instance_name,
-        ));
+    if !instance_map.read().await.contains_key(instance_name) {
+        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", instance_name);
+        return Ok(build_unhealthy_virtual_devices(capacity, instance_name));
     }
     // If instance is offline, send back all unhealthy device slots
-    if dps
-        .instance_map
+    if instance_map
         .read()
         .await
-        .get(&dps.instance_name)
+        .get(instance_name)
         .unwrap()
         .connectivity_status
         != InstanceConnectivityStatus::Online
     {
-        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
-        return Ok(build_unhealthy_virtual_devices(
-            dps.config.capacity,
-            &dps.instance_name,
-        ));
+        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", instance_name);
+        return Ok(build_unhealthy_virtual_devices(capacity, instance_name));
     }
 
     trace!(
         "build_list_and_watch_response -- device for Instance {} is online",
-        dps.instance_name
+        instance_name
     );
 
     match kube_interface
-        .find_instance(&dps.instance_name, &dps.config_namespace)
+        .find_instance(instance_name, config_namespace)
         .await
     {
         Ok(kube_akri_instance) => Ok(build_virtual_devices(
             &kube_akri_instance.spec.device_usage,
             kube_akri_instance.spec.shared,
-            &dps.node_name,
+            node_name,
         )),
         Err(_) => {
-            trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
-            Ok(build_unhealthy_virtual_devices(
-                dps.config.capacity,
-                &dps.instance_name,
-            ))
+            trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", instance_name);
+            Ok(build_unhealthy_virtual_devices(capacity, instance_name))
         }
     }
 }
@@ -1289,10 +1284,16 @@ mod device_plugin_service_tests {
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(InstanceConnectivityStatus::Offline(Instant::now()), true);
         let mock = MockKubeInterface::new();
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
+        let devices = build_list_and_watch_response(
+            &device_plugin_service.instance_name,
+            device_plugin_service.instance_map.clone(),
+            &device_plugin_service.config_namespace,
+            device_plugin_service.config.capacity,
+            &device_plugin_service.node_name,
+            Arc::new(mock),
+        )
+        .await
+        .unwrap();
         devices
             .into_iter()
             .for_each(|device| assert!(device.health == UNHEALTHY));
@@ -1313,10 +1314,16 @@ mod device_plugin_service_tests {
                 namespace == instance_namespace && name == instance_name
             })
             .returning(move |_, _| Err(get_kube_not_found_error().into()));
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
+        let devices = build_list_and_watch_response(
+            &device_plugin_service.instance_name,
+            device_plugin_service.instance_map.clone(),
+            &device_plugin_service.config_namespace,
+            device_plugin_service.config.capacity,
+            &device_plugin_service.node_name,
+            Arc::new(mock),
+        )
+        .await
+        .unwrap();
         devices
             .into_iter()
             .for_each(|device| assert!(device.health == UNHEALTHY));
@@ -1339,10 +1346,16 @@ mod device_plugin_service_tests {
             String::new(),
             NodeName::ThisNode,
         );
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
+        let devices = build_list_and_watch_response(
+            &device_plugin_service.instance_name,
+            device_plugin_service.instance_map.clone(),
+            &device_plugin_service.config_namespace,
+            device_plugin_service.config.capacity,
+            &device_plugin_service.node_name,
+            Arc::new(mock),
+        )
+        .await
+        .unwrap();
         check_devices(instance_name, devices);
     }
 
