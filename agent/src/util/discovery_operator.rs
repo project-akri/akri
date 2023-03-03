@@ -350,7 +350,7 @@ impl DiscoveryOperator {
                     }
                 }
                 Some(sender) => Some(sender.clone()),
-            }
+            };
         }
         // If there are newly visible instances associated with a Config, make a device plugin and Instance CR for them
         if !new_discovery_results.is_empty() {
