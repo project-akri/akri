@@ -7,6 +7,7 @@ use super::{
     device_plugin_service,
     device_plugin_service::{
         get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
+        ListAndWatchMessageKind,
     },
     registration::{DiscoveryDetails, DiscoveryHandlerEndpoint, RegisteredDiscoveryHandlerMap},
     streaming_extension::StreamingExt,
@@ -31,6 +32,7 @@ use mockall::{automock, predicate::*};
 #[cfg(not(test))]
 use std::time::Instant;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use tokio::sync::{broadcast, RwLock};
 use tonic::transport::{Endpoint, Uri};
 
 /// StreamType provides a wrapper around the two different types of streams returned from embedded
@@ -58,6 +60,8 @@ pub struct DiscoveryOperator {
     config: Configuration,
     /// Map of Akri Instances discovered by this `DiscoveryOperator`
     instance_map: InstanceMap,
+    pub usage_update_message_sender:
+        Arc<RwLock<Option<broadcast::Sender<ListAndWatchMessageKind>>>>,
 }
 
 #[cfg_attr(test, automock)]
@@ -71,6 +75,7 @@ impl DiscoveryOperator {
             discovery_handler_map,
             config,
             instance_map,
+            usage_update_message_sender: Arc::new(RwLock::new(None)),
         }
     }
     /// Returns discovery_handler_map field. Allows the struct to be mocked.
