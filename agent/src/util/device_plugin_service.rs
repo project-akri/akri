@@ -105,6 +105,8 @@ pub struct DevicePluginService {
     /// Contains information about environment variables and volumes that should be mounted
     /// into requesting Pods.
     pub device: Device,
+    /// broadcast sender to notify slot usage changes
+    pub usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
 }
 
 #[tonic::async_trait]
@@ -1317,6 +1319,7 @@ mod device_plugin_service_tests {
             list_and_watch_message_sender,
             server_ender_sender,
             device,
+            usage_update_message_sender: None,
         };
         (
             dps,

@@ -6,8 +6,8 @@ use super::{
     device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
     device_plugin_service,
     device_plugin_service::{
-        get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
-        ListAndWatchMessageKind,
+        get_device_configuration_name, get_device_instance_name, InstanceConnectivityStatus,
+        InstanceInfo, InstanceMap, ListAndWatchMessageKind,
     },
     registration::{DiscoveryDetails, DiscoveryHandlerEndpoint, RegisteredDiscoveryHandlerMap},
     streaming_extension::StreamingExt,
@@ -319,6 +319,39 @@ impl DiscoveryOperator {
         )
         .await?;
 
+        let usage_update_message_sender;
+        {
+            let mut sender_guard = self.usage_update_message_sender.write().await;
+            usage_update_message_sender = match &(*sender_guard) {
+                None => {
+                    let config_dp_name = get_device_configuration_name(&config_name);
+                    trace!(
+                        "handle_discovery_results - create configuration device plugin {}",
+                        config_dp_name
+                    );
+                    let instance_map = self.instance_map.clone();
+                    match device_plugin_builder
+                        .build_configuration_device_plugin(
+                            config_dp_name.clone(),
+                            &self.config,
+                            instance_map,
+                        )
+                        .await
+                    {
+                        Ok(sender) => {
+                            *sender_guard = Some(sender.clone());
+                            Some(sender)
+                        }
+                        Err(e) => {
+                            // TODO: should we fail and return here?
+                            error!("handle_discovery_results - error {} building device plugin ... trying again on next iteration", e);
+                            None
+                        }
+                    }
+                }
+                Some(sender) => Some(sender.clone()),
+            }
+        }
         // If there are newly visible instances associated with a Config, make a device plugin and Instance CR for them
         if !new_discovery_results.is_empty() {
             for discovery_result in new_discovery_results {
@@ -336,6 +369,7 @@ impl DiscoveryOperator {
                         shared,
                         instance_map,
                         discovery_result.clone(),
+                        usage_update_message_sender.clone(),
                     )
                     .await
                 {
@@ -1159,7 +1193,14 @@ pub mod tests {
         mock_device_plugin_builder
             .expect_build_device_plugin()
             .times(2)
-            .returning(move |_, _, _, _, _| Ok(()));
+            .returning(move |_, _, _, _, _, _| Ok(()));
+        mock_device_plugin_builder
+            .expect_build_configuration_device_plugin()
+            .times(1)
+            .returning(move |_, _, _| {
+                let (list_and_watch_message_sender, _) = broadcast::channel(2);
+                Ok(list_and_watch_message_sender)
+            });
         discovery_operator
             .handle_discovery_results(
                 mock_kube_interface,

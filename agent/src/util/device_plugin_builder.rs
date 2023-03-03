@@ -42,6 +42,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
+        usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 
     async fn build_configuration_device_plugin(
@@ -68,6 +69,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
+        usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!("build_device_plugin - entered for device {}", instance_name);
         let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
@@ -95,6 +97,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             list_and_watch_message_sender,
             server_ender_sender: server_ender_sender.clone(),
             device,
+            usage_update_message_sender,
         };
 
         self.serve(
