@@ -3,7 +3,9 @@ use super::{
         DEVICE_PLUGIN_PATH, DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY, K8S_DEVICE_PLUGIN_VERSION,
         KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
     },
-    device_plugin_service::{DevicePluginService, InstanceMap},
+    device_plugin_service::{
+        ConfigurationDevicePluginService, DevicePluginService, InstanceMap, ListAndWatchMessageKind,
+    },
     v1beta1,
     v1beta1::{
         device_plugin_server::DevicePlugin, device_plugin_server::DevicePluginServer,
@@ -20,11 +22,11 @@ use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
-use std::{convert::TryFrom, env, path::Path, time::SystemTime};
+use std::{collections::HashMap, convert::TryFrom, env, path::Path, sync::Arc, time::SystemTime};
 use tokio::{
     net::UnixListener,
     net::UnixStream,
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, RwLock},
     task,
 };
 use tonic::transport::{Endpoint, Server, Uri};
@@ -41,6 +43,16 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         instance_map: InstanceMap,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+    async fn build_configuration_device_plugin(
+        &self,
+        device_plugin_name: String,
+        config: &Configuration,
+        instance_map: InstanceMap,
+    ) -> Result<
+        broadcast::Sender<ListAndWatchMessageKind>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    >;
 }
 
 /// For each Instance, builds a Device Plugin, registers it with the kubelet, and serves it over UDS.
@@ -102,6 +114,66 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         .await?;
 
         Ok(())
+    }
+
+    /// This creates a new ConfigurationDevicePluginService for a Configuration and registers it with the kubelet
+    async fn build_configuration_device_plugin(
+        &self,
+        device_plugin_name: String,
+        config: &Configuration,
+        instance_map: InstanceMap,
+    ) -> Result<
+        broadcast::Sender<ListAndWatchMessageKind>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
+        info!(
+            "build_configuration_device_plugin - entered for device plugin {}",
+            device_plugin_name
+        );
+        let capability_id: String = format!("{}/{}", AKRI_PREFIX, device_plugin_name);
+        let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+        let device_endpoint: String =
+            format!("{}-{}.sock", device_plugin_name, unique_time.as_secs());
+        let socket_path: String = Path::new(DEVICE_PLUGIN_PATH)
+            .join(device_endpoint.clone())
+            .to_str()
+            .unwrap()
+            .to_string();
+        let (list_and_watch_message_sender, _) =
+            broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
+        let (server_ender_sender, server_ender_receiver) =
+            mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
+        let device_plugin_service = ConfigurationDevicePluginService {
+            device_plugin_name: device_plugin_name.clone(),
+            endpoint: device_endpoint.clone(),
+            config: config.spec.clone(),
+            config_name: config.metadata.name.clone().unwrap(),
+            config_uid: config.metadata.uid.as_ref().unwrap().clone(),
+            config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
+            node_name: env::var("AGENT_NODE_NAME")?,
+            instance_map,
+            list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+            server_ender_sender: server_ender_sender.clone(),
+            discovered_devices: Arc::new(RwLock::new(HashMap::new())),
+        };
+
+        self.serve(
+            device_plugin_service,
+            socket_path.clone(),
+            server_ender_receiver,
+        )
+        .await?;
+
+        self.register(
+            &capability_id,
+            &device_endpoint,
+            &device_plugin_name,
+            server_ender_sender,
+            KUBELET_SOCKET,
+        )
+        .await?;
+
+        Ok(list_and_watch_message_sender)
     }
 }
 
