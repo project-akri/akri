@@ -203,17 +203,25 @@ impl DevicePlugin for DevicePluginService {
                         devices: virtual_devices,
                     };
                     // Send virtual devices list back to kubelet
-                    if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
-                        trace!(
-                            "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
-                            dps.instance_name,
-                            e
-                        );
-                        // This means kubelet is down/has been restarted. Remove instance from instance map so
-                        // do_periodic_discovery will create a new device plugin service for this instance.
-                        dps.instance_map.write().await.remove(&dps.instance_name);
-                        dps.server_ender_sender.clone().send(()).await.unwrap();
-                        keep_looping = false;
+                    match kubelet_update_sender.send(Ok(resp)).await {
+                        Ok(()) => {
+                            // Notify device usage had been changed
+                            if let Some(sender) = &dps.usage_update_message_sender {
+                                sender.send(ListAndWatchMessageKind::Continue).unwrap();
+                            }
+                        }
+                        Err(e) => {
+                            trace!(
+                                "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
+                                dps.instance_name,
+                                e
+                            );
+                            // This means kubelet is down/has been restarted. Remove instance from instance map so
+                            // do_periodic_discovery will create a new device plugin service for this instance.
+                            dps.instance_map.write().await.remove(&dps.instance_name);
+                            dps.server_ender_sender.clone().send(()).await.unwrap();
+                            keep_looping = false;
+                        }
                     }
                 }
 
@@ -250,6 +258,10 @@ impl DevicePlugin for DevicePluginService {
                 }
             }
             trace!("list_and_watch - for Instance {} ending", dps.instance_name);
+            // Notify device usage for this instance is gone
+            if let Some(sender) = &dps.usage_update_message_sender {
+                sender.send(ListAndWatchMessageKind::Continue).unwrap();
+            }
         });
 
         Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
@@ -336,6 +348,11 @@ impl DevicePluginService {
             );
             container_responses.push(response);
         }
+        // Notify device usage had been changed
+        if let Some(sender) = &self.usage_update_message_sender {
+            sender.send(ListAndWatchMessageKind::Continue).unwrap();
+        }
+
         trace!(
             "internal_allocate - for Instance {} returning responses",
             &self.instance_name
