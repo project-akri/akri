@@ -58,6 +58,10 @@ pub struct InstanceInfo {
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Instance's `InstanceConnectivityStatus`
     pub connectivity_status: InstanceConnectivityStatus,
+    /// Device that the instance represents.
+    /// Contains information about environment variables and volumes that should be mounted
+    /// into requesting Pods.
+    pub device: Device,
 }
 
 pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
@@ -602,6 +606,7 @@ async fn try_create_instance(
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
             connectivity_status: InstanceConnectivityStatus::Online,
+            device: dps.device.clone(),
         },
     );
 
@@ -895,15 +900,6 @@ mod device_plugin_service_tests {
             broadcast::channel(4);
         let (server_ender_sender, server_ender_receiver) = mpsc::channel(1);
 
-        let mut map = HashMap::new();
-        if add_to_instance_map {
-            let instance_info: InstanceInfo = InstanceInfo {
-                list_and_watch_message_sender: list_and_watch_message_sender.clone(),
-                connectivity_status,
-            };
-            map.insert(device_instance_name.clone(), instance_info);
-        }
-        let instance_map: InstanceMap = Arc::new(RwLock::new(map));
         let mut properties = HashMap::new();
         properties.insert("DEVICE_LOCATION_INFO".to_string(), "endpoint".to_string());
         let device = Device {
@@ -912,6 +908,17 @@ mod device_plugin_service_tests {
             mounts: Vec::new(),
             device_specs: Vec::new(),
         };
+
+        let mut map = HashMap::new();
+        if add_to_instance_map {
+            let instance_info = InstanceInfo {
+                list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+                connectivity_status,
+                device: device.clone(),
+            };
+            map.insert(device_instance_name.clone(), instance_info);
+        }
+        let instance_map: InstanceMap = Arc::new(RwLock::new(map));
         let dps = DevicePluginService {
             instance_name: device_instance_name,
             endpoint: device_endpoint,

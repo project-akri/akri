@@ -368,9 +368,11 @@ impl DiscoveryOperator {
                         instance
                     );
                     let list_and_watch_message_sender = instance_info.list_and_watch_message_sender;
+                    let device = currently_visible_instances.get(&instance).unwrap();
                     let updated_instance_info = InstanceInfo {
                         connectivity_status: InstanceConnectivityStatus::Online,
                         list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+                        device: device.clone(),
                     };
                     self.instance_map
                         .write()
@@ -407,6 +409,7 @@ impl DiscoveryOperator {
                                 list_and_watch_message_sender: instance_info
                                     .list_and_watch_message_sender
                                     .clone(),
+                                device: instance_info.device.clone(),
                             };
                             self.instance_map
                                 .write()
@@ -808,6 +811,7 @@ pub mod tests {
                         InstanceInfo {
                             list_and_watch_message_sender,
                             connectivity_status: connectivity_status.clone(),
+                            device: device.clone(),
                         },
                     )
                 })
