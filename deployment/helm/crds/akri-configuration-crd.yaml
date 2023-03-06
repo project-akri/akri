@@ -22,6 +22,12 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
+                    discoveryProperties:
+                      nullable: true
+                      type: array
+                      items: # {{EnvVar}}
+                        x-kubernetes-preserve-unknown-fields: true
+                        type: object
                 capacity:
                   type: integer
                 brokerSpec: # {{BrokerSpec}}

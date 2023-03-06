@@ -5,6 +5,7 @@
 //
 #![allow(non_camel_case_types)]
 use k8s_openapi::api::batch::v1::JobSpec;
+use k8s_openapi::api::core::v1::EnvVar;
 use k8s_openapi::api::core::v1::PodSpec;
 use k8s_openapi::api::core::v1::ServiceSpec;
 use kube::CustomResource;
@@ -27,6 +28,9 @@ pub struct DiscoveryHandlerInfo {
     /// A string that a Discovery Handler knows how to parse to obtain necessary discovery details
     #[serde(default)]
     pub discovery_details: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery_properties: Option<Vec<EnvVar>>,
 }
 
 /// This defines a workload that should be scheduled to nodes
