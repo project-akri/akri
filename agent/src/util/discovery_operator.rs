@@ -12,7 +12,8 @@ use super::{
     streaming_extension::StreamingExt,
 };
 use akri_discovery_utils::discovery::v0::{
-    discovery_handler_client::DiscoveryHandlerClient, Device, DiscoverRequest, DiscoverResponse,
+    discovery_handler_client::DiscoveryHandlerClient, ByteData, Device, DiscoverRequest,
+    DiscoverResponse,
 };
 use akri_shared::{
     akri::configuration::Configuration,
@@ -23,11 +24,16 @@ use blake2::{
     digest::{Update, VariableOutput},
     VarBlake2b,
 };
+use k8s_openapi::api::core::v1::{
+    ConfigMap, ConfigMapKeySelector, EnvVar, EnvVarSource, Secret, SecretKeySelector,
+};
+use kube::api::{Api, ListParams};
 use log::{error, trace};
 #[cfg(test)]
 use mock_instant::Instant;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use std::io::{Error, ErrorKind};
 #[cfg(not(test))]
 use std::time::Instant;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
@@ -104,9 +110,30 @@ impl DiscoveryOperator {
     }
 
     /// Calls discover on the Discovery Handler at the given endpoint and returns the connection stream.
-    pub async fn get_stream(&self, endpoint: &DiscoveryHandlerEndpoint) -> Option<StreamType> {
+    pub async fn get_stream<'a>(
+        &'a self,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
+        endpoint: &'a DiscoveryHandlerEndpoint,
+    ) -> Option<StreamType> {
+        let discovery_properties = match self
+            .get_discovery_properties(
+                kube_interface.clone(),
+                &self.config.spec.discovery_handler.discovery_properties,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!(
+                    "get_stream - fail to retrieve discovery properties for Configuration {:?}, error {:?}",
+                    self.config.metadata.name, e
+                );
+                return None;
+            }
+        };
         let discover_request = tonic::Request::new(DiscoverRequest {
             discovery_details: self.config.spec.discovery_handler.discovery_details.clone(),
+            discovery_properties,
         });
         trace!("get_stream - endpoint is {:?}", endpoint);
         match endpoint {
@@ -450,6 +477,234 @@ impl DiscoveryOperator {
         }
         Ok(())
     }
+
+    async fn get_discovery_properties(
+        &self,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
+        properties: &Option<Vec<EnvVar>>,
+    ) -> anyhow::Result<HashMap<String, ByteData>> {
+        match properties {
+            None => Ok(HashMap::new()),
+            Some(properties) => {
+                let mut tmp_properties = HashMap::new();
+                for p in properties {
+                    match self.get_discovery_property(kube_interface.clone(), p).await {
+                        Ok(tmp_p) => {
+                            if let Some((k, v)) = tmp_p {
+                                tmp_properties.insert(k, v.clone());
+                            }
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+                Ok(tmp_properties)
+            }
+        }
+    }
+
+    async fn get_discovery_property(
+        &self,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
+        property: &EnvVar,
+    ) -> anyhow::Result<Option<(String, ByteData)>> {
+        let value;
+        if let Some(v) = &property.value {
+            value = ByteData {
+                vec: Some(v.as_bytes().to_vec()),
+            };
+        } else if let Some(value_from) = &property.value_from {
+            let kube_client = ActualKubeClient::new(kube_interface.clone());
+            value = match self
+                .get_discovery_property_value_from(&kube_client, value_from)
+                .await
+            {
+                Ok(byte_data) => {
+                    if byte_data.is_none() {
+                        // optional value, not found
+                        return Ok(None);
+                    }
+                    byte_data.unwrap()
+                }
+                Err(e) => return Err(e),
+            };
+        } else {
+            // property without value
+            value = ByteData { vec: None }
+        }
+
+        Ok(Some((property.name.clone(), value)))
+    }
+
+    async fn get_discovery_property_value_from(
+        &self,
+        kube_client: &dyn KubeClient,
+        property: &EnvVarSource,
+    ) -> anyhow::Result<Option<ByteData>> {
+        if let Some(config_map_key_ref) = &property.config_map_key_ref {
+            return get_discovery_property_value_from_config_map(
+                kube_client,
+                self.config.metadata.namespace.as_ref().unwrap(),
+                config_map_key_ref,
+            )
+            .await;
+        }
+        if let Some(secret_key_selector) = &property.secret_key_ref {
+            get_discovery_property_value_from_secret(
+                kube_client,
+                self.config.metadata.namespace.as_ref().unwrap(),
+                secret_key_selector,
+            )
+            .await
+        } else {
+            let error = Error::new(ErrorKind::InvalidInput, "no supported value_from found");
+            Err(error.into())
+        }
+    }
+}
+
+/// This provides a mockable way to query configMap and secret
+#[cfg_attr(test, automock)]
+#[tonic::async_trait]
+pub trait KubeClient: Send + Sync {
+    async fn get_secret(&self, name: &str, namespace: &str) -> anyhow::Result<Option<Secret>>;
+
+    async fn get_config_map(
+        &self,
+        name: &str,
+        namespace: &str,
+    ) -> anyhow::Result<Option<ConfigMap>>;
+}
+
+struct ActualKubeClient {
+    pub kube_interface: Arc<dyn k8s::KubeInterface>,
+}
+
+impl ActualKubeClient {
+    pub fn new(kube_interface: Arc<dyn k8s::KubeInterface>) -> Self {
+        ActualKubeClient { kube_interface }
+    }
+}
+
+#[tonic::async_trait]
+impl KubeClient for ActualKubeClient {
+    async fn get_secret(&self, name: &str, namespace: &str) -> anyhow::Result<Option<Secret>> {
+        let resource_client: Api<Secret> =
+            Api::namespaced(self.kube_interface.get_kube_client(), namespace);
+        let lp = ListParams::default();
+        for s in resource_client.list(&lp).await? {
+            if name == s.metadata.name.as_ref().unwrap() {
+                return Ok(Some(s));
+            }
+        }
+        Ok(None)
+    }
+
+    async fn get_config_map(
+        &self,
+        name: &str,
+        namespace: &str,
+    ) -> anyhow::Result<Option<ConfigMap>> {
+        let resource_client: Api<ConfigMap> =
+            Api::namespaced(self.kube_interface.get_kube_client(), namespace);
+        let lp = ListParams::default();
+        for s in resource_client.list(&lp).await? {
+            if name == s.metadata.name.as_ref().unwrap() {
+                return Ok(Some(s));
+            }
+        }
+        Ok(None)
+    }
+}
+
+async fn get_discovery_property_value_from_secret(
+    kube_client: &dyn KubeClient,
+    namespace: &str,
+    secret_key_selector: &SecretKeySelector,
+) -> anyhow::Result<Option<ByteData>> {
+    let optional = secret_key_selector.optional.unwrap_or_default();
+    if secret_key_selector.name.is_none() {
+        if optional {
+            return Ok(None);
+        }
+        return Err(Error::new(ErrorKind::InvalidInput, "secret name is none").into());
+    }
+    let secret_key = &secret_key_selector.key;
+    let secret_name = secret_key_selector.name.as_ref().unwrap();
+
+    let secret = kube_client.get_secret(secret_name, namespace).await?;
+    if secret.is_none() {
+        if optional {
+            return Ok(None);
+        } else {
+            return Err(Error::new(ErrorKind::InvalidInput, "secret not found").into());
+        }
+    }
+    let secret = secret.unwrap();
+    // All key-value pairs in the stringData field are internally merged into the data field
+    // we don't need to check string_data.
+    if let Some(data) = secret.data {
+        if let Some(v) = data.get(secret_key) {
+            return Ok(Some(ByteData {
+                vec: Some(v.0.clone()),
+            }));
+        }
+    }
+
+    // secret key/value not found
+    if optional {
+        Ok(None)
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "secret data not found").into())
+    }
+}
+
+async fn get_discovery_property_value_from_config_map(
+    kube_client: &dyn KubeClient,
+    namespace: &str,
+    config_map_key_selector: &ConfigMapKeySelector,
+) -> anyhow::Result<Option<ByteData>> {
+    let optional = config_map_key_selector.optional.unwrap_or_default();
+    if config_map_key_selector.name.is_none() {
+        if optional {
+            return Ok(None);
+        }
+        return Err(Error::new(ErrorKind::InvalidInput, "config_map name is none").into());
+    }
+    let config_map_name = config_map_key_selector.name.as_ref().unwrap();
+    let config_map_key = &config_map_key_selector.key;
+
+    let config_map = kube_client
+        .get_config_map(config_map_name, namespace)
+        .await?;
+    if config_map.is_none() {
+        if optional {
+            return Ok(None);
+        } else {
+            return Err(Error::new(ErrorKind::InvalidInput, "config_map not found").into());
+        }
+    }
+    let config_map = config_map.unwrap();
+    if let Some(data) = config_map.data {
+        if let Some(v) = data.get(config_map_key) {
+            return Ok(Some(ByteData {
+                vec: Some(v.as_bytes().to_vec()),
+            }));
+        }
+    }
+    if let Some(binary_data) = config_map.binary_data {
+        if let Some(v) = binary_data.get(config_map_key) {
+            return Ok(Some(ByteData {
+                vec: Some(v.0.clone()),
+            }));
+        }
+    }
+
+    // config_map_key/value not found
+    if optional {
+        Ok(None)
+    } else {
+        Err(Error::new(ErrorKind::InvalidInput, "config_map data not found").into())
+    }
 }
 
 pub mod start_discovery {
@@ -630,7 +885,10 @@ pub mod start_discovery {
         dh_details: &'a DiscoveryDetails,
     ) -> anyhow::Result<()> {
         loop {
-            if let Some(stream_type) = discovery_operator.get_stream(endpoint).await {
+            if let Some(stream_type) = discovery_operator
+                .get_stream(kube_interface.clone(), endpoint)
+                .await
+            {
                 match stream_type {
                     StreamType::External(mut stream) => {
                         match discovery_operator
@@ -749,8 +1007,10 @@ pub mod tests {
     use akri_shared::{
         akri::configuration::Configuration, k8s::MockKubeInterface, os::env_var::MockEnvVarQuery,
     };
+    use k8s_openapi::ByteString;
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
+    use std::collections::BTreeMap;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
 
@@ -1028,7 +1288,7 @@ pub mod tests {
         let (running_sender, running_receiver) = tokio::sync::broadcast::channel::<()>(1);
         mock_discovery_operator
             .expect_get_stream()
-            .returning(move |_| {
+            .returning(move |_, _| {
                 running_sender.clone().send(()).unwrap();
                 None
             });
@@ -1089,7 +1349,7 @@ pub mod tests {
         mock_discovery_operator
             .expect_get_stream()
             .times(1)
-            .returning(|_| None)
+            .returning(|_, _| None)
             .in_sequence(&mut get_stream_seq);
         // Second time successfully get stream
         let (_, rx) = mpsc::channel(2);
@@ -1097,7 +1357,7 @@ pub mod tests {
         mock_discovery_operator
             .expect_get_stream()
             .times(1)
-            .return_once(move |_| stream_type)
+            .return_once(move |_, _| stream_type)
             .in_sequence(&mut get_stream_seq);
         // Discovery should be initiated
         mock_discovery_operator
@@ -1467,20 +1727,29 @@ pub mod tests {
             .unwrap();
     }
 
-    fn setup_non_mocked_dh(
-        dh_name: &str,
-        endpoint: &DiscoveryHandlerEndpoint,
-    ) -> DiscoveryOperator {
-        let path_to_config = "../test/yaml/config-a.yaml";
+    fn create_discovery_operator(path_to_config: &str) -> DiscoveryOperator {
         let config_yaml = std::fs::read_to_string(path_to_config).expect("Unable to read file");
         let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
         let discovery_handler_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
-        add_discovery_handler_to_map(dh_name, endpoint, false, discovery_handler_map.clone());
         DiscoveryOperator::new(
             discovery_handler_map,
             config,
             Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         )
+    }
+
+    fn setup_non_mocked_dh(
+        dh_name: &str,
+        endpoint: &DiscoveryHandlerEndpoint,
+    ) -> DiscoveryOperator {
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        add_discovery_handler_to_map(
+            dh_name,
+            endpoint,
+            false,
+            discovery_operator.discovery_handler_map.clone(),
+        );
+        discovery_operator
     }
 
     #[tokio::test]
@@ -1499,9 +1768,11 @@ pub mod tests {
             config,
             Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         );
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+
         // test embedded debugEcho socket
         if let Some(StreamType::Embedded(_)) = discovery_operator
-            .get_stream(&DiscoveryHandlerEndpoint::Embedded)
+            .get_stream(mock_kube_interface, &DiscoveryHandlerEndpoint::Embedded)
             .await
         {
             // expected
@@ -1538,8 +1809,13 @@ pub mod tests {
             mock_discovery_handler::get_mock_discovery_handler_dir_and_endpoint("mock.sock");
         let dh_endpoint = DiscoveryHandlerEndpoint::Uds(endpoint.to_string());
         let discovery_operator = setup_non_mocked_dh("mock", &dh_endpoint);
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+
         // Should not be able to get stream if DH is not running
-        assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
+        assert!(discovery_operator
+            .get_stream(mock_kube_interface, &dh_endpoint)
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -1556,8 +1832,13 @@ pub mod tests {
             return_error,
         )
         .await;
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+
         // Assert that get_stream returns none if the DH returns error
-        assert!(discovery_operator.get_stream(&dh_endpoint).await.is_none());
+        assert!(discovery_operator
+            .get_stream(mock_kube_interface, &dh_endpoint)
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -1574,8 +1855,11 @@ pub mod tests {
             return_error,
         )
         .await;
-        if let Some(StreamType::External(mut receiver)) =
-            discovery_operator.get_stream(&dh_endpoint).await
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+
+        if let Some(StreamType::External(mut receiver)) = discovery_operator
+            .get_stream(mock_kube_interface, &dh_endpoint)
+            .await
         {
             // MockDiscoveryHandler returns an empty array of devices
             assert_eq!(
@@ -1585,5 +1869,796 @@ pub mod tests {
         } else {
             panic!("expected external stream");
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_no_properties() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+
+        // properties should be empty if not specified
+        assert!(discovery_operator
+            .get_discovery_properties(mock_kube_interface, &None)
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_empty_property_list() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+        let properties = Vec::<EnvVar>::new();
+
+        // properties should be empty if property list is empty
+        assert!(discovery_operator
+            .get_discovery_properties(mock_kube_interface, &Some(properties))
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_no_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+        let property_name_1 = "property_name_1".to_string();
+        let property_name_2 = "".to_string(); // allow empty property name
+        let properties = vec![
+            EnvVar {
+                name: property_name_1.clone(),
+                value: None,
+                value_from: None,
+            },
+            EnvVar {
+                name: property_name_2.clone(),
+                value: None,
+                value_from: None,
+            },
+        ];
+        let expected_result = HashMap::from([
+            (property_name_1, ByteData { vec: None }),
+            (property_name_2, ByteData { vec: None }),
+        ]);
+
+        // properties should only contain (name, None) if no value specified
+        let result = discovery_operator
+            .get_discovery_properties(mock_kube_interface.clone(), &Some(properties))
+            .await
+            .unwrap();
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_with_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+        let property_name_1 = "property_name_1".to_string();
+        let property_name_2 = "".to_string(); // allow empty property name
+        let property_value_1 = "property_value_1".to_string();
+        let property_value_2 = "property_value_2".to_string();
+        let properties = vec![
+            EnvVar {
+                name: property_name_1.clone(),
+                value: Some(property_value_1.clone()),
+                value_from: None,
+            },
+            EnvVar {
+                name: property_name_2.clone(),
+                value: Some(property_value_2.clone()),
+                value_from: None,
+            },
+        ];
+        let expected_result = HashMap::from([
+            (
+                property_name_1,
+                ByteData {
+                    vec: Some(property_value_1.into()),
+                },
+            ),
+            (
+                property_name_2,
+                ByteData {
+                    vec: Some(property_value_2.into()),
+                },
+            ),
+        ]);
+
+        // properties should contains (name, value) if specified
+        let result = discovery_operator
+            .get_discovery_properties(mock_kube_interface, &Some(properties))
+            .await
+            .unwrap();
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_unknown_ref() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
+        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+        let property_name = "property_name_1".to_string();
+        let property_value_from = EnvVarSource::default();
+        let properties = vec![EnvVar {
+            name: property_name.clone(),
+            value: None,
+            value_from: Some(property_value_from),
+        }];
+
+        // get_discovery_properties should return error if no supported key ref specified
+        assert!(discovery_operator
+            .get_discovery_properties(mock_kube_interface, &Some(properties))
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_secret_name() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+
+        let selector = SecretKeySelector::default();
+
+        let mock_kube_client = MockKubeClient::new();
+
+        // get_discovery_property_value_from_secret should return error if mandatory secret name is empty
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_secret_name_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+
+        let selector = SecretKeySelector {
+            key: String::default(),
+            name: None,
+            optional: Some(true),
+        };
+
+        let mock_kube_client = MockKubeClient::new();
+
+        // get_discovery_property_value_from_secret should return empty if optional secret name is empty
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_secret_found() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_secret";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| Ok(None));
+
+        // get_discovery_property_value_from_secret should return error if no secret not found
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_secret_found_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_secret";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| Ok(None));
+
+        // get_discovery_property_value_from_secret for an optional key should return None if secret not found
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_key() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_secret";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| Ok(Some(Secret::default())));
+
+        // get_discovery_property_value_from_secret should return error if key in secret not found
+        assert!(get_discovery_property_value_from_secret(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_key_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_config_map";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| Ok(Some(Secret::default())));
+
+        // get_discovery_property_value_from_secret for an optional key should return None if key in secret not found
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_secret";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| {
+                let secret = Secret {
+                    data: Some(BTreeMap::new()),
+                    ..Default::default()
+                };
+                Ok(Some(secret))
+            });
+
+        // get_discovery_property_value_from_secret should return error if no value in secret
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_no_value_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_config_map";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| {
+                let secret = Secret {
+                    data: Some(BTreeMap::new()),
+                    ..Default::default()
+                };
+                Ok(Some(secret))
+            });
+
+        // get_discovery_property_value_from_secret for an optional key should return None if key in secret not found
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_secret_data_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let secret_name = "secret_1";
+        let key_in_secret = "key_in_secret";
+        let value_in_secret = "value_in_secret";
+
+        let selector = SecretKeySelector {
+            key: key_in_secret.to_string(),
+            name: Some(secret_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_secret()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == secret_name
+            })
+            .returning(move |_, _| {
+                let data = BTreeMap::from([(
+                    key_in_secret.to_string(),
+                    ByteString(value_in_secret.into()),
+                )]);
+                let secret = Secret {
+                    data: Some(data),
+                    ..Default::default()
+                };
+                Ok(Some(secret))
+            });
+
+        let expected_result = ByteData {
+            vec: Some(value_in_secret.into()),
+        };
+
+        // get_discovery_property_value_from_secret should return correct value if data value in secret
+        let result =
+            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
+                .await;
+        assert_eq!(result.unwrap().unwrap(), expected_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_config_map_name() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+
+        let selector = ConfigMapKeySelector::default();
+
+        let mock_kube_client = MockKubeClient::new();
+
+        // get_discovery_property_value_from_config_map should return error if mandatory configMap name is empty
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_config_map_name_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+
+        let selector = ConfigMapKeySelector {
+            key: String::default(),
+            name: None,
+            optional: Some(true),
+        };
+
+        let mock_kube_client = MockKubeClient::new();
+
+        // get_discovery_property_value_from_config_map should return empty if optional configMap name is empty
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_config_map_found() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| Ok(None));
+
+        // get_discovery_property_value_from_config_map should return error if no configMap not found
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_config_map_found_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| Ok(None));
+
+        // get_discovery_property_value_from_config_map for an optional key should return None if configMap not found
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_key() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| Ok(Some(ConfigMap::default())));
+
+        // get_discovery_property_value_from_config_map should return error if key in configMap not found
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_key_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| Ok(Some(ConfigMap::default())));
+
+        // get_discovery_property_value_from_config_map for an optional key should return None if key in configMap not found
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| {
+                let config_map = ConfigMap {
+                    data: Some(BTreeMap::new()),
+                    binary_data: Some(BTreeMap::new()),
+                    ..Default::default()
+                };
+                Ok(Some(config_map))
+            });
+
+        // get_discovery_property_value_from_config_map should return error if no value in configMap
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_no_value_optional() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(true),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| {
+                let config_map = ConfigMap {
+                    data: Some(BTreeMap::new()),
+                    binary_data: Some(BTreeMap::new()),
+                    ..Default::default()
+                };
+                Ok(Some(config_map))
+            });
+
+        // get_discovery_property_value_from_config_map for an optional key should return None if key in configMap not found
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_data_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+        let value_in_config_map = "value_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| {
+                let data = BTreeMap::from([(
+                    key_in_config_map.to_string(),
+                    value_in_config_map.to_string(),
+                )]);
+                let config_map = ConfigMap {
+                    data: Some(data),
+                    binary_data: Some(BTreeMap::new()),
+                    ..Default::default()
+                };
+                Ok(Some(config_map))
+            });
+
+        let expected_result = ByteData {
+            vec: Some(value_in_config_map.into()),
+        };
+
+        // get_discovery_property_value_from_config_map should return correct value if data value in configMap
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert_eq!(result.unwrap().unwrap(), expected_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_binary_data_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+        let value_in_config_map = "value_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| {
+                let binary_data = BTreeMap::from([(
+                    key_in_config_map.to_string(),
+                    ByteString(value_in_config_map.into()),
+                )]);
+                let config_map = ConfigMap {
+                    data: Some(BTreeMap::new()),
+                    binary_data: Some(binary_data),
+                    ..Default::default()
+                };
+                Ok(Some(config_map))
+            });
+
+        let expected_result = ByteData {
+            vec: Some(value_in_config_map.into()),
+        };
+
+        // get_discovery_property_value_from_config_map should return correct value if binary data value in configMap
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert_eq!(result.unwrap().unwrap(), expected_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_discovery_properties_value_from_config_map_data_and_binary_data_value() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let namespace_name = "namespace_name";
+        let config_map_name = "config_map_1";
+        let key_in_config_map = "key_in_config_map";
+        let value_in_config_map = "value_in_config_map";
+        let binary_value_in_config_map = "binary_value_in_config_map";
+
+        let selector = ConfigMapKeySelector {
+            key: key_in_config_map.to_string(),
+            name: Some(config_map_name.to_string()),
+            optional: Some(false),
+        };
+
+        let mut mock_kube_client = MockKubeClient::new();
+        mock_kube_client
+            .expect_get_config_map()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == namespace_name && name == config_map_name
+            })
+            .returning(move |_, _| {
+                let data = BTreeMap::from([(
+                    key_in_config_map.to_string(),
+                    value_in_config_map.to_string(),
+                )]);
+                let binary_data = BTreeMap::from([(
+                    key_in_config_map.to_string(),
+                    ByteString(binary_value_in_config_map.into()),
+                )]);
+                let config_map = ConfigMap {
+                    data: Some(data),
+                    binary_data: Some(binary_data),
+                    ..Default::default()
+                };
+                Ok(Some(config_map))
+            });
+
+        let expected_result = ByteData {
+            vec: Some(value_in_config_map.into()),
+        };
+
+        // get_discovery_property_value_from_config_map should return value from data if both data and binary data value exist
+        let result = get_discovery_property_value_from_config_map(
+            &mock_kube_client,
+            namespace_name,
+            &selector,
+        )
+        .await;
+        assert_eq!(result.unwrap().unwrap(), expected_result);
     }
 }
