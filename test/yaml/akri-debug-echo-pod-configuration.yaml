@@ -9,6 +9,64 @@ spec:
         descriptions:
         - "foo0"
         - "foo1"
+    discoveryProperties:
+    - name: key-with-no-value
+    - name: key-with-no-secret-ref
+      valueFrom:
+        secretKeyRef:
+          name: secret-not-exist
+          key: username
+          optional: true
+    - name: key-with-no-secret-key
+      valueFrom:
+        secretKeyRef:
+          name: secret-basic-auth
+          key: secret-key-not-exist
+          optional: true
+    - name: key-with-no-config-map-ref
+      valueFrom:
+        configMapKeyRef:
+          name: config-map-not-exist
+          key: username
+          optional: true
+    - name: key-with-no-config-map-key
+      valueFrom:
+        configMapKeyRef:
+          name: myconfigmap
+          key: config-key-not-exist
+          optional: true
+    - name: dev-common-data
+      value: "plain text data"
+    - name: dev-auth-username
+      valueFrom:
+        secretKeyRef:
+          name: secret-basic-auth
+          key: username
+          optional: false
+    - name: dev-auth-password
+      valueFrom:
+        secretKeyRef:
+          name: secret-basic-auth
+          key: password
+          optional: true
+    - name: dev-configData1
+      valueFrom:
+        configMapKeyRef:
+          name: myconfigmap
+          key: configOption1
+          optional: false
+    - name: dev-configData2
+      valueFrom:
+        configMapKeyRef:
+          name: myconfigmap
+          key: configOption2
+          optional: true
+    - name: dev-configData3
+      valueFrom:
+        configMapKeyRef:
+          name: myconfigmap
+          key: sample.txt.gz
+          optional: true
   brokerSpec:
     brokerPodSpec:
       containers:
