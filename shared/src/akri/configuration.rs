@@ -53,7 +53,6 @@ pub enum BrokerSpec {
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(group = "akri.sh", version = "v0", kind = "Configuration", namespaced)]
-#[kube(apiextensions = "v1")]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigurationSpec {
     /// This defines the `DiscoveryHandler` that should be used to

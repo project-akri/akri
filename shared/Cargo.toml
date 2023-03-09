@@ -15,9 +15,9 @@ futures = "0.3.1"
 futures-util = "0.3"
 env_logger = "0.9.0"
 hyper = { version = "0.14.2", package = "hyper" }
-kube = { version = "0.69.1",  features = ["derive"] }
-kube-runtime = "0.69.1"
-k8s-openapi = { version = "0.14.0", default-features = false, features = ["schemars", "v1_23"] }
+kube = { version = "0.80.0",  features = ["derive"] }
+kube-runtime = "0.80.0"
+k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
 log = "0.4"
 mockall = "0.10.2"
 prometheus = { version = "0.11.0", features = ["process"] }

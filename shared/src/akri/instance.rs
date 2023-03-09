@@ -20,7 +20,6 @@ pub type InstanceList = ObjectList<Instance>;
 #[serde(rename_all = "camelCase")]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
-#[kube(apiextensions = "v1")]
 pub struct InstanceSpec {
     /// This contains the name of the corresponding Configuration
     pub configuration_name: String,
