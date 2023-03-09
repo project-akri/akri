@@ -107,6 +107,7 @@ impl DiscoveryOperator {
     pub async fn get_stream(&self, endpoint: &DiscoveryHandlerEndpoint) -> Option<StreamType> {
         let discover_request = tonic::Request::new(DiscoverRequest {
             discovery_details: self.config.spec.discovery_handler.discovery_details.clone(),
+            discovery_properties: HashMap::new(),
         });
         trace!("get_stream - endpoint is {:?}", endpoint);
         match endpoint {

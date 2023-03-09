@@ -200,6 +200,7 @@ mod tests {
         };
         let discover_request = tonic::Request::new(DiscoverRequest {
             discovery_details: deserialized.discovery_details.clone(),
+            discovery_properties: HashMap::new(),
         });
         let mut stream = discovery_handler
             .discover(discover_request)
