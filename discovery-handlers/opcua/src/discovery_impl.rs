@@ -394,7 +394,6 @@ mod tests {
             None,
             mock_tcp_stream,
         );
-        println!("!!! {:?}", discovery_urls);
         assert_eq!(discovery_urls.len(), 1);
     }
 
