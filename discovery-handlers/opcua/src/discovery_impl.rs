@@ -187,7 +187,7 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
 fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
 
     let url = Url::parse(&discovery_url).unwrap();
-    let path = url.path();
+    let mut path = url.path().to_string();
     let host = url.host_str().unwrap();
     let port = url.port().unwrap();
 
@@ -197,7 +197,15 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
     match addr_str.to_socket_addrs() {
         Ok(_url) => discovery_url,
         Err(_) => {
-            format!("{}{}", ip_url, path)
+            if ip_url.chars().last().unwrap() == '/' && path.chars().nth(0).unwrap() == '/' {
+                path.remove(0);
+            }
+            let url = format!("{}{}", ip_url, path);
+            trace!(
+                "get_discovery_url_ip - cannot resolve the application url from server, using ip address instead of hostname: {}",
+                url
+            );
+            url
         },
     }
 }
@@ -444,7 +452,7 @@ mod tests {
     #[test]
 
     fn test_get_discovery_url_ip() {
-        let ip_url = "opc.tcp://192.168.0.1:50000";
+        let ip_url = "opc.tcp://192.168.0.1:50000/";
         let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
 
         assert_eq!(get_discovery_url_ip(&ip_url, discovery_url.to_string()), "opc.tcp://192.168.0.1:50000/OPCUA/Simluation");
