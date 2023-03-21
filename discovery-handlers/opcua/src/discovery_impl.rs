@@ -74,6 +74,7 @@ fn get_discovery_urls(
                             get_discovery_url_from_application_description(
                                 application,
                                 filter_list.as_ref(),
+                                url,
                             )
                         })
                         .collect::<Vec<String>>();
@@ -115,6 +116,7 @@ fn test_tcp_connection(url: &str, tcp_stream: &impl TcpStream) -> Result<(), any
 fn get_discovery_url_from_application_description(
     server: &ApplicationDescription,
     filter_list: Option<&FilterList>,
+    ip_url: &String,
 ) -> Option<String> {
     trace!(
         "get_discovery_url_from_application - found server : {}",
@@ -135,7 +137,6 @@ fn get_discovery_url_from_application_description(
         None
     } else if let Some(ref server_discovery_urls) = server.discovery_urls {
         // TODO: could two different DiscoveryUrls be registered as localhost:<port> on different lds's?
-        // Should this ensure that DiscoveryUrls are IP addresses instead of DNS?
         trace!(
             "get_discovery_url_from_application - server has {:?} DiscoveryUrls",
             server_discovery_urls
@@ -149,7 +150,9 @@ fn get_discovery_url_from_application_description(
             Some(tcp_discovery_url) => tcp_discovery_url.to_string(),
             None => server_discovery_urls[0].to_string(),
         };
-        Some(discovery_url)
+        // If discovery_url is DNS, convert it to IP address
+        let discovery_url_ip = get_discovery_url_ip(ip_url, discovery_url);
+        Some(discovery_url_ip)
     } else {
         trace!(
             "get_discovery_urls - Server {} doesn't have any DiscoveryUrls",
@@ -178,6 +181,25 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
     let addrs = addr_str.to_socket_addrs();
     let addr = addrs.unwrap().next().unwrap();
     Ok(addr)
+}
+
+// This checks if the discovery_url can be resolved, if not use ip address instead
+fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
+
+    let url = Url::parse(&discovery_url).unwrap();
+    let path = url.path();
+    let host = url.host_str().unwrap();
+    let port = url.port().unwrap();
+
+    let addr_str = format!("{}:{}", host, port);
+
+    // check if the hostname can be resolved to socket address
+    match addr_str.to_socket_addrs() {
+        Ok(_url) => discovery_url,
+        Err(_) => {
+            format!("{}{}", ip_url, path)
+        },
+    }
 }
 
 #[cfg(test)]
@@ -326,7 +348,7 @@ mod tests {
     fn test_get_discovery_urls_removes_duplicates() {
         let lds_url = "opc.tcp://127.0.0.1:4840/";
         let lds_url2 = "opc.tcp://10.0.0.1:4840/";
-        let discovery_url = "opc.tcp://10.123.456.7:4855/";
+        let discovery_url = "opc.tcp://10.123.45.6:4855/";
         let mut mock_client = MockOpcuaClient::new();
         let mut find_servers_seq = Sequence::new();
         let mock_tcp_stream = set_up_mock_tcp_stream(lds_url, lds_url2);
@@ -364,6 +386,7 @@ mod tests {
             None,
             mock_tcp_stream,
         );
+        println!("!!! {:?}", discovery_urls);
         assert_eq!(discovery_urls.len(), 1);
     }
 
@@ -416,5 +439,17 @@ mod tests {
             mock_tcp_stream,
         );
         assert!(discovery_urls.is_empty());
+    }
+
+    #[test]
+
+    fn test_get_discovery_url_ip() {
+        let ip_url = "opc.tcp://192.168.0.1:50000";
+        let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
+
+        assert_eq!(get_discovery_url_ip(&ip_url, discovery_url.to_string()), "opc.tcp://192.168.0.1:50000/OPCUA/Simluation");
+
+        let discovery_url = "opc.tcp://192.168.0.2:50000/OPCUA/Simluation";
+        assert_eq!(get_discovery_url_ip(&ip_url, discovery_url.to_string()), "opc.tcp://192.168.0.2:50000/OPCUA/Simluation");
     }
 }
