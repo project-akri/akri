@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-
+    // Test that it converts the discovery url to an ip address if the discovery url is a hostname that is not resolvable
     fn test_get_discovery_url_ip() {
         let ip_url = "opc.tcp://192.168.0.1:50000/";
         let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
