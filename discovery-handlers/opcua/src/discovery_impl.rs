@@ -185,7 +185,6 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
 
 // This checks if the discovery_url can be resolved, if not use ip address instead
 fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
-
     let url = Url::parse(&discovery_url).unwrap();
     let mut path = url.path().to_string();
     let host = url.host_str().unwrap();
@@ -206,7 +205,7 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
                 url
             );
             url
-        },
+        }
     }
 }
 
@@ -454,9 +453,15 @@ mod tests {
         let ip_url = "opc.tcp://192.168.0.1:50000/";
         let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
 
-        assert_eq!(get_discovery_url_ip(&ip_url, discovery_url.to_string()), "opc.tcp://192.168.0.1:50000/OPCUA/Simluation");
+        assert_eq!(
+            get_discovery_url_ip(&ip_url, discovery_url.to_string()),
+            "opc.tcp://192.168.0.1:50000/OPCUA/Simluation"
+        );
 
         let discovery_url = "opc.tcp://192.168.0.2:50000/OPCUA/Simluation";
-        assert_eq!(get_discovery_url_ip(&ip_url, discovery_url.to_string()), "opc.tcp://192.168.0.2:50000/OPCUA/Simluation");
+        assert_eq!(
+            get_discovery_url_ip(&ip_url, discovery_url.to_string()),
+            "opc.tcp://192.168.0.2:50000/OPCUA/Simluation"
+        );
     }
 }
