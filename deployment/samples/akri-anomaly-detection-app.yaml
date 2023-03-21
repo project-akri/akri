@@ -16,6 +16,12 @@ spec:
       - name: akri-anomaly-detection-app
         image: ghcr.io/project-akri/akri/anomaly-detection-app:latest-dev
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         - name: CONFIGURATION_NAME
           value: akri-opcua-monitoring
