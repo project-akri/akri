@@ -116,7 +116,7 @@ fn test_tcp_connection(url: &str, tcp_stream: &impl TcpStream) -> Result<(), any
 fn get_discovery_url_from_application_description(
     server: &ApplicationDescription,
     filter_list: Option<&FilterList>,
-    ip_url: &String,
+    ip_url: &str,
 ) -> Option<String> {
     trace!(
         "get_discovery_url_from_application - found server : {}",
@@ -196,7 +196,7 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
     match addr_str.to_socket_addrs() {
         Ok(_url) => discovery_url,
         Err(_) => {
-            if ip_url.chars().last().unwrap() == '/' && path.chars().nth(0).unwrap() == '/' {
+            if ip_url.ends_with('/') && path.starts_with('/') {
                 path.remove(0);
             }
             let url = format!("{}{}", ip_url, path);
@@ -454,13 +454,13 @@ mod tests {
         let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
 
         assert_eq!(
-            get_discovery_url_ip(&ip_url, discovery_url.to_string()),
+            get_discovery_url_ip(ip_url, discovery_url.to_string()),
             "opc.tcp://192.168.0.1:50000/OPCUA/Simluation"
         );
 
         let discovery_url = "opc.tcp://192.168.0.2:50000/OPCUA/Simluation";
         assert_eq!(
-            get_discovery_url_ip(&ip_url, discovery_url.to_string()),
+            get_discovery_url_ip(ip_url, discovery_url.to_string()),
             "opc.tcp://192.168.0.2:50000/OPCUA/Simluation"
         );
     }
