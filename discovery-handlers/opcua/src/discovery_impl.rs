@@ -188,7 +188,7 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
     let url = Url::parse(&discovery_url).unwrap();
     let mut path = url.path().to_string();
     let host = url.host_str().unwrap();
-    let port = url.port().unwrap();
+    let port = url.port().unwrap_or(4841);
 
     let addr_str = format!("{}:{}", host, port);
 
@@ -451,13 +451,15 @@ mod tests {
     // Test that it converts the discovery url to an ip address if the discovery url is a hostname that is not resolvable
     fn test_get_discovery_url_ip() {
         let ip_url = "opc.tcp://192.168.0.1:50000/";
-        let discovery_url = "opc.tcp://OPCTest:50000/OPCUA/Simluation";
 
+        //  OPCTest.invalid is not a valid hostname, it should be overwritten by the ip_url
+        let discovery_url = "opc.tcp://OPCTest.invalid:50000/OPCUA/Simluation";
         assert_eq!(
             get_discovery_url_ip(ip_url, discovery_url.to_string()),
             "opc.tcp://192.168.0.1:50000/OPCUA/Simluation"
         );
 
+        // 192.168.0.2 is a valid ip address, it should not be overwritten
         let discovery_url = "opc.tcp://192.168.0.2:50000/OPCUA/Simluation";
         assert_eq!(
             get_discovery_url_ip(ip_url, discovery_url.to_string()),
