@@ -188,7 +188,7 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> String {
     let url = Url::parse(&discovery_url).unwrap();
     let mut path = url.path().to_string();
     let host = url.host_str().unwrap();
-    let port = url.port().unwrap_or(4841);
+    let port = url.port().unwrap();
 
     let addr_str = format!("{}:{}", host, port);
 
