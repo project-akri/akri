@@ -6,6 +6,7 @@ use ::url::Url;
 use akri_discovery_utils::filtering::{should_include, FilterList};
 use log::{error, info, trace};
 use opcua::client::prelude::*;
+use opcua::core::constants::DEFAULT_OPC_UA_SERVER_PORT;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Duration,
@@ -202,7 +203,7 @@ fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> Result<String, a
     }
     let mut path = url.path().to_string();
     let host = url.host_str().unwrap();
-    let port = url.port().unwrap();
+    let port = url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
 
     let addr_str = format!("{}:{}", host, port);
 
