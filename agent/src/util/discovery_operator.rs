@@ -548,12 +548,12 @@ impl DiscoveryOperator {
             .await;
         }
         if let Some(secret_key_selector) = &property.secret_key_ref {
-            return get_discovery_property_value_from_secrets(
+            get_discovery_property_value_from_secrets(
                 kube_interface,
                 self.config.metadata.namespace.as_ref().unwrap(),
                 secret_key_selector,
             )
-            .await;
+            .await
         } else {
             let error = Error::new(ErrorKind::InvalidInput, "no supported value_from found");
             Err(error.into())
@@ -592,10 +592,10 @@ async fn get_discovery_property_value_from_secrets<'a>(
 
     // secret key/value not found
     if optional {
-        return Ok(None);
+        Ok(None)
     } else {
         let error = Error::new(ErrorKind::InvalidInput, "secret data not found");
-        return Err(error.into());
+        Err(error.into())
     }
 }
 
@@ -650,10 +650,10 @@ async fn get_discovery_property_value_from_config_map<'a>(
 
     // config_map_key/value not found
     if optional {
-        return Ok(None);
+        Ok(None)
     } else {
         let error = Error::new(ErrorKind::InvalidInput, "config_map data not found");
-        return Err(error.into());
+        Err(error.into())
     }
 }
 
