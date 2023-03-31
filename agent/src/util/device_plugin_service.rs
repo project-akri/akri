@@ -511,7 +511,7 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                                             updated_device
                                         })
                                         .collect::<Vec<v1beta1::Device>>();
-                                    if gone_devices.len() == 0 {
+                                    if gone_devices.is_empty() {
                                         None
                                     } else {
                                         Some((instance_name.clone(), gone_devices))
@@ -1196,9 +1196,7 @@ pub async fn terminate_device_plugin_service(
 
 /// This creates a Configuration's unique name
 pub fn get_device_configuration_name(config_name: &str) -> String {
-    format!("{}", config_name)
-        .replace('.', "-")
-        .replace('/', "-")
+    config_name.to_string().replace('.', "-").replace('/', "-")
 }
 
 /// This creates an Instance's unique name
