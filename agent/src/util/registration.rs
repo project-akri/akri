@@ -180,7 +180,7 @@ pub async fn internal_run_registration_server(
         socket_path
     );
     // Delete socket in case previously created/used
-    std::fs::remove_file(&socket_path).unwrap_or(());
+    std::fs::remove_file(socket_path).unwrap_or(());
     let incoming = {
         let uds =
             tokio::net::UnixListener::bind(socket_path).expect("Failed to bind to socket path");
