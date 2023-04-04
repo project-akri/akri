@@ -1,6 +1,6 @@
 [package]
 name = "controller"
-version = "0.9.3"
+version = "0.9.4"
 authors = ["<bfjelds@microsoft.com>", "<kagold@microsoft.com>"]
 edition = "2018"
 rust-version = "1.63.0"
