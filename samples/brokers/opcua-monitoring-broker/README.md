@@ -14,5 +14,5 @@ dotnet build
 1. Run, passing in the OPC UA Discovery URL for the OPC UA Server it should connect to and the identifier and namespace
    index of the OPC UA Node to monitor.
 ```sh
-IDENTIFIER="Thermometer_Temperature" NAMESPACE_INDEX="2" OPCUA_DISCOVERY_URL="opc.tcp://10.2.3.4:4556/Some/Path" dotnet run
+IDENTIFIER="Thermometer_Temperature" NAMESPACE_INDEX="2" OPCUA_DISCOVERY_URL_abcdef="opc.tcp://10.2.3.4:4556/Some/Path" dotnet run
 ```
