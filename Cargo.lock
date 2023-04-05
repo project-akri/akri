@@ -4171,6 +4171,7 @@ dependencies = [
  "log",
  "prometheus 0.12.0",
  "prost",
+ "regex",
  "rscam",
  "tokio 1.26.0",
  "tonic",
