@@ -567,7 +567,7 @@ async fn get_discovery_property_value_from_secrets<'a>(
 ) -> anyhow::Result<Option<ByteData>> {
     let secret_key = secret_key_selector.key.clone();
     let secret_name = secret_key_selector.name.as_ref().unwrap(); // TODO: should we return error if name is None?
-    let optional = secret_key_selector.optional.unwrap_or_default().clone();
+    let optional = secret_key_selector.optional.unwrap_or_default();
 
     let secret = get_secret(kube_interface.clone(), namespace, secret_name).await?;
     if secret == None {
@@ -607,7 +607,7 @@ async fn get_secret<'a>(
     let lp = ListParams::default();
     for s in resource_client.list(&lp).await? {
         if name == s.metadata.name.as_ref().unwrap() {
-            return Ok(Some(s.clone()));
+            return Ok(Some(s));
         }
     }
     Ok(None)
@@ -620,7 +620,7 @@ async fn get_discovery_property_value_from_config_map<'a>(
 ) -> anyhow::Result<Option<ByteData>> {
     let config_map_key = config_map_key_ref.key.clone();
     let config_map_name = config_map_key_ref.name.as_ref().unwrap(); // TODO: should we return error if name is None?
-    let optional = config_map_key_ref.optional.unwrap_or_default().clone();
+    let optional = config_map_key_ref.optional.unwrap_or_default();
 
     let config_map = get_config_map(kube_interface.clone(), namespace, config_map_name).await?;
     if config_map == None {
@@ -666,7 +666,7 @@ async fn get_config_map<'a>(
     let lp = ListParams::default();
     for s in resource_client.list(&lp).await? {
         if name == s.metadata.name.as_ref().unwrap() {
-            return Ok(Some(s.clone()));
+            return Ok(Some(s));
         }
     }
     Ok(None)
