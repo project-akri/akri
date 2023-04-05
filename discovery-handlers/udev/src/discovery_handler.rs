@@ -84,20 +84,23 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     .into_iter()
                     .map(|(path, node)| {
                         let mut properties = std::collections::HashMap::new();
+                        let mut mounts = Vec::new();
                         if let Some(devnode) = node {
-                            properties.insert(super::UDEV_DEVNODE_LABEL_ID.to_string(), devnode);
+                            properties
+                                .insert(super::UDEV_DEVNODE_LABEL_ID.to_string(), devnode.clone());
+                            mounts.push(Mount {
+                                container_path: devnode.clone(),
+                                host_path: devnode,
+                                read_only: true,
+                            });
                         }
                         properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), path.clone());
-                        let mount = Mount {
-                            container_path: path.clone(),
-                            host_path: path.clone(),
-                            read_only: true,
-                        };
+
                         // TODO: use device spec
                         Device {
                             id: path,
                             properties,
-                            mounts: vec![mount],
+                            mounts,
                             device_specs: Vec::default(),
                         }
                     })
