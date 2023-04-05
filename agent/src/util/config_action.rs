@@ -53,7 +53,7 @@ pub async fn do_config_watch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
     let config_map: ConfigMap = Arc::new(RwLock::new(HashMap::new()));
-    let kube_interface = k8s::KubeImpl::new().await?;
+    let kube_interface = Arc::new(k8s::KubeImpl::new().await?);
     let mut tasks = Vec::new();
 
     // Handle pre-existing configs
@@ -62,9 +62,10 @@ pub async fn do_config_watch(
         let config_map = config_map.clone();
         let discovery_handler_map = discovery_handler_map.clone();
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
+        let new_kube_interface = kube_interface.clone();
         tasks.push(tokio::spawn(async move {
             handle_config_add(
-                Arc::new(k8s::KubeImpl::new().await.unwrap()),
+                new_kube_interface,
                 &config,
                 config_map,
                 discovery_handler_map,
@@ -78,7 +79,7 @@ pub async fn do_config_watch(
     // Watch for new configs and changes
     tasks.push(tokio::spawn(async move {
         watch_for_config_changes(
-            &kube_interface,
+            kube_interface,
             config_map,
             discovery_handler_map,
             new_discovery_handler_sender,
@@ -94,7 +95,7 @@ pub async fn do_config_watch(
 
 /// This watches for Configuration events
 async fn watch_for_config_changes(
-    kube_interface: &impl KubeInterface,
+    kube_interface: Arc<dyn KubeInterface>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
@@ -115,7 +116,7 @@ async fn watch_for_config_changes(
         };
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         handle_config(
-            kube_interface,
+            kube_interface.clone(),
             event,
             config_map.clone(),
             discovery_handler_map.clone(),
@@ -129,7 +130,7 @@ async fn watch_for_config_changes(
 /// This takes an event off the Configuration stream and delegates it to the
 /// correct function based on the event type.
 async fn handle_config(
-    kube_interface: &impl KubeInterface,
+    kube_interface: Arc<dyn KubeInterface>,
     event: Event<Configuration>,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
@@ -157,7 +158,7 @@ async fn handle_config(
                 config.metadata.name.clone().unwrap(),
             );
             info!("handle_config - deleted Configuration {:?}", config_id,);
-            handle_config_delete(kube_interface, config_id, config_map).await?;
+            handle_config_delete(kube_interface.as_ref(), config_id, config_map).await?;
         }
         Event::Restarted(configs) => {
             let new_configs: HashSet<ConfigId> = configs
@@ -171,11 +172,16 @@ async fn handle_config(
                 .collect();
             let old_configs: HashSet<ConfigId> = config_map.read().await.keys().cloned().collect();
             for config_id in old_configs.difference(&new_configs) {
-                handle_config_delete(kube_interface, config_id.clone(), config_map.clone()).await?;
+                handle_config_delete(
+                    kube_interface.as_ref(),
+                    config_id.clone(),
+                    config_map.clone(),
+                )
+                .await?;
             }
             for config in configs {
                 handle_config_apply(
-                    kube_interface,
+                    kube_interface.clone(),
                     config,
                     config_map.clone(),
                     discovery_handler_map.clone(),
@@ -189,7 +195,7 @@ async fn handle_config(
 }
 
 async fn handle_config_apply(
-    kube_interface: &impl KubeInterface,
+    kube_interface: Arc<dyn KubeInterface>,
     config: Configuration,
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
@@ -215,12 +221,12 @@ async fn handle_config_apply(
             "handle_config - modified Configuration {:?}",
             config.metadata.name,
         );
-        handle_config_delete(kube_interface, config_id, config_map.clone()).await?;
+        handle_config_delete(kube_interface.as_ref(), config_id, config_map.clone()).await?;
     }
 
     tokio::spawn(async move {
         handle_config_add(
-            Arc::new(k8s::KubeImpl::new().await.unwrap()),
+            kube_interface,
             &config,
             config_map,
             discovery_handler_map,
@@ -282,7 +288,7 @@ async fn handle_config_add(
 /// Then, for each of the Configuration's Instances, it signals the DevicePluginService to shutdown,
 /// and deletes the Instance CRD.
 async fn handle_config_delete(
-    kube_interface: &impl KubeInterface,
+    kube_interface: &dyn KubeInterface,
     config_id: ConfigId,
     config_map: ConfigMap,
 ) -> anyhow::Result<()> {
@@ -363,7 +369,7 @@ async fn should_recreate_config(
 
 /// This shuts down all a Configuration's Instances and terminates the associated Device Plugins
 pub async fn delete_all_instances_in_map(
-    kube_interface: &impl k8s::KubeInterface,
+    kube_interface: &dyn k8s::KubeInterface,
     instance_map: InstanceMap,
     (namespace, name): ConfigId,
 ) -> anyhow::Result<()> {
@@ -409,12 +415,13 @@ mod config_action_tests {
             config.metadata.namespace.clone().unwrap(),
             config.metadata.name.clone().unwrap(),
         );
+        let kube_interface = Arc::new(MockKubeInterface::new());
 
         let config_map = Arc::new(RwLock::new(HashMap::new()));
         let dh_map = Arc::new(std::sync::Mutex::new(HashMap::new()));
         let (tx, mut _rx1) = broadcast::channel(1);
         assert!(handle_config(
-            &MockKubeInterface::new(),
+            kube_interface.clone(),
             Event::Restarted(vec![config]),
             config_map.clone(),
             dh_map.clone(),
@@ -429,7 +436,7 @@ mod config_action_tests {
         assert!(config_map.read().await.contains_key(&config_id));
 
         assert!(handle_config(
-            &MockKubeInterface::new(),
+            kube_interface,
             Event::Restarted(Vec::new()),
             config_map.clone(),
             dh_map,
