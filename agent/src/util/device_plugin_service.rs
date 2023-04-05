@@ -536,7 +536,7 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                     for (_, devices) in devices_are_gone {
                         devices_to_report.extend(devices);
                     }
-                    for (_, devices) in &newly_discovered_devices {
+                    for devices in newly_discovered_devices.values() {
                         devices_to_report.extend(devices.clone());
                     }
 
@@ -1139,7 +1139,7 @@ async fn allocate_for_instance(
         device_usage_id.to_string(),
     );
 
-    let hash_id_value = generate_digest(&device_usage_id, 3);
+    let hash_id_value = generate_digest(device_usage_id, 3);
     // add suffix _<usage_id> to each device property
     let converted_properties = device
         .properties
