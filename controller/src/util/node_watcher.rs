@@ -9,8 +9,9 @@ use akri_shared::{
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Node, NodeStatus};
 use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{watcher, Event};
-use log::{info, trace};
+use kube_runtime::watcher::{default_backoff, watcher, Event};
+use kube_runtime::WatchStreamExt;
+use log::{error, info, trace};
 use std::collections::HashMap;
 
 /// Node states that NodeWatcher is interested in
@@ -55,13 +56,20 @@ impl NodeWatcher {
         trace!("watch - enter");
         let kube_interface = k8s::KubeImpl::new().await?;
         let resource = Api::<Node>::all(kube_interface.get_kube_client());
-        let watcher = watcher(resource, ListParams::default());
+        let watcher = watcher(resource, ListParams::default()).backoff(default_backoff());
         let mut informer = watcher.boxed();
         let mut first_event = true;
 
-        // Currently, this does not handle None except to break the
-        // while.
-        while let Some(event) = informer.try_next().await? {
+        // Currently, this does not handle None except to break the loop.
+        loop {
+            let event = match informer.try_next().await {
+                Err(e) => {
+                    error!("Error during watch: {}", e);
+                    continue;
+                }
+                Ok(None) => break,
+                Ok(Some(event)) => event,
+            };
             self.handle_node(event, &kube_interface, &mut first_event)
                 .await?;
         }
