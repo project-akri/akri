@@ -302,7 +302,7 @@ impl DevicePluginService {
                     device_usage_id.clone(),
                 );
 
-                let hash_id_value = generate_digest(&device_usage_id, 3);
+                let hash_id_value = generate_digest(&device_usage_id, 3).to_uppercase();
                 // add suffix _<usage_id> to each device property
                 let converted_properties = self
                     .device
@@ -1392,7 +1392,7 @@ mod device_plugin_service_tests {
         // Check that Device properties are set as env vars by checking for
         // property of device created in `create_device_plugin_service`
         assert_eq!(
-            broker_envs.get("DEVICE_LOCATION_INFO_76cc26").unwrap(),
+            broker_envs.get("DEVICE_LOCATION_INFO_76CC26").unwrap(),
             "endpoint"
         );
         assert!(device_plugin_service_receivers
