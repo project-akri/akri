@@ -161,7 +161,7 @@ def check_broker_pods_env_var(pods):
     kubectl_cmd = get_kubectl_command()
     for pod in pods:
         # expect the environment variable from akri instance suffixed with a 6 digest hash id
-        if os.system('{} exec -i {} -- /bin/sh -c "printenv | grep \'^DEBUG_ECHO_DESCRIPTION_[a-fA-F0-9]\\{{6,6\\}}={}\' | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
+        if os.system('{} exec -i {} -- /bin/sh -c "printenv | grep \'^DEBUG_ECHO_DESCRIPTION_[A-F0-9]\\{{6,6\\}}={}\' | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, DEBUG_ECHO_DESCRIPTIONS_PREFIX)):
             print("Could not find a DEBUG_ECHO_DESCRIPTION_<hash id> environment variable in broker Pod {}".format(pod.metadata.name))
             return False
         if os.system('{} exec -i {} -- /bin/sh -c "printenv | grep ^{}={}$ | wc -l | grep -v 0"'.format(kubectl_cmd, pod.metadata.name, PROPERTIES_RESOLUTION_WIDTH_KEY, PROPERTIES_RESOLUTION_WIDTH_VALUE)):

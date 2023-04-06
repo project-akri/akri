@@ -44,7 +44,7 @@ namespace Akri
 		// Regular expression pattern of environment variables that hold OPC UA DiscoveryURL
 		// The pattern is ONVIF_DEVICE_SERVICE_URL_ followed by 6 digit digest.  e.g.
 		// ONVIF_DEVICE_SERVICE_URL_123456, ONVIF_DEVICE_SERVICE_URL_ABCDEF
-		private const string OnvifDeviceServiceUrlLabelPattern = "ONVIF_DEVICE_SERVICE_URL_[a-fA-F0-9]{6,6}$";
+		private const string OnvifDeviceServiceUrlLabelPattern = "ONVIF_DEVICE_SERVICE_URL_[A-F0-9]{6,6}$";
 
 		private static string GetMediaUrl(String device_service_url)
 		{

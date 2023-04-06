@@ -65,7 +65,7 @@ namespace OpcuaNodeMonitoring
         // Regular expression pattern of environment variables that hold OPC UA DiscoveryURL
         // The pattern is OPCUA_DISCOVERY_URL_ followed by 6 digit digest.  e.g.
         // OPCUA_DISCOVERY_URL_123456, OPCUA_DISCOVERY_URL_ABCDEF
-        public const string OpcuaDiscoveryUrlLabelPattern = "OPCUA_DISCOVERY_URL_[a-fA-F0-9]{6,6}$";
+        public const string OpcuaDiscoveryUrlLabelPattern = "OPCUA_DISCOVERY_URL_[A-F0-9]{6,6}$";
         // Name of environment variable that holds the identifier for the OPC UA Node to monitor
         public const string IdentifierLabel = "IDENTIFIER";
         // Name of environment variable that holds the amespaceIndex for the OPC UA Node to monitor

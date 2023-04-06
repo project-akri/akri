@@ -18,7 +18,7 @@ lazy_static! {
 }
 
 /// regular expression pattern of devnode environment variable id
-pub const UDEV_DEVNODE_LABEL_ID_PATTERN: &str = "UDEV_DEVNODE_[a-fA-F0-9]{6,6}$";
+pub const UDEV_DEVNODE_LABEL_ID_PATTERN: &str = "UDEV_DEVNODE_[A-F0-9]{6,6}$";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
