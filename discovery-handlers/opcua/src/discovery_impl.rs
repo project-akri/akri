@@ -194,7 +194,8 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
 
 // This checks if the discovery_url can be resolved, if not use ip address instead
 fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> Result<String, anyhow::Error> {
-    let url = Url::parse(&discovery_url).map_err(|_| anyhow::format_err!("could not parse url"))?;
+    let url = Url::parse(&discovery_url)
+        .map_err(|_| anyhow::format_err!("could not parse url {discovery_url}"))?;
     if url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
             "format of OPC UA url {} is not valid",
