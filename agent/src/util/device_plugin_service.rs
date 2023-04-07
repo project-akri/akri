@@ -282,6 +282,8 @@ impl DevicePluginService {
         kube_interface: Arc<impl KubeInterface>,
     ) -> Result<Response<AllocateResponse>, Status> {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
+        // suffix to add to each device property
+        let device_property_suffix = self.instance_id.to_uppercase();
 
         for request in requests.into_inner().container_requests {
             trace!(
@@ -303,13 +305,17 @@ impl DevicePluginService {
                     device_usage_id.clone(),
                 );
 
-                let hash_id_value = self.instance_id.to_uppercase();
                 // add suffix _<instance_id> to each device property
                 let converted_properties = self
                     .device
                     .properties
                     .iter()
-                    .map(|(key, value)| (format!("{}_{}", key, &hash_id_value), value.to_string()))
+                    .map(|(key, value)| {
+                        (
+                            format!("{}_{}", key, &device_property_suffix),
+                            value.to_string(),
+                        )
+                    })
                     .collect::<HashMap<String, String>>();
                 akri_device_properties.extend(converted_properties);
 
