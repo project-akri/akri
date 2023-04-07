@@ -1,9 +1,12 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.XPath;
 
@@ -37,6 +40,11 @@ namespace Akri
 		private const String GET_SERVICE_SOAP = @"<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:wsdl=""http://www.onvif.org/ver10/device/wsdl""><soap:Header/><soap:Body><wsdl:GetServices /></soap:Body></soap:Envelope>";
 		private const String GET_PROFILES_SOAP = @"<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:wsdl=""http://www.onvif.org/ver10/media/wsdl""><soap:Header/><soap:Body><wsdl:GetProfiles/></soap:Body></soap:Envelope>";
 		private const String GET_STREAMING_URI_SOAP_TEMPLATE = @"<soap:Envelope xmlns:soap=""http://www.w3.org/2003/05/soap-envelope"" xmlns:wsdl=""http://www.onvif.org/ver10/media/wsdl"" xmlns:sch=""http://www.onvif.org/ver10/schema""><soap:Header/><soap:Body><wsdl:GetStreamUri><wsdl:StreamSetup><sch:Stream>RTP-Unicast</sch:Stream><sch:Transport><sch:Protocol>RTSP</sch:Protocol></sch:Transport></wsdl:StreamSetup><wsdl:ProfileToken>{0}</wsdl:ProfileToken></wsdl:GetStreamUri></soap:Body></soap:Envelope>";
+
+		// Regular expression pattern of environment variables that hold OPC UA DiscoveryURL
+		// The pattern is ONVIF_DEVICE_SERVICE_URL_ followed by 6 digit digest.  e.g.
+		// ONVIF_DEVICE_SERVICE_URL_123456, ONVIF_DEVICE_SERVICE_URL_ABCDEF
+		private const string OnvifDeviceServiceUrlLabelPattern = "ONVIF_DEVICE_SERVICE_URL_[A-F0-9]{6,6}$";
 
 		private static string GetMediaUrl(String device_service_url)
 		{
@@ -97,9 +105,29 @@ namespace Akri
 			return streaming_uri;
 		}
 
+        private static List<string> GetDeviceServiceUrls()
+        {
+            var values = new List<string>();
+            foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
+            {
+                if (Regex.IsMatch(de.Key.ToString(), OnvifDeviceServiceUrlLabelPattern))
+                {
+                    values.Add(de.Value.ToString());
+                }
+            }
+            return values;
+        }
+
         public static string GetRtspUrl()
         {
-			var device_service_url = Environment.GetEnvironmentVariable("ONVIF_DEVICE_SERVICE_URL");
+            // Get the first found Onvif device service url and use it
+            var device_service_urls = GetDeviceServiceUrls();
+			foreach(var url in device_service_urls)
+			{
+				Console.WriteLine("xxx url={0}", url);
+			}
+			return "";
+            var device_service_url = (device_service_urls.Count != 0) ? device_service_urls[0] : "";
 			if (string.IsNullOrEmpty(device_service_url))
 			{
 				throw new ArgumentNullException("ONVIF_DEVICE_SERVICE_URL undefined");

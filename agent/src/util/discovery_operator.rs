@@ -3,7 +3,7 @@ use super::super::INSTANCE_COUNT_METRIC;
 use super::embedded_discovery_handlers::get_discovery_handler;
 use super::{
     constants::SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
-    device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
+    device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface, InstanceData},
     device_plugin_service,
     device_plugin_service::{
         get_device_configuration_name, get_device_instance_name, InstanceConnectivityStatus,
@@ -362,9 +362,13 @@ impl DiscoveryOperator {
                     instance_name
                 );
                 let instance_map = self.instance_map.clone();
+                let instance_info = InstanceData {
+                    name: instance_name,
+                    id,
+                };
                 if let Err(e) = device_plugin_builder
                     .build_device_plugin(
-                        instance_name,
+                        instance_info,
                         &self.config,
                         shared,
                         instance_map,
@@ -766,12 +770,8 @@ pub fn inner_generate_instance_digest(
             query.get_env_var("AGENT_NODE_NAME").unwrap()
         );
     }
-    generate_digest(&id_to_digest, 3)
-}
-
-pub fn generate_digest(id_to_digest: &str, output_size: usize) -> String {
     let mut digest = String::new();
-    let mut hasher = VarBlake2b::new(output_size).unwrap();
+    let mut hasher = VarBlake2b::new(3).unwrap();
     hasher.update(id_to_digest);
     hasher.finalize_variable(|var| {
         digest = var

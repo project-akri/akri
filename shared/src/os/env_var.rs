@@ -5,6 +5,7 @@ use std::{env, env::VarError};
 #[automock]
 pub trait EnvVarQuery {
     fn get_env_var(&self, name: &'static str) -> Result<String, VarError>;
+    fn get_env_vars(&self) -> Vec<(String, String)>;
 }
 
 pub struct ActualEnvVarQuery;
@@ -23,5 +24,11 @@ impl EnvVarQuery for ActualEnvVarQuery {
     /// ```
     fn get_env_var(&self, name: &'static str) -> Result<String, VarError> {
         env::var(name)
+    }
+
+    fn get_env_vars(&self) -> Vec<(String, String)> {
+        env::vars()
+            .map(|(n, v)| (n, v))
+            .collect::<Vec<(String, String)>>()
     }
 }

@@ -32,12 +32,17 @@ use tokio::{
 use tonic::transport::{Endpoint, Server, Uri};
 use tower::service_fn;
 
+pub struct InstanceData {
+    pub name: String,
+    pub id: String,
+}
+
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait DevicePluginBuilderInterface: Send + Sync {
     async fn build_device_plugin(
         &self,
-        instance_name: String,
+        instance_info: InstanceData,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
@@ -64,13 +69,15 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
     /// This creates a new DevicePluginService for an instance and registers it with the kubelet
     async fn build_device_plugin(
         &self,
-        instance_name: String,
+        instance_info: InstanceData,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
         usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let instance_name = instance_info.name;
+        let instance_id = instance_info.id;
         info!("build_device_plugin - entered for device {}", instance_name);
         let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
@@ -86,6 +93,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
         let device_plugin_service = DevicePluginService {
             instance_name: instance_name.clone(),
+            instance_id: instance_id.clone(),
             endpoint: device_endpoint.clone(),
             config: config.spec.clone(),
             config_name: config.metadata.name.clone().unwrap(),

@@ -13,8 +13,9 @@ use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
 use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{watcher, Event};
-use log::{info, trace};
+use kube_runtime::watcher::{default_backoff, watcher, Event};
+use kube_runtime::WatchStreamExt;
+use log::{error, info, trace};
 use std::{collections::HashMap, sync::Arc};
 
 type PodSlice = [Pod];
@@ -122,28 +123,31 @@ impl BrokerPodWatcher {
     }
 
     /// This watches for broker Pod events
-    pub async fn watch(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub async fn watch(&mut self) -> anyhow::Result<()> {
         trace!("watch - enter");
         let kube_interface = k8s::KubeImpl::new().await?;
         let resource = Api::<Pod>::all(kube_interface.get_kube_client());
         let watcher = watcher(
             resource,
             ListParams::default().labels(AKRI_CONFIGURATION_LABEL_NAME),
-        );
+        )
+        .backoff(default_backoff());
         let mut informer = watcher.boxed();
         let synchronization = Arc::new(Mutex::new(()));
         let mut first_event = true;
 
         loop {
-            // Currently, this does not handle None except to break the
-            // while.
-            while let Some(event) = informer.try_next().await? {
-                let _lock = synchronization.lock().await;
-                self.handle_pod(event, &kube_interface, &mut first_event)
-                    .await?;
-            }
+            let event = match informer.try_next().await {
+                Err(e) => {
+                    error!("Error during watch: {}", e);
+                    continue;
+                }
+                Ok(None) => return Err(anyhow::anyhow!("Watch stream ended")),
+                Ok(Some(event)) => event,
+            };
+            let _lock = synchronization.lock().await;
+            self.handle_pod(event, &kube_interface, &mut first_event)
+                .await?;
         }
     }
 
