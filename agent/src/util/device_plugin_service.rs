@@ -1,7 +1,6 @@
 use super::constants::{
     HEALTHY, KUBELET_UPDATE_CHANNEL_CAPACITY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
 };
-use super::discovery_operator::generate_digest;
 use super::v1beta1;
 use super::v1beta1::{
     device_plugin_server::DevicePlugin, AllocateRequest, AllocateResponse, DevicePluginOptions,
@@ -74,6 +73,8 @@ pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
 pub struct DevicePluginService {
     /// Instance CRD name
     pub instance_name: String,
+    /// Instance hash id
+    pub instance_id: String,
     /// Socket endpoint
     pub endpoint: String,
     /// Instance's Configuration
@@ -302,8 +303,8 @@ impl DevicePluginService {
                     device_usage_id.clone(),
                 );
 
-                let hash_id_value = generate_digest(&device_usage_id, 3).to_uppercase();
-                // add suffix _<usage_id> to each device property
+                let hash_id_value = self.instance_id.to_uppercase();
+                // add suffix _<instance_id> to each device property
                 let converted_properties = self
                     .device
                     .properties
@@ -841,11 +842,12 @@ mod device_plugin_service_tests {
         add_to_instance_map: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
         let path_to_config = "../test/yaml/config-a.yaml";
+        let instance_id = "b494b6";
         let kube_akri_config_yaml =
             fs::read_to_string(path_to_config).expect("Unable to read file");
         let kube_akri_config: Configuration = serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
         let config_name = kube_akri_config.metadata.name.as_ref().unwrap();
-        let device_instance_name = get_device_instance_name("b494b6", config_name);
+        let device_instance_name = get_device_instance_name(instance_id, config_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
         let device_endpoint: String = format!(
             "{}-{}.sock",
@@ -875,6 +877,7 @@ mod device_plugin_service_tests {
         };
         let dps = DevicePluginService {
             instance_name: device_instance_name,
+            instance_id: instance_id.to_uppercase(),
             endpoint: device_endpoint,
             config: kube_akri_config.spec.clone(),
             config_name: config_name.to_string(),
@@ -1392,7 +1395,7 @@ mod device_plugin_service_tests {
         // Check that Device properties are set as env vars by checking for
         // property of device created in `create_device_plugin_service`
         assert_eq!(
-            broker_envs.get("DEVICE_LOCATION_INFO_76CC26").unwrap(),
+            broker_envs.get("DEVICE_LOCATION_INFO_B494B6").unwrap(),
             "endpoint"
         );
         assert!(device_plugin_service_receivers

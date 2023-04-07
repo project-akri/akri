@@ -327,6 +327,7 @@ impl DiscoveryOperator {
                 if let Err(e) = device_plugin_builder
                     .build_device_plugin(
                         instance_name,
+                        id,
                         &self.config,
                         shared,
                         instance_map,
@@ -724,12 +725,8 @@ pub fn inner_generate_instance_digest(
             query.get_env_var("AGENT_NODE_NAME").unwrap()
         );
     }
-    generate_digest(&id_to_digest, 3)
-}
-
-pub fn generate_digest(id_to_digest: &str, output_size: usize) -> String {
     let mut digest = String::new();
-    let mut hasher = VarBlake2b::new(output_size).unwrap();
+    let mut hasher = VarBlake2b::new(3).unwrap();
     hasher.update(id_to_digest);
     hasher.finalize_variable(|var| {
         digest = var
@@ -1150,7 +1147,7 @@ pub mod tests {
         mock_device_plugin_builder
             .expect_build_device_plugin()
             .times(2)
-            .returning(move |_, _, _, _, _| Ok(()));
+            .returning(move |_, _, _, _, _, _| Ok(()));
         discovery_operator
             .handle_discovery_results(
                 mock_kube_interface,
