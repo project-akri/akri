@@ -1,3 +1,90 @@
+# v0.9.x
+
+## Announcing Akri v0.9.x!
+Akri v0.9.x is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.9.x release contains the following changes:
+
+1. 
+2. 
+3. 
+
+**Fixes, features, and optimizations**
+- opt: Update OPCUA to 0.11.0 to remove vulnerabilities (https://github.com/project-akri/akri/pull/528)
+- feat: GitHub Action to auto-version update (https://github.com/project-akri/akri/pull/510)
+- fix: Fixed Kubernetes tests to run on active branches (https://github.com/project-akri/akri/pull/513)
+- fix: Fix uds gRPC client implementation with C based gRPC (https://github.com/project-akri/akri/pull/498)
+- opt: Removed unmaintained ansi_term dependency (https://github.com/project-akri/akri/pull/506)
+- opt: Rust toolchain updates (https://github.com/project-akri/akri/pull/482)(https://github.com/project-akri/akri/pull/507)
+- feat: Enable secrets in helm templates (https://github.com/project-akri/akri/pull/478)
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...0.9.x)
+
+## Breaking Changes
+N/A
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.26.3 |
+| Kubernetes | v1.25.8 |
+| Kubernetes | v1.24.12 |
+| Kubernetes | v1.23.15 |
+| K3s | v1.26.3+k3s1 |
+| K3s | v1.25.8+k3s1 |
+| K3s | v1.24.12+k3s1 |
+| K3s | v1.23.15+k3s1 |
+| MicroK8s | 1.26/stable |
+| MicroK8s | 1.25/stable |
+| MicroK8s | 1.24/stable |
+| MicroK8s | 1.23/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper.
+
+**⭐ Contributors to v0.9.x ⭐**
+- @adithyaj
+- @bfjelds
+- @bitmeal
+- @karok2m
+- @kate-goldenring
+- @Ragnyll
+- @Rishit-dagli
+- @romoh
+
+(Please send us (`@Kate Goldenring` or `@Adithya J`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.8.23 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.8.23/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
+
+## Previous Releases:
+
+
 # v0.8.23
 
 ## Announcing Akri v0.8.23!
