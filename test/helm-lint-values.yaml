@@ -19,6 +19,7 @@ udev:
   configuration:
     enabled: true
     discoveryDetails:
+      groupRecursive: true
       udevRules:
         - 'KERNEL=="video[0-9]*"'
     brokerPod:
