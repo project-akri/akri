@@ -73,6 +73,8 @@ pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
 pub struct DevicePluginService {
     /// Instance CRD name
     pub instance_name: String,
+    /// Instance hash id
+    pub instance_id: String,
     /// Socket endpoint
     pub endpoint: String,
     /// Instance's Configuration
@@ -280,6 +282,8 @@ impl DevicePluginService {
         kube_interface: Arc<impl KubeInterface>,
     ) -> Result<Response<AllocateResponse>, Status> {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
+        // suffix to add to each device property
+        let device_property_suffix = self.instance_id.to_uppercase();
 
         for request in requests.into_inner().container_requests {
             trace!(
@@ -288,6 +292,7 @@ impl DevicePluginService {
                 request,
             );
             let mut akri_annotations = HashMap::new();
+            let mut akri_device_properties = HashMap::new();
             for device_usage_id in request.devices_i_ds {
                 trace!(
                     "internal_allocate - for Instance {} processing request for device usage slot id {}",
@@ -299,6 +304,20 @@ impl DevicePluginService {
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
                     device_usage_id.clone(),
                 );
+
+                // add suffix _<instance_id> to each device property
+                let converted_properties = self
+                    .device
+                    .properties
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            format!("{}_{}", key, &device_property_suffix),
+                            value.to_string(),
+                        )
+                    })
+                    .collect::<HashMap<String, String>>();
+                akri_device_properties.extend(converted_properties);
 
                 if let Err(e) = try_update_instance_device_usage(
                     &device_usage_id,
@@ -324,7 +343,7 @@ impl DevicePluginService {
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
             let broker_properties =
-                get_all_broker_properties(&self.config.broker_properties, &self.device.properties);
+                get_all_broker_properties(&self.config.broker_properties, &akri_device_properties);
             let response = build_container_allocate_response(
                 broker_properties,
                 akri_annotations,
@@ -829,11 +848,12 @@ mod device_plugin_service_tests {
         add_to_instance_map: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
         let path_to_config = "../test/yaml/config-a.yaml";
+        let instance_id = "b494b6";
         let kube_akri_config_yaml =
             fs::read_to_string(path_to_config).expect("Unable to read file");
         let kube_akri_config: Configuration = serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
         let config_name = kube_akri_config.metadata.name.as_ref().unwrap();
-        let device_instance_name = get_device_instance_name("b494b6", config_name);
+        let device_instance_name = get_device_instance_name(instance_id, config_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
         let device_endpoint: String = format!(
             "{}-{}.sock",
@@ -863,6 +883,7 @@ mod device_plugin_service_tests {
         };
         let dps = DevicePluginService {
             instance_name: device_instance_name,
+            instance_id: instance_id.to_uppercase(),
             endpoint: device_endpoint,
             config: kube_akri_config.spec.clone(),
             config_name: config_name.to_string(),
@@ -1379,7 +1400,10 @@ mod device_plugin_service_tests {
         assert_eq!(broker_envs.get("RESOLUTION_HEIGHT").unwrap(), "600");
         // Check that Device properties are set as env vars by checking for
         // property of device created in `create_device_plugin_service`
-        assert_eq!(broker_envs.get("DEVICE_LOCATION_INFO").unwrap(), "endpoint");
+        assert_eq!(
+            broker_envs.get("DEVICE_LOCATION_INFO_B494B6").unwrap(),
+            "endpoint"
+        );
         assert!(device_plugin_service_receivers
             .list_and_watch_message_receiver
             .try_recv()
