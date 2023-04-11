@@ -5,8 +5,8 @@ use super::{
 use akri_discovery_utils::discovery::{
     discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
     v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
-        Mount,
+        discovery_handler_server::DiscoveryHandler, Device, DeviceSpec, DiscoverRequest,
+        DiscoverResponse,
     },
     DiscoverStream,
 };
@@ -104,7 +104,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     .into_iter()
                     .map(|(id, paths)| {
                         let mut properties = HashMap::new();
-                        let mut mounts = Vec::new();
+                        let mut device_specs = Vec::new();
                         for (i, (_, node)) in paths.into_iter().enumerate() {
                             let property_suffix = discovery_handler_config
                                 .group_recursive
@@ -115,10 +115,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                                     super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
                                     devnode.clone(),
                                 );
-                                mounts.push(Mount {
+                                device_specs.push(DeviceSpec {
                                     container_path: devnode.clone(),
                                     host_path: devnode,
-                                    read_only: true,
+                                    permissions: "rwm".to_string(),
                                 })
                             }
                         }
@@ -130,8 +130,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         Device {
                             id,
                             properties,
-                            mounts,
-                            device_specs: Vec::default(),
+                            mounts: Vec::default(),
+                            device_specs,
                         }
                     })
                     .collect::<Vec<Device>>();
