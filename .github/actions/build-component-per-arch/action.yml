@@ -38,5 +38,5 @@ inputs:
     description: Specify whether a PR has been merged
     required: true
 runs:
-  using: 'node16'
+  using: 'node12'
   main: 'main.js'

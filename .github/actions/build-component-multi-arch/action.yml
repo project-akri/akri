@@ -23,5 +23,5 @@ inputs:
     description: Specify the github event name (push, pull_request, release, etc)
     required: true
 runs:
-  using: 'node16'
+  using: 'node12'
   main: 'main.js'
