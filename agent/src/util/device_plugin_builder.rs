@@ -33,6 +33,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
     async fn build_device_plugin(
         &self,
         instance_name: String,
+        instance_id: String,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
@@ -65,6 +66,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
     async fn build_device_plugin(
         &self,
         instance_name: String,
+        instance_id: String,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
@@ -85,6 +87,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
         let device_plugin_service = DevicePluginService {
             instance_name: instance_name.clone(),
+            instance_id: instance_id.clone(),
             endpoint: device_endpoint.clone(),
             config: config.spec.clone(),
             config_name: config.metadata.name.clone().unwrap(),

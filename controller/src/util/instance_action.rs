@@ -13,7 +13,8 @@ use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
 use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{watcher, Event};
+use kube_runtime::watcher::{default_backoff, watcher, Event};
+use kube_runtime::WatchStreamExt;
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -92,12 +93,19 @@ async fn internal_do_instance_watch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("internal_do_instance_watch - enter");
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
-    let watcher = watcher(resource, ListParams::default());
+    let watcher = watcher(resource, ListParams::default()).backoff(default_backoff());
     let mut informer = watcher.boxed();
     let mut first_event = true;
-    // Currently, this does not handle None except to break the
-    // while.
-    while let Some(event) = informer.try_next().await? {
+    // Currently, this does not handle None except to break the loop.
+    loop {
+        let event = match informer.try_next().await {
+            Err(e) => {
+                error!("Error during watch: {}", e);
+                continue;
+            }
+            Ok(None) => break,
+            Ok(Some(event)) => event,
+        };
         // Aquire lock to ensure cleanup_instance_and_configuration_svcs and the
         // inner loop handle_instance call in internal_do_instance_watch
         // cannot execute at the same time.
