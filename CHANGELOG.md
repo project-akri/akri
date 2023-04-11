@@ -1,20 +1,17 @@
-# v0.10.x
+# v0.10.2
 
-## Announcing Akri v0.10.x!
-Akri v0.10.x is a pre-release of Akri.
+## Announcing Akri v0.10.2!
+Akri v0.10.2 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
-The v0.10.x release contains the following changes:
+The v0.10.2 release contains the following changes:
 
 1. **Enable mounting connectivity information for multiple devices/instances in a Pod** (https://github.com/project-akri/akri/pull/560 , https://github.com/project-akri/akri/pull/561). Previously, Akri could only mount one device property per protocol to a Pod as all devices of the same protocol had the same environment variable name. This release fixes this issue by appending the instance hash to the environment variable name and slot ID to the annotation key name. This is a **breaking change** as it changes the way brokers look up properties.
 2. **Enable udev discovery handler to discover multiple node devices** (https://github.com/project-akri/akri/pull/564). Akri now allows udev discovery handler to group devices that share a parent/child relation.
-
-<!-- Taking these two out for May release -->
-<!-- 3. Support for **Configuration Level Resources** (https://github.com/project-akri/akri/pull/565). Previously, Akri only supported creating Kubernetes resource (i.e. device plugin) for each individual device. This release allows Akri to create a configuration-level resource represents all of the devices discovered via configuration. More info can be found in https://github.com/project-akri/akri-docs/blob/main/proposals/configuration-level-resources.md#configuration-level-resources.
-4. Support for **Secret Management for discovery handler** (https://github.com/project-akri/akri/pull/567). Some devices require authentication when being discovered by discovery handler. With this release, users can specify the credential data through discoveryProperties, and agent can pass the data to discovery handler used for authenticated discovery. More info can be found here https://github.com/project-akri/akri-docs/pull/61 -->
+3. **Mount udev devpath in Akri brokers** (https://github.com/project-akri/akri/pull/534). This enables discovering udev devices without a devnode by using devpath. This is a **breaking change** in the udev discovery handler as it changes the way Akri creates instance ids for udev devices.
 
 **Fixes, features, and optimizations**
 - fix: OPC discovery handler uses discoveryURL specified by users if the return applicationURL from OPC server is not resolvable (https://github.com/project-akri/akri/pull/570)
@@ -23,13 +20,14 @@ The v0.10.x release contains the following changes:
 - fix: Modify Agent to reduce frequency of Pods getting UnexpectedAdmissionError (https://github.com/project-akri/akri/pull/556)
 - opt: Use tokio::sync::RwLock instead of tokio::sync::Mutex (https://github.com/project-akri/akri/pull/541)
 - opt: ListAndWatch only sends device if the list has changed (https://github.com/project-akri/akri/pull/540)
-- feat:
+- feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536/files)
 
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...0.9.x)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...0.10.2)
 
 ## Breaking Changes
-N/A
+1. With [Enable mounting connectivity information for multiple devices/instances in a Pod](https://github.com/project-akri/akri/pull/561), Akri now changes the name of the device properties from DEVICE_DESCRIPTION to DEVICE_DESCRIPTION_INSTANCE_HASH to allow multiple device properties of the same protocol to be injected to the same broker. For example, broker can look up the akri instance `akri-debug-echo-foo-8120fe` by the environment variable `DEBUG_ECHO_DESCRIPTION_8120FE` instead of `DEBUG_ECHO_DESCRIPTION`.
+2. With [Mount udev devpath in Akri broker](https://github.com/project-akri/akri/pull/534), Akri changes the way it creates udev akri instance id from using the **hash of devnode** to using the **hash of devpath**
 
 ## Known Issues
 N/A
@@ -60,13 +58,13 @@ prosper.
 
 **⭐ Contributors to v0.10.x ⭐**
 - @adithyaj
-- @bfjelds
-- @bitmeal
-- @karok2m
 - @kate-goldenring
-- @Ragnyll
-- @Rishit-dagli
-- @romoh
+- @johnsonshih
+- @diconico07
+- @jbpaux
+- @yujinkim-msft
+- @harrison-tin
+- @koutselakismanos
 
 (Please send us (`@Kate Goldenring` or `@Adithya J`) a direct message on
   [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
@@ -77,12 +75,12 @@ how to install Akri.
 
 ```
 helm repo add akri-helm-charts https://project-akri.github.io/akri/
-helm install akri akri-helm-charts/akri --version 0.8.23 \
+helm install akri akri-helm-charts/akri --version 0.10.2 \
     # additional configuration
 ```
 
 ## Release history
-See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.8.23/CHANGELOG.md) for more information on what changed
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.10.2/CHANGELOG.md) for more information on what changed
 in this and previous releases.
 
 
