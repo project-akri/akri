@@ -1,4 +1,4 @@
-use akri_shared::akri::AKRI_SLOT_ANNOTATION_NAME;
+use akri_shared::akri::AKRI_SLOT_ANNOTATION_NAME_PREFIX;
 use std::collections::{HashMap, HashSet};
 
 /// Output from crictl query
@@ -15,18 +15,24 @@ struct CriCtlContainer {
     annotations: HashMap<String, String>,
 }
 
-/// This gets the usage slots for an instance by getting the annotations that were stored at id `AKRI_SLOT_ANNOTATION_NAME` during allocate.
+/// This gets the usage slots for an instance by getting the annotations that were stored at id `AKRI_SLOT_ANNOTATION_NAME_PREFIX` during allocate.
 pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
     match serde_json::from_str::<CriCtlOutput>(crictl_output) {
         Ok(crictl_output_parsed) => crictl_output_parsed
             .containers
             .iter()
-            .filter_map(|container| {
-                container
-                    .annotations
-                    .get(&AKRI_SLOT_ANNOTATION_NAME.to_string())
+            .flat_map(|container| &container.annotations)
+            .filter_map(|(key, value)| {
+                if key.starts_with(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
+                    && value.eq(key
+                        .strip_prefix(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
+                        .unwrap_or_default())
+                {
+                    Some(value.clone())
+                } else {
+                    None
+                }
             })
-            .map(|string_ref| string_ref.to_string())
             .collect(),
         Err(e) => {
             trace!(
@@ -108,7 +114,7 @@ mod tests {
             expected,
             get_container_slot_usage(&format!(
                 "{{ \"ddd\": \"\", \"containers\": [ {} ] }}",
-                &get_container_str("\"akri.agent.slot\": \"foo\",")
+                &get_container_str("\"akri.agent.slot-foo\": \"foo\",")
             ))
         );
         // Expected output with slot
@@ -116,7 +122,7 @@ mod tests {
             expected,
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {} ] }}",
-                &get_container_str("\"akri.agent.slot\": \"foo\",")
+                &get_container_str("\"akri.agent.slot-foo\": \"foo\",")
             ))
         );
         // Expected output with multiple containers
@@ -127,8 +133,8 @@ mod tests {
             expected_2,
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {}, {} ] }}",
-                &get_container_str("\"akri.agent.slot\": \"foo1\","),
-                &get_container_str("\"akri.agent.slot\": \"foo2\","),
+                &get_container_str("\"akri.agent.slot-foo1\": \"foo1\","),
+                &get_container_str("\"akri.agent.slot-foo2\": \"foo2\","),
             ))
         );
     }
