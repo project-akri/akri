@@ -366,13 +366,13 @@ impl DevicePluginService {
 /// # More details
 /// Cases based on the usage slot (`device_usage_id`) value
 /// 1. device_usage\[id\] == "" ... this means that the device is available for use
-///     * <ACTION> return true
+///     * (ACTION) return true
 /// 2. device_usage\[id\] == self.nodeName ... this means THIS node previously used id, but the DevicePluginManager knows that this is no longer true
-///     * <ACTION> return false
-/// 3. device_usage\[id\] == <some other node> ... this means that we believe this device is in use by another node and should be marked unhealthy
-///     * <ACTION> return error
+///     * (ACTION) return false
+/// 3. device_usage\[id\] == (some other node) ... this means that we believe this device is in use by another node and should be marked unhealthy
+///     * (ACTION) return error
 /// 4. No corresponding id found ... this is an unknown error condition (BAD)
-///     * <ACTION> return error
+///     * (ACTION) return error
 fn slot_available_to_reserve(
     device_usage_id: &str,
     node_name: &str,
