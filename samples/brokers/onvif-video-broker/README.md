@@ -13,5 +13,5 @@ interface.
     ```
 1. Run the broker, passing in the ONVIF service URL for the camera it should pull frames from.
     ```sh
-    ONVIF_DEVICE_SERVICE_URL=http://10.1.2.3:1000/onvif/device_service dotnet run
+    ONVIF_DEVICE_SERVICE_URL_ABCDEF=http://10.1.2.3:1000/onvif/device_service dotnet run
     ```

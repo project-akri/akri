@@ -706,6 +706,8 @@ udev:
     # created as a result of applying this udev configuration
     brokerProperties: {}
     discoveryDetails:
+      # groupRecursive defines whether to group discovered parent/children under the same instance
+      groupRecursive: false
       # udevRules is the list of udev rules used to find instances created as a result of
       # applying this udev configuration
       udevRules:

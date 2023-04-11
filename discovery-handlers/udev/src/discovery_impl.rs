@@ -543,6 +543,24 @@ fn device_or_parents_have_tag(device: &impl DeviceExt, value_regex: &Regex) -> b
     }
 }
 
+/// Retrieve Parent or Children of a device using their sysfs path.
+pub fn get_device_relatives<'a>(
+    device_path: &str,
+    possible_relatives: impl Iterator<Item = &'a String>,
+) -> (Option<String>, Vec<String>) {
+    let mut childrens = Vec::new();
+    for relative in possible_relatives {
+        match relative {
+            parent if device_path.starts_with(relative.as_str()) => {
+                return (Some(parent.clone()), vec![])
+            }
+            child if relative.starts_with(device_path) => childrens.push(child.clone()),
+            _ => (),
+        }
+    }
+    (None, childrens)
+}
+
 #[cfg(test)]
 mod discovery_tests {
     use super::super::wrappers::udev_enumerator::{create_enumerator, MockEnumerator};
@@ -1311,5 +1329,45 @@ mod discovery_tests {
             enumerator.scan_devices()
         });
         assert_eq!(do_parse_and_find(mock, rule).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_get_device_relatives() {
+        let device_path = "/devices/pci0/usb0/0-1/0-1.1";
+        let children_paths = vec![
+            "/devices/pci0/usb0/0-1/0-1.1/0-1.1:1.0/video4linux/video0".to_string(),
+            "/devices/pci0/usb0/0-1/0-1.1/0-1.1:1.0/video4linux/video1".to_string(),
+            "/devices/pci0/usb0/0-1/0-1.1/0-1.1:1.1".to_string(),
+        ];
+        let unrelated_paths = vec![
+            "/devices/pci0/usb0/0-1/0-1.2/0-1.2:1.1".to_string(),
+            "/devices/pci0/usb1/0-1/0-1.2/0-1.2:1.1".to_string(),
+        ];
+        let parent_path = vec!["/devices/pci0/usb0".to_string()];
+        let empty: Vec<String> = Vec::new();
+
+        // Test with children devices
+        let (parent_0, childrens_0) = get_device_relatives(
+            device_path,
+            unrelated_paths.iter().chain(children_paths.iter()),
+        );
+        assert!(parent_0.is_none());
+        assert_eq!(childrens_0, children_paths);
+
+        // Test with no possible relative devices
+        let (parent_1, childrens_1) = get_device_relatives(device_path, empty.iter());
+        assert!(parent_1.is_none());
+        assert_eq!(childrens_1, empty);
+
+        // Test with no related devices
+        let (parent_2, childrens_2) = get_device_relatives(device_path, unrelated_paths.iter());
+        assert!(parent_2.is_none());
+        assert_eq!(childrens_2, empty);
+
+        // Test with a parent device
+        let (parent_4, childrens_4) =
+            get_device_relatives(device_path, children_paths.iter().chain(parent_path.iter()));
+        assert_eq!(parent_4, Some(parent_path[0].clone()));
+        assert_eq!(childrens_4, empty);
     }
 }

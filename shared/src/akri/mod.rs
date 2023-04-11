@@ -11,8 +11,8 @@ pub const API_CONFIGURATIONS: &str = "configurations";
 pub const API_INSTANCES: &str = "instances";
 /// Akri prefix
 pub const AKRI_PREFIX: &str = "akri.sh";
-/// Container Annotation name used to store slot name
-pub const AKRI_SLOT_ANNOTATION_NAME: &str = "akri.agent.slot";
+/// Container Annotation name prefix used to store slot name
+pub const AKRI_SLOT_ANNOTATION_NAME_PREFIX: &str = "akri.agent.slot-";
 
 pub mod configuration;
 pub mod instance;
