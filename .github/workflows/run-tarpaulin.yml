@@ -16,7 +16,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_VERSION: 1.63.0
+  CARGO_VERSION: 1.68.1
 
 jobs:
   build:
@@ -37,7 +37,7 @@ jobs:
         persist-credentials: false
 
     - name: Create tarpaulin instance
-      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.20.1 bash -c "echo 'sleep 600m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.25.1 bash -c "echo 'sleep 600m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance

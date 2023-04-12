@@ -41,8 +41,8 @@ pub struct PodActionInfo {
 impl PodActionInfo {
     /// This will determine what action to take on the broker Pod
     ///
-    ///   | --> <Unknown> ===> PodAction::Remove
-    ///   | --> <Known>
+    ///   | --> (Unknown) ===> PodAction::Remove
+    ///   | --> (Known)
     ///            | --> <Phase == Running>
     ///                     | --> <InstanceAction == Remove> ===> PodAction::Remove
     ///                     | --> <InstanceAction != Remove> ===> PodAction::NoAction
@@ -51,9 +51,9 @@ impl PodActionInfo {
     ///                               | --> <InstanceAction == Remove> ===> PodAction::Remove
     ///                               | --> <InstanceAction != Remove> ===> PodAction::NoAction
     ///                     | --> <Phase == NonRunning>
-    ///                               | --> <No PodStartTime> ===> PodAction::NoAction
-    ///                               | --> <PodStartTime within grace period> ===> PodAction::NoAction
-    ///                               | --> <PodStartTime outside grace period> ===> PodAction::RemoveAndAdd
+    ///                               | --> (No PodStartTime) ===> PodAction::NoAction
+    ///                               | --> (PodStartTime within grace period) ===> PodAction::NoAction
+    ///                               | --> (PodStartTime outside grace period) ===> PodAction::RemoveAndAdd
     ///
     pub fn select_pod_action(&self) -> anyhow::Result<PodAction> {
         log::trace!(

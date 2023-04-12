@@ -55,16 +55,13 @@ pub mod udev_device {
         device.mockable_sysname()
     }
 
-    pub fn get_property_value<'a, 'b>(
-        device: &'a impl DeviceExt,
-        property: &'b str,
-    ) -> Option<&'a OsStr> {
+    pub fn get_property_value<'a>(device: &'a impl DeviceExt, property: &str) -> Option<&'a OsStr> {
         device.mockable_property_value(property)
     }
 
-    pub fn get_attribute_value<'a, 'b>(
+    pub fn get_attribute_value<'a>(
         device: &'a impl DeviceExt,
-        attribute: &'b str,
+        attribute: &str,
     ) -> Option<&'a OsStr> {
         device.mockable_attribute_value(attribute)
     }

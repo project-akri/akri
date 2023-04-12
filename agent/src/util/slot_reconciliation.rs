@@ -31,7 +31,7 @@ impl SlotQuery for CriCtlSlotQuery {
     /// Calls crictl to query container runtime in search of active containers and extracts their usage slots.
     async fn get_node_slots(&self) -> SlotQueryResult {
         match Command::new(&self.crictl_path)
-            .args(&[
+            .args([
                 "--runtime-endpoint",
                 &self.runtime_endpoint,
                 "--image-endpoint",
