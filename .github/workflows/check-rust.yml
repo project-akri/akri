@@ -31,10 +31,9 @@ jobs:
         persist-credentials: false
 
     - name: Rust install
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: 1.68.1
-        override: true
         components: clippy, rustfmt
     - name: Install Linux requirements
       run: |

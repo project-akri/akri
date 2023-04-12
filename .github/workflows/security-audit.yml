@@ -14,7 +14,7 @@ jobs:
         id: cargo-audit
         if: github.repository == 'project-akri/akri' # only run on main repo and not forks
         continue-on-error: true
-        uses: actions-rs/audit-check@v1
+        uses: rustsec/audit-check@v1.4.1
         with:
           # token is only used for creating the audit report and does not impact the 
           # functionality or success/failure of the job in case the token is unavailable 
