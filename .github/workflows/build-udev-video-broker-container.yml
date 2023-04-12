@@ -28,12 +28,12 @@ jobs:
 
     steps:
     - name: Checkout the head commit of the branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
 
     - name: Prepare To Install
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 12
     - name: Install Deps
@@ -76,12 +76,12 @@ jobs:
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
 
     - name: Prepare To Install
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 12
     - name: Install Deps
