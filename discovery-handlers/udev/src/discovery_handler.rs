@@ -1,5 +1,5 @@
 use super::{
-    discovery_impl::{do_parse_and_find, get_device_relatives, DeviceProperties},
+    discovery_impl::{do_parse_and_find, insert_device_with_relatives, DeviceProperties},
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
@@ -79,20 +79,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         if !discovery_handler_config.group_recursive {
                             devpaths.insert(path.0.clone(), vec![path]);
                         } else {
-                            match get_device_relatives(&path.0, devpaths.keys()) {
-                                (Some(parent), _) => devpaths.get_mut(&parent).unwrap().push(path),
-                                (None, children) => {
-                                    let id = path.0.clone();
-                                    let mut children_devices: Vec<DeviceProperties> = children
-                                        .into_iter()
-                                        .flat_map(|child| {
-                                            devpaths.remove(&child).unwrap().into_iter()
-                                        })
-                                        .collect();
-                                    children_devices.push(path);
-                                    let _ = devpaths.insert(id, children_devices);
-                                }
-                            }
+                            insert_device_with_relatives(&mut devpaths, path);
                         }
                     }
                 });
