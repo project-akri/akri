@@ -11,7 +11,7 @@ The v0.10.2 release contains the following changes:
 
 1. **Enable mounting connectivity information for multiple devices/instances in a Pod** (https://github.com/project-akri/akri/pull/560 , https://github.com/project-akri/akri/pull/561). Previously, Akri could only mount one device property per protocol to a Pod as all devices of the same protocol had the same environment variable name. This release fixes this issue by appending the instance hash to the environment variable name and slot ID to the annotation key name. This is a **breaking change** as it changes the way brokers look up properties.
 2. **Enable udev discovery handler to discover multiple node devices** (https://github.com/project-akri/akri/pull/564). Akri now allows udev discovery handler to group devices that share a parent/child relation.
-3. **Mount udev devpath in Akri brokers** (https://github.com/project-akri/akri/pull/534). This enables discovering udev devices without a devnode by using devpath. This is a **breaking change** in the udev discovery handler as it changes the way Akri creates instance ids for udev devices.
+3. **Mount udev devpath in Akri brokers** (https://github.com/project-akri/akri/pull/534). This enables discovering udev devices without a devnode by using devpath instead. This is a **breaking change** in the udev discovery handler as it changes the way Akri creates instance ids for udev devices.
 
 **Fixes, features, and optimizations**
 - fix: OPC discovery handler uses discoveryURL specified by users if the return applicationURL from OPC server is not resolvable (https://github.com/project-akri/akri/pull/570)
@@ -20,10 +20,11 @@ The v0.10.2 release contains the following changes:
 - fix: Modify Agent to reduce frequency of Pods getting UnexpectedAdmissionError (https://github.com/project-akri/akri/pull/556)
 - opt: Use tokio::sync::RwLock instead of tokio::sync::Mutex (https://github.com/project-akri/akri/pull/541)
 - opt: ListAndWatch only sends device if the list has changed (https://github.com/project-akri/akri/pull/540)
+- opt: Added more securityContext to ensure Helm templates use the most restrictive setting (https://github.com/project-akri/akri/pull/547)
 - feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536/files)
 
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...0.10.2)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...v0.10.2)
 
 ## Breaking Changes
 1. With [Enable mounting connectivity information for multiple devices/instances in a Pod](https://github.com/project-akri/akri/pull/561), Akri now changes the name of the device properties from DEVICE_DESCRIPTION to DEVICE_DESCRIPTION_INSTANCE_HASH to allow multiple device properties of the same protocol to be injected to the same broker. For example, broker can look up the akri instance `akri-debug-echo-foo-8120fe` by the environment variable `DEBUG_ECHO_DESCRIPTION_8120FE` instead of `DEBUG_ECHO_DESCRIPTION`.
@@ -111,7 +112,7 @@ The v0.8.23 release contains the following changes:
 - opt: Rust toolchain updates (https://github.com/project-akri/akri/pull/482)(https://github.com/project-akri/akri/pull/507)
 - feat: Enable secrets in helm templates (https://github.com/project-akri/akri/pull/478)
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.8.4...0.8.23)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.4...v0.8.23)
 
 ## Breaking Changes
 N/A
