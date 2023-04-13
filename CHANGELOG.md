@@ -21,7 +21,7 @@ The v0.10.2 release contains the following changes:
 - opt: Use tokio::sync::RwLock instead of tokio::sync::Mutex (https://github.com/project-akri/akri/pull/541)
 - opt: ListAndWatch only sends device if the list has changed (https://github.com/project-akri/akri/pull/540)
 - opt: Added more securityContext to ensure Helm templates use the most restrictive setting (https://github.com/project-akri/akri/pull/547)
-- feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536/files)
+- feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536)
 
 
 View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...v0.10.2)
