@@ -31,7 +31,7 @@ jobs:
         persist-credentials: false
 
     - name: Rust install
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@master
       with:
         toolchain: 1.68.1
         components: clippy, rustfmt
