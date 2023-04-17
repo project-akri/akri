@@ -193,29 +193,39 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
 }
 
 // This checks if the discovery_url can be resolved, if not use ip address instead
-fn get_discovery_url_ip(ip_url: &str, discovery_url: String) -> Result<String, anyhow::Error> {
-    let url = Url::parse(&discovery_url)
-        .map_err(|_| anyhow::format_err!("could not parse url {discovery_url}"))?;
-    if url.scheme() != OPC_TCP_SCHEME {
+fn get_discovery_url_ip(
+    ip_url_str: &str,
+    discovery_url_str: String,
+) -> Result<String, anyhow::Error> {
+    let ip_url = Url::parse(ip_url_str)
+        .map_err(|_| anyhow::format_err!("could not parse url {ip_url_str}"))?;
+    let discover_url = Url::parse(&discovery_url_str)
+        .map_err(|_| anyhow::format_err!("could not parse url {discovery_url_str}"))?;
+    if discover_url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
             "format of OPC UA url {} is not valid",
-            url
+            discover_url
         ));
     }
-    let mut path = url.path().to_string();
-    let host = url.host_str().unwrap();
-    let port = url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
+    let mut path = discover_url.path().to_string();
+    let host = discover_url.host_str().unwrap();
+    let port = discover_url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
 
     let addr_str = format!("{}:{}", host, port);
 
     // check if the hostname can be resolved to socket address
     match addr_str.to_socket_addrs() {
-        Ok(_url) => Ok(discovery_url),
+        Ok(_url) => Ok(discovery_url_str),
         Err(_) => {
-            if ip_url.ends_with('/') && path.starts_with('/') {
+            if ip_url_str.ends_with('/') && path.starts_with('/') {
                 path.remove(0);
             }
-            let url = format!("{}{}", ip_url, path);
+            let url = if ip_url.path() == "" || ip_url.path() == "/" {
+                format!("{}{}", ip_url, path)
+            } else {
+                ip_url_str.to_string()
+            };
+            //let url = format!("{}{}", ip_url, path);
             trace!(
                 "get_discovery_url_ip - cannot resolve the application url from server, using ip address instead of hostname: {}",
                 url
@@ -466,12 +476,17 @@ mod tests {
     #[test]
     // Test that it converts the discovery url to an ip address if the discovery url is a hostname that is not resolvable
     fn test_get_discovery_url_ip() {
-        let ip_url = "opc.tcp://192.168.0.1:50000/";
+        let ip_url = "opc.tcp://192.168.0.1:50000";
+        let ip_url2 = "opc.tcp://192.168.0.1:50000/OPCUA/Simluation";
 
         //  OPCTest.invalid is not a valid hostname, it should be overwritten by the ip_url
         let discovery_url = "opc.tcp://OPCTest.invalid:50000/OPCUA/Simluation";
         assert_eq!(
             get_discovery_url_ip(ip_url, discovery_url.to_string()).unwrap(),
+            "opc.tcp://192.168.0.1:50000/OPCUA/Simluation"
+        );
+        assert_eq!(
+            get_discovery_url_ip(ip_url2, discovery_url.to_string()).unwrap(),
             "opc.tcp://192.168.0.1:50000/OPCUA/Simluation"
         );
 
