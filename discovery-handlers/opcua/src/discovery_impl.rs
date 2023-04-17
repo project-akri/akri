@@ -4,6 +4,7 @@ use super::wrappers::{
 };
 use ::url::Url;
 use akri_discovery_utils::filtering::{should_include, FilterList};
+use anyhow::Context;
 use log::{error, info, trace};
 use opcua::client::prelude::*;
 use opcua::core::constants::DEFAULT_OPC_UA_SERVER_PORT;
@@ -197,19 +198,18 @@ fn get_discovery_url_ip(
     ip_url_str: &str,
     discovery_url_str: String,
 ) -> Result<String, anyhow::Error> {
-    let ip_url = Url::parse(ip_url_str)
-        .map_err(|_| anyhow::format_err!("could not parse url {ip_url_str}"))?;
-    let discover_url = Url::parse(&discovery_url_str)
-        .map_err(|_| anyhow::format_err!("could not parse url {discovery_url_str}"))?;
-    if discover_url.scheme() != OPC_TCP_SCHEME {
+    let ip_url = Url::parse(ip_url_str).with_context(|| "could not parse url {ip_url_str}")?;
+    let discovery_url = Url::parse(&discovery_url_str)
+        .with_context(|| "could not parse url {discovery_url_str}")?;
+    if discovery_url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
             "format of OPC UA url {} is not valid",
-            discover_url
+            discovery_url
         ));
     }
-    let mut path = discover_url.path().to_string();
-    let host = discover_url.host_str().unwrap();
-    let port = discover_url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
+    let mut path = discovery_url.path().to_string();
+    let host = discovery_url.host_str().unwrap();
+    let port = discovery_url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
 
     let addr_str = format!("{}:{}", host, port);
 
@@ -225,7 +225,6 @@ fn get_discovery_url_ip(
             } else {
                 ip_url_str.to_string()
             };
-            //let url = format!("{}{}", ip_url, path);
             trace!(
                 "get_discovery_url_ip - cannot resolve the application url from server, using ip address instead of hostname: {}",
                 url
