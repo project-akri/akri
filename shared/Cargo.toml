@@ -30,4 +30,4 @@ serde_yaml = "0.8"
 tokio = { version = "1.0.1", features = ["full"] }
 tonic = "0.5.2"
 tower = "0.4.8"
-warp = "0.3.1"
+warp = "0.3.4"
