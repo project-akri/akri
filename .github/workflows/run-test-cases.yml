@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout the head commit of the branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
@@ -77,19 +77,19 @@ jobs:
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: agent.tar
           path: agent.tar
       - name: Upload Controller container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: controller.tar
           path: controller.tar
       - name: Upload Webhook-Configuration container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: webhook-configuration.tar
           path: webhook-configuration.tar
@@ -114,19 +114,19 @@ jobs:
           - runtime: K3s-1.23
             version: v1.23.15+k3s1
           - runtime: K3s-1.24
-            version: v1.24.9+k3s1
+            version: v1.24.12+k3s1
           - runtime: K3s-1.25
-            version: v1.25.5+k3s1
+            version: v1.25.8+k3s1
           - runtime: K3s-1.26
-            version: v1.26.0+k3s1
+            version: v1.26.3+k3s1
           - runtime: Kubernetes-1.23
             version: 1.23.15-00
           - runtime: Kubernetes-1.24
-            version: 1.24.9-00
+            version: 1.24.12-00
           - runtime: Kubernetes-1.25
-            version: 1.25.5-00
+            version: 1.25.8-00
           - runtime: Kubernetes-1.26
-            version: 1.26.0-00
+            version: 1.26.3-00
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
@@ -135,12 +135,12 @@ jobs:
 
     steps:
       - name: Checkout the head commit of the branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install Python kubernetes dependency
@@ -150,17 +150,17 @@ jobs:
 
       - name: Download Agent container artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: agent.tar
       - name: Download Controller container artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: controller.tar
       - name: Download Webhook-Configuration container artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: webhook-configuration.tar
 
@@ -337,19 +337,19 @@ jobs:
 
       - name: Upload Agent log as artifact
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-agent-log
           path: /tmp/agent_log.txt
       - name: Upload controller log as artifact
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-controller-log
           path: /tmp/controller_log.txt
       - name: Upload webhook log as artifact
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-webhook-log
           path: /tmp/webhook_log.txt

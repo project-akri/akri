@@ -327,6 +327,7 @@ impl DiscoveryOperator {
                 if let Err(e) = device_plugin_builder
                     .build_device_plugin(
                         instance_name,
+                        id,
                         &self.config,
                         shared,
                         instance_map,
@@ -1146,7 +1147,7 @@ pub mod tests {
         mock_device_plugin_builder
             .expect_build_device_plugin()
             .times(2)
-            .returning(move |_, _, _, _, _| Ok(()));
+            .returning(move |_, _, _, _, _, _| Ok(()));
         discovery_operator
             .handle_discovery_results(
                 mock_kube_interface,

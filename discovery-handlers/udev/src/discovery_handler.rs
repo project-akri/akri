@@ -1,18 +1,18 @@
 use super::{
-    discovery_impl::{do_parse_and_find, DeviceProperties},
+    discovery_impl::{do_parse_and_find, get_device_relatives, DeviceProperties},
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
     discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
     v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
-        Mount,
+        discovery_handler_server::DiscoveryHandler, Device, DeviceSpec, DiscoverRequest,
+        DiscoverResponse,
     },
     DiscoverStream,
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
@@ -27,6 +27,9 @@ pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
 #[serde(rename_all = "camelCase")]
 pub struct UdevDiscoveryDetails {
     pub udev_rules: Vec<String>,
+
+    #[serde(default)]
+    pub group_recursive: bool,
 }
 
 /// `DiscoveryHandlerImpl` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
@@ -68,13 +71,30 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
-                let mut devpaths: HashSet<DeviceProperties> = HashSet::new();
+                let mut devpaths: HashMap<String, Vec<DeviceProperties>> = HashMap::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
                     let paths = do_parse_and_find(enumerator, rule).unwrap();
-                    paths.into_iter().for_each(|path| {
-                        devpaths.insert(path);
-                    });
+                    for path in paths.into_iter() {
+                        if !discovery_handler_config.group_recursive {
+                            devpaths.insert(path.0.clone(), vec![path]);
+                        } else {
+                            match get_device_relatives(&path.0, devpaths.keys()) {
+                                (Some(parent), _) => devpaths.get_mut(&parent).unwrap().push(path),
+                                (None, children) => {
+                                    let id = path.0.clone();
+                                    let mut children_devices: Vec<DeviceProperties> = children
+                                        .into_iter()
+                                        .flat_map(|child| {
+                                            devpaths.remove(&child).unwrap().into_iter()
+                                        })
+                                        .collect();
+                                    children_devices.push(path);
+                                    let _ = devpaths.insert(id, children_devices);
+                                }
+                            }
+                        }
+                    }
                 });
                 trace!(
                     "discover - mapping and returning devices at devpaths {:?}",
@@ -82,23 +102,36 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 );
                 let discovered_devices = devpaths
                     .into_iter()
-                    .map(|(path, node)| {
-                        let mut properties = std::collections::HashMap::new();
-                        if let Some(devnode) = node {
-                            properties.insert(super::UDEV_DEVNODE_LABEL_ID.to_string(), devnode);
+                    .map(|(id, paths)| {
+                        let mut properties = HashMap::new();
+                        let mut device_specs = Vec::new();
+                        for (i, (_, node)) in paths.into_iter().enumerate() {
+                            let property_suffix = discovery_handler_config
+                                .group_recursive
+                                .then(|| format!("_{}", i))
+                                .unwrap_or_default();
+                            if let Some(devnode) = node {
+                                properties.insert(
+                                    super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
+                                    devnode.clone(),
+                                );
+                                device_specs.push(DeviceSpec {
+                                    container_path: devnode.clone(),
+                                    host_path: devnode,
+                                    permissions: "rwm".to_string(),
+                                })
+                            }
                         }
-                        properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), path.clone());
-                        let mount = Mount {
-                            container_path: path.clone(),
-                            host_path: path.clone(),
-                            read_only: true,
-                        };
+
+                        //id is the sysfs path of the most top level device so we only need this one
+                        properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), id.clone());
+
                         // TODO: use device spec
                         Device {
-                            id: path,
+                            id,
                             properties,
-                            mounts: vec![mount],
-                            device_specs: Vec::default(),
+                            mounts: Vec::default(),
+                            device_specs,
                         }
                     })
                     .collect::<Vec<Device>>();
@@ -158,7 +191,7 @@ mod tests {
         let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
-        let expected_deserialized = r#"{"udevRules":[]}"#;
+        let expected_deserialized = r#"{"udevRules":[],"groupRecursive":false}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 

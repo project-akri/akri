@@ -9,12 +9,12 @@ jobs:
   security_audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - name: Run security audit check
         id: cargo-audit
         if: github.repository == 'project-akri/akri' # only run on main repo and not forks
         continue-on-error: true
-        uses: actions-rs/audit-check@v1
+        uses: rustsec/audit-check@v1.4.1
         with:
           # token is only used for creating the audit report and does not impact the 
           # functionality or success/failure of the job in case the token is unavailable 
@@ -23,7 +23,7 @@ jobs:
       # sends an email if security audit failed 
       - name: Send mail
         if: steps.cargo-audit.outcome != 'success' && github.repository == 'project-akri/akri' # only run on main repo and not forks
-        uses: dawidd6/action-send-mail@v2
+        uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp-mail.outlook.com
           server_port: 587

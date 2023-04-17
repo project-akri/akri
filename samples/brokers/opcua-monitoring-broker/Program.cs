@@ -31,8 +31,11 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -59,8 +62,10 @@ namespace OpcuaNodeMonitoring
 
     public class Program
     {
-        // Name of environment variable that holds OPC UA DiscoveryURL
-        public const string OpcuaDiscoveryUrlLabel = "OPCUA_DISCOVERY_URL";
+        // Regular expression pattern of environment variables that hold OPC UA DiscoveryURL
+        // The pattern is OPCUA_DISCOVERY_URL_ followed by 6 digit digest.  e.g.
+        // OPCUA_DISCOVERY_URL_123456, OPCUA_DISCOVERY_URL_ABCDEF
+        public const string OpcuaDiscoveryUrlLabelPattern = "OPCUA_DISCOVERY_URL_[A-F0-9]{6,6}$";
         // Name of environment variable that holds the identifier for the OPC UA Node to monitor
         public const string IdentifierLabel = "IDENTIFIER";
         // Name of environment variable that holds the amespaceIndex for the OPC UA Node to monitor
@@ -76,16 +81,17 @@ namespace OpcuaNodeMonitoring
         {
             Console.WriteLine(".NET Core OPC UA Console Client Start");
 
-            // Get OPC UA Server DiscoveryURL and store it as a global variable 
-            OpcuaServerDiscoveryURL = Environment.GetEnvironmentVariable(OpcuaDiscoveryUrlLabel);
+            // Get the first found OPC UA Server DiscoveryURL and store it as a global variable 
+            var serverDiscoveryUrls = GetServerDiscoveryUrls();
+            OpcuaServerDiscoveryURL = (serverDiscoveryUrls.Count != 0) ? serverDiscoveryUrls[0] : "";
             if (string.IsNullOrEmpty(OpcuaServerDiscoveryURL))
             {
-                throw new ArgumentNullException("Unable to get OPC UA endpoint in environment variable {0}", OpcuaDiscoveryUrlLabel);
+                throw new ArgumentNullException(OpcuaDiscoveryUrlLabelPattern, "Unable to get OPC UA endpoint in environment variable");
             }
             string OpcuaNodeIdentifier = Environment.GetEnvironmentVariable(IdentifierLabel);
             if (string.IsNullOrEmpty(OpcuaNodeIdentifier))
             {
-                throw new ArgumentNullException("Unable to get OPC UA endpoint in environment variable {0}", IdentifierLabel);
+                throw new ArgumentNullException(IdentifierLabel, "Unable to get OPC UA endpoint in environment variable");
             }
             ushort OpcuaNamespaceIndex = ushort.Parse(Environment.GetEnvironmentVariable(NamespaceIndexLabel));
             MonitoredNodeId = new NodeId(OpcuaNodeIdentifier, OpcuaNamespaceIndex);
@@ -101,6 +107,19 @@ namespace OpcuaNodeMonitoring
         {
             webBuilder.UseStartup<Startup>();
         });
+
+        private static List<string> GetServerDiscoveryUrls()
+        {
+            var values = new List<string>();
+            foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
+            {
+                if (Regex.IsMatch(de.Key.ToString(), OpcuaDiscoveryUrlLabelPattern))
+                {
+                    values.Add(de.Value.ToString());
+                }
+            }
+            return values;
+        }
     }
 
     // gRPC Server which serves the latest value of the monitored Node. It assumes the value is integer type.

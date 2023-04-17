@@ -1,9 +1,9 @@
 [package]
 name = "webhook-configuration"
-version = "0.9.2"
+version = "0.10.3"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
-rust-version = "1.63.0"
+rust-version = "1.68.1"
 
 [dependencies]
 actix = "0.12.0"
@@ -11,9 +11,9 @@ actix-web = { version = "3.3.2", features = ["openssl"] }
 actix-rt = "2.2.0"
 akri-shared = { path = "../../../shared" }
 clap = "3.2.20"
-kube = { version = "0.69.1",  features = ["derive"] }
-kube-runtime = "0.69.1"
-k8s-openapi = { version = "0.14.0", default-features = false, features = ["schemars", "v1_23"] }
+kube = { version = "0.80.0",  features = ["derive"] }
+kube-runtime = "0.80.0"
+k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
 openapi = { git = "https://github.com/DazWilkin/openapi-admission-v1", tag = "v1.1.0" }
 openssl = "0.10"
 rustls = "0.19.0"

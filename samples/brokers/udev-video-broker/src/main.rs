@@ -7,6 +7,7 @@ use akri_shared::{
 };
 use log::{info, trace};
 use prometheus::IntCounter;
+use regex::Regex;
 use tokio::signal;
 use util::{camera_capturer, camera_service};
 
@@ -16,8 +17,8 @@ lazy_static! {
             .expect("akri_frame_count cannot be created");
 }
 
-/// devnode environment variable id
-pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
+/// regular expression pattern of devnode environment variable id
+pub const UDEV_DEVNODE_LABEL_ID_PATTERN: &str = "UDEV_DEVNODE_[A-F0-9]{6,6}$";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -53,12 +54,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 fn get_video_devnode(env_var_query: &impl EnvVarQuery) -> String {
     trace!("get_video_devnode - getting devnode");
 
-    let device_devnode = env_var_query
-        .get_env_var(UDEV_DEVNODE_LABEL_ID)
+    // query UDEV_DEVNODE_LABEL_ID prefix and use the first one found as device_devnode
+    lazy_static! {
+        static ref RE: Regex = Regex::new(UDEV_DEVNODE_LABEL_ID_PATTERN).unwrap();
+    }
+    let device_devnodes = env_var_query
+        .get_env_vars()
+        .iter()
+        .filter_map(|(n, v)| {
+            if RE.is_match(n) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>();
+    let device_devnode = device_devnodes
+        .first()
         .expect("devnode not set in envrionment variable");
 
     trace!("get_video_devnode - found devnode {}", device_devnode);
-    device_devnode
+    device_devnode.to_string()
 }
 
 #[cfg(test)]
@@ -72,12 +88,16 @@ mod tests {
 
         let mut mock_query = MockEnvVarQuery::new();
         const MOCK_DEVICE_PATH: &str = "/dev/video0";
-
+        const MOCK_DEVICE_ENV_VAR_NAME: &str = "UDEV_DEVNODE_123456";
         mock_query
-            .expect_get_env_var()
+            .expect_get_env_vars()
             .times(1)
-            .withf(move |name: &str| name == UDEV_DEVNODE_LABEL_ID)
-            .returning(move |_| Ok(MOCK_DEVICE_PATH.to_string()));
+            .returning(move || {
+                vec![(
+                    MOCK_DEVICE_ENV_VAR_NAME.to_string(),
+                    MOCK_DEVICE_PATH.to_string(),
+                )]
+            });
 
         assert_eq!(MOCK_DEVICE_PATH.to_string(), get_video_devnode(&mock_query));
     }

@@ -16,7 +16,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_VERSION: 1.63.0
+  CARGO_VERSION: 1.68.1
 
 jobs:
   build:
@@ -32,12 +32,12 @@ jobs:
 
     steps:
     - name: Checkout the head commit of the branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         persist-credentials: false
 
     - name: Create tarpaulin instance
-      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.20.1 bash -c "echo 'sleep 600m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
+      run: docker create --network host --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.25.1 bash -c "echo 'sleep 600m; echo bye' > /tmp/keep_alive.sh; chmod 777 /tmp/keep_alive.sh; /tmp/keep_alive.sh" > container_id.txt
     - name: Start tarpaulin instance
       run: docker start $(cat container_id.txt)
     - name: Install linux requirement in tarpaulin instance
@@ -53,14 +53,14 @@ jobs:
 
     - name: Upload report to codecov for push
       if: (!(startsWith(github.event_name, 'pull_request')))
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         fail_ci_if_error: true
         verbose: true
 
     - name: Archive code coverage results
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
         path: cobertura.xml
