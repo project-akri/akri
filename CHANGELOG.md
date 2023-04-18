@@ -210,7 +210,7 @@ The v0.8.4 release contains the following major changes:
 - opt: Set K8s distribution with Helm to simplify choosing container runtime socket (https://github.com/project-akri/akri/pull/427)
 - fix: Fix all clippy errors and update dependency versions (https://github.com/project-akri/akri/pull/442)
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...0.8.4)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...v0.8.4)
 
 ## Breaking Changes
 Akri's Configuration CRD has been updated to support Job brokers. If Akri has previously been installed on a cluster, delete the previous Configuration CRD before installing the latest version of Akri:
