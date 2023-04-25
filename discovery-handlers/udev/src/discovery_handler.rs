@@ -12,7 +12,7 @@ use akri_discovery_utils::discovery::{
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
@@ -71,13 +71,13 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
-                let mut devpaths: HashMap<String, Vec<DeviceProperties>> = HashMap::new();
+                let mut devpaths: HashMap<String, HashSet<DeviceProperties>> = HashMap::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
                     let paths = do_parse_and_find(enumerator, rule).unwrap();
                     for path in paths.into_iter() {
                         if !discovery_handler_config.group_recursive {
-                            devpaths.insert(path.0.clone(), vec![path]);
+                            devpaths.insert(path.0.clone(), HashSet::from([path]));
                         } else {
                             insert_device_with_relatives(&mut devpaths, path);
                         }

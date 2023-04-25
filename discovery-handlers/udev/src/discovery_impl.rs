@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::wrappers::{
     udev_device::{
         get_attribute_value, get_devnode, get_devpath, get_driver, get_parent, get_property_value,
@@ -532,18 +534,20 @@ fn get_device_relatives<'a>(
 }
 
 pub fn insert_device_with_relatives(
-    devpaths: &mut std::collections::HashMap<String, Vec<DeviceProperties>>,
+    devpaths: &mut std::collections::HashMap<String, HashSet<DeviceProperties>>,
     path: DeviceProperties,
 ) {
     match get_device_relatives(&path.0, devpaths.keys()) {
-        (Some(parent), _) => devpaths.get_mut(&parent).unwrap().push(path),
+        (Some(parent), _) => {
+            let _ = devpaths.get_mut(&parent).unwrap().insert(path);
+        }
         (None, children) => {
             let id = path.0.clone();
-            let mut children_devices: Vec<DeviceProperties> = children
+            let mut children_devices: HashSet<DeviceProperties> = children
                 .into_iter()
                 .flat_map(|child| devpaths.remove(&child).unwrap().into_iter())
                 .collect();
-            children_devices.push(path);
+            children_devices.insert(path);
             let _ = devpaths.insert(id, children_devices);
         }
     }
@@ -1361,7 +1365,7 @@ mod discovery_tests {
 
     #[test]
     fn test_insert_device_with_relatives() {
-        let mut devpaths: HashMap<String, Vec<DeviceProperties>> = HashMap::default();
+        let mut devpaths: HashMap<String, HashSet<DeviceProperties>> = HashMap::default();
         let related_devices = vec![
             ("/sys/device/parent".to_string(), None),
             (
@@ -1384,7 +1388,7 @@ mod discovery_tests {
             devpaths,
             HashMap::from([(
                 related_devices[1].0.clone(),
-                vec![related_devices[1].clone()]
+                HashSet::from([related_devices[1].clone()])
             )])
         );
 
@@ -1394,7 +1398,7 @@ mod discovery_tests {
             devpaths,
             HashMap::from([(
                 related_devices[1].0.clone(),
-                vec![related_devices[1].clone(), related_devices[2].clone()]
+                HashSet::from([related_devices[1].clone(), related_devices[2].clone()])
             )])
         );
 
@@ -1404,11 +1408,25 @@ mod discovery_tests {
             devpaths,
             HashMap::from([(
                 related_devices[0].0.clone(),
-                vec![
+                HashSet::from([
                     related_devices[1].clone(),
                     related_devices[2].clone(),
                     related_devices[0].clone()
-                ]
+                ])
+            )])
+        );
+
+        // Add it again
+        insert_device_with_relatives(&mut devpaths, related_devices[0].clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([(
+                related_devices[0].0.clone(),
+                HashSet::from([
+                    related_devices[1].clone(),
+                    related_devices[2].clone(),
+                    related_devices[0].clone()
+                ])
             )])
         );
 
@@ -1419,13 +1437,16 @@ mod discovery_tests {
             HashMap::from([
                 (
                     related_devices[0].0.clone(),
-                    vec![
+                    HashSet::from([
                         related_devices[1].clone(),
                         related_devices[2].clone(),
                         related_devices[0].clone()
-                    ]
+                    ])
                 ),
-                (unrelated_device.0.clone(), vec![unrelated_device]),
+                (
+                    unrelated_device.0.clone(),
+                    HashSet::from([unrelated_device])
+                ),
             ])
         );
     }
