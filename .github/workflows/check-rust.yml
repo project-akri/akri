@@ -49,10 +49,6 @@ jobs:
       run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::derive_partial_eq_without_eq
     - name: Run check
       run:  cargo check
-    - name: Check for H2 patch not being applied
-      run: |
-        cargo check >& h2-check.txt
-        cat h2-check.txt | grep "h2" | grep "was not used in the crate graph" | wc -l | grep 0
     - name: Run tests
       run: cargo test
     - name: Run tests --ignored
