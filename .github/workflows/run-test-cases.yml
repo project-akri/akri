@@ -103,30 +103,30 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          - runtime: MicroK8s-1.23
-            version: 1.23/stable
           - runtime: MicroK8s-1.24
             version: 1.24/stable
           - runtime: MicroK8s-1.25
             version: 1.25/stable
           - runtime: MicroK8s-1.26
             version: 1.26/stable
-          - runtime: K3s-1.23
-            version: v1.23.15+k3s1
+          - runtime: MicroK8s-1.27
+            version: 1.27/stable
           - runtime: K3s-1.24
-            version: v1.24.12+k3s1
+            version: v1.24.13+k3s1
           - runtime: K3s-1.25
-            version: v1.25.8+k3s1
+            version: v1.25.9+k3s1
           - runtime: K3s-1.26
-            version: v1.26.3+k3s1
-          - runtime: Kubernetes-1.23
-            version: 1.23.15-00
+            version: v1.26.4+k3s1
+          - runtime: K3s-1.27
+            version: v1.27.1+k3s1
           - runtime: Kubernetes-1.24
-            version: 1.24.12-00
+            version: 1.24.13-00
           - runtime: Kubernetes-1.25
-            version: 1.25.8-00
+            version: 1.25.9-00
           - runtime: Kubernetes-1.26
-            version: 1.26.3-00
+            version: 1.26.4-00
+          - runtime: Kubernetes-1.27
+            version: 1.27.1-00
         test:
           - case: end-to-end
             file: test/run-end-to-end.py
