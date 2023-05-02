@@ -58,9 +58,14 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.opcua.discovery.nodeSelectors }}
+      {{- if or .Values.opcua.discovery.linuxOnly .Values.opcua.discovery.nodeSelectors }}
       nodeSelector:
-      {{- toYaml .Values.opcua.discovery.nodeSelectors | nindent 8 }}
+        {{- if .Values.opcua.discovery.linuxOnly }}
+        "kubernetes.io/os": linux
+        {{- end }}
+        {{- if .Values.opcua.discovery.nodeSelectors }}
+          {{- toYaml .Values.opcua.discovery.nodeSelectors | nindent 8 }}
+        {{- end }}
       {{- end }}
       volumes:
       - name: discovery-handlers

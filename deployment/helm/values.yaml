@@ -254,6 +254,8 @@ custom:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # linuxOnly dictates whether the discovery handler will only run on a linux node
+    linuxOnly: true
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set custom.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
@@ -393,6 +395,8 @@ debugEcho:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # linuxOnly dictates whether the discovery handler will only run on a linux node
+    linuxOnly: true
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set debugEcho.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
@@ -537,6 +541,8 @@ onvif:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # linuxOnly dictates whether the discovery handler will only run on a linux node
+    linuxOnly: true
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set onvif.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
@@ -680,6 +686,8 @@ opcua:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # linuxOnly dictates whether the discovery handler will only run on a linux node
+    linuxOnly: true
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set opcua.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
@@ -816,6 +824,8 @@ udev:
     useNetworkConnection: false
     # port specifies (when useNetworkConnection is true) the port on which the discovery handler advertises its discovery service
     port: 10000
+    # linuxOnly dictates whether the discovery handler will only run on a linux node
+    linuxOnly: true
     # nodeSelectors is the array of nodeSelectors used to target nodes for the discovery handler to run on
     # This can be set from the helm command line using `--set udev.discovery.nodeSelectors.label="value"`
     nodeSelectors: {}
