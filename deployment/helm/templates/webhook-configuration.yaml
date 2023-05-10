@@ -95,18 +95,14 @@ items:
             - key: node-role.kubernetes.io/master
               effect: NoSchedule
           {{- end }}
-          {{- if or .Values.webhookConfiguration.linuxOnly .Values.webhookConfiguration.onlyOnControlPlane .Values.webhookConfiguration.nodeSelectors }}
           nodeSelector:
             {{- if .Values.webhookConfiguration.nodeSelectors }}
               {{- toYaml .Values.webhookConfiguration.nodeSelectors | nindent 8 }}
             {{- end }}
-            {{- if .Values.webhookConfiguration.linuxOnly }}
             "kubernetes.io/os": linux
-            {{- end }}
             {{- if .Values.webhookConfiguration.onlyOnControlPlane }}
             node-role.kubernetes.io/master: ""
             {{- end }}
-          {{- end }}
   - apiVersion: v1
     kind: Service
     metadata:

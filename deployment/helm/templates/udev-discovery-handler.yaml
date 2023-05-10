@@ -64,15 +64,11 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.udev.discovery.linuxOnly .Values.udev.discovery.nodeSelectors }}
       nodeSelector:
-        {{- if .Values.udev.discovery.linuxOnly }}
         "kubernetes.io/os": linux
-        {{- end }}
         {{- if .Values.udev.discovery.nodeSelectors }}
           {{- toYaml .Values.udev.discovery.nodeSelectors | nindent 8 }}
         {{- end }}
-      {{- end }}
       volumes:
       - name: discovery-handlers
         hostPath:
