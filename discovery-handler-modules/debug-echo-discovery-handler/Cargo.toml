@@ -1,6 +1,6 @@
 [package]
 name = "debug-echo-discovery-handler"
-version = "0.10.4"
+version = "0.10.5"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
