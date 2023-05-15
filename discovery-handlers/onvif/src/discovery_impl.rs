@@ -242,7 +242,7 @@ pub mod util {
             .filter(|pattern| {
                 filter_against
                     .iter()
-                    .filter(|filter_against_item| filter_against_item.contains(*pattern))
+                    .filter(|filter_against_item| filter_against_item == pattern)
                     .count()
                     > 0
             })
