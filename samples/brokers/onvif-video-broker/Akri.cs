@@ -122,11 +122,6 @@ namespace Akri
         {
             // Get the first found Onvif device service url and use it
             var device_service_urls = GetDeviceServiceUrls();
-			foreach(var url in device_service_urls)
-			{
-				Console.WriteLine("xxx url={0}", url);
-			}
-			return "";
             var device_service_url = (device_service_urls.Count != 0) ? device_service_urls[0] : "";
 			if (string.IsNullOrEmpty(device_service_url))
 			{

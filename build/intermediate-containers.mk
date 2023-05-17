@@ -1,7 +1,7 @@
 
 BUILD_RUST_CROSSBUILD_VERSION = 0.0.7
 
-BUILD_OPENCV_BASE_VERSION = 0.0.9
+BUILD_OPENCV_BASE_VERSION = 0.0.10
 
 CROSS_VERSION = 0.1.16
 
@@ -18,15 +18,16 @@ opencv-base: opencv-base-build opencv-base-docker-per-arch
 opencv-base-build: opencv-base-build-amd64 opencv-base-build-arm32 opencv-base-build-arm64
 opencv-base-build-amd64:
 ifeq (1, ${BUILD_AMD64})
-	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(AMD64_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim
+# No PLATFORM build arg for amd64 as the aspnet images for amd64 are not suffixed
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(AMD64_SUFFIX)
 endif
 opencv-base-build-arm32:
 ifeq (1, ${BUILD_ARM32})
-	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM32V7_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim-$(ARM32V7_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM32V7_SUFFIX) --build-arg PLATFORM=-$(ARM32V7_SUFFIX)
 endif
 opencv-base-build-arm64:
 ifeq (1, ${BUILD_ARM64})
-	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM64V8_SUFFIX) --build-arg PLATFORM_TAG=3.1-buster-slim-$(ARM64V8_SUFFIX)
+	docker build $(CACHE_OPTION) -f $(INTERMEDIATE_DOCKERFILE_DIR)/Dockerfile.opencvsharp-build . -t $(PREFIX)/opencvsharp-build:$(BUILD_OPENCV_BASE_VERSION)-$(ARM64V8_SUFFIX) --build-arg PLATFORM=-$(ARM64V8_SUFFIX)
 endif
 opencv-base-docker-per-arch: opencv-base-docker-per-arch-amd64 opencv-base-docker-per-arch-arm32 opencv-base-docker-per-arch-arm64
 opencv-base-docker-per-arch-amd64:

@@ -65,8 +65,6 @@ controller:
   # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Controller 
   # to run on the control plane node
   allowOnControlPlane: true
-  # linuxOnly dictates whether the Akri Controller will only run on a linux node
-  linuxOnly: true
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Controller to run on
   # This can be set from the helm command line using `--set controller.nodeSelectors.label="value"`
   nodeSelectors: {}
@@ -117,8 +115,6 @@ agent:
     udev:
   # allowDebugEcho dictates whether the Akri Agent will allow DebugEcho Configurations
   allowDebugEcho: false
-  # linuxOnly dictates whether the Akri Agent will only run on a linux node
-  linuxOnly: true
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Agent to run on
   # This can be set from the helm command line using `--set agent.nodeSelectors.label="value"`
   nodeSelectors: {}
@@ -857,8 +853,6 @@ webhookConfiguration:
   # allowOnControlPlane dictates whether a toleration will be added to allow to Akri Webhook 
   # to run on the control plane node
   allowOnControlPlane: true
-  # linuxOnly dictates whether the Akri Webhook will only run on a linux node
-  linuxOnly: true
   # nodeSelectors is the array of nodeSelectors used to target nodes for the Akri Webhook to run on
   # This can be set from the helm command line using `--set webhookConfiguration.nodeSelectors.label="value"`
   nodeSelectors: {}

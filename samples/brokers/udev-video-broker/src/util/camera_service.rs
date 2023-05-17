@@ -35,7 +35,7 @@ impl Camera for CameraService {
         Ok(tonic::Response::new(NotifyResponse {
             frame: {
                 let frame = self.camera_capturer.capture().unwrap();
-                (&frame[..]).to_vec()
+                (frame[..]).to_vec()
             },
             camera: self.devnode.clone(),
         }))

@@ -1,3 +1,104 @@
+# v0.10.4
+
+## Announcing Akri v0.10.4!
+Akri v0.10.4 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.10.4 release contains the following changes:
+
+1. **Enable mounting connectivity information for multiple devices/instances in a Pod** (https://github.com/project-akri/akri/pull/560 , https://github.com/project-akri/akri/pull/561). Previously, Akri could only mount one device property per discovery handler to a Pod as all devices of the same discovery handler had the same environment variable name. This release fixes this issue by appending the instance hash to the environment variable name and slot ID to the annotation key name. This is a **breaking change** as it changes the way brokers look up properties.
+2. **Enable udev discovery handler to discover multiple node devices** (https://github.com/project-akri/akri/pull/564). Akri now allows udev discovery handler to group devices that share a parent/child relation.
+3. **Mount udev devpath in Akri brokers** (https://github.com/project-akri/akri/pull/534). This enables discovering udev devices without a devnode by using devpath instead. This is a **breaking change** in the udev discovery handler as it changes the way Akri creates instance ids for udev devices.
+4. **Mount udev devices through DeviceSpec instead of Mounts** (https://github.com/project-akri/akri/pull/576). This switches from using Mounts to using DeviceSpec for device nodes, and exposes the desired permissions to non priviledged containers.
+
+**Fixes, features, and optimizations**
+- feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536)
+- fix: Fix wrong indentation on udev-configuration.yaml for securityContext (https://github.com/project-akri/akri/pull/538)
+- fix: ListAndWatch only sends device if the list has changed (https://github.com/project-akri/akri/pull/540)
+- fix: Use tokio::sync::RwLock instead of tokio::sync::Mutex (https://github.com/project-akri/akri/pull/541)
+- opt: Upgrade Ubuntu agent version (https://github.com/project-akri/akri/pull/546)
+- opt: Added more securityContext to ensure Helm templates use the most restrictive setting (https://github.com/project-akri/akri/pull/547)
+- opt: Update nodejs actions to node16 (https://github.com/project-akri/akri/pull/548)
+- fix: Set pre_start_required to false in get_device_plugin_options (https://github.com/project-akri/akri/pull/554)
+- fix: Modify Agent to reduce frequency of Pods getting UnexpectedAdmissionError (https://github.com/project-akri/akri/pull/556)
+- fix: Specify crictl container runtime in e2e test workflow (https://github.com/project-akri/akri/pull/559)
+- fix: Suffix usage slot to annotation key name (https://github.com/project-akri/akri/pull/560)
+- fix: Added udev devnode to device mounts instead of devpath (https://github.com/project-akri/akri/pull/562)
+- fix: Fixed watch crash API unreachable (https://github.com/project-akri/akri/pull/568)
+- fix: Verify DiscoveryURL from OPC Server is resolvable (https://github.com/project-akri/akri/pull/570)
+- opt: Update kubernetes versions in e2e test (https://github.com/project-akri/akri/pull/573)
+- opt: Update rust to 1.68.1 and tarpaulin to 0.25.1 (https://github.com/project-akri/akri/pull/574)
+- opt: Upgrade Rust CI actions to maintained ones (https://github.com/project-akri/akri/pull/581)
+- opt: Update warp dependency to fix RUSTSEC-2023-0028 (https://github.com/project-akri/akri/pull/585)
+
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...v0.10.4)
+
+## Breaking Changes
+1. With [enable mounting connectivity information for multiple devices/instances in a Pod](https://github.com/project-akri/akri/pull/561), Akri now changes the name of the device properties from `DEVICE_DESCRIPTION` to `DEVICE_DESCRIPTION_INSTANCE_HASH` to allow multiple device properties of the same discovery handler to be injected to the same broker. For example, a broker can look up the Akri instance `akri-debug-echo-foo-8120fe` by the environment variable `DEBUG_ECHO_DESCRIPTION_8120FE` instead of `DEBUG_ECHO_DESCRIPTION`.
+2. With [Mount udev devpath in Akri broker](https://github.com/project-akri/akri/pull/534), Akri changes the way it creates udev Akri instance id from using the **hash of devnode** to using the **hash of devpath**
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.26.3 |
+| Kubernetes | v1.25.8 |
+| Kubernetes | v1.24.12 |
+| Kubernetes | v1.23.15 |
+| K3s | v1.26.3+k3s1 |
+| K3s | v1.25.8+k3s1 |
+| K3s | v1.24.12+k3s1 |
+| K3s | v1.23.15+k3s1 |
+| MicroK8s | 1.26/stable |
+| MicroK8s | 1.25/stable |
+| MicroK8s | 1.24/stable |
+| MicroK8s | 1.23/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper.
+
+**⭐ Contributors to v0.10.4 ⭐**
+- @harrison-tin
+- @adithyaj
+- @kate-goldenring
+- @johnsonshih
+- @diconico07
+- @jbpaux
+- @yujinkim-msft
+- @koutselakismanos
+
+(Please send us (`@Kate Goldenring` or `@Adithya J`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.10.4 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.10.4/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
+
+## Previous Releases:
+
+
 # v0.8.23
 
 ## Announcing Akri v0.8.23!
@@ -22,7 +123,7 @@ The v0.8.23 release contains the following changes:
 - opt: Rust toolchain updates (https://github.com/project-akri/akri/pull/482)(https://github.com/project-akri/akri/pull/507)
 - feat: Enable secrets in helm templates (https://github.com/project-akri/akri/pull/478)
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.8.4...0.8.23)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.8.4...v0.8.23)
 
 ## Breaking Changes
 N/A
@@ -109,7 +210,7 @@ The v0.8.4 release contains the following major changes:
 - opt: Set K8s distribution with Helm to simplify choosing container runtime socket (https://github.com/project-akri/akri/pull/427)
 - fix: Fix all clippy errors and update dependency versions (https://github.com/project-akri/akri/pull/442)
 
-View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...0.8.4)
+View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...v0.8.4)
 
 ## Breaking Changes
 Akri's Configuration CRD has been updated to support Job brokers. If Akri has previously been installed on a cluster, delete the previous Configuration CRD before installing the latest version of Akri:
