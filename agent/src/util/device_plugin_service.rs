@@ -23,7 +23,11 @@ use log::{error, info, trace};
 use mock_instant::Instant;
 #[cfg(not(test))]
 use std::time::Instant;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 use tokio::{
     sync::{broadcast, mpsc, RwLock},
     time::timeout,
@@ -57,13 +61,34 @@ pub struct InstanceInfo {
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Instance's `InstanceConnectivityStatus`
     pub connectivity_status: InstanceConnectivityStatus,
+    /// Instance's hash id
+    pub instance_id: String,
     /// Device that the instance represents.
     /// Contains information about environment variables and volumes that should be mounted
     /// into requesting Pods.
     pub device: Device,
+    /// Device usage slots allocated by Configuration Device Plugin
+    /// Used to check if a device usage slot is allocated by Configuration or Instance Device Plugin
+    pub configuration_usage_slots: HashSet<String>,
 }
 
-pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
+#[derive(Clone, Debug)]
+pub struct InstanceConfig {
+    pub usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
+    pub instances: HashMap<String, InstanceInfo>,
+}
+
+impl InstanceConfig {
+    pub fn new() -> Self {
+        InstanceConfig {
+            usage_update_message_sender: None,
+            instances: HashMap::new(),
+        }
+    }
+}
+
+//pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
+pub type InstanceMap = Arc<RwLock<InstanceConfig>>;
 
 /// Kubernetes Device-Plugin for an Instance.
 ///
@@ -106,12 +131,37 @@ pub struct DevicePluginService {
     /// Contains information about environment variables and volumes that should be mounted
     /// into requesting Pods.
     pub device: Device,
-    /// broadcast sender to notify slot usage changes
-    pub usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
 }
 
 #[tonic::async_trait]
-impl DevicePlugin for DevicePluginService {
+pub trait DevicePluginServiceInner: Send + Sync + 'static {
+    async fn internal_list_and_watch(
+        &self,
+        kubelet_update_sender: mpsc::Sender<Result<ListAndWatchResponse, Status>>,
+    );
+
+    async fn internal_allocate(
+        &self,
+        requests: Request<AllocateRequest>,
+        kube_interface: Arc<impl KubeInterface>,
+    ) -> Result<Response<AllocateResponse>, Status>;
+}
+
+#[derive(Debug)]
+pub struct DevicePluginServiceTemplate<T: DevicePluginServiceInner> {
+    inner: _Inner<T>,
+}
+struct _Inner<T>(Arc<T>);
+impl<T: DevicePluginServiceInner> DevicePluginServiceTemplate<T> {
+    pub fn new(inner: T) -> Self {
+        let inner = Arc::new(inner);
+        let inner = _Inner(inner);
+        Self { inner }
+    }
+}
+
+#[tonic::async_trait]
+impl<T: DevicePluginServiceInner> DevicePlugin for DevicePluginServiceTemplate<T> {
     /// Returns options to be communicated with kubelet Device Manager
     async fn get_device_plugin_options(
         &self,
@@ -137,6 +187,56 @@ impl DevicePlugin for DevicePluginService {
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<Self::ListAndWatchStream>, Status> {
+        // Create a channel that list_and_watch can periodically send updates to kubelet on
+        let (kubelet_update_sender, kubelet_update_receiver) =
+            mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
+        let inner = self.inner.clone();
+        let inner = inner.0.clone();
+        (*inner)
+            .internal_list_and_watch(kubelet_update_sender)
+            .await;
+        Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
+    }
+
+    /// Kubelet calls allocate during pod creation.
+    /// This means kubelet is trying to reserve a usage slot (virtual Device) of the Instance for this node.
+    /// Returns error if cannot reserve that slot.
+    async fn allocate(
+        &self,
+        requests: Request<AllocateRequest>,
+    ) -> Result<Response<AllocateResponse>, Status> {
+        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
+        let inner = self.inner.clone();
+        let inner = inner.0.clone();
+        (*inner).internal_allocate(requests, kube_interface).await
+    }
+
+    /// Should never be called, as indicated by DevicePluginService during registration.
+    async fn pre_start_container(
+        &self,
+        _request: Request<PreStartContainerRequest>,
+    ) -> Result<Response<PreStartContainerResponse>, Status> {
+        Ok(Response::new(v1beta1::PreStartContainerResponse {}))
+    }
+}
+
+impl<T: DevicePluginServiceInner> Clone for _Inner<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+#[tonic::async_trait]
+impl DevicePluginServiceInner for DevicePluginService {
+    async fn internal_list_and_watch(
+        &self,
+        kubelet_update_sender: mpsc::Sender<Result<ListAndWatchResponse, Status>>,
+    ) {
         info!(
             "list_and_watch - kubelet called list_and_watch for instance {}",
             self.instance_name
@@ -144,9 +244,6 @@ impl DevicePlugin for DevicePluginService {
         let dps = Arc::new(self.clone());
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
-        // Create a channel that list_and_watch can periodically send updates to kubelet on
-        let (kubelet_update_sender, kubelet_update_receiver) =
-            mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
             let mut keep_looping = true;
@@ -188,6 +285,7 @@ impl DevicePlugin for DevicePluginService {
                         &dps.config_namespace,
                         dps.config.capacity,
                         &dps.node_name,
+                        false,
                         kube_interface.clone(),
                     )
                     .await
@@ -204,24 +302,27 @@ impl DevicePlugin for DevicePluginService {
                         devices: virtual_devices,
                     };
                     // Send virtual devices list back to kubelet
-                    match kubelet_update_sender.send(Ok(resp)).await {
-                        Ok(()) => {
-                            // Notify device usage had been changed
-                            if let Some(sender) = &dps.usage_update_message_sender {
-                                sender.send(ListAndWatchMessageKind::Continue).unwrap();
-                            }
-                        }
-                        Err(e) => {
-                            trace!(
-                                "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
-                                dps.instance_name,
-                                e
-                            );
-                            // This means kubelet is down/has been restarted. Remove instance from instance map so
-                            // do_periodic_discovery will create a new device plugin service for this instance.
-                            dps.instance_map.write().await.remove(&dps.instance_name);
-                            dps.server_ender_sender.clone().send(()).await.unwrap();
-                            keep_looping = false;
+                    if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
+                        trace!(
+                            "list_and_watch - for Instance {} kubelet no longer receiving with error {}",
+                            dps.instance_name,
+                            e
+                        );
+                        // This means kubelet is down/has been restarted. Remove instance from instance map so
+                        // do_periodic_discovery will create a new device plugin service for this instance.
+                        dps.instance_map
+                            .write()
+                            .await
+                            .instances
+                            .remove(&dps.instance_name);
+                        dps.server_ender_sender.clone().send(()).await.unwrap();
+                        keep_looping = false;
+                    } else {
+                        // Notify device usage had been changed
+                        if let Some(sender) =
+                            &dps.instance_map.read().await.usage_update_message_sender
+                        {
+                            sender.send(ListAndWatchMessageKind::Continue).unwrap();
                         }
                     }
                 }
@@ -260,43 +361,15 @@ impl DevicePlugin for DevicePluginService {
             }
             trace!("list_and_watch - for Instance {} ending", dps.instance_name);
             // Notify device usage for this instance is gone
-            if let Some(sender) = &dps.usage_update_message_sender {
-                sender.send(ListAndWatchMessageKind::Continue).unwrap();
+            // Best effort, channel may be closed in the case of the Configuration delete
+            if let Some(sender) = &dps.instance_map.read().await.usage_update_message_sender {
+                sender
+                    .send(ListAndWatchMessageKind::Continue)
+                    .unwrap_or_default();
             }
         });
-
-        Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
     }
 
-    /// Kubelet calls allocate during pod creation.
-    /// This means kubelet is trying to reserve a usage slot (virtual Device) of the Instance for this node.
-    /// Returns error if cannot reserve that slot.
-    async fn allocate(
-        &self,
-        requests: Request<AllocateRequest>,
-    ) -> Result<Response<AllocateResponse>, Status> {
-        info!(
-            "allocate - kubelet called allocate for Instance {}",
-            self.instance_name
-        );
-        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
-        self.internal_allocate(requests, kube_interface).await
-    }
-
-    /// Should never be called, as indicated by DevicePluginService during registration.
-    async fn pre_start_container(
-        &self,
-        _request: Request<PreStartContainerRequest>,
-    ) -> Result<Response<PreStartContainerResponse>, Status> {
-        error!(
-            "pre_start_container - kubelet called pre_start_container for Instance {}",
-            self.instance_name
-        );
-        Ok(Response::new(v1beta1::PreStartContainerResponse {}))
-    }
-}
-
-impl DevicePluginService {
     /// Called when kubelet is trying to reserve for this node a usage slot (or virtual device) of the Instance.
     /// Tries to update Instance CRD to reserve the requested slot. If cannot reserve that slot, forces `list_and_watch` to continue
     /// (sending kubelet the latest list of slots) and returns error, so kubelet will not schedule the pod to this node.
@@ -306,7 +379,6 @@ impl DevicePluginService {
         kube_interface: Arc<impl KubeInterface>,
     ) -> Result<Response<AllocateResponse>, Status> {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
-
         for request in requests.into_inner().container_requests {
             trace!(
                 "internal_allocate - for Instance {} handling request {:?}",
@@ -350,11 +422,11 @@ impl DevicePluginService {
             );
             container_responses.push(response);
         }
+
         // Notify device usage had been changed
-        if let Some(sender) = &self.usage_update_message_sender {
+        if let Some(sender) = &self.instance_map.read().await.usage_update_message_sender {
             sender.send(ListAndWatchMessageKind::Continue).unwrap();
         }
-
         trace!(
             "internal_allocate - for Instance {} returning responses",
             &self.instance_name
@@ -403,36 +475,11 @@ pub struct ConfigurationDevicePluginService {
 }
 
 #[tonic::async_trait]
-impl DevicePlugin for ConfigurationDevicePluginService {
-    /// Returns options to be communicated with kubelet Device Manager
-    async fn get_device_plugin_options(
+impl DevicePluginServiceInner for ConfigurationDevicePluginService {
+    async fn internal_list_and_watch(
         &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<DevicePluginOptions>, Status> {
-        trace!(
-            "get_device_plugin_options - kubelet called get_device_plugin_options for device plugin {}",
-            self.device_plugin_name
-        );
-        let resp = DevicePluginOptions {
-            pre_start_required: false,
-        };
-        Ok(Response::new(resp))
-    }
-
-    type ListAndWatchStream = ReceiverStream<Result<ListAndWatchResponse, Status>>;
-
-    /// Called by Kubelet right after the ConfigurationDevicePluginService registers with Kubelet.
-    /// Returns a stream of List of "virtual" Devices over a channel.
-    /// Since Kubernetes designed Device-Plugin so that multiple consumers can use a Device,
-    /// "virtual" Devices are reservation slots for using the Device or Instance in akri terms.
-    /// The number of "virtual" Devices (length of `ListAndWatchResponse`) is determined by
-    /// Instance.capacity * number of Instances.
-    /// Whenever Instance state changes or an Instance disapears, `list_and_watch` returns the new list.
-    /// Runs until receives message to end due to Instance disappearing or Configuration being deleted.
-    async fn list_and_watch(
-        &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<Self::ListAndWatchStream>, Status> {
+        kubelet_update_sender: mpsc::Sender<Result<ListAndWatchResponse, Status>>,
+    ) {
         info!(
             "list_and_watch - kubelet called list_and_watch for device plugin {}",
             self.device_plugin_name
@@ -440,9 +487,6 @@ impl DevicePlugin for ConfigurationDevicePluginService {
         let dps = Arc::new(self.clone());
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
-        // Create a channel that list_and_watch can periodically send updates to kubelet on
-        let (kubelet_update_sender, kubelet_update_receiver) =
-            mpsc::channel(KUBELET_UPDATE_CHANNEL_CAPACITY);
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
             let mut keep_looping = true;
@@ -458,7 +502,7 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                 let prev_discovered_devices = dps.discovered_devices.read().await.clone();
                 let instance_map_snapshot = dps.instance_map.read().await.clone();
                 let mut newly_discovered_devices = HashMap::new();
-                for (instance_name, _) in instance_map_snapshot {
+                for (instance_name, _) in instance_map_snapshot.instances {
                     let virtual_devices: Vec<v1beta1::Device>;
                     #[cfg(test)]
                     {
@@ -473,6 +517,7 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                             &dps.config_namespace,
                             dps.config.capacity,
                             &dps.node_name,
+                            true,
                             kube_interface.clone(),
                         )
                         .await
@@ -580,7 +625,7 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                             );
                             let instance_map_snapshot = dps.instance_map.read().await.clone();
                             let mut devices :Vec<v1beta1::Device> = Vec::new();
-                            for (instance_name, _) in instance_map_snapshot {
+                            for (instance_name, _) in instance_map_snapshot.instances {
                                 let unhealthy_devices =
                                     build_unhealthy_virtual_devices(dps.config.capacity, &instance_name);
                                 devices.extend(unhealthy_devices);
@@ -602,39 +647,8 @@ impl DevicePlugin for ConfigurationDevicePluginService {
                 dps.device_plugin_name
             );
         });
-
-        Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
     }
 
-    /// Kubelet calls allocate during pod creation.
-    /// This means kubelet is trying to reserve a usage slot (virtual Device) of the Instance for this node.
-    /// Returns error if cannot reserve that slot.
-    async fn allocate(
-        &self,
-        requests: Request<AllocateRequest>,
-    ) -> Result<Response<AllocateResponse>, Status> {
-        info!(
-            "allocate - kubelet called allocate for Instance {}",
-            self.device_plugin_name
-        );
-        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
-        self.internal_allocate(requests, kube_interface).await
-    }
-
-    /// Should never be called, as indicated by DevicePluginService during registration.
-    async fn pre_start_container(
-        &self,
-        _request: Request<PreStartContainerRequest>,
-    ) -> Result<Response<PreStartContainerResponse>, Status> {
-        error!(
-            "pre_start_container - kubelet called pre_start_container for Instance {}",
-            self.device_plugin_name
-        );
-        Ok(Response::new(v1beta1::PreStartContainerResponse {}))
-    }
-}
-
-impl ConfigurationDevicePluginService {
     /// Called when kubelet is trying to reserve for this node a usage slot (or virtual device) of the Instance.
     /// Tries to update Instance CRD to reserve the requested slot. If cannot reserve that slot, forces `list_and_watch` to continue
     /// (sending kubelet the latest list of slots) and returns error, so kubelet will not schedule the pod to this node.
@@ -645,6 +659,7 @@ impl ConfigurationDevicePluginService {
     ) -> Result<Response<AllocateResponse>, Status> {
         let discovered_devices = self.discovered_devices.read().await.clone();
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
+        let mut allocated_instances = HashMap::new();
         for request in requests.into_inner().container_requests {
             trace!(
                 "internal_allocate - for device plugin {} handling request {:?}",
@@ -679,10 +694,11 @@ impl ConfigurationDevicePluginService {
                 }
                 let instance_name = &target_instance[0];
                 // find device from instance_map
-                let device = match self
+                let (device, instance_id) = match self
                     .instance_map
                     .read()
                     .await
+                    .instances
                     .get(instance_name)
                     .ok_or_else(|| {
                         Status::new(
@@ -690,7 +706,10 @@ impl ConfigurationDevicePluginService {
                             format!("instance {} not found in instance map", instance_name),
                         )
                     }) {
-                    Ok(instance_info) => instance_info.device.clone(),
+                    Ok(instance_info) => (
+                        instance_info.device.clone(),
+                        instance_info.instance_id.clone(),
+                    ),
                     Err(e) => {
                         self.list_and_watch_message_sender
                             .send(ListAndWatchMessageKind::Continue)
@@ -698,13 +717,10 @@ impl ConfigurationDevicePluginService {
                         return Err(e);
                     }
                 };
-                // TODO: find a better way to get instance id, extracting from instance name is fragile
-                let prefix = format!("{}-", self.config_name);
-                let instance_id = instance_name.strip_prefix(&prefix).unwrap();
                 // allocate device_usage_id
                 match allocate_for_instance(
                     instance_name,
-                    instance_id,
+                    &instance_id,
                     &device_usage_id,
                     &device,
                     &self.config_namespace,
@@ -725,6 +741,10 @@ impl ConfigurationDevicePluginService {
                         return Err(e);
                     }
                 }
+                allocated_instances
+                    .entry(instance_name.clone())
+                    .or_insert(HashSet::new())
+                    .insert(device_usage_id.clone());
             }
             // Successfully reserved device_usage_slot[s] for this node.
             // Add response to list of responses
@@ -736,6 +756,30 @@ impl ConfigurationDevicePluginService {
                 &akri_devices,
             );
             container_responses.push(response);
+        }
+
+        // Notify effected instance device plugin to rescan list and watch and update the cl_usage_slot
+        {
+            let mut instance_map = self.instance_map.write().await;
+            for (instance_name, device_usage_slots) in allocated_instances {
+                trace!(
+                    "internal_allocate - notify Instance {} to refresh list_and_watch",
+                    instance_name,
+                );
+
+                instance_map
+                    .instances
+                    .entry(instance_name)
+                    .and_modify(|instance_info| {
+                        instance_info
+                            .configuration_usage_slots
+                            .extend(device_usage_slots);
+                        instance_info
+                            .list_and_watch_message_sender
+                            .send(ListAndWatchMessageKind::Continue)
+                            .unwrap();
+                    });
+            }
         }
         trace!(
             "internal_allocate - for device plugin {} returning responses",
@@ -839,6 +883,7 @@ async fn try_update_instance_device_usage(
             }
         } else {
             // Instance slot already reserved for this node
+            info!("slot_available_to_reserve returns false");
             return Ok(());
         }
     }
@@ -851,10 +896,10 @@ fn build_container_allocate_response(
     annotations: HashMap<String, String>,
     devices: &Vec<Device>,
 ) -> v1beta1::ContainerAllocateResponse {
-    // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
     let mut mounts = Vec::new();
     let mut device_specs = Vec::new();
     for device in devices {
+        // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
         let per_device_mounts: Vec<Mount> = device
             .mounts
             .clone()
@@ -879,7 +924,6 @@ fn build_container_allocate_response(
             .collect();
         device_specs.extend(per_device_device_specs);
     }
-
     // Create response, setting environment variables to be an instance's properties.
     v1beta1::ContainerAllocateResponse {
         annotations,
@@ -997,12 +1041,14 @@ async fn try_create_instance(
     }
 
     // Successfully created or updated instance. Add it to instance_map.
-    dps.instance_map.write().await.insert(
+    dps.instance_map.write().await.instances.insert(
         dps.instance_name.clone(),
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
             connectivity_status: InstanceConnectivityStatus::Online,
+            instance_id: dps.instance_id.clone(),
             device: dps.device.clone(),
+            configuration_usage_slots: HashSet::new(),
         },
     );
 
@@ -1017,6 +1063,7 @@ async fn build_list_and_watch_response(
     config_namespace: &str,
     capacity: i32,
     node_name: &str,
+    for_configuration: bool,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<Vec<v1beta1::Device>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!(
@@ -1025,20 +1072,26 @@ async fn build_list_and_watch_response(
     );
 
     // If instance has been removed from map, send back all unhealthy device slots
-    if !instance_map.read().await.contains_key(instance_name) {
-        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", instance_name);
+    if !instance_map
+        .read()
+        .await
+        .instances
+        .contains_key(instance_name)
+    {
+        info!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", instance_name);
         return Ok(build_unhealthy_virtual_devices(capacity, instance_name));
     }
     // If instance is offline, send back all unhealthy device slots
     if instance_map
         .read()
         .await
+        .instances
         .get(instance_name)
         .unwrap()
         .connectivity_status
         != InstanceConnectivityStatus::Online
     {
-        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", instance_name);
+        info!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", instance_name);
         return Ok(build_unhealthy_virtual_devices(capacity, instance_name));
     }
 
@@ -1051,16 +1104,91 @@ async fn build_list_and_watch_response(
         .find_instance(instance_name, config_namespace)
         .await
     {
-        Ok(kube_akri_instance) => Ok(build_virtual_devices(
-            &kube_akri_instance.spec.device_usage,
-            kube_akri_instance.spec.shared,
-            node_name,
-        )),
+        Ok(kube_akri_instance) => {
+            let mut instance_map_guard = instance_map.write().await;
+            let instance_info = instance_map_guard.instances.get(instance_name).unwrap();
+            let (devices, updated_cl_usage_slots) = build_virtual_devices(
+                &kube_akri_instance.spec.device_usage,
+                kube_akri_instance.spec.shared,
+                node_name,
+                for_configuration,
+                &instance_info.configuration_usage_slots,
+            );
+            // update cl_usage_slot based on new instance information
+            info!(
+                "build_list_and_watch_response: updated_cl_usage_slots {:?}",
+                updated_cl_usage_slots
+            );
+            instance_map_guard
+                .instances
+                .entry(instance_name.to_string())
+                .and_modify(|instance_info| {
+                    instance_info.configuration_usage_slots = updated_cl_usage_slots;
+                });
+
+            Ok(devices)
+        }
         Err(_) => {
             trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", instance_name);
             Ok(build_unhealthy_virtual_devices(capacity, instance_name))
         }
     }
+}
+
+async fn allocate_for_instance(
+    instance_name: &str,
+    instance_id: &str,
+    device_usage_id: &str,
+    device: &Device,
+    config_namespace: &str,
+    node_name: &str,
+    kube_interface: Arc<impl KubeInterface>,
+) -> Result<(HashMap<String, String>, HashMap<String, String>), Status> {
+    trace!(
+        "allocate_for_instance - for Instance {} processing request for device usage slot id {}",
+        instance_name,
+        device_usage_id
+    );
+
+    let mut akri_annotations = HashMap::new();
+    let mut akri_device_properties = HashMap::new();
+    akri_annotations.insert(
+        format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, device_usage_id),
+        device_usage_id.to_string(),
+    );
+
+    let device_property_suffix = instance_id.to_uppercase();
+    // add suffix _<instance_id> to each device property
+    let converted_properties = device
+        .properties
+        .iter()
+        .map(|(key, value)| {
+            (
+                format!("{}_{}", key, &device_property_suffix),
+                value.to_string(),
+            )
+        })
+        .collect::<HashMap<String, String>>();
+    akri_device_properties.extend(converted_properties);
+
+    if let Err(e) = try_update_instance_device_usage(
+        device_usage_id,
+        node_name,
+        instance_name,
+        config_namespace,
+        kube_interface.clone(),
+    )
+    .await
+    {
+        trace!("allocate_for_instance - could not assign {} slot to {} node... forcing list_and_watch to continue", device_usage_id, node_name);
+        return Err(e);
+    }
+
+    trace!(
+        "allocate_for_instance - finished processing device_usage_id {}",
+        device_usage_id
+    );
+    Ok((akri_annotations, akri_device_properties))
 }
 
 /// This builds a list of unhealthy virtual Devices.
@@ -1088,84 +1216,64 @@ fn build_virtual_devices(
     device_usage: &HashMap<String, String>,
     shared: bool,
     node_name: &str,
-) -> Vec<v1beta1::Device> {
+    for_configuration: bool,
+    cl_usage_slots: &HashSet<String>,
+) -> (Vec<v1beta1::Device>, HashSet<String>) {
     let mut devices: Vec<v1beta1::Device> = Vec::new();
+    let mut current_cl_usage_slots = cl_usage_slots.clone();
     for (device_name, allocated_node) in device_usage {
-        // Throw error if unshared resource is reserved by another node
-        if !shared && !allocated_node.is_empty() && allocated_node != node_name {
-            panic!("build_virtual_devices - unshared device reserved by a different node");
-        }
-        // Advertise the device as Unhealthy if it is
-        // USED by !this_node && SHARED
-        let unhealthy = shared && !allocated_node.is_empty() && allocated_node != node_name;
-        let health = if unhealthy {
-            UNHEALTHY.to_string()
-        } else {
-            HEALTHY.to_string()
-        };
-        trace!(
-            "build_virtual_devices - [shared = {}] device with name [{}] and health: [{}]",
-            shared,
+        let healthy = get_device_health_state(
             device_name,
-            health
+            allocated_node,
+            shared,
+            node_name,
+            for_configuration,
+            cl_usage_slots,
+        );
+
+        // remove the device from the cl_usage_slot if it is not reserved by any node
+        if healthy && allocated_node.is_empty() {
+            current_cl_usage_slots.remove(device_name);
+        }
+        let health = if healthy {
+            HEALTHY.to_string()
+        } else {
+            UNHEALTHY.to_string()
+        };
+        info!(
+            "build_virtual_devices - [shared = {}] device with name [{}] and health: [{}], for_configuration {}",
+            shared, device_name, health, for_configuration,
         );
         devices.push(v1beta1::Device {
             id: device_name.clone(),
             health,
         });
     }
-    devices
+    (devices, current_cl_usage_slots)
 }
 
-async fn allocate_for_instance(
-    instance_name: &str,
-    instance_id: &str,
-    device_usage_id: &str,
-    device: &Device,
-    config_namespace: &str,
+fn get_device_health_state(
+    device_usage_id: &String,
+    allocated_node: &String,
+    shared: bool,
     node_name: &str,
-    kube_interface: Arc<impl KubeInterface>,
-) -> Result<(HashMap<String, String>, HashMap<String, String>), Status> {
-    trace!(
-        "allocate_for_instance - for Instance {} processing request for device usage slot id {}",
-        instance_name,
-        device_usage_id
-    );
-
-    let mut akri_annotations = HashMap::new();
-    let mut akri_device_properties = HashMap::new();
-    akri_annotations.insert(
-        format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, device_usage_id),
-        device_usage_id.to_string(),
-    );
-
-    let hash_id_value = instance_id.to_uppercase();
-    // add suffix _<instance_id> to each device property
-    let converted_properties = device
-        .properties
-        .iter()
-        .map(|(key, value)| (format!("{}_{}", key, &hash_id_value), value.to_string()))
-        .collect::<HashMap<String, String>>();
-    akri_device_properties.extend(converted_properties);
-
-    if let Err(e) = try_update_instance_device_usage(
-        device_usage_id,
-        node_name,
-        instance_name,
-        config_namespace,
-        kube_interface.clone(),
-    )
-    .await
-    {
-        trace!("allocate_for_instance - could not assign {} slot to {} node... forcing list_and_watch to continue", device_usage_id, node_name);
-        return Err(e);
+    for_configuration: bool,
+    cl_usage_slots: &HashSet<String>,
+) -> bool {
+    if allocated_node.is_empty() {
+        return true;
     }
 
-    trace!(
-        "internal_allocate_for_instance - finished processing device_usage_id {}",
-        device_usage_id
-    );
-    Ok((akri_annotations, akri_device_properties))
+    if allocated_node != node_name {
+        // Throw error if unshared resource is reserved by another node
+        if !shared {
+            panic!("build_virtual_devices - unshared device reserved by a different node");
+        }
+        return false;
+    }
+
+    // the usage slot is reserved by this node, check if the ask reserve type is the same as reserved
+    cl_usage_slots.contains(device_usage_id) == for_configuration
 }
 
 /// This sends message to end `list_and_watch` and removes instance from InstanceMap.
@@ -1180,6 +1288,7 @@ pub async fn terminate_device_plugin_service(
         instance_name
     );
     instance_map
+        .instances
         .get(instance_name)
         .unwrap()
         .list_and_watch_message_sender
@@ -1190,13 +1299,13 @@ pub async fn terminate_device_plugin_service(
         "terminate_device_plugin_service -- removing Instance {} from instance_map",
         instance_name
     );
-    instance_map.remove(instance_name);
+    instance_map.instances.remove(instance_name);
     Ok(())
 }
 
 /// This creates a Configuration's unique name
 pub fn get_device_configuration_name(config_name: &str) -> String {
-    config_name.to_string().replace('.', "-").replace('/', "-")
+    config_name.to_string().replace(['.', '/'], "-")
 }
 
 /// This creates an Instance's unique name
@@ -1312,16 +1421,21 @@ mod device_plugin_service_tests {
             device_specs: Vec::new(),
         };
 
-        let mut map = HashMap::new();
+        let mut instances = HashMap::new();
         if add_to_instance_map {
-            let instance_info = InstanceInfo {
+            let instance_info: InstanceInfo = InstanceInfo {
                 list_and_watch_message_sender: list_and_watch_message_sender.clone(),
                 connectivity_status,
+                instance_id: instance_id.to_string(),
                 device: device.clone(),
+                configuration_usage_slots: HashSet::new(),
             };
-            map.insert(device_instance_name.clone(), instance_info);
+            instances.insert(device_instance_name.clone(), instance_info);
         }
-        let instance_map: InstanceMap = Arc::new(RwLock::new(map));
+        let instance_map: InstanceMap = Arc::new(RwLock::new(InstanceConfig {
+            usage_update_message_sender: None,
+            instances,
+        }));
         let dps = DevicePluginService {
             instance_name: device_instance_name,
             instance_id: instance_id.to_uppercase(),
@@ -1336,7 +1450,6 @@ mod device_plugin_service_tests {
             list_and_watch_message_sender,
             server_ender_sender,
             device,
-            usage_update_message_sender: None,
         };
         (
             dps,
@@ -1467,6 +1580,7 @@ mod device_plugin_service_tests {
             .instance_map
             .read()
             .await
+            .instances
             .contains_key(&dps.instance_name));
     }
 
@@ -1509,6 +1623,7 @@ mod device_plugin_service_tests {
             .instance_map
             .read()
             .await
+            .instances
             .contains_key(&dps.instance_name));
     }
 
@@ -1541,6 +1656,7 @@ mod device_plugin_service_tests {
             .instance_map
             .read()
             .await
+            .instances
             .contains_key(&dps.instance_name));
     }
 
@@ -1612,6 +1728,7 @@ mod device_plugin_service_tests {
             .instance_map
             .read()
             .await
+            .instances
             .contains_key(&dps.instance_name));
     }
 
@@ -1631,10 +1748,12 @@ mod device_plugin_service_tests {
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let instance_name = device_plugin_service.instance_name.clone();
+        let device_plugin_service_template =
+            DevicePluginServiceTemplate::new(device_plugin_service);
         let device_plugin_builder = DevicePluginBuilder {};
         device_plugin_builder
             .serve(
-                device_plugin_service,
+                device_plugin_service_template,
                 socket_path.clone(),
                 device_plugin_service_receivers.server_ender_receiver,
             )
@@ -1687,7 +1806,13 @@ mod device_plugin_service_tests {
         }
 
         // Test shared all healthy
-        let mut devices: Vec<v1beta1::Device> = build_virtual_devices(&device_usage, true, "nodeA");
+        let (devices, _) = build_virtual_devices(
+            &device_usage,
+            true,
+            "nodeA",
+            false,
+            &HashSet::<String>::new(),
+        );
         for device in devices {
             assert_eq!(
                 expected_devices_nodea.get(&device.id).unwrap(),
@@ -1696,7 +1821,13 @@ mod device_plugin_service_tests {
         }
 
         // Test unshared all healthy
-        devices = build_virtual_devices(&device_usage, false, "nodeA");
+        let (devices, _) = build_virtual_devices(
+            &device_usage,
+            false,
+            "nodeA",
+            false,
+            &HashSet::<String>::new(),
+        );
         for device in devices {
             assert_eq!(
                 expected_devices_nodea.get(&device.id).unwrap(),
@@ -1705,7 +1836,13 @@ mod device_plugin_service_tests {
         }
 
         // Test shared some unhealthy (taken by another node)
-        devices = build_virtual_devices(&device_usage, true, "nodeB");
+        let (devices, _) = build_virtual_devices(
+            &device_usage,
+            true,
+            "nodeB",
+            false,
+            &HashSet::<String>::new(),
+        );
         for device in devices {
             assert_eq!(
                 expected_devices_nodeb.get(&device.id).unwrap(),
@@ -1714,8 +1851,15 @@ mod device_plugin_service_tests {
         }
 
         // Test unshared panic. A different node should never be listed under any device usage slots
-        let result =
-            std::panic::catch_unwind(|| build_virtual_devices(&device_usage, false, "nodeB"));
+        let result = std::panic::catch_unwind(|| {
+            build_virtual_devices(
+                &device_usage,
+                false,
+                "nodeB",
+                false,
+                &HashSet::<String>::new(),
+            )
+        });
         assert!(result.is_err());
     }
 
@@ -1732,6 +1876,7 @@ mod device_plugin_service_tests {
             &device_plugin_service.config_namespace,
             device_plugin_service.config.capacity,
             &device_plugin_service.node_name,
+            false,
             Arc::new(mock),
         )
         .await
@@ -1762,6 +1907,7 @@ mod device_plugin_service_tests {
             &device_plugin_service.config_namespace,
             device_plugin_service.config.capacity,
             &device_plugin_service.node_name,
+            false,
             Arc::new(mock),
         )
         .await
@@ -1794,6 +1940,7 @@ mod device_plugin_service_tests {
             &device_plugin_service.config_namespace,
             device_plugin_service.config.capacity,
             &device_plugin_service.node_name,
+            false,
             Arc::new(mock),
         )
         .await

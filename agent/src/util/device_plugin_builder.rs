@@ -4,11 +4,12 @@ use super::{
         KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
     },
     device_plugin_service::{
-        ConfigurationDevicePluginService, DevicePluginService, InstanceMap, ListAndWatchMessageKind,
+        ConfigurationDevicePluginService, DevicePluginService, DevicePluginServiceTemplate,
+        InstanceMap, ListAndWatchMessageKind,
     },
     v1beta1,
     v1beta1::{
-        device_plugin_server::DevicePlugin, device_plugin_server::DevicePluginServer,
+        device_plugin_server::{DevicePlugin, DevicePluginServer},
         registration_client, DevicePluginOptions,
     },
 };
@@ -32,22 +33,17 @@ use tokio::{
 use tonic::transport::{Endpoint, Server, Uri};
 use tower::service_fn;
 
-pub struct InstanceData {
-    pub name: String,
-    pub id: String,
-}
-
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait DevicePluginBuilderInterface: Send + Sync {
     async fn build_device_plugin(
         &self,
-        instance_info: InstanceData,
+        instance_name: String,
+        instance_id: String,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
-        usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 
     async fn build_configuration_device_plugin(
@@ -69,15 +65,13 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
     /// This creates a new DevicePluginService for an instance and registers it with the kubelet
     async fn build_device_plugin(
         &self,
-        instance_info: InstanceData,
+        instance_name: String,
+        instance_id: String,
         config: &Configuration,
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
-        usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let instance_name = instance_info.name;
-        let instance_id = instance_info.id;
         info!("build_device_plugin - entered for device {}", instance_name);
         let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
         let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
@@ -91,7 +85,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
         let (server_ender_sender, server_ender_receiver) =
             mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
-        let device_plugin_service = DevicePluginService {
+        let device_plugin_service = DevicePluginServiceTemplate::new(DevicePluginService {
             instance_name: instance_name.clone(),
             instance_id: instance_id.clone(),
             endpoint: device_endpoint.clone(),
@@ -105,8 +99,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             list_and_watch_message_sender,
             server_ender_sender: server_ender_sender.clone(),
             device,
-            usage_update_message_sender,
-        };
+        });
 
         self.serve(
             device_plugin_service,
@@ -154,19 +147,20 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
             broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
         let (server_ender_sender, server_ender_receiver) =
             mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
-        let device_plugin_service = ConfigurationDevicePluginService {
-            device_plugin_name: device_plugin_name.clone(),
-            endpoint: device_endpoint.clone(),
-            config: config.spec.clone(),
-            config_name: config.metadata.name.clone().unwrap(),
-            config_uid: config.metadata.uid.as_ref().unwrap().clone(),
-            config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
-            node_name: env::var("AGENT_NODE_NAME")?,
-            instance_map,
-            list_and_watch_message_sender: list_and_watch_message_sender.clone(),
-            server_ender_sender: server_ender_sender.clone(),
-            discovered_devices: Arc::new(RwLock::new(HashMap::new())),
-        };
+        let device_plugin_service =
+            DevicePluginServiceTemplate::new(ConfigurationDevicePluginService {
+                device_plugin_name: device_plugin_name.clone(),
+                endpoint: device_endpoint.clone(),
+                config: config.spec.clone(),
+                config_name: config.metadata.name.clone().unwrap(),
+                config_uid: config.metadata.uid.as_ref().unwrap().clone(),
+                config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
+                node_name: env::var("AGENT_NODE_NAME")?,
+                instance_map,
+                list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+                server_ender_sender: server_ender_sender.clone(),
+                discovered_devices: Arc::new(RwLock::new(HashMap::new())),
+            });
 
         self.serve(
             device_plugin_service,
