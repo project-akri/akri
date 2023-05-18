@@ -90,49 +90,6 @@ impl InstanceConfig {
 //pub type InstanceMap = Arc<RwLock<HashMap<String, InstanceInfo>>>;
 pub type InstanceMap = Arc<RwLock<InstanceConfig>>;
 
-/// Kubernetes Device-Plugin for an Instance.
-///
-/// `DevicePluginService` implements Kubernetes Device-Plugin v1beta1 API specification
-/// defined in a public proto file (imported here at agent/proto/pluginapi.proto).
-/// The code generated from pluginapi.proto can be found in `agent/src/util/v1beta1.rs`.
-/// Each `DevicePluginService` has an associated Instance and Configuration.
-/// Serves a unix domain socket, sending and receiving messages to/from kubelet.
-/// Kubelet is its client, calling each of its methods.
-#[derive(Clone)]
-pub struct DevicePluginService {
-    /// Instance CRD name
-    pub instance_name: String,
-    /// Instance hash id
-    pub instance_id: String,
-    /// Socket endpoint
-    pub endpoint: String,
-    /// Instance's Configuration
-    pub config: ConfigurationSpec,
-    /// Name of Instance's Configuration CRD
-    pub config_name: String,
-    /// UID of Instance's Configuration CRD
-    pub config_uid: String,
-    /// Namespace of Instance's Configuration CRD
-    pub config_namespace: String,
-    /// Instance is \[not\]shared
-    pub shared: bool,
-    /// Hostname of node this Device Plugin is running on
-    pub node_name: String,
-    /// Map of all Instances that have the same Configuration CRD as this one
-    pub instance_map: InstanceMap,
-    /// Receiver for list_and_watch continue or end messages
-    /// Note: since the tonic grpc generated list_and_watch definition takes in &self,
-    /// using broadcast sender instead of mpsc receiver
-    /// Can clone broadcast sender and subscribe receiver to use in spawned thread in list_and_watch
-    pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
-    /// Upon send, terminates function that acts as the shutdown signal for this service
-    pub server_ender_sender: mpsc::Sender<()>,
-    /// Device that the instance represents.
-    /// Contains information about environment variables and volumes that should be mounted
-    /// into requesting Pods.
-    pub device: Device,
-}
-
 #[tonic::async_trait]
 pub trait DevicePluginServiceInner: Send + Sync + 'static {
     async fn internal_list_and_watch(
@@ -229,6 +186,49 @@ impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.0)
     }
+}
+
+/// Kubernetes Device-Plugin for an Instance.
+///
+/// `DevicePluginService` implements Kubernetes Device-Plugin v1beta1 API specification
+/// defined in a public proto file (imported here at agent/proto/pluginapi.proto).
+/// The code generated from pluginapi.proto can be found in `agent/src/util/v1beta1.rs`.
+/// Each `DevicePluginService` has an associated Instance and Configuration.
+/// Serves a unix domain socket, sending and receiving messages to/from kubelet.
+/// Kubelet is its client, calling each of its methods.
+#[derive(Clone)]
+pub struct DevicePluginService {
+    /// Instance CRD name
+    pub instance_name: String,
+    /// Instance hash id
+    pub instance_id: String,
+    /// Socket endpoint
+    pub endpoint: String,
+    /// Instance's Configuration
+    pub config: ConfigurationSpec,
+    /// Name of Instance's Configuration CRD
+    pub config_name: String,
+    /// UID of Instance's Configuration CRD
+    pub config_uid: String,
+    /// Namespace of Instance's Configuration CRD
+    pub config_namespace: String,
+    /// Instance is \[not\]shared
+    pub shared: bool,
+    /// Hostname of node this Device Plugin is running on
+    pub node_name: String,
+    /// Map of all Instances that have the same Configuration CRD as this one
+    pub instance_map: InstanceMap,
+    /// Receiver for list_and_watch continue or end messages
+    /// Note: since the tonic grpc generated list_and_watch definition takes in &self,
+    /// using broadcast sender instead of mpsc receiver
+    /// Can clone broadcast sender and subscribe receiver to use in spawned thread in list_and_watch
+    pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
+    /// Upon send, terminates function that acts as the shutdown signal for this service
+    pub server_ender_sender: mpsc::Sender<()>,
+    /// Device that the instance represents.
+    /// Contains information about environment variables and volumes that should be mounted
+    /// into requesting Pods.
+    pub device: Device,
 }
 
 #[tonic::async_trait]
