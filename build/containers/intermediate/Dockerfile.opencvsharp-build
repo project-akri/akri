@@ -10,7 +10,7 @@
 #
 
 ARG PLATFORM=
-FROM mcr.microsoft.com/dotnet/aspnet:3.1-buster-slim${PLATFORM} AS base
+FROM mcr.microsoft.com/dotnet/aspnet:3.1-bullseye-slim${PLATFORM} AS base
 WORKDIR /app
 
 # Link the container to the Akri repository
@@ -120,7 +120,7 @@ RUN cd ${OPENCV_INSTALLATION_DIR} && \
 	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib
 
 # Don't force architecture here as it won't be working as expected
-FROM mcr.microsoft.com/dotnet/sdk:3.1-buster AS build-dotnet-env
+FROM mcr.microsoft.com/dotnet/sdk:3.1-bullseye AS build-dotnet-env
 
 ARG PLATFORM
 
@@ -144,7 +144,7 @@ RUN mkdir /opencvsharp/build && \
     cp /opencvsharp/src/OpenCvSharp.Extensions/bin/$([ -n "$PLATFORM" ] && echo "*")/Release/netstandard2.0/*/* .
 
 # Copy over OpenCvSharp binaries and OpenCvSharpExtern shared library
-FROM mcr.microsoft.com/dotnet/aspnet:3.1-buster-slim${PLATFORM}
+FROM mcr.microsoft.com/dotnet/aspnet:3.1-bullseye-slim${PLATFORM}
 WORKDIR /app
 COPY --from=build-dotnet-env /opencvsharp/build ./
 COPY --from=build-dotnet-env /libOpenCvSharpExtern.so /usr/lib
