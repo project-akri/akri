@@ -21,9 +21,6 @@ ENV OPENCV_VERSION="4.5.4"
 ENV OPENCV_INSTALLATION_DIR="/opt/opencv/"
 ENV OPENCV_SHARP_VERSION="4.5.3.20210821"
 
-RUN whoami
-RUN pwd
-
 # Install opencv dependencies
 RUN apt-get update && apt-get -y install --no-install-recommends \
     apt-transport-https \
