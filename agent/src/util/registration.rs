@@ -1,3 +1,4 @@
+use super::config_action::ConfigId;
 use super::constants::CLOSE_DISCOVERY_HANDLER_CONNECTION_CHANNEL_CAPACITY;
 #[cfg(any(test, feature = "agent-full"))]
 use super::constants::ENABLE_DEBUG_ECHO_LABEL;
@@ -51,7 +52,7 @@ pub struct DiscoveryDetails {
     pub shared: bool,
     /// Channel over which the Registration service tells a DiscoveryOperator client to close a connection with a
     /// `DiscoveryHandler`, if any. A broadcast channel is used so both the sending and receiving ends can be cloned.
-    pub close_discovery_handler_connection: broadcast::Sender<()>,
+    pub close_discovery_handler_connection: broadcast::Sender<Option<ConfigId>>,
 }
 
 /// This maps the endpoint string and endpoint type of a `RegisterDiscoveryHandlerRequest` into a
@@ -121,12 +122,13 @@ impl Registration for AgentRegistration {
             if let Some(dh_details) = register_request_map.get(&dh_endpoint) {
                 // Check if DH at that endpoint is already registered but changed request
                 if dh_details.shared != req.shared || dh_details.endpoint != dh_endpoint {
-                    // Stop current discovery with this DH if any. A receiver may not exist if
+                    // Stop all (using None argument) current discovery with this DH if any.
+                    // A receiver may not exist if:
                     // 1) no configuration has been applied that uses this DH or
                     // 2) a connection cannot be made with the DH's endpoint
                     dh_details
                         .close_discovery_handler_connection
-                        .send(())
+                        .send(None)
                         .unwrap_or_default();
                 } else {
                     // Already registered. Return early.
