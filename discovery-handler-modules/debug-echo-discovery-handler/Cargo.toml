@@ -1,6 +1,6 @@
 [package]
 name = "debug-echo-discovery-handler"
-version = "0.10.6"
+version = "0.10.7"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
@@ -10,6 +10,6 @@ rust-version = "1.68.1"
 [dependencies]
 akri-discovery-utils = { path = "../../discovery-utils" }
 akri-debug-echo = { path = "../../discovery-handlers/debug-echo" }
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 log = "0.4"
 tokio = { version = "1.0.1" }

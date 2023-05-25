@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.10.6"
+version = "0.10.7"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
@@ -13,7 +13,7 @@ either = '*'
 anyhow = "1.0.38"
 futures = "0.3.1"
 futures-util = "0.3"
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 hyper = { version = "0.14.2", package = "hyper" }
 kube = { version = "0.80.0",  features = ["derive"] }
 kube-runtime = "0.80.0"

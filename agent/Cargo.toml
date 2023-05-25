@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.10.6"
+version = "0.10.7"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
@@ -20,7 +20,7 @@ async-trait = "0.1.0"
 blake2 = "0.9.0"
 chrono = "0.4.10"
 cfg-if = "1.0.0"
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 futures = { version = "0.3.1", package = "futures" }
 futures-core = "0.3"
 futures-util = "0.3"
