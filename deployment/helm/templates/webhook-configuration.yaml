@@ -126,7 +126,9 @@ items:
             namespace: {{ .Release.Namespace }}
             port: 443
             path: "/validate"
-          caBundle: {{ required "please rerun helm install" .Values.webhookConfiguration.caBundle }}
+          {{- if .Values.webhookConfiguration.caBundle }}
+          caBundle: {{ .Values.webhookConfiguration.caBundle }}
+          {{- end }}
         rules:
           - operations:
               - "CREATE"

@@ -1,0 +1,181 @@
+{{- if and .Values.webhookConfiguration.enabled (not .Values.webhookConfiguration.caBundle) -}}
+{{- if .Values.rbac.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.webhookConfiguration.name }}-patch
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.webhookConfiguration.name }}-patch
+    namespace: {{ .Release.Namespace | quote }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Values.webhookConfiguration.name }}-patch
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.webhookConfiguration.name }}-patch
+    namespace: {{ .Release.Namespace | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+---
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-create
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+spec:
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+      name: {{ .Values.webhookConfiguration.name }}-create
+      labels:
+        {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: create
+          image: "{{ .Values.webhookConfiguration.certImage.reference }}:{{ .Values.webhookConfiguration.certImage.tag }}"
+          imagePullPolicy: {{ .Values.webhookConfiguration.certImage.pullPolicy }}
+          args:
+            - create
+            - --host={{ .Values.webhookConfiguration.name }},{{ .Values.webhookConfiguration.name }}.{{ .Release.Namespace }}.svc
+            - --namespace={{ .Release.Namespace }}
+            - --secret-name={{ .Values.webhookConfiguration.name }}
+            - --cert-name=tls.crt
+            - --key-name=tls.key
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      restartPolicy: OnFailure
+      {{- if .Values.rbac.enabled }}
+      serviceAccountName: {{ .Values.webhookConfiguration.name }}-patch
+      {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.webhookConfiguration.name }}-patch
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admission-webhook
+spec:
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+      name: {{ .Values.webhookConfiguration.name }}-patch
+      labels:
+        {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: patch
+          image: "{{ .Values.webhookConfiguration.certImage.reference }}:{{ .Values.webhookConfiguration.certImage.tag }}"
+          imagePullPolicy: {{ .Values.webhookConfiguration.certImage.pullPolicy }}
+          args:
+            - patch
+            - --webhook-name={{ .Values.webhookConfiguration.name }}
+            - --namespace={{ .Release.Namespace }}
+            - --patch-mutating=false
+            - --secret-name={{ .Values.webhookConfiguration.name }}
+            - --patch-failure-policy=Fail
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      restartPolicy: OnFailure
+
+      {{- if .Values.rbac.enabled }}
+      serviceAccountName: {{ .Values.webhookConfiguration.name }}-patch
+      {{- end }}
+{{- end -}}
