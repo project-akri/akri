@@ -307,7 +307,7 @@ async fn handle_config_delete(
         .send(())
         .is_ok()
     {
-        config_map
+        if config_map
             .write()
             .await
             .get_mut(&config_id)
@@ -315,11 +315,18 @@ async fn handle_config_delete(
             .finished_discovery_receiver
             .recv()
             .await
-            .unwrap();
-        trace!(
-            "handle_config_delete - for config {:?} received message that do_periodic_discovery ended",
-            config_id
-        );
+            .is_some()
+        {
+            trace!(
+                    "handle_config_delete - for config {:?} received message that do_periodic_discovery ended",
+                    config_id
+                );
+        } else {
+            trace!(
+                    "handle_config_delete - for config {:?} do_periodic_discovery sender has been dropped",
+                    config_id
+                );
+        }
     } else {
         trace!(
             "handle_config_delete - for config {:?} do_periodic_discovery receiver has been dropped",
@@ -498,6 +505,71 @@ mod config_action_tests {
         // Mimic do_periodic_discovery's response
         finished_discovery_sender.send(()).await.unwrap();
 
+        // Assert list_and_watch is signaled to end for every instance associated with a config
+        let mut tasks = Vec::new();
+        for mut receiver in list_and_watch_message_receivers {
+            tasks.push(tokio::spawn(async move {
+                assert_eq!(
+                    receiver.recv().await.unwrap(),
+                    device_plugin_service::ListAndWatchMessageKind::End
+                );
+            }));
+        }
+        futures::future::join_all(tasks).await;
+
+        // Assert that all instances have been removed from the instance map
+        assert_eq!(instance_map.read().await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_handle_config_delete_already_dropped() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let path_to_config = "../test/yaml/config-a.yaml";
+        let config_yaml = fs::read_to_string(path_to_config).expect("Unable to read file");
+        let config: Configuration = serde_yaml::from_str(&config_yaml).unwrap();
+        let config_id: ConfigId = (
+            config.metadata.namespace.clone().unwrap(),
+            config.metadata.name.clone().unwrap(),
+        );
+        let mut list_and_watch_message_receivers = Vec::new();
+        let mut visible_discovery_results = Vec::new();
+        let mut mock = MockKubeInterface::new();
+        let instance_map: InstanceMap = build_instance_map(
+            &config,
+            &mut visible_discovery_results,
+            &mut list_and_watch_message_receivers,
+            InstanceConnectivityStatus::Online,
+        )
+        .await;
+        let (stop_discovery_sender, mut stop_discovery_receiver) = broadcast::channel(2);
+        let (_, finished_discovery_receiver) = mpsc::channel(2);
+        let mut map: HashMap<ConfigId, ConfigInfo> = HashMap::new();
+        map.insert(
+            config_id.clone(),
+            ConfigInfo {
+                stop_discovery_sender,
+                instance_map: instance_map.clone(),
+                finished_discovery_receiver,
+                last_generation: config.metadata.generation,
+            },
+        );
+        let config_map: ConfigMap = Arc::new(RwLock::new(map));
+
+        mock.expect_delete_instance()
+            .times(2)
+            .returning(move |_, _| Ok(()));
+
+        let handle_delete = tokio::spawn(async move {
+            handle_config_delete(&mock, config_id.clone(), config_map.clone())
+                .await
+                .unwrap();
+            // Assert that config is removed from map after it has been deleted
+            assert!(!config_map.read().await.contains_key(&config_id));
+        });
+
+        // Assert that handle_config_delete tells start_discovery to end
+        assert!(stop_discovery_receiver.recv().await.is_ok());
+        handle_delete.await.unwrap();
         // Assert list_and_watch is signaled to end for every instance associated with a config
         let mut tasks = Vec::new();
         for mut receiver in list_and_watch_message_receivers {
