@@ -351,6 +351,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_apply_filters_include_ip_similar() {
+        let mock_uri = "device_uri";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip: "mock.ip",
+                mock_mac: "mock:mac",
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: Some(FilterList {
+                action: FilterType::Include,
+                items: vec!["mock.i".to_string()],
+            }),
+            mac_addresses: None,
+            scopes: None,
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
     async fn test_apply_filters_exclude_ip_nonexist() {
         let mock_uri = "device_uri";
         let mock_ip = "mock.ip";
@@ -407,6 +435,36 @@ mod tests {
         assert!(apply_filters(&onvif_config, mock_uri, &mock)
             .await
             .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_ip_similar() {
+        let mock_uri = "device_uri";
+        let mock_ip = "mock.ip";
+        let mock_mac = "mock:mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec!["mock.i".to_string()],
+            }),
+            mac_addresses: None,
+            scopes: None,
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+
+        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
     }
 
     #[tokio::test]
