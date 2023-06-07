@@ -95,7 +95,7 @@ jobs:
           })
 
   per-arch:
-    if: contains(github.event.pull_request.labels.*.name, 'build dependency containers')
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'build dependency containers')
     runs-on: ubuntu-latest
     strategy:
       matrix:
