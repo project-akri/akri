@@ -1,6 +1,7 @@
 apiVersion: v2
 name: akri
 description: A Helm chart for Akri
+icon: https://raw.githubusercontent.com/project-akri/akri-docs/main/art/icon/akri-icon-light.svg
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -15,9 +16,9 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.10.10
+version: 0.10.11
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
-appVersion: 0.10.10
+appVersion: 0.10.11
