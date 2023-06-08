@@ -347,11 +347,8 @@ async fn handle_config_delete(
     }
     delete_all_instances_in_map(kube_interface, instance_map.clone(), config_id).await?;
     if let Some(sender) = &instance_map.read().await.usage_update_message_sender {
-        sender
-            .send(device_plugin_service::ListAndWatchMessageKind::End)
-            .unwrap();
+        sender.send(device_plugin_service::ListAndWatchMessageKind::End)?;
     }
-
     Ok(())
 }
 
@@ -589,7 +586,7 @@ mod config_action_tests {
         futures::future::join_all(tasks).await;
 
         // Assert that all instances have been removed from the instance map
-        assert_eq!(instance_map.read().await.len(), 0);
+        assert_eq!(instance_map.read().await.instances.len(), 0);
     }
 
     // Tests that when a Configuration is updated,

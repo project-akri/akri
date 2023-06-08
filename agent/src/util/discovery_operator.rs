@@ -496,20 +496,19 @@ pub mod start_discovery {
             new_discovery_handler_sender,
             stop_all_discovery_sender,
             finished_all_discovery_sender,
-            Box::new(DevicePluginBuilder {}),
             kube_interface,
+            Box::new(DevicePluginBuilder {}),
         )
         .await
     }
 
-    // TODO: this should be a private fn, declare as pub fn so we can test it from the tests mod
     pub async fn internal_start_discovery(
         discovery_operator: DiscoveryOperator,
         new_discovery_handler_sender: broadcast::Sender<String>,
         stop_all_discovery_sender: broadcast::Sender<()>,
         finished_all_discovery_sender: &mut mpsc::Sender<()>,
-        device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
         kube_interface: Arc<dyn k8s::KubeInterface>,
+        device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
@@ -1136,8 +1135,8 @@ pub mod tests {
                 new_dh_sender.to_owned(),
                 thread_stop_all_discovery_sender,
                 &mut finished_discovery_sender,
-                mock_device_plugin_builder,
                 mock_kube_interface,
+                mock_device_plugin_builder,
             )
             .await
             .unwrap();

@@ -4,7 +4,7 @@ use super::{
         KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
     },
     device_plugin_service::{
-        ConfigurationDevicePluginService, DevicePluginService, DevicePluginServiceTemplate,
+        ConfigurationDevicePlugin, DevicePluginBehavior, DevicePluginService, InstanceDevicePlugin,
         InstanceMap, ListAndWatchMessageKind,
     },
     v1beta1,
@@ -23,11 +23,11 @@ use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
-use std::{collections::HashMap, convert::TryFrom, env, path::Path, sync::Arc, time::SystemTime};
+use std::{convert::TryFrom, env, path::Path, time::SystemTime};
 use tokio::{
     net::UnixListener,
     net::UnixStream,
-    sync::{broadcast, mpsc, RwLock},
+    sync::{broadcast, mpsc},
     task,
 };
 use tonic::transport::{Endpoint, Server, Uri};
@@ -73,51 +73,21 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!("build_device_plugin - entered for device {}", instance_name);
-        let capability_id: String = format!("{}/{}", AKRI_PREFIX, instance_name);
-        let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-        let device_endpoint: String = format!("{}-{}.sock", instance_name, unique_time.as_secs());
-        let socket_path: String = Path::new(DEVICE_PLUGIN_PATH)
-            .join(device_endpoint.clone())
-            .to_str()
-            .unwrap()
-            .to_string();
+        let device_plugin_behavior = DevicePluginBehavior::Instance(InstanceDevicePlugin {
+            instance_id: instance_id.clone(),
+            shared,
+            device: device.clone(),
+        });
         let (list_and_watch_message_sender, _) =
             broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
-        let (server_ender_sender, server_ender_receiver) =
-            mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
-        let device_plugin_service = DevicePluginServiceTemplate::new(DevicePluginService {
-            instance_name: instance_name.clone(),
-            instance_id: instance_id.clone(),
-            endpoint: device_endpoint.clone(),
-            config: config.spec.clone(),
-            config_name: config.metadata.name.clone().unwrap(),
-            config_uid: config.metadata.uid.as_ref().unwrap().clone(),
-            config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
-            shared,
-            node_name: env::var("AGENT_NODE_NAME")?,
-            instance_map,
-            list_and_watch_message_sender,
-            server_ender_sender: server_ender_sender.clone(),
-            device,
-        });
-
-        self.serve(
-            device_plugin_service,
-            socket_path.clone(),
-            server_ender_receiver,
-        )
-        .await?;
-
-        self.register(
-            &capability_id,
-            &device_endpoint,
+        self.build_device_plugin_service(
             &instance_name,
-            server_ender_sender,
-            KUBELET_SOCKET,
+            config,
+            instance_map,
+            device_plugin_behavior,
+            list_and_watch_message_sender,
         )
-        .await?;
-
-        Ok(())
+        .await
     }
 
     /// This creates a new ConfigurationDevicePluginService for a Configuration and registers it with the kubelet
@@ -131,60 +101,28 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         Box<dyn std::error::Error + Send + Sync + 'static>,
     > {
         info!(
-            "build_configuration_device_plugin - entered for device plugin {}",
+            "build_configuration_device_plugin - entered for device {}",
             device_plugin_name
         );
-        let capability_id: String = format!("{}/{}", AKRI_PREFIX, device_plugin_name);
-        let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-        let device_endpoint: String =
-            format!("{}-{}.sock", device_plugin_name, unique_time.as_secs());
-        let socket_path: String = Path::new(DEVICE_PLUGIN_PATH)
-            .join(device_endpoint.clone())
-            .to_str()
-            .unwrap()
-            .to_string();
+        let device_plugin_behavior =
+            DevicePluginBehavior::Configuration(ConfigurationDevicePlugin {});
         let (list_and_watch_message_sender, _) =
             broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
-        let (server_ender_sender, server_ender_receiver) =
-            mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
-        let device_plugin_service =
-            DevicePluginServiceTemplate::new(ConfigurationDevicePluginService {
-                device_plugin_name: device_plugin_name.clone(),
-                endpoint: device_endpoint.clone(),
-                config: config.spec.clone(),
-                config_name: config.metadata.name.clone().unwrap(),
-                config_uid: config.metadata.uid.as_ref().unwrap().clone(),
-                config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
-                node_name: env::var("AGENT_NODE_NAME")?,
-                instance_map,
-                list_and_watch_message_sender: list_and_watch_message_sender.clone(),
-                server_ender_sender: server_ender_sender.clone(),
-                discovered_devices: Arc::new(RwLock::new(HashMap::new())),
-            });
-
-        self.serve(
-            device_plugin_service,
-            socket_path.clone(),
-            server_ender_receiver,
-        )
-        .await?;
-
-        self.register(
-            &capability_id,
-            &device_endpoint,
+        self.build_device_plugin_service(
             &device_plugin_name,
-            server_ender_sender,
-            KUBELET_SOCKET,
+            config,
+            instance_map,
+            device_plugin_behavior,
+            list_and_watch_message_sender.clone(),
         )
         .await?;
-
         Ok(list_and_watch_message_sender)
     }
 }
 
 impl DevicePluginBuilder {
     // This starts a DevicePluginServer
-    pub async fn serve<T: DevicePlugin>(
+    async fn serve<T: DevicePlugin>(
         &self,
         device_plugin_service: T,
         socket_path: String,
@@ -283,6 +221,57 @@ impl DevicePluginBuilder {
             );
             server_ender_sender.send(()).await?;
         }
+        Ok(())
+    }
+
+    async fn build_device_plugin_service(
+        &self,
+        device_plugin_name: &str,
+        config: &Configuration,
+        instance_map: InstanceMap,
+        device_plugin_behavior: DevicePluginBehavior,
+        list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let capability_id: String = format!("{}/{}", AKRI_PREFIX, device_plugin_name);
+        let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+        let device_endpoint: String =
+            format!("{}-{}.sock", device_plugin_name, unique_time.as_secs());
+        let socket_path: String = Path::new(DEVICE_PLUGIN_PATH)
+            .join(device_endpoint.clone())
+            .to_str()
+            .unwrap()
+            .to_string();
+        let (server_ender_sender, server_ender_receiver) =
+            mpsc::channel(DEVICE_PLUGIN_SERVER_ENDER_CHANNEL_CAPACITY);
+        let device_plugin_service = DevicePluginService {
+            instance_name: device_plugin_name.to_string(),
+            config: config.spec.clone(),
+            config_name: config.metadata.name.clone().unwrap(),
+            config_uid: config.metadata.uid.as_ref().unwrap().clone(),
+            config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
+            node_name: env::var("AGENT_NODE_NAME")?,
+            instance_map,
+            list_and_watch_message_sender,
+            server_ender_sender: server_ender_sender.clone(),
+            device_plugin_behavior,
+        };
+
+        self.serve(
+            device_plugin_service,
+            socket_path.clone(),
+            server_ender_receiver,
+        )
+        .await?;
+
+        self.register(
+            &capability_id,
+            &device_endpoint,
+            device_plugin_name,
+            server_ender_sender,
+            KUBELET_SOCKET,
+        )
+        .await?;
+
         Ok(())
     }
 }
