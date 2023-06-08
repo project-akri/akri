@@ -833,10 +833,11 @@ udev:
 # Admission Controllers (Webhooks)
 webhookConfiguration:
   # enabled defines whether to apply the Akri Admission Controller (Webhook) for Akri Configurations
-  enabled: false
+  enabled: true
   # name of the webhook
   name: akri-webhook-configuration
-  # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate
+  # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate, if
+  # unset, will generate a self-signed certificate valid for 100y
   caBundle: null
   image:
     # repository is the Akri Webhook for Configurations image reference
@@ -847,6 +848,13 @@ webhookConfiguration:
     tag:
     # pullPolicy is the Akri Webhook pull policy
     pullPolicy: Always
+  certImage:
+    # reference is the webhook-certgen image reference
+    reference: registry.k8s.io/ingress-nginx/kube-webhook-certgen
+    # tag is the webhook-certgen image tag
+    tag: v1.1.1
+    # pullPolicy is the webhook-certgen pull policy
+    pullPolicy: IfNotPresent
   # onlyOnControlPlane dictates whether the Akri Webhook will only run on nodes with 
   # the label with (key, value) of ("node-role.kubernetes.io/master", "")
   onlyOnControlPlane: false

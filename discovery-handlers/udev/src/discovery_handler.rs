@@ -1,5 +1,5 @@
 use super::{
-    discovery_impl::{do_parse_and_find, get_device_relatives, DeviceProperties},
+    discovery_impl::{do_parse_and_find, insert_device_with_relatives, DeviceProperties},
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
@@ -12,7 +12,7 @@ use akri_discovery_utils::discovery::{
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
@@ -71,28 +71,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     }
                     break;
                 }
-                let mut devpaths: HashMap<String, Vec<DeviceProperties>> = HashMap::new();
+                let mut devpaths: HashMap<String, HashSet<DeviceProperties>> = HashMap::new();
                 udev_rules.iter().for_each(|rule| {
                     let enumerator = udev_enumerator::create_enumerator();
                     let paths = do_parse_and_find(enumerator, rule).unwrap();
                     for path in paths.into_iter() {
                         if !discovery_handler_config.group_recursive {
-                            devpaths.insert(path.0.clone(), vec![path]);
+                            devpaths.insert(path.0.clone(), HashSet::from([path]));
                         } else {
-                            match get_device_relatives(&path.0, devpaths.keys()) {
-                                (Some(parent), _) => devpaths.get_mut(&parent).unwrap().push(path),
-                                (None, children) => {
-                                    let id = path.0.clone();
-                                    let mut children_devices: Vec<DeviceProperties> = children
-                                        .into_iter()
-                                        .flat_map(|child| {
-                                            devpaths.remove(&child).unwrap().into_iter()
-                                        })
-                                        .collect();
-                                    children_devices.push(path);
-                                    let _ = devpaths.insert(id, children_devices);
-                                }
-                            }
+                            insert_device_with_relatives(&mut devpaths, path);
                         }
                     }
                 });

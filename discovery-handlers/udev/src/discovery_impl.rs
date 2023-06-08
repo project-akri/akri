@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::wrappers::{
     udev_device::{
         get_attribute_value, get_devnode, get_devpath, get_driver, get_parent, get_property_value,
@@ -514,7 +516,7 @@ fn device_or_parents_have_tag(device: &impl DeviceExt, value_regex: &Regex) -> b
 }
 
 /// Retrieve Parent or Children of a device using their sysfs path.
-pub fn get_device_relatives<'a>(
+fn get_device_relatives<'a>(
     device_path: &str,
     possible_relatives: impl Iterator<Item = &'a String>,
 ) -> (Option<String>, Vec<String>) {
@@ -529,6 +531,26 @@ pub fn get_device_relatives<'a>(
         }
     }
     (None, childrens)
+}
+
+pub fn insert_device_with_relatives(
+    devpaths: &mut std::collections::HashMap<String, HashSet<DeviceProperties>>,
+    path: DeviceProperties,
+) {
+    match get_device_relatives(&path.0, devpaths.keys()) {
+        (Some(parent), _) => {
+            let _ = devpaths.get_mut(&parent).unwrap().insert(path);
+        }
+        (None, children) => {
+            let id = path.0.clone();
+            let mut children_devices: HashSet<DeviceProperties> = children
+                .into_iter()
+                .flat_map(|child| devpaths.remove(&child).unwrap().into_iter())
+                .collect();
+            children_devices.insert(path);
+            let _ = devpaths.insert(id, children_devices);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1339,5 +1361,93 @@ mod discovery_tests {
             get_device_relatives(device_path, children_paths.iter().chain(parent_path.iter()));
         assert_eq!(parent_4, Some(parent_path[0].clone()));
         assert_eq!(childrens_4, empty);
+    }
+
+    #[test]
+    fn test_insert_device_with_relatives() {
+        let mut devpaths: HashMap<String, HashSet<DeviceProperties>> = HashMap::default();
+        let related_devices = vec![
+            ("/sys/device/parent".to_string(), None),
+            (
+                "/sys/device/parent/child1".to_string(),
+                Some("/dev/dev1".to_string()),
+            ),
+            (
+                "/sys/device/parent/child1/child2".to_string(),
+                Some("/dev/dev2".to_string()),
+            ),
+        ];
+        let unrelated_device = (
+            "/sys/device/other".to_string(),
+            Some("/dev/other".to_string()),
+        );
+
+        // Add first device
+        insert_device_with_relatives(&mut devpaths, related_devices[1].clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([(
+                related_devices[1].0.clone(),
+                HashSet::from([related_devices[1].clone()])
+            )])
+        );
+
+        // Add its child
+        insert_device_with_relatives(&mut devpaths, related_devices[2].clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([(
+                related_devices[1].0.clone(),
+                HashSet::from([related_devices[1].clone(), related_devices[2].clone()])
+            )])
+        );
+
+        // Add its parent
+        insert_device_with_relatives(&mut devpaths, related_devices[0].clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([(
+                related_devices[0].0.clone(),
+                HashSet::from([
+                    related_devices[1].clone(),
+                    related_devices[2].clone(),
+                    related_devices[0].clone()
+                ])
+            )])
+        );
+
+        // Add it again
+        insert_device_with_relatives(&mut devpaths, related_devices[0].clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([(
+                related_devices[0].0.clone(),
+                HashSet::from([
+                    related_devices[1].clone(),
+                    related_devices[2].clone(),
+                    related_devices[0].clone()
+                ])
+            )])
+        );
+
+        // Add a completely unrelated device
+        insert_device_with_relatives(&mut devpaths, unrelated_device.clone());
+        assert_eq!(
+            devpaths,
+            HashMap::from([
+                (
+                    related_devices[0].0.clone(),
+                    HashSet::from([
+                        related_devices[1].clone(),
+                        related_devices[2].clone(),
+                        related_devices[0].clone()
+                    ])
+                ),
+                (
+                    unrelated_device.0.clone(),
+                    HashSet::from([unrelated_device])
+                ),
+            ])
+        );
     }
 }

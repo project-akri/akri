@@ -198,37 +198,40 @@ async fn validate(rqst: web::Json<AdmissionReview>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let matches = clap::App::new("Akri Webhook")
+    let matches = clap::Command::new("Akri Webhook")
         .arg(
-            Arg::with_name("crt_file")
+            Arg::new("crt_file")
                 .long("tls-crt-file")
-                .takes_value(true)
                 .required(true)
                 .help("TLS certificate file"),
         )
         .arg(
-            Arg::with_name("key_file")
+            Arg::new("key_file")
                 .long("tls-key-file")
-                .takes_value(true)
                 .required(true)
                 .help("TLS private key file"),
         )
         .arg(
-            Arg::with_name("port")
+            Arg::new("port")
                 .long("port")
-                .takes_value(true)
+                .value_parser(clap::value_parser!(u16))
+                .default_value("8443")
                 .required(true)
                 .help("port"),
         )
         .get_matches();
 
-    let crt_file = matches.value_of("crt_file").expect("TLS certificate file");
-    let key_file = matches.value_of("key_file").expect("TLS private key file");
+    let crt_file = matches
+        .get_one::<String>("crt_file")
+        .map(|v| v.as_str())
+        .expect("TLS certificate file");
+    let key_file = matches
+        .get_one::<String>("key_file")
+        .map(|v| v.as_str())
+        .expect("TLS private key file");
 
     let port = matches
-        .value_of("port")
-        .unwrap_or("8443")
-        .parse::<u16>()
+        .get_one::<u16>("port")
         .expect("valid port [0-65535]");
 
     let endpoint = format!("0.0.0.0:{}", port);
