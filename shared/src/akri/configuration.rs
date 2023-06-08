@@ -240,17 +240,20 @@ mod crd_serialization_tests {
         assert_eq!(default_unique_devices(), deserialized.unique_devices);
 
         // unique_devices should be true if specified
-        let json = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":true}"#;
+        let json =
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":true}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert!(deserialized.unique_devices);
 
         // unique_devices should be false if specified
-        let json = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":false}"#;
+        let json =
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":false}"#;
         let deserialized: ConfigurationSpec = serde_json::from_str(json).unwrap();
         assert!(!deserialized.unique_devices);
 
         // deserialization should fail if unique_devices is not bool
-        let json = r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":0}"#;
+        let json =
+            r#"{"discoveryHandler":{"name":"random","discoveryDetails":""},"uniqueDevices":0}"#;
         if serde_json::from_str::<ConfigurationSpec>(json).is_ok() {
             panic!("value of uniqueDevices can only be bool");
         }
