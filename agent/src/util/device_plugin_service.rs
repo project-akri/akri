@@ -524,11 +524,6 @@ impl ConfigurationDevicePlugin {
         polling_interval_secs: u64,
     ) {
         let mut list_and_watch_message_receiver = dps.list_and_watch_message_sender.subscribe();
-        let build_virtual_devices_list = if dps.config.unique_devices {
-            build_instance_virtual_devices
-        } else {
-            build_usage_slot_virtual_devices
-        };
         let mut keep_looping = true;
         let mut prev_virtual_devices = HashMap::new();
         while keep_looping {
@@ -553,7 +548,8 @@ impl ConfigurationDevicePlugin {
                 discovered_devices.insert(instance_name, virtual_devices);
             }
             // construct virtual device info list
-            let current_virtual_devices = build_virtual_devices_list(discovered_devices.clone());
+            let current_virtual_devices =
+                build_virtual_devices_list_for_instance(discovered_devices.clone());
             // Only send the virtual devices if the list has changed
             if current_virtual_devices != prev_virtual_devices {
                 // find devices that no longer exist, set health state to UNHEALTHY for all devices that are gone
@@ -667,27 +663,15 @@ impl ConfigurationDevicePlugin {
                     &dps.instance_name,
                     device_id
                 );
-                let allocation_info = if dps.config.unique_devices {
-                    get_instance_allocation_info(
-                        &device_id,
-                        &dps.config_namespace,
-                        dps.config.capacity,
-                        &allocated_instances,
-                        dps.instance_map.clone(),
-                        kube_interface.clone(),
-                    )
-                    .await
-                } else {
-                    get_usage_slot_allocation_info(
-                        &device_id,
-                        &dps.config_namespace,
-                        dps.config.capacity,
-                        &allocated_instances,
-                        dps.instance_map.clone(),
-                        kube_interface.clone(),
-                    )
-                    .await
-                };
+                let allocation_info = get_instance_allocation_info(
+                    &device_id,
+                    &dps.config_namespace,
+                    dps.config.capacity,
+                    &allocated_instances,
+                    dps.instance_map.clone(),
+                    kube_interface.clone(),
+                )
+                .await;
                 let (instance_name, device_usage_id) = match allocation_info {
                     Ok(result) => result,
                     Err(e) => {
@@ -818,40 +802,7 @@ impl ConfigurationDevicePlugin {
     }
 }
 
-fn build_usage_slot_virtual_devices(
-    device_map: HashMap<String, Vec<v1beta1::Device>>,
-) -> HashMap<String, String> {
-    let mut usage_slot_devices = HashMap::new();
-    device_map.values().for_each(|devices| {
-        usage_slot_devices.extend(
-            devices
-                .iter()
-                .map(|device| (device.id.clone(), device.health.clone())),
-        );
-    });
-    usage_slot_devices
-}
-
-// for per-usage slot virtual device, the device id is the device usage id
-// to get the instance name, trim the suffix -xxx from the device usage id
-async fn get_usage_slot_allocation_info(
-    device_id: &str,
-    _config_namespace: &str,
-    _capacity: i32,
-    _allocated_instances: &HashMap<String, HashSet<String>>,
-    _instance_map: InstanceMap,
-    _kube_interface: Arc<impl KubeInterface>,
-) -> Result<(String, String), Status> {
-    let instance_name: String = match device_id.rfind('-') {
-        Some(pos) => device_id.chars().take(pos).collect(),
-        None => {
-            return Err(Status::new(Code::Unknown, format!("invalid {}", device_id)));
-        }
-    };
-    Ok((instance_name, device_id.to_string()))
-}
-
-fn build_instance_virtual_devices(
+fn build_virtual_devices_list_for_instance(
     device_map: HashMap<String, Vec<v1beta1::Device>>,
 ) -> HashMap<String, String> {
     device_map
@@ -1455,9 +1406,7 @@ mod device_plugin_service_tests {
         akri::instance::{Instance, InstanceSpec},
         k8s::MockKubeInterface,
     };
-    use regex::Regex;
     use std::{
-        convert::TryInto,
         fs,
         io::{Error, ErrorKind},
     };
@@ -2568,53 +2517,22 @@ mod device_plugin_service_tests {
     fn create_configuration_device_plugin_service(
         connectivity_status: InstanceConnectivityStatus,
         add_to_instance_map: bool,
-        unique_devices: bool,
     ) -> (DevicePluginService, DevicePluginServiceReceivers) {
-        let (mut dps, receivers) = create_device_plugin_service(
+        let (dps, receivers) = create_device_plugin_service(
             DevicePluginKind::Configuration,
             connectivity_status,
             add_to_instance_map,
         );
-        dps.config.unique_devices = unique_devices;
 
         (dps, receivers)
     }
 
     // configuration resource from instance, no instance available, should receive nothing from the response stream
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_list_and_watch_no_instance() {
+    async fn test_cdps_internal_list_and_watch_no_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                false,
-                true,
-            );
-        let list_and_watch_message_sender =
-            device_plugin_service.list_and_watch_message_sender.clone();
-        let mock = MockKubeInterface::new();
-
-        let stream = device_plugin_service
-            .internal_list_and_watch(Arc::new(mock))
-            .await
-            .unwrap()
-            .into_inner();
-        list_and_watch_message_sender
-            .send(ListAndWatchMessageKind::End)
-            .unwrap();
-        assert!(stream.into_inner().try_recv().is_err());
-    }
-
-    // configuration resource from device usage, no instance available, should receive nothing from the response stream
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_list_and_watch_no_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, _device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                false,
-                false,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, false);
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let mock = MockKubeInterface::new();
@@ -2632,14 +2550,10 @@ mod device_plugin_service_tests {
 
     // configuration resource from instance, instance available, should return device id == instance_name
     #[tokio::test]
-    async fn test_cdps_from_instance_list_and_watch_with_instance() {
+    async fn test_cdps_list_and_watch_with_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                true,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
         let mut mock = MockKubeInterface::new();
@@ -2677,69 +2591,8 @@ mod device_plugin_service_tests {
         assert_eq!(list_and_watch_response.devices[0].id, instance_name);
     }
 
-    // configuration resource from device usage, instance available, should return device id == device usage slot
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_list_and_watch_with_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, _device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                false,
-            );
-        let list_and_watch_message_sender =
-            device_plugin_service.list_and_watch_message_sender.clone();
-        let mut mock = MockKubeInterface::new();
-        configure_find_instance(
-            &mut mock,
-            "../test/json/local-instance.json",
-            device_plugin_service.instance_name.clone(),
-            device_plugin_service.config_namespace.clone(),
-            String::new(),
-            NodeName::OtherNode,
-            1,
-        );
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let expected_device_count: usize =
-            device_plugin_service.config.capacity.try_into().unwrap();
-
-        let stream = device_plugin_service
-            .internal_list_and_watch(Arc::new(mock))
-            .await
-            .unwrap()
-            .into_inner();
-        list_and_watch_message_sender
-            .send(ListAndWatchMessageKind::End)
-            .unwrap();
-
-        let result = stream.into_inner().recv().await.unwrap();
-        let list_and_watch_response = result.unwrap();
-        assert_eq!(list_and_watch_response.devices.len(), expected_device_count);
-        let device_usage_id_pattern = format!("{}-[0-9]{{1,}}$", instance_name);
-        let regex_pattern = Regex::new(&device_usage_id_pattern).unwrap();
-        list_and_watch_response
-            .devices
-            .into_iter()
-            .for_each(|device| {
-                assert!(
-                    regex_pattern.is_match(&device.id),
-                    "invalid device id {}",
-                    device.id
-                )
-            });
-    }
-
     fn setup_configuration_internal_allocate_tests(
         mock: &mut MockKubeInterface,
-        unique_devices: bool,
         config_namespace: &str,
         instance_name: &str,
         formerly_allocated_node: String,
@@ -2747,11 +2600,7 @@ mod device_plugin_service_tests {
         expected_calls: usize,
     ) -> Request<AllocateRequest> {
         let device_usage_id_slot = format!("{}-0", instance_name);
-        let request_device_id = if unique_devices {
-            instance_name.to_string()
-        } else {
-            device_usage_id_slot.clone()
-        };
+        let request_device_id = instance_name.to_string();
         configure_find_instance(
             mock,
             "../test/json/local-instance.json",
@@ -2780,15 +2629,10 @@ mod device_plugin_service_tests {
 
     // Test that environment variables set in a Configuration will be set in brokers
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_allocate_env_vars() {
+    async fn test_cdps_internal_allocate_env_vars() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let uinque_devices = true;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                uinque_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
             .instance_map
@@ -2802,7 +2646,6 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            uinque_devices,
             &device_plugin_service.config_namespace,
             &instance_name,
             "".to_string(),
@@ -2852,91 +2695,13 @@ mod device_plugin_service_tests {
         );
     }
 
-    // Test that environment variables set in a Configuration will be set in brokers
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_allocate_env_vars() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let node_name = device_plugin_service.node_name.clone();
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            &instance_name,
-            "".to_string(),
-            Some(node_name),
-            1,
-        );
-        let broker_envs = device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .unwrap()
-            .into_inner()
-            .container_responses[0]
-            .envs
-            .clone();
-        assert_eq!(broker_envs.get("RESOLUTION_WIDTH").unwrap(), "800");
-        assert_eq!(broker_envs.get("RESOLUTION_HEIGHT").unwrap(), "600");
-        // Check that Device properties are set as env vars by checking for
-        // property of device created in `create_configuration_device_plugin_service`
-        assert_eq!(
-            broker_envs.get("DEVICE_LOCATION_INFO_B494B6").unwrap(),
-            "endpoint"
-        );
-        assert!(device_plugin_service_receivers
-            .configuration_list_and_watch_message_receiver
-            .try_recv()
-            .is_err());
-        assert_eq!(
-            device_plugin_service_receivers
-                .instance_list_and_watch_message_receiver
-                .recv()
-                .await
-                .unwrap(),
-            ListAndWatchMessageKind::Continue
-        );
-        let expected_usage_slots: HashSet<String> =
-            vec![format!("{}-0", instance_name)].into_iter().collect();
-        assert_eq!(
-            expected_usage_slots,
-            device_plugin_service
-                .instance_map
-                .read()
-                .await
-                .instances
-                .get(&instance_name)
-                .unwrap()
-                .configuration_usage_slots
-        );
-    }
     // Test when device_usage[id] == ""
     // internal_allocate should set device_usage[id] = m.nodeName, return
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_allocate_success() {
+    async fn test_cdps_internal_allocate_success() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = true;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
             .instance_map
@@ -2950,7 +2715,6 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            unique_devices,
             &device_plugin_service.config_namespace,
             &instance_name,
             "".to_string(),
@@ -2988,83 +2752,15 @@ mod device_plugin_service_tests {
         );
     }
 
-    // Test when device_usage[id] == ""
-    // internal_allocate should set device_usage[id] = m.nodeName, return
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_allocate_success() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let node_name = device_plugin_service.node_name.clone();
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            &instance_name,
-            "".to_string(),
-            Some(node_name),
-            1,
-        );
-        assert!(device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .is_ok());
-        assert!(device_plugin_service_receivers
-            .configuration_list_and_watch_message_receiver
-            .try_recv()
-            .is_err());
-        assert_eq!(
-            device_plugin_service_receivers
-                .instance_list_and_watch_message_receiver
-                .recv()
-                .await
-                .unwrap(),
-            ListAndWatchMessageKind::Continue
-        );
-        let expected_usage_slots: HashSet<String> =
-            vec![format!("{}-0", instance_name)].into_iter().collect();
-        assert_eq!(
-            expected_usage_slots,
-            device_plugin_service
-                .instance_map
-                .read()
-                .await
-                .instances
-                .get(&instance_name)
-                .unwrap()
-                .configuration_usage_slots
-        );
-    }
-
     // Test when device_usage[id] == self.nodeName
     // Expected behavior: internal_allocate should return success, this can happen when
     // a device is allocated for a work load, after the work load finishs and exits
     // the device plugin framework will re-allocate the device for other work loads to use
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_reallocate() {
+    async fn test_cdps_internal_reallocate() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = true;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
             .instance_map
@@ -3089,62 +2785,6 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            &instance_name,
-            node_name,
-            None,
-            1,
-        );
-        assert!(device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .is_ok());
-        assert!(device_plugin_service_receivers
-            .configuration_list_and_watch_message_receiver
-            .try_recv()
-            .is_err());
-    }
-
-    // Test when device_usage[id] == self.nodeName
-    // Expected behavior: internal_allocate should return success, this can happen when
-    // a device is allocated for a work load, after the work load finishs and exits
-    // the device plugin framework will re-allocate the device for other work loads to use
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_reallocate() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let node_name = device_plugin_service.node_name.clone();
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let expected_usage_slots: HashSet<String> =
-            vec![format!("{}-0", instance_name)].into_iter().collect();
-        device_plugin_service
-            .instance_map
-            .write()
-            .await
-            .instances
-            .entry(instance_name.to_string())
-            .and_modify(|instance_info| {
-                instance_info.configuration_usage_slots = expected_usage_slots;
-            });
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
             &device_plugin_service.config_namespace,
             &instance_name,
             node_name,
@@ -3164,15 +2804,10 @@ mod device_plugin_service_tests {
     // Tests when device_usage[id] == <another node>
     // Expected behavior: should invoke list_and_watch, and return error
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_allocate_taken_by_other_node() {
+    async fn test_cdps_internal_allocate_taken_by_other_node() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = true;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service
             .instance_map
             .read()
@@ -3185,7 +2820,6 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            unique_devices,
             &device_plugin_service.config_namespace,
             &instance_name,
             "other".to_string(),
@@ -3209,60 +2843,10 @@ mod device_plugin_service_tests {
     // Tests when device_usage[id] == <another node>
     // Expected behavior: should invoke list_and_watch, and return error
     #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_allocate_taken_by_other_node() {
+    async fn test_cdps_internal_allocate_taken_by_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            &instance_name,
-            "other".to_string(),
-            None,
-            1,
-        );
-        assert!(device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .is_err());
-        assert_eq!(
-            device_plugin_service_receivers
-                .configuration_list_and_watch_message_receiver
-                .recv()
-                .await
-                .unwrap(),
-            ListAndWatchMessageKind::Continue
-        );
-    }
-
-    // Tests when device_usage[id] == <another node>
-    // Expected behavior: should invoke list_and_watch, and return error
-    #[tokio::test]
-    async fn test_cdps_from_instance_internal_allocate_taken_by_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = true;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
             .instance_map
@@ -3276,7 +2860,6 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            unique_devices,
             &device_plugin_service.config_namespace,
             &instance_name,
             node_name,
@@ -3297,107 +2880,16 @@ mod device_plugin_service_tests {
         );
     }
 
-    // Tests when device_usage[id] == <another node>
-    // Expected behavior: should invoke list_and_watch, and return error
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_allocate_taken_by_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let node_name = device_plugin_service.node_name.clone();
-        let instance_name = device_plugin_service
-            .instance_map
-            .read()
-            .await
-            .instances
-            .keys()
-            .next()
-            .unwrap()
-            .to_string();
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            &instance_name,
-            node_name,
-            None,
-            1,
-        );
-        assert!(device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .is_err());
-        assert_eq!(
-            device_plugin_service_receivers
-                .configuration_list_and_watch_message_receiver
-                .recv()
-                .await
-                .unwrap(),
-            ListAndWatchMessageKind::Continue
-        );
-    }
     // Tests when instance does not have the requested device usage id
     // Expected behavior: should invoke list_and_watch, and return error
     #[tokio::test]
-    async fn test_cdps_from_instance_internal_allocate_no_id() {
+    async fn test_cdps_internal_allocate_no_id() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = true;
         let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
+            create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let mut mock = MockKubeInterface::new();
         let request = setup_configuration_internal_allocate_tests(
             &mut mock,
-            unique_devices,
-            &device_plugin_service.config_namespace,
-            "NotExistingInstance",
-            "".to_string(),
-            None,
-            0,
-        );
-        assert!(device_plugin_service
-            .internal_allocate(request, Arc::new(mock))
-            .await
-            .is_err());
-        assert_eq!(
-            device_plugin_service_receivers
-                .configuration_list_and_watch_message_receiver
-                .recv()
-                .await
-                .unwrap(),
-            ListAndWatchMessageKind::Continue
-        );
-        assert!(device_plugin_service_receivers
-            .instance_list_and_watch_message_receiver
-            .try_recv()
-            .is_err());
-    }
-
-    // Tests when instance does not have the requested device usage id
-    // Expected behavior: should invoke list_and_watch, and return error
-    #[tokio::test]
-    async fn test_cdps_from_device_usage_internal_allocate_no_id() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let unique_devices = false;
-        let (device_plugin_service, mut device_plugin_service_receivers) =
-            create_configuration_device_plugin_service(
-                InstanceConnectivityStatus::Online,
-                true,
-                unique_devices,
-            );
-        let mut mock = MockKubeInterface::new();
-        let request = setup_configuration_internal_allocate_tests(
-            &mut mock,
-            unique_devices,
             &device_plugin_service.config_namespace,
             "NotExistingInstance",
             "".to_string(),

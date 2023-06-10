@@ -24,8 +24,6 @@ spec:
                       type: string
                 capacity:
                   type: integer
-                uniqueDevices:
-                  type: boolean
                 brokerSpec: # {{BrokerSpec}}
                   type: object
                   properties: 
