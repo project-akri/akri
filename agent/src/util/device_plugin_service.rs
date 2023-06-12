@@ -75,8 +75,6 @@ pub struct DevicePluginService {
     pub instance_name: String,
     /// Instance hash id
     pub instance_id: String,
-    /// Socket endpoint
-    pub endpoint: String,
     /// Instance's Configuration
     pub config: ConfigurationSpec,
     /// Name of Instance's Configuration CRD
@@ -135,6 +133,43 @@ impl DevicePlugin for DevicePluginService {
             "list_and_watch - kubelet called list_and_watch for instance {}",
             self.instance_name
         );
+        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
+        self.internal_list_and_watch(kube_interface).await
+    }
+
+    /// Kubelet calls allocate during pod creation.
+    /// This means kubelet is trying to reserve a usage slot (virtual Device) of the Instance for this node.
+    /// Returns error if cannot reserve that slot.
+    async fn allocate(
+        &self,
+        requests: Request<AllocateRequest>,
+    ) -> Result<Response<AllocateResponse>, Status> {
+        info!(
+            "allocate - kubelet called allocate for Instance {}",
+            self.instance_name
+        );
+        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
+        self.internal_allocate(requests, kube_interface).await
+    }
+
+    /// Should never be called, as indicated by DevicePluginService during registration.
+    async fn pre_start_container(
+        &self,
+        _request: Request<PreStartContainerRequest>,
+    ) -> Result<Response<PreStartContainerResponse>, Status> {
+        error!(
+            "pre_start_container - kubelet called pre_start_container for Instance {}",
+            self.instance_name
+        );
+        Ok(Response::new(v1beta1::PreStartContainerResponse {}))
+    }
+}
+
+impl DevicePluginService {
+    async fn internal_list_and_watch<'a>(
+        &'a self,
+        kube_interface: Arc<impl KubeInterface + 'a + 'static>,
+    ) -> Result<Response<<DevicePluginService as DevicePlugin>::ListAndWatchStream>, Status> {
         let dps = Arc::new(self.clone());
         let mut list_and_watch_message_receiver = self.list_and_watch_message_sender.subscribe();
 
@@ -144,21 +179,15 @@ impl DevicePlugin for DevicePluginService {
         // Spawn thread so can send kubelet the receiving end of the channel to listen on
         tokio::spawn(async move {
             let mut keep_looping = true;
-            #[cfg(not(test))]
-            let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
-
             // Try to create an Instance CRD for this plugin and add it to the global InstanceMap else shutdown
-            #[cfg(not(test))]
-            {
-                if let Err(e) = try_create_instance(dps.clone(), kube_interface.clone()).await {
-                    error!(
+            if let Err(e) = try_create_instance(dps.clone(), kube_interface.clone()).await {
+                error!(
                         "list_and_watch - ending service because could not create instance {} with error {}",
                         dps.instance_name,
                         e
                     );
-                    dps.server_ender_sender.clone().send(()).await.unwrap();
-                    keep_looping = false;
-                }
+                dps.server_ender_sender.clone().send(()).await.unwrap();
+                keep_looping = false;
             }
 
             let mut prev_virtual_devices: Vec<v1beta1::Device> = Vec::new();
@@ -168,19 +197,10 @@ impl DevicePlugin for DevicePluginService {
                     dps.instance_name
                 );
 
-                let virtual_devices: Vec<v1beta1::Device>;
-                #[cfg(test)]
-                {
-                    virtual_devices =
-                        build_unhealthy_virtual_devices(dps.config.capacity, &dps.instance_name);
-                }
-                #[cfg(not(test))]
-                {
-                    virtual_devices =
-                        build_list_and_watch_response(dps.clone(), kube_interface.clone())
-                            .await
-                            .unwrap();
-                }
+                let virtual_devices =
+                    build_list_and_watch_response(dps.clone(), kube_interface.clone())
+                        .await
+                        .unwrap();
                 // Only send the virtual devices if the list has changed
                 if !(prev_virtual_devices
                     .iter()
@@ -244,35 +264,6 @@ impl DevicePlugin for DevicePluginService {
         Ok(Response::new(ReceiverStream::new(kubelet_update_receiver)))
     }
 
-    /// Kubelet calls allocate during pod creation.
-    /// This means kubelet is trying to reserve a usage slot (virtual Device) of the Instance for this node.
-    /// Returns error if cannot reserve that slot.
-    async fn allocate(
-        &self,
-        requests: Request<AllocateRequest>,
-    ) -> Result<Response<AllocateResponse>, Status> {
-        info!(
-            "allocate - kubelet called allocate for Instance {}",
-            self.instance_name
-        );
-        let kube_interface = Arc::new(k8s::KubeImpl::new().await.unwrap());
-        self.internal_allocate(requests, kube_interface).await
-    }
-
-    /// Should never be called, as indicated by DevicePluginService during registration.
-    async fn pre_start_container(
-        &self,
-        _request: Request<PreStartContainerRequest>,
-    ) -> Result<Response<PreStartContainerResponse>, Status> {
-        error!(
-            "pre_start_container - kubelet called pre_start_container for Instance {}",
-            self.instance_name
-        );
-        Ok(Response::new(v1beta1::PreStartContainerResponse {}))
-    }
-}
-
-impl DevicePluginService {
     /// Called when kubelet is trying to reserve for this node a usage slot (or virtual device) of the Instance.
     /// Tries to update Instance CRD to reserve the requested slot. If cannot reserve that slot, forces `list_and_watch` to continue
     /// (sending kubelet the latest list of slots) and returns error, so kubelet will not schedule the pod to this node.
@@ -384,7 +375,7 @@ fn slot_available_to_reserve(
         } else if allocated_node == node_name {
             Ok(false)
         } else {
-            trace!("internal_allocate - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
+            trace!("slot_available_to_reserve - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
             Err(Status::new(
                 Code::Unknown,
                 "Requested device already in use",
@@ -393,7 +384,7 @@ fn slot_available_to_reserve(
     } else {
         // No corresponding id found
         trace!(
-            "internal_allocate - could not find {} id in device_usage",
+            "slot_available_to_reserve - could not find {} id in device_usage",
             device_usage_id
         );
         Err(Status::new(
@@ -423,7 +414,7 @@ async fn try_update_instance_device_usage(
             Ok(instance_object) => instance = instance_object.spec,
             Err(_) => {
                 trace!(
-                    "internal_allocate - could not find Instance {}",
+                    "try_update_instance_device_usage - could not find Instance {}",
                     instance_name
                 );
                 return Err(Status::new(
@@ -444,7 +435,7 @@ async fn try_update_instance_device_usage(
                 .await
             {
                 if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                    trace!("internal_allocate - update_instance returned error [{}] after max tries ... returning error", e);
+                    trace!("try_update_instance_device_usage - update_instance returned error [{}] after max tries ... returning error", e);
                     return Err(Status::new(Code::Unknown, "Could not update Instance"));
                 }
                 random_delay().await;
@@ -781,10 +772,6 @@ pub fn get_all_broker_properties(
 
 #[cfg(test)]
 mod device_plugin_service_tests {
-    use super::super::{
-        device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
-        v1beta1::device_plugin_client::DevicePluginClient,
-    };
     use super::*;
     use akri_shared::akri::configuration::Configuration;
     use akri_shared::{
@@ -792,15 +779,9 @@ mod device_plugin_service_tests {
         k8s::MockKubeInterface,
     };
     use std::{
-        convert::TryFrom,
         fs,
         io::{Error, ErrorKind},
-        time::SystemTime,
     };
-    use tempfile::Builder;
-    use tokio::net::UnixStream;
-    use tonic::transport::{Endpoint, Uri};
-    use tower::service_fn;
 
     enum NodeName {
         ThisNode,
@@ -810,7 +791,6 @@ mod device_plugin_service_tests {
     // Need to be kept alive during tests
     struct DevicePluginServiceReceivers {
         list_and_watch_message_receiver: broadcast::Receiver<ListAndWatchMessageKind>,
-        server_ender_receiver: mpsc::Receiver<()>,
     }
 
     fn configure_find_instance(
@@ -854,37 +834,31 @@ mod device_plugin_service_tests {
         let kube_akri_config: Configuration = serde_yaml::from_str(&kube_akri_config_yaml).unwrap();
         let config_name = kube_akri_config.metadata.name.as_ref().unwrap();
         let device_instance_name = get_device_instance_name(instance_id, config_name);
-        let unique_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
-        let device_endpoint: String = format!(
-            "{}-{}.sock",
-            device_instance_name,
-            unique_time.unwrap_or_default().as_secs()
-        );
         let (list_and_watch_message_sender, list_and_watch_message_receiver) =
             broadcast::channel(4);
-        let (server_ender_sender, server_ender_receiver) = mpsc::channel(1);
+        let (server_ender_sender, _) = mpsc::channel(1);
 
-        let mut map = HashMap::new();
+        let device = Device {
+            id: "n/a".to_string(),
+            properties: HashMap::from([(
+                "DEVICE_LOCATION_INFO".to_string(),
+                "endpoint".to_string(),
+            )]),
+            mounts: Vec::new(),
+            device_specs: Vec::new(),
+        };
+        let mut instances = HashMap::new();
         if add_to_instance_map {
             let instance_info: InstanceInfo = InstanceInfo {
                 list_and_watch_message_sender: list_and_watch_message_sender.clone(),
                 connectivity_status,
             };
-            map.insert(device_instance_name.clone(), instance_info);
+            instances.insert(device_instance_name.clone(), instance_info);
         }
-        let instance_map: InstanceMap = Arc::new(RwLock::new(map));
-        let mut properties = HashMap::new();
-        properties.insert("DEVICE_LOCATION_INFO".to_string(), "endpoint".to_string());
-        let device = Device {
-            id: "n/a".to_string(),
-            properties,
-            mounts: Vec::new(),
-            device_specs: Vec::new(),
-        };
+        let instance_map: InstanceMap = Arc::new(RwLock::new(instances));
         let dps = DevicePluginService {
             instance_name: device_instance_name,
-            instance_id: instance_id.to_uppercase(),
-            endpoint: device_endpoint,
+            instance_id: instance_id.to_string(),
             config: kube_akri_config.spec.clone(),
             config_name: config_name.to_string(),
             config_uid: kube_akri_config.metadata.uid.unwrap(),
@@ -900,7 +874,6 @@ mod device_plugin_service_tests {
             dps,
             DevicePluginServiceReceivers {
                 list_and_watch_message_receiver,
-                server_ender_receiver,
             },
         )
     }
@@ -1175,49 +1148,52 @@ mod device_plugin_service_tests {
 
     // Tests list_and_watch by creating DevicePluginService and DevicePlugin client (emulating kubelet)
     #[tokio::test]
-    async fn test_list_and_watch() {
+    async fn test_internal_list_and_watch() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, device_plugin_service_receivers) =
+        let (device_plugin_service, _device_plugin_service_receivers) =
             create_device_plugin_service(InstanceConnectivityStatus::Online, false);
-        let device_plugin_temp_dir = Builder::new().prefix("device-plugins-").tempdir().unwrap();
-        let socket_path: String = device_plugin_temp_dir
-            .path()
-            .join(device_plugin_service.endpoint.clone())
-            .to_str()
-            .unwrap()
-            .to_string();
         let list_and_watch_message_sender =
             device_plugin_service.list_and_watch_message_sender.clone();
+        let mut mock = MockKubeInterface::new();
+        configure_find_configuration(
+            &mut mock,
+            device_plugin_service.config_name.clone(),
+            device_plugin_service.config_namespace.clone(),
+        );
         let instance_name = device_plugin_service.instance_name.clone();
-        let device_plugin_builder = DevicePluginBuilder {};
-        device_plugin_builder
-            .serve(
-                device_plugin_service,
-                socket_path.clone(),
-                device_plugin_service_receivers.server_ender_receiver,
-            )
-            .await
-            .unwrap();
-        let channel = Endpoint::try_from("http://[::]:50051")
-            .unwrap()
-            .connect_with_connector(service_fn(move |_: Uri| {
-                UnixStream::connect(socket_path.clone())
-            }))
-            .await
-            .unwrap();
-        let mut client = DevicePluginClient::new(channel);
-        let mut stream = client
-            .list_and_watch(Request::new(Empty {}))
+        let config_name = device_plugin_service.config_name.clone();
+        let config_uid = device_plugin_service.config_uid.clone();
+        let config_namespace = device_plugin_service.config_namespace.clone();
+        mock.expect_find_instance()
+            .times(2)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == config_namespace && name == instance_name
+            })
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
+        let instance_name = device_plugin_service.instance_name.clone();
+        let config_namespace = device_plugin_service.config_namespace.clone();
+        mock.expect_create_instance()
+            .withf(move |instance, name, namespace, owner_name, owner_uid| {
+                namespace == config_namespace
+                    && name == instance_name
+                    && instance.nodes.contains(&"node-a".to_string())
+                    && owner_name == config_name
+                    && owner_uid == config_uid
+            })
+            .returning(move |_, _, _, _, _| Ok(()));
+
+        let stream = device_plugin_service
+            .internal_list_and_watch(Arc::new(mock))
             .await
             .unwrap()
             .into_inner();
         list_and_watch_message_sender
             .send(ListAndWatchMessageKind::End)
             .unwrap();
-        if let Some(list_and_watch_response) = stream.message().await.unwrap() {
+        if let Ok(list_and_watch_response) = stream.into_inner().recv().await.unwrap() {
             assert_eq!(
                 list_and_watch_response.devices[0].id,
-                format!("{}-0", instance_name)
+                format!("{}-0", device_plugin_service.instance_name)
             );
         };
     }
