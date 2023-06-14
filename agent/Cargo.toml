@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.10.11"
+version = "0.10.12"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"

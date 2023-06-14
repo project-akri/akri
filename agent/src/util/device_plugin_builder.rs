@@ -5,7 +5,10 @@ use super::{
     },
     device_plugin_service::{DevicePluginService, InstanceMap},
     v1beta1,
-    v1beta1::{device_plugin_server::DevicePluginServer, registration_client, DevicePluginOptions},
+    v1beta1::{
+        device_plugin_server::{DevicePlugin, DevicePluginServer},
+        registration_client, DevicePluginOptions,
+    },
 };
 use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
@@ -38,22 +41,6 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         shared: bool,
         instance_map: InstanceMap,
         device: Device,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-    async fn serve(
-        &self,
-        device_plugin_service: DevicePluginService,
-        socket_path: String,
-        server_ender_receiver: mpsc::Receiver<()>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
-
-    async fn register(
-        &self,
-        capability_id: &str,
-        socket_name: &str,
-        instance_name: &str,
-        mut server_ender_sender: mpsc::Sender<()>,
-        kubelet_socket: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 }
 
@@ -88,7 +75,6 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         let device_plugin_service = DevicePluginService {
             instance_name: instance_name.clone(),
             instance_id: instance_id.clone(),
-            endpoint: device_endpoint.clone(),
             config: config.spec.clone(),
             config_name: config.metadata.name.clone().unwrap(),
             config_uid: config.metadata.uid.as_ref().unwrap().clone(),
@@ -119,11 +105,13 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
 
         Ok(())
     }
+}
 
+impl DevicePluginBuilder {
     // This starts a DevicePluginServer
-    async fn serve(
+    async fn serve<T: DevicePlugin>(
         &self,
-        device_plugin_service: DevicePluginService,
+        device_plugin_service: T,
         socket_path: String,
         server_ender_receiver: mpsc::Receiver<()>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
