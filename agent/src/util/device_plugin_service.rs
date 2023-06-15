@@ -292,7 +292,7 @@ impl InstanceDevicePlugin {
                 &dps.instance_name,
                 dps.clone(),
                 kube_interface.clone(),
-                |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
+                |device_usage_id, configuration_usage_slots| {
                     // allow reallocate if not reserved by Configuration
                     !configuration_usage_slots.contains(device_usage_id)
                 },
@@ -538,7 +538,7 @@ impl ConfigurationDevicePlugin {
                     &instance_name,
                     dps.clone(),
                     kube_interface.clone(),
-                    |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
+                    |device_usage_id, configuration_usage_slots| {
                         // allow reallocate if reserved by Configuration
                         configuration_usage_slots.contains(device_usage_id)
                     },
@@ -2178,7 +2178,7 @@ mod device_plugin_service_tests {
             &instance_name,
             Arc::new(device_plugin_service),
             Arc::new(mock),
-            |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
+            |device_usage_id, configuration_usage_slots| {
                 // device is healthy if not reserved by Configuration
                 !configuration_usage_slots.contains(device_usage_id)
             },
@@ -2214,7 +2214,7 @@ mod device_plugin_service_tests {
             &instance_name,
             Arc::new(device_plugin_service),
             Arc::new(mock),
-            |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
+            |device_usage_id, configuration_usage_slots| {
                 // device is healthy if not reserved by Configuration
                 !configuration_usage_slots.contains(device_usage_id)
             },
@@ -2252,7 +2252,7 @@ mod device_plugin_service_tests {
             &instance_name,
             Arc::new(device_plugin_service),
             Arc::new(mock),
-            |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
+            |device_usage_id, configuration_usage_slots| {
                 // device is healthy if not reserved by Configuration
                 !configuration_usage_slots.contains(device_usage_id)
             },
