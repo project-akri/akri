@@ -27,7 +27,7 @@ use blake2::{
 use k8s_openapi::api::core::v1::{
     ConfigMap, ConfigMapKeySelector, EnvVar, EnvVarSource, Secret, SecretKeySelector,
 };
-use kube::api::{Api, ListParams};
+use kube::api::Api;
 use log::{error, trace};
 #[cfg(test)]
 use mock_instant::Instant;
@@ -590,13 +590,8 @@ impl KubeClient for ActualKubeClient {
     async fn get_secret(&self, name: &str, namespace: &str) -> anyhow::Result<Option<Secret>> {
         let resource_client: Api<Secret> =
             Api::namespaced(self.kube_interface.get_kube_client(), namespace);
-        let lp = ListParams::default();
-        for s in resource_client.list(&lp).await? {
-            if name == s.metadata.name.as_ref().unwrap() {
-                return Ok(Some(s));
-            }
-        }
-        Ok(None)
+        let resource = resource_client.get_opt(name).await?;
+        Ok(resource)
     }
 
     async fn get_config_map(
@@ -606,13 +601,8 @@ impl KubeClient for ActualKubeClient {
     ) -> anyhow::Result<Option<ConfigMap>> {
         let resource_client: Api<ConfigMap> =
             Api::namespaced(self.kube_interface.get_kube_client(), namespace);
-        let lp = ListParams::default();
-        for s in resource_client.list(&lp).await? {
-            if name == s.metadata.name.as_ref().unwrap() {
-                return Ok(Some(s));
-            }
-        }
-        Ok(None)
+        let resource = resource_client.get_opt(name).await?;
+        Ok(resource)
     }
 }
 
@@ -2013,7 +2003,7 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_discovery_properties_value_from_config_map_no_secret_name_optional() {
+    async fn test_get_discovery_properties_value_from_secret_no_secret_name_optional() {
         let _ = env_logger::builder().is_test(true).try_init();
         let namespace_name = "namespace_name";
 
