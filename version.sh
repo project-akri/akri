@@ -233,7 +233,7 @@ then
         if [ "$?" -eq "1" ]; then exit 1; fi
     done
 
-    echo $NEW_VERSION > ./version.txt
+    echo $NEW_VERSION > $BASEDIR/version.txt
     echo "Updated to version: $NEW_VERSION"
 fi
 
