@@ -168,6 +168,7 @@ async fn apply_filters(
     if util::execute_filter(
         discovery_handler_config.ip_addresses.as_ref(),
         &ip_address_as_vec,
+        |scope, pattern| scope == pattern,
     ) {
         return None;
     }
@@ -177,6 +178,7 @@ async fn apply_filters(
     if util::execute_filter(
         discovery_handler_config.mac_addresses.as_ref(),
         &mac_address_as_vec,
+        |scope, pattern| scope.to_lowercase() == pattern.to_lowercase(),
     ) {
         return None;
     }
@@ -575,6 +577,66 @@ mod tests {
             mac_addresses: Some(FilterList {
                 action: FilterType::Exclude,
                 items: vec![mock_mac.to_string()],
+            }),
+            scopes: None,
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_include_mac_exist_different_cases() {
+        let mock_uri = "device_uri";
+        let mock_ip = "mock.ip";
+        let mock_mac = "MocK:Mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: Some(FilterList {
+                action: FilterType::Include,
+                items: vec![mock_mac.to_uppercase()],
+            }),
+            scopes: None,
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+
+        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_mac_exist_different_cases() {
+        let mock_uri = "device_uri";
+        let mock_ip = "mock.ip";
+        let mock_mac = "MocK:Mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec![mock_mac.to_uppercase()],
             }),
             scopes: None,
             discovery_timeout_seconds: 1,
