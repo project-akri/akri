@@ -202,7 +202,7 @@ pub mod util {
             .iter()
             .filter(|probe_match| {
                 !execute_filter(scopes, &probe_match.scopes, |scope, pattern| {
-                    scope.contains(pattern)
+                    scope.split_whitespace().any(|s| s == pattern)
                 })
             })
             .flat_map(|probe_match| probe_match.xaddrs.split_whitespace())
