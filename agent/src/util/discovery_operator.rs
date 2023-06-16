@@ -512,7 +512,7 @@ pub mod start_discovery {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
-            "start_discovery - entered for {} discovery handler",
+            "internal_start_discovery - entered for {} discovery handler",
             config.spec.discovery_handler.name
         );
         let config_name = config.metadata.name.clone().unwrap();
@@ -523,7 +523,7 @@ pub mod start_discovery {
         // Create a device plugin for the Configuration
         let config_dp_name = get_device_configuration_name(&config_name);
         trace!(
-            "start_discovery - create configuration device plugin {}",
+            "internal_start_discovery - create configuration device plugin {}",
             config_dp_name
         );
         match device_plugin_builder
@@ -535,7 +535,7 @@ pub mod start_discovery {
             }
             Err(e) => {
                 error!(
-                    "start_discovery - error {} building configuration device plugin",
+                    "internal_start_discovery - error {} building configuration device plugin",
                     e
                 );
             }
@@ -581,7 +581,7 @@ pub mod start_discovery {
                 )
                 .await.is_ok()
                 {
-                    trace!("start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
+                    trace!("internal_start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
                     break;
                 }
             }
@@ -955,7 +955,7 @@ pub mod tests {
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         );
         (discovery_operator, discovery_handler_map)
     }
@@ -1015,7 +1015,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         ));
         tokio::spawn(async move {
             discovery_operator.stop_all_discovery().await;
@@ -1211,7 +1211,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         ));
         let mut mock_device_plugin_builder = MockDevicePluginBuilderInterface::new();
         mock_device_plugin_builder
@@ -1549,7 +1549,7 @@ pub mod tests {
         DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         )
     }
 
@@ -1567,7 +1567,7 @@ pub mod tests {
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         );
         // test embedded debugEcho socket
         if let Some(StreamType::Embedded(_)) = discovery_operator

@@ -72,19 +72,12 @@ pub struct InstanceInfo {
     pub configuration_usage_slots: HashSet<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct InstanceConfig {
+    /// Sender to tell Configuration device plugin `list_and_watch` to either prematurely continue looping or end
     pub usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
+    /// Map of all Instances from the same Configuration
     pub instances: HashMap<String, InstanceInfo>,
-}
-
-impl InstanceConfig {
-    pub fn new() -> Self {
-        InstanceConfig {
-            usage_update_message_sender: None,
-            instances: HashMap::new(),
-        }
-    }
 }
 
 pub type InstanceMap = Arc<RwLock<InstanceConfig>>;
@@ -126,7 +119,7 @@ pub struct DevicePluginService {
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Upon send, terminates function that acts as the shutdown signal for this service
     pub server_ender_sender: mpsc::Sender<()>,
-    /// enum object that defines the behavior of the device plugin
+    /// Enum object that defines the behavior of the device plugin
     pub device_plugin_behavior: DevicePluginBehavior,
 }
 
@@ -293,7 +286,7 @@ impl InstanceDevicePlugin {
                 dps.clone(),
                 kube_interface.clone(),
                 |device_usage_id, configuration_usage_slots| {
-                    // allow reallocate if not reserved by Configuration
+                    // Allow reallocate if not reserved by Configuration
                     !configuration_usage_slots.contains(device_usage_id)
                 },
             )
@@ -394,7 +387,7 @@ impl InstanceDevicePlugin {
         kube_interface: Arc<impl KubeInterface>,
     ) -> Result<Response<AllocateResponse>, Status> {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
-        // suffix to add to each device property
+        // Suffix to add to each device property
         let device_property_suffix = self.instance_id.to_uppercase();
 
         for request in requests.into_inner().container_requests {
@@ -413,7 +406,7 @@ impl InstanceDevicePlugin {
                     device_usage_id
                 );
 
-                // if the slot already reserved by this node,
+                // If the slot already reserved by this node,
                 // only allow reallocate if the slot is not reserved by Configuration
                 let allow_reallocate = match dps
                     .instance_map
@@ -461,7 +454,7 @@ impl InstanceDevicePlugin {
                     device_usage_id.clone(),
                 );
 
-                // add suffix _<instance_id> to each device property
+                // Add suffix _<instance_id> to each device property
                 let converted_properties = self
                     .device
                     .properties
@@ -539,7 +532,7 @@ impl ConfigurationDevicePlugin {
                     dps.clone(),
                     kube_interface.clone(),
                     |device_usage_id, configuration_usage_slots| {
-                        // allow reallocate if reserved by Configuration
+                        // Allow reallocate if reserved by Configuration
                         configuration_usage_slots.contains(device_usage_id)
                     },
                 )
@@ -547,12 +540,12 @@ impl ConfigurationDevicePlugin {
                 .unwrap();
                 discovered_devices.insert(instance_name, virtual_devices);
             }
-            // construct virtual device info list
+            // Construct virtual device info list
             let current_virtual_devices =
-                build_virtual_devices_list_for_instance(discovered_devices.clone());
+                build_virtual_device_health_state_for_instance(&discovered_devices);
             // Only send the virtual devices if the list has changed
             if current_virtual_devices != prev_virtual_devices {
-                // find devices that no longer exist, set health state to UNHEALTHY for all devices that are gone
+                // Find devices that no longer exist, set health state to UNHEALTHY for all devices that are gone
                 let mut devices_to_report = prev_virtual_devices
                     .keys()
                     .filter(|key| !current_virtual_devices.contains_key(&(*key).clone()))
@@ -681,7 +674,7 @@ impl ConfigurationDevicePlugin {
                         return Err(e);
                     }
                 };
-                // find device from instance_map
+                // Find device from instance_map
                 let (device, instance_id, configuration_usage_slots) = match dps
                     .instance_map
                     .read()
@@ -707,7 +700,7 @@ impl ConfigurationDevicePlugin {
                     }
                 };
 
-                // only allow duplicate reserve if the slot is reserved by Configuration
+                // Only allow duplicate reserve if the slot is reserved by Configuration
                 let allow_dup_reserve = configuration_usage_slots.contains(&device_usage_id);
 
                 if let Err(e) = try_update_instance_device_usage(
@@ -732,7 +725,7 @@ impl ConfigurationDevicePlugin {
                     device_usage_id.clone(),
                 );
 
-                // add suffix _<instance_id> to each device property
+                // Add suffix _<instance_id> to each device property
                 let device_property_suffix = instance_id.to_uppercase();
                 let converted_properties = device
                     .properties
@@ -802,8 +795,10 @@ impl ConfigurationDevicePlugin {
     }
 }
 
-fn build_virtual_devices_list_for_instance(
-    device_map: HashMap<String, Vec<v1beta1::Device>>,
+// Build health state for instance virtual devices in the map,
+// an instance virtual device is healthy if at least one usage slot is healthy
+fn build_virtual_device_health_state_for_instance(
+    device_map: &HashMap<String, Vec<v1beta1::Device>>,
 ) -> HashMap<String, String> {
     device_map
         .iter()
@@ -832,7 +827,7 @@ async fn get_instance_allocation_info(
 ) -> Result<(String, String), Status> {
     let instance_name = device_id;
 
-    // find device from instance_map
+    // Find device from instance_map
     let instance_info = match instance_map
         .read()
         .await
@@ -906,7 +901,7 @@ async fn find_free_instance_device_usage_slot(
         }
     };
 
-    // find first free usage slot from instance spec
+    // Find first free usage slot from instance spec,
     // always start searching from 0, easier to predict
     for x in 0..instance_spec.device_usage.len() {
         let device_usage_id = format!("{}-{}", instance_name, x);
@@ -1259,7 +1254,7 @@ where
                 &instance_info.configuration_usage_slots,
                 reallocate_predicate,
             );
-            // update cl_usage_slot based on new instance information
+            // Update cl_usage_slot based on new instance information
             trace!(
                 "build_list_and_watch_response - updated configuration usage slots {:?}",
                 updated_usage_slots
@@ -1328,7 +1323,7 @@ where
                 || reallocate_predicate(device_name, configuration_usage_slots)
         };
 
-        // remove the device from the current usage slot if it is not reserved by any node
+        // Remove the device from the current usage slot if it is not reserved by any node
         if healthy && allocated_node.is_empty() {
             current_usage_slots.remove(device_name);
         }
@@ -1543,7 +1538,7 @@ mod device_plugin_service_tests {
 
     fn check_devices(instance_name: String, devices: Vec<v1beta1::Device>) {
         let capacity: usize = 5;
-        // update_virtual_devices_health returns devices in jumbled order (ie 2, 4, 1, 5, 3)
+        // Update_virtual_devices_health returns devices in jumbled order (ie 2, 4, 1, 5, 3)
         let expected_device_ids: Vec<String> = (0..capacity)
             .map(|x| format!("{}-{}", instance_name, x))
             .collect();
@@ -1963,12 +1958,12 @@ mod device_plugin_service_tests {
                 expected_devices_nodeb.insert(slot_name.clone(), HEALTHY.to_string());
             }
         }
-        // allow to reallocate a virtual device from Instance, if it's not reserved by Configuration
+        // Allow to reallocate a virtual device from Instance, if it's not reserved by Configuration
         let instance_reallocate_checker =
             |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
                 !configuration_usage_slots.contains(device_usage_id)
             };
-        // allow to reallocate a virtual device from Configuration, if it's reserved by Configuration
+        // Allow to reallocate a virtual device from Configuration, if it's reserved by Configuration
         let configuration_reallocate_checker =
             |device_usage_id: &str, configuration_usage_slots: &HashSet<String>| {
                 configuration_usage_slots.contains(device_usage_id)
@@ -2133,7 +2128,7 @@ mod device_plugin_service_tests {
             &slots_used_by_configuration,
             configuration_reallocate_checker,
         );
-        // when a virtual device is taken by instance device plugin
+        // When a virtual device is taken by instance device plugin
         // the health state of configuration virtual device is the same as taken by another node,
         for device in devices {
             assert_eq!(
@@ -2215,7 +2210,7 @@ mod device_plugin_service_tests {
             Arc::new(device_plugin_service),
             Arc::new(mock),
             |device_usage_id, configuration_usage_slots| {
-                // device is healthy if not reserved by Configuration
+                // Device is healthy if not reserved by Configuration
                 !configuration_usage_slots.contains(device_usage_id)
             },
         )
@@ -2253,7 +2248,7 @@ mod device_plugin_service_tests {
             Arc::new(device_plugin_service),
             Arc::new(mock),
             |device_usage_id, configuration_usage_slots| {
-                // device is healthy if not reserved by Configuration
+                // Device is healthy if not reserved by Configuration
                 !configuration_usage_slots.contains(device_usage_id)
             },
         )
@@ -2527,7 +2522,7 @@ mod device_plugin_service_tests {
         (dps, receivers)
     }
 
-    // configuration resource from instance, no instance available, should receive nothing from the response stream
+    // Configuration resource from instance, no instance available, should receive nothing from the response stream
     #[tokio::test]
     async fn test_cdps_internal_list_and_watch_no_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2548,7 +2543,7 @@ mod device_plugin_service_tests {
         assert!(stream.into_inner().try_recv().is_err());
     }
 
-    // configuration resource from instance, instance available, should return device id == instance_name
+    // Configuration resource from instance, instance available, should return device id == instance_name
     #[tokio::test]
     async fn test_cdps_list_and_watch_with_instance() {
         let _ = env_logger::builder().is_test(true).try_init();

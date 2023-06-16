@@ -252,7 +252,7 @@ async fn handle_config_add(
         config.metadata.name.clone().unwrap(),
     );
     // Create a new instance map for this config and add it to the config map
-    let instance_map: InstanceMap = Arc::new(RwLock::new(InstanceConfig::new()));
+    let instance_map: InstanceMap = Arc::new(RwLock::new(InstanceConfig::default()));
     let (stop_discovery_sender, _): (broadcast::Sender<()>, broadcast::Receiver<()>) =
         broadcast::channel(DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY);
     let (mut finished_discovery_sender, finished_discovery_receiver) =
@@ -643,7 +643,7 @@ mod config_action_tests {
         let (_, finished_discovery_receiver) = mpsc::channel(2);
 
         let config_info = ConfigInfo {
-            instance_map: Arc::new(RwLock::new(InstanceConfig::new())),
+            instance_map: Arc::new(RwLock::new(InstanceConfig::default())),
             stop_discovery_sender: stop_discovery_sender.clone(),
             finished_discovery_receiver,
             last_generation: Some(1),
