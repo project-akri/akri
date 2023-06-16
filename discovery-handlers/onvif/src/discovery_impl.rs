@@ -333,7 +333,7 @@ pub mod util {
 
             let filter_list = FilterList {
                 action: FilterType::Include,
-                items: vec!["onvif://www.onvif.org/name/non-exist-NVT".to_string()],
+                items: vec!["onvif://www.onvif.org/name/NVT123".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
             let response = format!(
@@ -353,7 +353,49 @@ pub mod util {
 
             let filter_list = FilterList {
                 action: FilterType::Exclude,
-                items: vec!["onvif://www.onvif.org/name/non-exist-NVT".to_string()],
+                items: vec!["onvif://www.onvif.org/name/NVT123".to_string()],
+            };
+            let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
+            let response = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header><wsa:MessageID>urn:uuid:2bc6f06c-5566-7788-99ac-0012414fb745</wsa:MessageID><wsa:RelatesTo>uuid:7b1d26aa-b02e-4ad2-8aab-4c928298ee0c</wsa:RelatesTo><wsa:To SOAP-ENV:mustUnderstand=\"true\">http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</wsa:To><wsa:Action SOAP-ENV:mustUnderstand=\"true\">http://schemas.xmlsoap.org/ws/2005/04/discovery/ProbeMatches</wsa:Action></SOAP-ENV:Header><SOAP-ENV:Body><d:ProbeMatches><d:ProbeMatch><wsa:EndpointReference><wsa:Address>urn:uuid:10919da4-5566-7788-99aa-0012414fb745</wsa:Address></wsa:EndpointReference><d:Types>dn:NetworkVideoTransmitter</d:Types><d:Scopes>onvif://www.onvif.org/type/video_encoder onvif://www.onvif.org/type/audio_encoder onvif://www.onvif.org/hardware/IPC-model onvif://www.onvif.org/location/country/china onvif://www.onvif.org/name/NVT onvif://www.onvif.org/Profile/Streaming </d:Scopes><d:XAddrs>{}</d:XAddrs><d:MetadataVersion>10</d:MetadataVersion></d:ProbeMatch></d:ProbeMatches></SOAP-ENV:Body></SOAP-ENV:Envelope>",
+                &uris.join(" ")
+            );
+            assert_eq!(
+                uris,
+                get_scope_filtered_uris_from_discovery_response(
+                    &response,
+                    Some(filter_list).as_ref()
+                )
+            );
+        }
+
+        #[test]
+        fn test_get_scope_filtered_uris_from_discovery_response_include_scope_similar() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let filter_list = FilterList {
+                action: FilterType::Include,
+                items: vec!["onvif://www.onvif.org/name".to_string()],
+            };
+            let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
+            let response = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header><wsa:MessageID>urn:uuid:2bc6f06c-5566-7788-99ac-0012414fb745</wsa:MessageID><wsa:RelatesTo>uuid:7b1d26aa-b02e-4ad2-8aab-4c928298ee0c</wsa:RelatesTo><wsa:To SOAP-ENV:mustUnderstand=\"true\">http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</wsa:To><wsa:Action SOAP-ENV:mustUnderstand=\"true\">http://schemas.xmlsoap.org/ws/2005/04/discovery/ProbeMatches</wsa:Action></SOAP-ENV:Header><SOAP-ENV:Body><d:ProbeMatches><d:ProbeMatch><wsa:EndpointReference><wsa:Address>urn:uuid:10919da4-5566-7788-99aa-0012414fb745</wsa:Address></wsa:EndpointReference><d:Types>dn:NetworkVideoTransmitter</d:Types><d:Scopes>onvif://www.onvif.org/type/video_encoder onvif://www.onvif.org/type/audio_encoder onvif://www.onvif.org/hardware/IPC-model onvif://www.onvif.org/location/country/china onvif://www.onvif.org/name/NVT onvif://www.onvif.org/Profile/Streaming </d:Scopes><d:XAddrs>{}</d:XAddrs><d:MetadataVersion>10</d:MetadataVersion></d:ProbeMatch></d:ProbeMatches></SOAP-ENV:Body></SOAP-ENV:Envelope>",
+                &uris.join(" ")
+            );
+            assert!(get_scope_filtered_uris_from_discovery_response(
+                &response,
+                Some(filter_list).as_ref()
+            )
+            .is_empty());
+        }
+
+        #[test]
+        fn test_get_scope_filtered_uris_from_discovery_response_exclude_scope_similar() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let filter_list = FilterList {
+                action: FilterType::Exclude,
+                items: vec!["onvif://www.onvif.org/name".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
             let response = format!(
