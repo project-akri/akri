@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "akri-e2e"
+version = "0.10.10"
+description = "Akri end to end test framework"
+authors = ["Nicolas Belouin <nicolas.belouin@suse.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+packages = [{include = "akri_e2e"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pytest = "^7.3.1"
+kubernetes = "^26.1.0"
+pyyaml = "^6.0"
+faker = "^18.10.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

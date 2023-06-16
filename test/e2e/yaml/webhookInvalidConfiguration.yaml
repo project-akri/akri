@@ -1,0 +1,39 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: ""
+  creationTimestamp: "2021-01-01T00:00:00Z"
+  generation: 1
+  managedFields: []
+  name: broker
+  uid: "00000000-0000-0000-0000-000000000000"
+spec:
+  capacity: 1
+  discoveryHandler:
+    name: debugEcho
+    discoveryDetails: |
+      descriptions: ["foo", "bar"]
+  brokerSpec:
+    brokerPodSpec:
+      resources:
+        limits:
+          "{{PLACEHOLDER}}": "1"
+      containers:
+        - name: test-broker
+          image: "nginx:stable-alpine"
+          imagePullPolicy: Always
+  instanceServiceSpec:
+    type: ClusterIP
+    ports:
+      - name: name
+        port: 0
+        targetPort: 0
+        protocol: TCP
+  configurationServiceSpec:
+    type: ClusterIP
+    ports:
+      - name: name
+        port: 0
+        targetPort: 0
+        protocol: TCP

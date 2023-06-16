@@ -1,16 +1,10 @@
 name: Test K3s, Kubernetes, and MicroK8s
 
 on:
-  workflow_dispatch:
-    inputs:
   pull_request:
     branches: [main]
     paths:
-      - test/run-end-to-end.py
-      - test/run-conservation-of-broker-pod.py
-      - test/run-helm-install-delete.py
-      - test/run-webhook.py
-      - test/shared_test_code.py
+      - test/e2e/**
       - .github/workflows/run-test-cases.yml
       - build/containers/Dockerfile.agent
       - build/containers/Dockerfile.controller
@@ -24,11 +18,7 @@ on:
   push:
     branches: [main]
     paths:
-      - test/run-end-to-end.py
-      - test/run-conservation-of-broker-pod.py
-      - test/run-helm-install-delete.py
-      - test/run-webhook.py
-      - test/shared_test_code.py
+      - test/e2e/**
       - .github/workflows/run-test-cases.yml
       - build/containers/Dockerfile.agent
       - build/containers/Dockerfile.controller
@@ -54,26 +44,38 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Rust install
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.68.1
+          components: clippy, rustfmt
+
       - name: Build local containers for PR tests
         if: startsWith(github.event_name, 'pull_request')
         env:
           BUILD_AMD64: 1
           BUILD_ARM32: 0
           BUILD_ARM64: 0
-          BUILD_SLIM_AGENT: 0
-          AGENT_FEATURES: "agent-full"
-          PACKAGES_TO_EXCLUDE: "akri-udev akri-onvif akri-opcua udev-video-broker debug-echo-discovery-handler onvif-discovery-handler opcua-discovery-handler udev-discovery-handler"
+          BUILD_SLIM_AGENT: 1
           PREFIX: ghcr.io/project-akri/akri
           LABEL_PREFIX: pr
           CARGO_INCREMENTAL: 0
         run: |
           make akri-build
           make controller-build-amd64
-          make agent-full-build-amd64
+          make agent-build-amd64
           make webhook-configuration-build-amd64
-          docker save ${PREFIX}/agent-full:${LABEL_PREFIX}-amd64 > agent.tar
+          make debug-echo-discovery-build-amd64
+          make udev-discovery-build-amd64
+          make onvif-discovery-build-amd64
+          make opcua-discovery-build-amd64
+          docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX}-amd64 > webhook-configuration.tar
+          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX}-amd64 > debug-echo-discovery.tar
+          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX}-amd64 > udev-discovery.tar
+          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX}-amd64 > opcua-discovery.tar
+          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX}-amd64 > onvif-discovery.tar
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
@@ -93,6 +95,30 @@ jobs:
         with:
           name: webhook-configuration.tar
           path: webhook-configuration.tar
+      - name: Upload DebugEcho discovery container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-echo-discovery.tar
+          path: debug-echo-discovery.tar
+      - name: Upload UDEV discovery container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v3
+        with:
+          name: udev-discovery.tar
+          path: udev-discovery.tar
+      - name: Upload ONVIF discovery container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v3
+        with:
+          name: onvif-discovery.tar
+          path: onvif-discovery.tar
+      - name: Upload OPCUA discovery container as artifact
+        if: startsWith(github.event_name, 'pull_request')
+        uses: actions/upload-artifact@v3
+        with:
+          name: opcua-discovery.tar
+          path: opcua-discovery.tar
 
   test-cases:
     needs: build-containers
@@ -103,35 +129,30 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          - runtime: MicroK8s-1.24
+          - runtime: microk8s
             version: 1.24/stable
-          - runtime: MicroK8s-1.25
+          - runtime: microk8s
             version: 1.25/stable
-          - runtime: MicroK8s-1.26
+          - runtime: microk8s
             version: 1.26/stable
-          - runtime: MicroK8s-1.27
+          - runtime: microk8s
             version: 1.27/stable
-          - runtime: K3s-1.24
+          - runtime: k3s
             version: v1.24.13+k3s1
-          - runtime: K3s-1.25
+          - runtime: k3s
             version: v1.25.9+k3s1
-          - runtime: K3s-1.26
+          - runtime: k3s
             version: v1.26.4+k3s1
-          - runtime: K3s-1.27
+          - runtime: k3s
             version: v1.27.1+k3s1
-          - runtime: Kubernetes-1.24
+          - runtime: k8s
             version: 1.24.13-00
-          - runtime: Kubernetes-1.25
+          - runtime: k8s
             version: 1.25.9-00
-          - runtime: Kubernetes-1.26
+          - runtime: k8s
             version: 1.26.4-00
-          - runtime: Kubernetes-1.27
+          - runtime: k8s
             version: 1.27.1-00
-        test:
-          - case: end-to-end
-            file: test/run-end-to-end.py
-          - case: webhook
-            file: test/run-webhook.py
 
     steps:
       - name: Checkout the head commit of the branch
@@ -142,29 +163,23 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
-      - name: Install Python kubernetes dependency
+          python-version: "3.10"
+      - name: Install Poetry and dependencies
+        working-directory: ./test/e2e
         run: |
-          python -m pip install --upgrade pip
-          pip install kubernetes
+          POETRY_HOME=/opt/poetry
+          python3 -m venv $POETRY_HOME
+          $POETRY_HOME/bin/pip install poetry==1.5.1
+          $POETRY_HOME/bin/poetry --version
+          $POETRY_HOME/bin/poetry install --no-root
 
-      - name: Download Agent container artifact
+      - name: Download container artifacts
         if: startsWith(github.event_name, 'pull_request')
         uses: actions/download-artifact@v3
         with:
-          name: agent.tar
-      - name: Download Controller container artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/download-artifact@v3
-        with:
-          name: controller.tar
-      - name: Download Webhook-Configuration container artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/download-artifact@v3
-        with:
-          name: webhook-configuration.tar
+          path: /tmp/images
 
-      - if: startsWith(matrix.kube.runtime, 'K3s')
+      - if: startsWith(matrix.kube.runtime, 'k3s')
         name: Install K3s
         env:
           INSTALL_K3S_VERSION: ${{ matrix.kube.version }}
@@ -175,19 +190,15 @@ jobs:
           mkdir -p $HOME/.kube
           sudo cp -i /etc/rancher/k3s/k3s.yaml  $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
-          echo "--set kubernetesDistro=k3s" > /tmp/k8s_distro_to_test.txt
-          echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
 
       - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'K3s'))
         name: Import local agent and controller to K3s
+        working-directory: /tmp/images
         run: |
-          sudo k3s ctr image import agent.tar
-          sudo k3s ctr image import controller.tar
-          sudo k3s ctr image import webhook-configuration.tar
+          sudo find -name "*.tar" -type f -exec k3s ctr image import {} \;
 
-      - if: startsWith(matrix.kube.runtime, 'Kubernetes')
+      - if: startsWith(matrix.kube.runtime, 'k8s')
         name: Install Kubernetes
         run: |
           sudo apt-get update -y
@@ -236,12 +247,9 @@ jobs:
             kubectl taint nodes --all node-role.kubernetes.io/master-
           fi
 
-          echo '--set kubernetesDistro=k8s' > /tmp/k8s_distro_to_test.txt
-          echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
-      - if: startsWith(matrix.kube.runtime, 'Kubernetes')
+      - if: startsWith(matrix.kube.runtime, 'k8s')
         name: Output Kubelet, Containerd, Docker Logs
         run: |
           echo "Kubelet Logs:"
@@ -251,17 +259,16 @@ jobs:
           echo "\nDocker Logs"
           sudo journalctl -xeu docker --no-pager
 
-      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'Kubernetes'))
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'k8s'))
         name: Import local agent and controller to Kubernetes
+        working-directory: /tmp/images
         run: |
           # Need to load to containerd with ctr
           # -n allows kubernetes to see the image
-          sudo ctr -n=k8s.io image import agent.tar
-          sudo ctr -n=k8s.io image import controller.tar
-          sudo ctr -n=k8s.io image import webhook-configuration.tar
+          sudo find -name "*.tar" -type f -exec ctr -n=k8s.io image import {} \;
           sudo crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock images
 
-      - if: startsWith(matrix.kube.runtime, 'MicroK8s')
+      - if: startsWith(matrix.kube.runtime, 'microk8s')
         name: Install MicroK8s
         run: |
           set -x
@@ -275,19 +282,15 @@ jobs:
           sudo sed -i 's/memory.available<100Mi,nodefs.available<1Gi,imagefs.available<1Gi/memory.available<25Mi,nodefs.available<50Mi,imagefs.available<50Mi/' /var/snap/microk8s/current/args/kubelet
           sudo systemctl restart snap.microk8s.daemon-kubelite
           until sudo microk8s.status --wait-ready; do sleep 5s; echo "Try again"; done
-          echo '--set kubernetesDistro=microk8s' > /tmp/k8s_distro_to_test.txt
-          echo 'kubectl' > /tmp/runtime_cmd_to_test.txt
-          echo '~/.kube/config' > /tmp/kubeconfig_path_to_test.txt
 
-      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'MicroK8s'))
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'microk8s'))
         name: Import local agent and controller to MicroK8s
+        working-directory: /tmp/images
         run: |
           sudo microk8s.status --wait-ready
           until sudo microk8s ctr images ls; do sleep 5s; echo "Try again"; done
           sudo microk8s ctr images ls
-          sudo microk8s ctr --debug --timeout 60s images import agent.tar
-          sudo microk8s ctr --debug --timeout 60s images import controller.tar
-          sudo microk8s ctr --debug --timeout 60s images import webhook-configuration.tar
+          sudo find -name "*.tar" -type f -exec microk8s ctr --debug --timeout 60s images import {} \;
           sudo microk8s ctr images ls
 
       - name: Add Akri Helm Chart
@@ -296,60 +299,23 @@ jobs:
       # For push and release, we need to wait for the Helm chart and
       # associated containers to build.
       - if: github.event_name == 'push' || github.event_name == 'release'
-        name: Set sleep duration before running script to 2700
-        run: echo 2700 > /tmp/sleep_duration.txt
+        name: sleep before running script for 2700s
+        run: sleep 2700
 
-      # For pull_request, use the locally built containers.
-      - if: startsWith(github.event_name, 'pull_request')
-        name: Tell Helm to use the 'local' labels for container images
+      - name: Execute test script
+        working-directory: ./test/e2e
         run: |
-          git fetch origin main
-          git show origin/main:version.txt > /tmp/version_to_test.txt
-          echo '--set agent.image.pullPolicy=Never,agent.image.tag=pr-amd64,controller.image.pullPolicy=Never,controller.image.tag=pr-amd64,webhookConfiguration.image.pullPolicy=Never,webhookConfiguration.image.tag=pr-amd64' > /tmp/extra_helm_args.txt
-      # For non-PR (i.e. push, release, manual), version.txt is corresponds
-      # to an existing Helm chart.
-      - if: (!(startsWith(github.event_name, 'pull_request')))
-        name: Use current version for push
-        run: cat version.txt > /tmp/version_to_test.txt
+          case "${{ github.event_name }}" in "push");; "release") extra_param="--release";; *) extra_param="--use-local";; esac
+          /opt/poetry/bin/poetry run pytest -v --distribution ${{ matrix.kube.runtime}}  --test-version $(cat ../../version.txt) $extra_param
 
-      # For workflow_dispatch and pull_request, use the files in deployment/helm
-      # as basis for helm install ... this enables us to test any changes made to
-      # the helm chart files in a PR (where no helm chart is published)
-      - if: github.event_name != 'push' && github.event_name != 'release'
-        name: Tell Helm to use the files in deployment/helm to build chart
-        run: |
-          echo './deployment/helm' > /tmp/helm_chart_location.txt
-      # For push, use a specific version of the `akri-dev` charts that are built and
-      # published by the helm workflow.
-      - if: github.event_name == 'push'
-        name: Tell Helm to use the `akri-dev` published charts
-        run: |
-          echo "akri-helm-charts/akri-dev --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
-      # For release, use a specific version of the `akri` charts that are built and
-      # published by the helm workflow.
-      - if: github.event_name == 'release'
-        name: Tell Helm to use the `akri` published charts
-        run: |
-          echo "akri-helm-charts/akri --version $(cat /tmp/version_to_test.txt)" > /tmp/helm_chart_location.txt
+      - name: Sanitize logs artifact name
+        id: sanitize-artifact-name
+        if: always()
+        run: echo "name=${{ matrix.kube.runtime }}-${{ matrix.kube.version }}-logs" | tr "/:" "_" >> $GITHUB_OUTPUT
 
-      - name: Execute test script ${{ matrix.test.file }}
-        run: python ${{ matrix.test.file }}
-
-      - name: Upload Agent log as artifact
+      - name: Upload logs as artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-agent-log
-          path: /tmp/agent_log.txt
-      - name: Upload controller log as artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-controller-log
-          path: /tmp/controller_log.txt
-      - name: Upload webhook log as artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.kube.runtime }}-${{ matrix.test.case }}-webhook-log
-          path: /tmp/webhook_log.txt
+          name: ${{ steps.sanitize-artifact-name.outputs.name }}
+          path: /tmp/logs/
