@@ -164,11 +164,12 @@ async fn apply_filters(
         }
     };
     // Evaluate camera ip address against ip filter if provided
+    // use case-insensitive comparison in case of IPv6 is used
     let ip_address_as_vec = vec![ip_address.clone()];
     if util::execute_filter(
         discovery_handler_config.ip_addresses.as_ref(),
         &ip_address_as_vec,
-        |scope, pattern| scope == pattern,
+        |scope, pattern| scope.to_lowercase() == pattern.to_lowercase(),
     ) {
         return None;
     }
