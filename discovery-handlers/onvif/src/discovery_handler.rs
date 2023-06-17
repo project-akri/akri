@@ -588,7 +588,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_apply_filters_include_mac_exist_different_cases() {
+    async fn test_apply_filters_include_mac_exist_different_letter_cases() {
         let mock_uri = "device_uri";
         let mock_ip = "mock.ip";
         let mock_mac = "MocK:Mac";
@@ -618,7 +618,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_apply_filters_exclude_mac_exist_different_cases() {
+    async fn test_apply_filters_exclude_mac_exist_different_letter_cases() {
         let mock_uri = "device_uri";
         let mock_ip = "mock.ip";
         let mock_mac = "MocK:Mac";
