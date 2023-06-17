@@ -375,7 +375,7 @@ impl DiscoveryOperator {
                         list_and_watch_message_sender: list_and_watch_message_sender.clone(),
                         instance_id: instance_info.instance_id.clone(),
                         device: device.clone(),
-                        configuration_usage_slots: instance_info.configuration_usage_slots.clone(),
+                        allocated_usage_slots: instance_info.allocated_usage_slots.clone(),
                     };
                     self.instance_map
                         .write()
@@ -415,9 +415,7 @@ impl DiscoveryOperator {
                                     .clone(),
                                 instance_id: instance_info.instance_id.clone(),
                                 device: instance_info.device.clone(),
-                                configuration_usage_slots: instance_info
-                                    .configuration_usage_slots
-                                    .clone(),
+                                allocated_usage_slots: instance_info.allocated_usage_slots.clone(),
                             };
                             self.instance_map
                                 .write()
@@ -806,7 +804,6 @@ pub mod tests {
     };
     use mock_instant::{Instant, MockClock};
     use mockall::Sequence;
-    use std::collections::HashSet;
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
 
@@ -864,7 +861,7 @@ pub mod tests {
                             connectivity_status: connectivity_status.clone(),
                             instance_id: device.id.clone(),
                             device: device.clone(),
-                            configuration_usage_slots: HashSet::<String>::new(),
+                            allocated_usage_slots: HashMap::new(),
                         },
                     )
                 })
