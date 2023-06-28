@@ -3,14 +3,18 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: akri-agent-daemonset
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-agent
+    app.kubernetes.io/component: agent
 spec:
   selector:
-    matchLabels:
-      name: akri-agent
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-agent
   template:
     metadata:
-      labels:
-        name: akri-agent
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: akri-agent
+        app.kubernetes.io/component: agent
     spec:
       {{- /* hostNetwork is only needed for embedded ONVIF discovery */}}
       {{- if .Values.agent.full }}
