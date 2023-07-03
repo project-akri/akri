@@ -1,4 +1,5 @@
 use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
+use akri_shared::akri::instance::device_usage::{DeviceUsage, DeviceUsageKind};
 use akri_shared::{akri::instance::InstanceSpec, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
@@ -6,6 +7,7 @@ use k8s_openapi::api::core::v1::PodStatus;
 use mockall::{automock, predicate::*};
 use std::{
     collections::{HashMap, HashSet},
+    str::FromStr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -163,7 +165,11 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    if v != node_name && node_slot_usage.contains(k) {
+                    let same_node_name = match DeviceUsage::from_str(v) {
+                        Ok(usage) => usage.is_same_node(node_name),
+                        Err(_) => false,
+                    };
+                    if !same_node_name && node_slot_usage.contains(k) {
                         // We need to add node_name to this slot IF
                         //     the slot is not labeled with node_name AND
                         //     there is a container using that slot on this node
@@ -185,7 +191,11 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    if v == node_name && !node_slot_usage.contains(k) {
+                    let same_node_name = match DeviceUsage::from_str(v) {
+                        Ok(usage) => usage.is_same_node(node_name),
+                        Err(_) => false,
+                    };
+                    if same_node_name && !node_slot_usage.contains(k) {
                         // We need to clean this slot IF
                         //     this slot is handled by this node AND
                         //     there are no containers using that slot on this node
@@ -233,22 +243,27 @@ impl DevicePluginSlotReconciler {
                     .spec
                     .device_usage
                     .iter()
-                    .map(|(slot, node)| {
+                    .map(|(slot, usage)| {
                         (
                             slot.to_string(),
                             if slots_missing_this_node_name.contains(slot) {
-                                // Set this to node_name because there have been
+                                // Set usage to Unknown because there have been
                                 // cases where a Pod is running (which corresponds
                                 // to an Allocate call, but the Instance slot is empty.
-                                node_name.into()
+                                // We don't know what kind of device plugin reserved the slot previously
+                                // mark it as Unknown state to prevent the slot from being allocated
+                                // the slot will be freed by reconcile after the container that uses the slot exits
+                                DeviceUsage::create(&DeviceUsageKind::Unknown, node_name)
+                                    .unwrap()
+                                    .to_string()
                             } else if slots_to_clean.contains(slot) {
-                                // Set this to empty string because there is no
+                                // Set usage to free because there is no
                                 // Deallocate message from kubelet for us to know
                                 // when a slot is no longer in use
-                                "".into()
+                                DeviceUsage::default().to_string()
                             } else {
                                 // This slot remains unchanged.
-                                node.into()
+                                usage.into()
                             },
                         )
                     })
@@ -520,7 +535,7 @@ mod reconcile_tests {
             "../test/json/shared-instance-list-slots.json",
             Some(UpdateInstance {
                 expected_slot_1_node: "node-a",
-                expected_slot_5_node: "node-a",
+                expected_slot_5_node: "U:node-a",
             }),
             grace_period,
             &reconciler,
@@ -648,7 +663,7 @@ mod reconcile_tests {
             "../test/json/shared-instance-list-slots.json",
             Some(UpdateInstance {
                 expected_slot_1_node: "",
-                expected_slot_5_node: "node-a",
+                expected_slot_5_node: "U:node-a",
             }),
             grace_period,
             &reconciler,

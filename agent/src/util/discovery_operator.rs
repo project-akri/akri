@@ -245,7 +245,7 @@ impl DiscoveryOperator {
         );
         let kube_interface_clone = kube_interface.clone();
         let instance_map = self.instance_map.write().await.clone();
-        for (instance, instance_info) in instance_map.clone() {
+        for (instance, instance_info) in instance_map.clone().instances {
             if let InstanceConnectivityStatus::Offline(instant) = instance_info.connectivity_status
             {
                 let time_offline = instant.elapsed().as_secs();
@@ -304,7 +304,7 @@ impl DiscoveryOperator {
         // Find all visible instances that do not have Instance CRDs yet
         let new_discovery_results: Vec<Device> = currently_visible_instances
             .iter()
-            .filter(|(name, _)| !instance_map.contains_key(*name))
+            .filter(|(name, _)| !instance_map.instances.contains_key(*name))
             .map(|(_, p)| p.clone())
             .collect();
         self.update_instance_connectivity_status(
@@ -355,7 +355,7 @@ impl DiscoveryOperator {
         shared: bool,
     ) -> anyhow::Result<()> {
         let instance_map = self.instance_map.read().await.clone();
-        for (instance, instance_info) in instance_map {
+        for (instance, instance_info) in instance_map.instances {
             trace!(
                 "update_instance_connectivity_status - checking connectivity status of instance {}",
                 instance
@@ -369,13 +369,17 @@ impl DiscoveryOperator {
                         instance
                     );
                     let list_and_watch_message_sender = instance_info.list_and_watch_message_sender;
+                    let device = currently_visible_instances.get(&instance).unwrap();
                     let updated_instance_info = InstanceInfo {
                         connectivity_status: InstanceConnectivityStatus::Online,
                         list_and_watch_message_sender: list_and_watch_message_sender.clone(),
+                        instance_id: instance_info.instance_id.clone(),
+                        device: device.clone(),
                     };
                     self.instance_map
                         .write()
                         .await
+                        .instances
                         .insert(instance.clone(), updated_instance_info);
                     // Signal list_and_watch to update kubelet that the devices are healthy.
                     list_and_watch_message_sender
@@ -408,10 +412,13 @@ impl DiscoveryOperator {
                                 list_and_watch_message_sender: instance_info
                                     .list_and_watch_message_sender
                                     .clone(),
+                                instance_id: instance_info.instance_id.clone(),
+                                device: instance_info.device.clone(),
                             };
                             self.instance_map
                                 .write()
                                 .await
+                                .instances
                                 .insert(instance.clone(), updated_instance_info);
                             trace!(
                                 "update_instance_connectivity_status - instance {} went offline ... starting timer and forcing list_and_watch to continue",
@@ -455,6 +462,8 @@ impl DiscoveryOperator {
 pub mod start_discovery {
     use super::super::registration::{DiscoveryDetails, DiscoveryHandlerEndpoint};
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
+    use super::super::device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface};
+    use super::device_plugin_service::get_device_configuration_name;
     #[double]
     pub use super::DiscoveryOperator;
     use super::StreamType;
@@ -478,14 +487,55 @@ pub mod start_discovery {
         finished_all_discovery_sender: &mut mpsc::Sender<()>,
         kube_interface: Arc<dyn k8s::KubeInterface>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+        internal_start_discovery(
+            discovery_operator,
+            new_discovery_handler_sender,
+            stop_all_discovery_sender,
+            finished_all_discovery_sender,
+            kube_interface,
+            Box::new(DevicePluginBuilder {}),
+        )
+        .await
+    }
+
+    pub async fn internal_start_discovery(
+        discovery_operator: DiscoveryOperator,
+        new_discovery_handler_sender: broadcast::Sender<String>,
+        stop_all_discovery_sender: broadcast::Sender<()>,
+        finished_all_discovery_sender: &mut mpsc::Sender<()>,
+        kube_interface: Arc<dyn k8s::KubeInterface>,
+        device_plugin_builder: Box<dyn DevicePluginBuilderInterface>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let config = discovery_operator.get_config();
         info!(
-            "start_discovery - entered for {} discovery handler",
+            "internal_start_discovery - entered for {} discovery handler",
             config.spec.discovery_handler.name
         );
         let config_name = config.metadata.name.clone().unwrap();
         let mut tasks = Vec::new();
+        let instance_map = discovery_operator.get_instance_map();
         let discovery_operator = Arc::new(discovery_operator);
+
+        // Create a device plugin for the Configuration
+        let config_dp_name = get_device_configuration_name(&config_name);
+        trace!(
+            "internal_start_discovery - create configuration device plugin {}",
+            config_dp_name
+        );
+        match device_plugin_builder
+            .build_configuration_device_plugin(config_dp_name, &config, instance_map.clone())
+            .await
+        {
+            Ok(s) => {
+                instance_map.write().await.usage_update_message_sender = Some(s);
+            }
+            Err(e) => {
+                error!(
+                    "internal_start_discovery - error {} building configuration device plugin",
+                    e
+                );
+            }
+        };
 
         // Call discover on already registered Discovery Handlers requested by this Configuration's
         let known_dh_discovery_operator = discovery_operator.clone();
@@ -527,7 +577,7 @@ pub mod start_discovery {
                 )
                 .await.is_ok()
                 {
-                    trace!("start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
+                    trace!("internal_start_discovery - received message to stop checking connectivity status for configuration {}", config_name);
                     break;
                 }
             }
@@ -744,6 +794,7 @@ pub mod tests {
         device_plugin_builder::MockDevicePluginBuilderInterface,
         registration::{inner_register_embedded_discovery_handlers, DiscoveryDetails},
     };
+    use super::device_plugin_service::InstanceConfig;
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
@@ -792,8 +843,9 @@ pub mod tests {
         connectivity_status: InstanceConnectivityStatus,
         config_name: &str,
     ) -> InstanceMap {
-        Arc::new(tokio::sync::RwLock::new(
-            discovery_results
+        Arc::new(tokio::sync::RwLock::new(InstanceConfig {
+            usage_update_message_sender: None,
+            instances: discovery_results
                 .iter()
                 .map(|device| {
                     let (list_and_watch_message_sender, list_and_watch_message_receiver) =
@@ -805,11 +857,13 @@ pub mod tests {
                         InstanceInfo {
                             list_and_watch_message_sender,
                             connectivity_status: connectivity_status.clone(),
+                            instance_id: device.id.clone(),
+                            device: device.clone(),
                         },
                     )
                 })
                 .collect(),
-        ))
+        }))
     }
 
     fn create_mock_discovery_operator(
@@ -895,7 +949,7 @@ pub mod tests {
         let discovery_operator = create_mock_discovery_operator(
             discovery_handler_map.clone(),
             config,
-            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         );
         (discovery_operator, discovery_handler_map)
     }
@@ -955,7 +1009,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         ));
         tokio::spawn(async move {
             discovery_operator.stop_all_discovery().await;
@@ -1060,13 +1114,23 @@ pub mod tests {
         let (stop_all_discovery_sender, _) = broadcast::channel(2);
         let thread_stop_all_discovery_sender = stop_all_discovery_sender.clone();
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
+        let mut mock_device_plugin_builder = Box::new(MockDevicePluginBuilderInterface::new());
+        mock_device_plugin_builder
+            .expect_build_configuration_device_plugin()
+            .times(1)
+            .returning(move |_, _, _| {
+                let (sender, _) = broadcast::channel(2);
+                Ok(sender)
+            });
+
         let start_discovery_handle = tokio::spawn(async move {
-            start_discovery::start_discovery(
+            start_discovery::internal_start_discovery(
                 mock_discovery_operator,
                 new_dh_sender.to_owned(),
                 thread_stop_all_discovery_sender,
                 &mut finished_discovery_sender,
                 mock_kube_interface,
+                mock_device_plugin_builder,
             )
             .await
             .unwrap();
@@ -1141,7 +1205,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         ));
         let mut mock_device_plugin_builder = MockDevicePluginBuilderInterface::new();
         mock_device_plugin_builder
@@ -1183,11 +1247,11 @@ pub mod tests {
             keep_looping = false;
             tokio::time::sleep(Duration::from_millis(100)).await;
             let unwrapped_instance_map = instance_map.read().await.clone();
-            if check_empty && unwrapped_instance_map.is_empty() {
+            if check_empty && unwrapped_instance_map.instances.is_empty() {
                 map_is_empty = true;
                 break;
             }
-            for (_, instance_info) in unwrapped_instance_map {
+            for (_, instance_info) in unwrapped_instance_map.instances {
                 if instance_info.connectivity_status != status && equality {
                     keep_looping = true;
                 }
@@ -1479,7 +1543,7 @@ pub mod tests {
         DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         )
     }
 
@@ -1497,7 +1561,7 @@ pub mod tests {
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
         );
         // test embedded debugEcho socket
         if let Some(StreamType::Embedded(_)) = discovery_operator

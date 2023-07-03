@@ -323,6 +323,124 @@ fn default_shared() -> bool {
     false
 }
 
+pub mod device_usage {
+    #[derive(PartialEq, Clone, Debug, Default)]
+    pub enum DeviceUsageKind {
+        /// Device is free
+        #[default]
+        Free,
+        /// Device is reserved by Instance Device Plugin
+        Instance,
+        /// Device is reserved by Configuration Device Plugin
+        Configuration(String),
+        /// Device is reserved but insufficient information to determine who reserve it
+        /// this happens where a Pod is running (corresponds to an Allocate call), but the Instance slot is empty.
+        Unknown,
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct ParseDeviceUsageError;
+    #[derive(PartialEq, Clone, Debug, Default)]
+    pub struct DeviceUsage {
+        kind: DeviceUsageKind,
+        node_name: String,
+    }
+
+    impl std::fmt::Display for DeviceUsage {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match &self.kind {
+                DeviceUsageKind::Free => write!(f, ""),
+                DeviceUsageKind::Configuration(vdev_id) => {
+                    write!(f, "C:{}:{}", vdev_id, self.node_name)
+                }
+                DeviceUsageKind::Unknown => {
+                    write!(f, "U:{}", self.node_name)
+                }
+                DeviceUsageKind::Instance => write!(f, "{}", self.node_name),
+            }
+        }
+    }
+
+    impl std::str::FromStr for DeviceUsage {
+        type Err = ParseDeviceUsageError;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            if s.is_empty() {
+                return Ok(DeviceUsage {
+                    kind: DeviceUsageKind::Free,
+                    node_name: s.to_string(),
+                });
+            }
+
+            // Format "C:<vdev_id>:<node_name>"
+            if let Some((vdev_id, node_name)) = s.strip_prefix("C:").and_then(|s| s.split_once(':'))
+            {
+                if node_name.is_empty() {
+                    return Err(ParseDeviceUsageError);
+                }
+                return Ok(DeviceUsage {
+                    kind: DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    node_name: node_name.to_string(),
+                });
+            }
+
+            // Format "U:<node_name>"
+            if let Some(node_name) = s.strip_prefix("U:") {
+                if node_name.is_empty() {
+                    return Err(ParseDeviceUsageError);
+                }
+                return Ok(DeviceUsage {
+                    kind: DeviceUsageKind::Unknown,
+                    node_name: node_name.to_string(),
+                });
+            }
+
+            // Format "<node_name>"
+            Ok(DeviceUsage {
+                kind: DeviceUsageKind::Instance,
+                node_name: s.to_string(),
+            })
+        }
+    }
+
+    impl DeviceUsage {
+        pub fn create(kind: &DeviceUsageKind, node_name: &str) -> Result<Self, anyhow::Error> {
+            match kind {
+                DeviceUsageKind::Free => {
+                    if !node_name.is_empty() {
+                        return Err(anyhow::anyhow!(
+                            "Invalid input parameter, node name: {} provided for free device usage",
+                            node_name
+                        ));
+                    };
+                }
+                _ => {
+                    if node_name.is_empty() {
+                        return Err(anyhow::anyhow!(
+                            "Invalid input parameter, no node name provided for device usage"
+                        ));
+                    };
+                }
+            };
+
+            Ok(Self {
+                kind: kind.clone(),
+                node_name: node_name.into(),
+            })
+        }
+
+        pub fn get_kind(&self) -> DeviceUsageKind {
+            self.kind.clone()
+        }
+
+        pub fn get_node_name(&self) -> String {
+            self.node_name.clone()
+        }
+
+        pub fn is_same_node(&self, node_name: &str) -> bool {
+            self.node_name == node_name
+        }
+    }
+}
+
 #[cfg(test)]
 mod crd_serializeation_tests {
     use super::super::super::os::file;

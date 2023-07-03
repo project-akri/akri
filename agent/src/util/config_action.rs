@@ -4,7 +4,7 @@ use super::{
         DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY,
     },
     device_plugin_service,
-    device_plugin_service::InstanceMap,
+    device_plugin_service::{InstanceConfig, InstanceMap},
     discovery_operator::start_discovery::{start_discovery, DiscoveryOperator},
     registration::RegisteredDiscoveryHandlerMap,
 };
@@ -252,7 +252,7 @@ async fn handle_config_add(
         config.metadata.name.clone().unwrap(),
     );
     // Create a new instance map for this config and add it to the config map
-    let instance_map: InstanceMap = Arc::new(RwLock::new(HashMap::new()));
+    let instance_map: InstanceMap = Arc::new(RwLock::new(InstanceConfig::default()));
     let (stop_discovery_sender, _): (broadcast::Sender<()>, broadcast::Receiver<()>) =
         broadcast::channel(DISCOVERY_OPERATOR_STOP_DISCOVERY_CHANNEL_CAPACITY);
     let (mut finished_discovery_sender, finished_discovery_receiver) =
@@ -345,7 +345,10 @@ async fn handle_config_delete(
             .clone();
         config_map_locked.remove(&config_id);
     }
-    delete_all_instances_in_map(kube_interface, instance_map, config_id).await?;
+    delete_all_instances_in_map(kube_interface, instance_map.clone(), config_id).await?;
+    if let Some(sender) = &instance_map.read().await.usage_update_message_sender {
+        sender.send(device_plugin_service::ListAndWatchMessageKind::End)?;
+    }
     Ok(())
 }
 
@@ -382,7 +385,7 @@ pub async fn delete_all_instances_in_map(
 ) -> anyhow::Result<()> {
     let mut instance_map_locked = instance_map.write().await;
     let instances_to_delete_map = instance_map_locked.clone();
-    for (instance_name, instance_info) in instances_to_delete_map {
+    for (instance_name, instance_info) in instances_to_delete_map.instances {
         trace!(
             "handle_config_delete - found Instance {} associated with deleted config {:?} ... sending message to end list_and_watch",
             instance_name,
@@ -392,7 +395,7 @@ pub async fn delete_all_instances_in_map(
             .list_and_watch_message_sender
             .send(device_plugin_service::ListAndWatchMessageKind::End)
             .unwrap();
-        instance_map_locked.remove(&instance_name);
+        instance_map_locked.instances.remove(&instance_name);
         try_delete_instance(kube_interface, &instance_name, namespace.as_str()).await?;
     }
     Ok(())
@@ -518,7 +521,7 @@ mod config_action_tests {
         futures::future::join_all(tasks).await;
 
         // Assert that all instances have been removed from the instance map
-        assert_eq!(instance_map.read().await.len(), 0);
+        assert_eq!(instance_map.read().await.instances.len(), 0);
     }
 
     #[tokio::test]
@@ -583,7 +586,7 @@ mod config_action_tests {
         futures::future::join_all(tasks).await;
 
         // Assert that all instances have been removed from the instance map
-        assert_eq!(instance_map.read().await.len(), 0);
+        assert_eq!(instance_map.read().await.instances.len(), 0);
     }
 
     // Tests that when a Configuration is updated,
@@ -640,7 +643,7 @@ mod config_action_tests {
         let (_, finished_discovery_receiver) = mpsc::channel(2);
 
         let config_info = ConfigInfo {
-            instance_map: Arc::new(RwLock::new(HashMap::new())),
+            instance_map: Arc::new(RwLock::new(InstanceConfig::default())),
             stop_discovery_sender: stop_discovery_sender.clone(),
             finished_discovery_receiver,
             last_generation: Some(1),
