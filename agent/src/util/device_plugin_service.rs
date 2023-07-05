@@ -536,25 +536,15 @@ impl ConfigurationDevicePlugin {
                 "ConfigurationDevicePlugin::list_and_watch - loop iteration for device plugin {}",
                 dps.instance_name
             );
-            let available_virtual_devices = if dps.config.unique_devices {
-                get_available_virtual_devices_from_instance(
-                    &dps.instance_map.read().await.clone(),
-                    &dps.node_name,
-                    &dps.config_namespace,
-                    &dps.config,
-                    kube_interface.clone(),
-                )
-                .await
-            } else {
-                get_available_virtual_devices_from_device_usage(
-                    &dps.instance_map.read().await.clone(),
-                    &dps.node_name,
-                    &dps.config_namespace,
-                    &dps.config,
-                    kube_interface.clone(),
-                )
-                .await
-            };
+            let available_virtual_devices = get_available_virtual_devices(
+                &dps.instance_map.read().await.clone(),
+                &dps.node_name,
+                &dps.config_namespace,
+                &dps.config,
+                dps.config.unique_devices,
+                kube_interface.clone(),
+            )
+            .await;
             info!(
                 "ConfigurationDevicePlugin::list_and_watch - available_virtual_devices = {:?}",
                 available_virtual_devices
@@ -670,27 +660,15 @@ impl ConfigurationDevicePlugin {
                 request,
             );
 
-            let virtual_devices_to_allocate = if dps.config.unique_devices {
-                get_virtual_device_resources_from_instance(
-                    request.devices_i_ds.clone(),
-                    &dps.instance_map.read().await.clone(),
-                    &dps.node_name,
-                    &dps.config_namespace,
-                    &dps.config,
-                    kube_interface.clone(),
-                )
-                .await
-            } else {
-                get_virtual_device_resources_from_device_usage(
-                    request.devices_i_ds.clone(),
-                    &dps.instance_map.read().await.clone(),
-                    &dps.node_name,
-                    &dps.config_namespace,
-                    &dps.config,
-                    kube_interface.clone(),
-                )
-                .await
-            };
+            let virtual_devices_to_allocate = get_virtual_device_resources(
+                request.devices_i_ds.clone(),
+                &dps.instance_map.read().await.clone(),
+                &dps.node_name,
+                &dps.config_namespace,
+                &dps.config,
+                kube_interface.clone(),
+            )
+            .await;
             let resources_to_allocate = match virtual_devices_to_allocate {
                 Ok(resources) => resources,
                 Err(e) => {
@@ -858,11 +836,12 @@ pub async fn get_instance_device_usage_state(
     }
 }
 
-async fn get_available_virtual_devices_from_instance(
+async fn get_available_virtual_devices(
     instance_config: &InstanceConfig,
     node_name: &str,
     instance_namespace: &str,
     config: &ConfigurationSpec,
+    unique_devices: bool,
     kube_interface: Arc<impl KubeInterface>,
 ) -> HashSet<String> {
     let mut device_usage_states = HashMap::new();
@@ -877,59 +856,17 @@ async fn get_available_virtual_devices_from_instance(
         .await;
         device_usage_states.insert(instance_name.to_string(), device_usage_state);
     }
-    // get all healthy virtual devices, a virtual device is healthy if Free or ReservedByConfiguration
     let mut vdev_ids_to_report = HashSet::new();
+    let mut free_instances = HashSet::new();
+    let mut reserved_instances = HashSet::new();
     for (instance_name, device_usage_state) in device_usage_states {
         for (_id, state) in device_usage_state {
             match state {
                 DeviceUsageStatus::Free => {
-                    vdev_ids_to_report.insert(
-                        instance_config
-                            .instances
-                            .get(&instance_name)
-                            .unwrap()
-                            .instance_id
-                            .clone(),
-                    );
+                    free_instances.insert(instance_name.clone());
                 }
                 DeviceUsageStatus::ReservedByConfiguration(vdev_id) => {
-                    vdev_ids_to_report.insert(vdev_id);
-                }
-                _ => (),
-            };
-        }
-    }
-    vdev_ids_to_report
-}
-
-async fn get_available_virtual_devices_from_device_usage(
-    instance_config: &InstanceConfig,
-    node_name: &str,
-    instance_namespace: &str,
-    config: &ConfigurationSpec,
-    kube_interface: Arc<impl KubeInterface>,
-) -> HashSet<String> {
-    let mut device_usage_states = HashMap::new();
-    for instance_name in instance_config.instances.keys() {
-        let device_usage_state = get_instance_device_usage_state(
-            node_name,
-            instance_name,
-            instance_namespace,
-            config,
-            kube_interface.clone(),
-        )
-        .await;
-        device_usage_states.insert(instance_name.to_string(), device_usage_state);
-    }
-    let mut vdev_ids_to_report = HashSet::new();
-    let mut total_free_entries = 0;
-    for device_usage_state in device_usage_states.into_values() {
-        for (_id, state) in device_usage_state {
-            match state {
-                DeviceUsageStatus::Free => {
-                    total_free_entries += 1;
-                }
-                DeviceUsageStatus::ReservedByConfiguration(vdev_id) => {
+                    reserved_instances.insert(instance_name.clone());
                     vdev_ids_to_report.insert(vdev_id);
                 }
                 _ => (),
@@ -937,7 +874,18 @@ async fn get_available_virtual_devices_from_device_usage(
         }
     }
 
-    // decide virtual device id
+    // Decide virtual device id,
+    // for unique_devices == true, report one virtual device per instance,
+    // for unique_devices != true, report already reserved virtual devices + 1 free device usage (if available) per instance
+    let total_free_entries = if unique_devices {
+        free_instances
+            .difference(&reserved_instances)
+            .collect::<HashSet<_>>()
+            .len()
+    } else {
+        free_instances.len()
+    };
+
     let mut id_to_set: u32 = 0;
     for _x in 0..total_free_entries {
         while vdev_ids_to_report.get(&format!("{}", id_to_set)).is_some() {
@@ -951,112 +899,7 @@ async fn get_available_virtual_devices_from_device_usage(
     vdev_ids_to_report
 }
 
-async fn get_virtual_device_resources_from_instance(
-    requested_vdev_ids: Vec<String>,
-    instance_config: &InstanceConfig,
-    node_name: &str,
-    instance_namespace: &str,
-    config: &ConfigurationSpec,
-    kube_interface: Arc<impl KubeInterface>,
-) -> Result<HashMap<String, (String, String)>, Status> {
-    let mut device_usage_states = HashMap::new();
-    for instance_name in instance_config.instances.keys() {
-        let device_usage_state = get_instance_device_usage_state(
-            node_name,
-            instance_name,
-            instance_namespace,
-            config,
-            kube_interface.clone(),
-        )
-        .await;
-        device_usage_states.insert(instance_name.to_string(), device_usage_state);
-    }
-
-    let mut usage_ids_to_use = HashMap::<String, (String, String)>::new();
-
-    let mut free_device_usage_states = HashMap::new();
-    let mut reserved_by_configuration_usage_states = HashMap::new();
-    for (instance_name, device_usage_state) in device_usage_states {
-        for (id, state) in device_usage_state {
-            match state {
-                DeviceUsageStatus::Free => {
-                    free_device_usage_states
-                        .entry(instance_name.to_string())
-                        .or_insert(HashSet::new())
-                        .insert(id);
-                }
-                DeviceUsageStatus::ReservedByConfiguration(vdev_id) => {
-                    if requested_vdev_ids.contains(&vdev_id) {
-                        reserved_by_configuration_usage_states
-                            .entry(instance_name.to_string())
-                            .or_insert(HashMap::new())
-                            .insert(id, vdev_id);
-                    }
-                }
-
-                _ => (),
-            };
-        }
-    }
-
-    let pending_device_ids = requested_vdev_ids
-        .into_iter()
-        .filter(|vdev_id| {
-            // True means pending
-            let mut resource: Option<(String, String)> = None;
-
-            for (inst, slots) in &reserved_by_configuration_usage_states {
-                for (slot, vid) in slots {
-                    if vdev_id == vid {
-                        resource = Some((inst.clone(), slot.clone()));
-                        break;
-                    }
-                }
-                if resource.is_some() {
-                    break;
-                }
-            }
-
-            if resource.is_none() {
-                // Find instance name
-                if let Some((inst, _)) = instance_config
-                    .instances
-                    .iter()
-                    .find(|(_, inst_info)| inst_info.instance_id == *vdev_id)
-                {
-                    // Assign a free usage slot
-                    if let Some(slots) = &free_device_usage_states.get(inst) {
-                        if let Some(slot) = slots.iter().next() {
-                            resource = Some((inst.to_string(), slot.to_string()));
-                        }
-                    }
-                }
-            }
-
-            match resource {
-                Some((inst, slot)) => {
-                    reserved_by_configuration_usage_states.remove(&inst);
-                    free_device_usage_states.remove(&inst);
-                    usage_ids_to_use.insert(vdev_id.clone(), (inst, slot));
-                    false
-                }
-                None => true,
-            }
-        })
-        .collect::<Vec<String>>();
-
-    // If still have pending requested vdev id, return error
-    if !pending_device_ids.is_empty() {
-        return Err(Status::new(
-            Code::Unknown,
-            "Insufficient instances to allocate",
-        ));
-    }
-
-    Ok(usage_ids_to_use)
-}
-
-async fn get_virtual_device_resources_from_device_usage(
+async fn get_virtual_device_resources(
     requested_vdev_ids: Vec<String>,
     instance_config: &InstanceConfig,
     node_name: &str,
@@ -1108,13 +951,7 @@ async fn get_virtual_device_resources_from_device_usage(
 
     // Find (Instance, usage slot) for vdev ids, (Instance, usage slot) in free_device_usage_states and
     // reserved_by_configuration_usage_states are available to be assigned.
-    // Use two passes to find (Instance, usage slot) for a vdev id,
-    // the first pass, iterate vdev ids to look up vdev id from reserved_by_configuration_usage_states, if not found
-    // pick one (Instance, usage slot) from free_device_usage_states
-    // after the first pass, if there is any requested vdev id not found resource, pick one (Instance, usage slot)
-    // from reserved_by_configuration_usage_states.
-
-    // Pass 1, iterate vdev ids to look up vdev id from reserved_by_configuration_usage_states, if not found
+    // Iterate vdev ids to look up vdev id from reserved_by_configuration_usage_states, if not found
     // pick one (Instance, usage slot) from free_device_usage_states
     let pending_device_ids = requested_vdev_ids
         .into_iter()
@@ -1157,34 +994,7 @@ async fn get_virtual_device_resources_from_device_usage(
         })
         .collect::<Vec<String>>();
 
-    // Pass 2, if there is any pending requested vdev id, pick one (Instance, usage slot)
-    // from reserved_by_configuration_usage_states
-    let pending_device_ids = pending_device_ids
-        .into_iter()
-        .filter(|vdev_id| {
-            // true means pending
-            let mut resource: Option<(String, String)> = None;
-
-            if let Some(inst) = &reserved_by_configuration_usage_states.keys().next() {
-                let slots = &reserved_by_configuration_usage_states.get(*inst).unwrap();
-                if let Some((slot, _)) = slots.iter().next() {
-                    resource = Some((inst.to_string(), slot.to_string()));
-                }
-            }
-
-            match resource {
-                Some((inst, slot)) => {
-                    reserved_by_configuration_usage_states.remove(&inst);
-                    free_device_usage_states.remove(&inst);
-                    usage_ids_to_use.insert(vdev_id.clone(), (inst, slot));
-                    false
-                }
-                None => true,
-            }
-        })
-        .collect::<Vec<String>>();
-
-    // If still have pending requested vdev id, return error
+    // Return error if any pending requested vdev id
     if !pending_device_ids.is_empty() {
         return Err(Status::new(
             Code::Unknown,
@@ -2401,10 +2211,7 @@ mod device_plugin_service_tests {
 
         let result = stream.into_inner().recv().await.unwrap();
         let list_and_watch_response = result.unwrap();
-        assert_eq!(
-            list_and_watch_response.devices.len(),
-            device_plugin_service.config.capacity as usize
-        );
+        assert_eq!(list_and_watch_response.devices.len(), 1);
     }
 
     fn setup_configuration_internal_allocate_tests(
