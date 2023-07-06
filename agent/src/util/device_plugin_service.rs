@@ -543,7 +543,6 @@ impl ConfigurationDevicePlugin {
                 &dps.node_name,
                 &dps.config_namespace,
                 &dps.config,
-                dps.config.unique_devices,
                 kube_interface.clone(),
             )
             .await;
@@ -848,7 +847,6 @@ async fn get_available_virtual_devices(
     node_name: &str,
     instance_namespace: &str,
     config: &ConfigurationSpec,
-    unique_devices: bool,
     kube_interface: Arc<impl KubeInterface>,
 ) -> HashSet<String> {
     let mut device_usage_states = HashMap::new();
@@ -881,20 +879,9 @@ async fn get_available_virtual_devices(
         }
     }
 
-    // Decide virtual device id,
-    // for unique_devices == true, report one virtual device per instance,
-    // for unique_devices != true, report already reserved virtual devices + 1 free device usage (if available) per instance
-    let total_free_entries = if unique_devices {
-        free_instances
-            .difference(&reserved_instances)
-            .collect::<HashSet<_>>()
-            .len()
-    } else {
-        free_instances.len()
-    };
-
+    // Decide virtual device id, report already reserved virtual devices + 1 free device usage (if available) per instance
     let mut id_to_set: u32 = 0;
-    for _x in 0..total_free_entries {
+    for _x in 0..free_instances.len() {
         while vdev_ids_to_report.get(&format!("{}", id_to_set)).is_some() {
             id_to_set += 1;
         }
