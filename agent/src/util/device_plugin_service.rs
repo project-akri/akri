@@ -299,7 +299,7 @@ impl InstanceDevicePlugin {
                 &dps.node_name,
                 &dps.instance_name,
                 &dps.config_namespace,
-                &dps.config,
+                &dps.config.capacity,
                 kube_interface.clone(),
             )
             .await;
@@ -542,7 +542,7 @@ impl ConfigurationDevicePlugin {
                 &dps.instance_map.read().await.clone(),
                 &dps.node_name,
                 &dps.config_namespace,
-                &dps.config,
+                &dps.config.capacity,
                 kube_interface.clone(),
             )
             .await;
@@ -666,7 +666,7 @@ impl ConfigurationDevicePlugin {
                 &dps.instance_map.read().await.clone(),
                 &dps.node_name,
                 &dps.config_namespace,
-                &dps.config,
+                &dps.config.capacity,
                 kube_interface.clone(),
             )
             .await;
@@ -813,7 +813,7 @@ pub async fn get_instance_device_usage_state(
     node_name: &str,
     instance_name: &str,
     instance_namespace: &str,
-    config: &ConfigurationSpec,
+    capacity: &i32,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Vec<(String, DeviceUsageStatus)> {
     let mut device_usage_states = Vec::new();
@@ -831,7 +831,7 @@ pub async fn get_instance_device_usage_state(
             }
             device_usage_states
         }
-        Err(_) => (0..config.capacity)
+        Err(_) => (0..*capacity)
             .map(|x| {
                 (
                     format!("{}-{}", instance_name, x),
@@ -846,7 +846,7 @@ async fn get_available_virtual_devices(
     instance_config: &InstanceConfig,
     node_name: &str,
     instance_namespace: &str,
-    config: &ConfigurationSpec,
+    capacity: &i32,
     kube_interface: Arc<impl KubeInterface>,
 ) -> HashSet<String> {
     let mut device_usage_states = HashMap::new();
@@ -855,7 +855,7 @@ async fn get_available_virtual_devices(
             node_name,
             instance_name,
             instance_namespace,
-            config,
+            capacity,
             kube_interface.clone(),
         )
         .await;
@@ -898,7 +898,7 @@ async fn get_virtual_device_resources(
     instance_config: &InstanceConfig,
     node_name: &str,
     instance_namespace: &str,
-    config: &ConfigurationSpec,
+    capacity: &i32,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<HashMap<String, (String, String)>, Status> {
     let mut device_usage_states = HashMap::new();
@@ -907,7 +907,7 @@ async fn get_virtual_device_resources(
             node_name,
             instance_name,
             instance_namespace,
-            config,
+            capacity,
             kube_interface.clone(),
         )
         .await;
@@ -998,14 +998,14 @@ async fn get_virtual_device_resources(
     Ok(usage_ids_to_use)
 }
 
-/// This returns device usage status of a `device_usage_id` slot for an instance on a node
+/// This returns device usage status of a `device_usage_id` slot for an instance on a given node
 /// # More details
-/// Cases based on the usage slot (`device_usage_id`) value
-/// 1. device_usage\[id\] == "" ... this means that the device is available for use
+/// Cases based on the device usage value
+/// 1. DeviceUsageKind::Free ... this means that the device is available for use
 ///     * (ACTION) return DeviceUsageStatus::Free
-/// 2. device_usage\[id\] == self.nodeName ... this means THIS node previously used id, but the DevicePluginManager knows that this is no longer true
+/// 2. device_usage.usage == node_name ... this means node_name previously used device_usage
 ///     * (ACTION) return previously reserved kind, DeviceUsageStatus::ReservedByConfiguration or DeviceUsageStatus::ReservedByInstance
-/// 3. device_usage\[id\] == (some other node) ... this means that we believe this device is in use by another node and should be marked unhealthy
+/// 3. device_usage.usage == (some other node) ... this means that we believe this device is in use by another node
 ///     * (ACTION) return DeviceUsageStatus::ReservedByOtherNode
 fn get_device_usage_state(device_usage: &DeviceUsage, node_name: &str) -> DeviceUsageStatus {
     let device_usage_state = match device_usage.get_kind() {
@@ -1425,6 +1425,37 @@ mod device_plugin_service_tests {
             });
     }
 
+    fn setup_find_instance_with_mock_instances(
+        mock: &mut MockKubeInterface,
+        instance_namespace: &str,
+        mock_instances: Vec<(String, Instance)>,
+    ) {
+        for (instance_name, kube_instance) in mock_instances {
+            let instance_namespace = instance_namespace.to_string();
+            mock.expect_find_instance()
+                .times(1)
+                .withf(move |name: &str, namespace: &str| {
+                    namespace == instance_namespace && name == instance_name
+                })
+                .returning(move |_, _| Ok(kube_instance.clone()));
+        }
+    }
+
+    fn setup_find_instance_with_not_found_err(
+        mock: &mut MockKubeInterface,
+        instance_name: &str,
+        instance_namespace: &str,
+    ) {
+        let instance_name = instance_name.to_string();
+        let instance_namespace = instance_namespace.to_string();
+        mock.expect_find_instance()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == instance_namespace && name == instance_name
+            })
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
+    }
+
     fn create_device_plugin_service(
         device_plugin_kind: DevicePluginKind,
         connectivity_status: InstanceConnectivityStatus,
@@ -1561,6 +1592,79 @@ mod device_plugin_service_tests {
         assert_eq!(all_properties.get("ENDPOINT").unwrap(), "123");
         assert_eq!(all_properties.get("USE HD").unwrap(), "true");
         assert_eq!(all_properties.get("OVERWRITE").unwrap(), "222");
+    }
+
+    // Test correct device usage status is returned when a device usage slot is used on the same node
+    #[test]
+    fn test_get_device_usage_state_same_node() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let vdev_id = "vdev_0";
+        // Free
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::Free
+        );
+        // Used by Configuration
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(
+                    &DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    this_node
+                )
+                .unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByConfiguration(vdev_id.to_string())
+        );
+        // Used by Instance
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Instance, this_node).unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByInstance
+        );
+    }
+
+    // Test DeviceUsageStatus::ReservedByOtherNode is returned when a device usage slot is used on a different node
+    #[test]
+    fn test_get_device_usage_state_different_node() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let that_node = "node-b";
+        let vdev_id = "vdev_0";
+        // Free
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::Free
+        );
+        // Used by Configuration
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(
+                    &DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    that_node
+                )
+                .unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByOtherNode
+        );
+        // Used by Instance
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Instance, that_node).unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByOtherNode
+        );
     }
 
     fn configure_find_configuration(
@@ -2141,6 +2245,62 @@ mod device_plugin_service_tests {
             .is_err());
     }
 
+    // Tests correct device usage is returned when an Instance is found
+    // Expected behavior: should return correct device usage state for all usage slots
+    #[tokio::test]
+    async fn test_get_instance_device_usage_state() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let node_name = "node-a";
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let mock_device_usages = vec![(DeviceUsageKind::Free, "".to_string()); 5];
+        let capacity = mock_device_usages.len() as i32;
+        let mut kube_instance_builder = KubeInstanceBuilder::new(instance_name, instance_namespace);
+        kube_instance_builder.add_node(node_name);
+        kube_instance_builder.add_device_usages(instance_name, mock_device_usages);
+        let kube_instance = kube_instance_builder.build();
+        let mock_instances = vec![(instance_name.to_string(), kube_instance)];
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
+
+        let device_usage_state = get_instance_device_usage_state(
+            node_name,
+            instance_name,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(device_usage_state
+            .into_iter()
+            .all(|(_, v)| { v == DeviceUsageStatus::Free }));
+    }
+
+    // Tests correct device usage is returned when an Instance is not found
+    // Expected behavior: should return DeviceUsageStatus::Unknown for all usage slots
+    #[tokio::test]
+    async fn test_get_instance_device_usage_state_no_instance() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let node_name = "node-a";
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let capacity = 5i32;
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_not_found_err(&mut mock, instance_name, instance_namespace);
+
+        let device_usage_state = get_instance_device_usage_state(
+            node_name,
+            instance_name,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(device_usage_state
+            .into_iter()
+            .all(|(_, v)| { v == DeviceUsageStatus::Unknown }));
+    }
+
     fn create_configuration_device_plugin_service(
         connectivity_status: InstanceConnectivityStatus,
         add_to_instance_map: bool,
@@ -2152,6 +2312,437 @@ mod device_plugin_service_tests {
         );
 
         (dps, receivers)
+    }
+
+    // Tests 0 virtual device id is returned if instance not found in InstanceConfig
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_no_instance_in_instance_map() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let instance_namespace = "test-namespace";
+        let capacity = 5;
+        let instance_config = InstanceConfigBuilder::new().build();
+        let mock = MockKubeInterface::new();
+
+        let result = get_available_virtual_devices(
+            &instance_config,
+            this_node,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(result.is_empty());
+    }
+
+    // Tests 0 virtual device id is returned if instance not found from kube find_instance
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_no_kube_instance() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let capacity = 5;
+        let mut instance_config_builder = InstanceConfigBuilder::new();
+        instance_config_builder.add_instance(instance_name, &InstanceConnectivityStatus::Online);
+        let instance_config = instance_config_builder.build();
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_not_found_err(&mut mock, instance_name, instance_namespace);
+
+        let result = get_available_virtual_devices(
+            &instance_config,
+            this_node,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(result.is_empty());
+    }
+
+    // Tests 0 virtual device id is returned if all slots are taken by other node
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_all_taken_by_other_node() {
+        let this_node = "node-a";
+        let other_node = "other";
+        let mock_device_usages = vec![(DeviceUsageKind::Instance, other_node.to_string()); 5];
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert!(result.is_empty());
+    }
+
+    // Tests 0 virtual device id is returned if all slots are taken by Instance on the same node
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_all_taken_by_instance() {
+        let this_node = "node-a";
+        let mock_device_usages = vec![(DeviceUsageKind::Instance, this_node.to_string()); 5];
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert!(result.is_empty());
+    }
+
+    // Tests 1 virtual device id is returned if all slots are free
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_all_free() {
+        let this_node = "node-a";
+        let expected_length = 1;
+        let mock_device_usages = vec![(DeviceUsageKind::Free, "".to_string()); 5];
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert_eq!(result.len(), expected_length);
+    }
+
+    // Tests 1 virtual device id is returned if all slots are taken by Configuration
+    // with the same vdev_id
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_all_taken_by_configuration_same_vdev_id() {
+        let this_node = "node-a";
+        let vdev_ids = vec!["vdev-a"; 5];
+        let expected_length = 1;
+        let mock_device_usages = vdev_ids
+            .iter()
+            .map(|id| {
+                (
+                    DeviceUsageKind::Configuration(id.to_string()),
+                    this_node.to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert_eq!(result.len(), expected_length);
+    }
+
+    // Tests correct virtual device ids are returned if all slots are taken by Configuration
+    // with different vdev_id
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_all_taken_by_configuration() {
+        let this_node = "node-a";
+        let vdev_ids = vec!["vdev-a", "vdev-b", "vdev-c", "vdev-d", "vdev-e"];
+        let expected_length = vdev_ids.len();
+        let mock_device_usages = vdev_ids
+            .iter()
+            .map(|id| {
+                (
+                    DeviceUsageKind::Configuration(id.to_string()),
+                    this_node.to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert_eq!(result.len(), expected_length);
+    }
+
+    // Tests correct virtual device ids are returned if some slots are taken by Configuration
+    // with different vdev_id
+    #[tokio::test]
+    async fn test_get_available_virtual_devices_some_taken_by_configuration() {
+        let this_node = "node-a";
+        let vdev_ids = vec!["vdev-a", "vdev-b"];
+        let expected_length = 2 + 1; // 2 vdev_ids + 1 free
+        let mut mock_device_usages = vec![(DeviceUsageKind::Free, "".to_string()); 3];
+        mock_device_usages.extend(
+            vdev_ids
+                .iter()
+                .map(|id| {
+                    (
+                        DeviceUsageKind::Configuration(id.to_string()),
+                        this_node.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        let result = run_get_available_virtual_devices_test(this_node, mock_device_usages).await;
+        assert_eq!(result.len(), expected_length);
+    }
+
+    async fn run_get_available_virtual_devices_test(
+        node_name: &str,
+        device_usages: Vec<(DeviceUsageKind, String)>,
+    ) -> HashSet<String> {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let capacity = device_usages.len() as i32;
+
+        let mut instance_config_builder = InstanceConfigBuilder::new();
+        instance_config_builder.add_instance(instance_name, &InstanceConnectivityStatus::Online);
+        let instance_config = instance_config_builder.build();
+
+        let mut kube_instance_builder = KubeInstanceBuilder::new(instance_name, instance_namespace);
+        kube_instance_builder.add_node(node_name);
+        kube_instance_builder.add_device_usages(instance_name, device_usages);
+        let kube_instance = kube_instance_builder.build();
+        let mock_instances = vec![(instance_name.to_string(), kube_instance)];
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
+
+        get_available_virtual_devices(
+            &instance_config,
+            node_name,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await
+    }
+
+    #[derive(Default, Clone)]
+    struct InstanceConfigBuilder {
+        instance_config: InstanceConfig,
+    }
+
+    impl InstanceConfigBuilder {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn add_instance(
+            &mut self,
+            instance_name: &str,
+            connectivity_status: &InstanceConnectivityStatus,
+        ) -> &mut Self {
+            let (list_and_watch_message_sender, _) = broadcast::channel(4);
+            let instance_info = InstanceInfo {
+                list_and_watch_message_sender,
+                connectivity_status: connectivity_status.clone(),
+                instance_id: format!("{}-instance-id", instance_name),
+                device: Device {
+                    id: format!("{}-device-id", instance_name),
+                    properties: HashMap::new(),
+                    mounts: Vec::new(),
+                    device_specs: Vec::new(),
+                },
+            };
+            self.instance_config
+                .instances
+                .insert(instance_name.to_string(), instance_info);
+            self
+        }
+
+        pub fn build(&self) -> InstanceConfig {
+            self.instance_config.clone()
+        }
+    }
+
+    #[derive(Clone)]
+    struct KubeInstanceBuilder {
+        name: String,
+        namespace: String,
+        configuration_name: String,
+        nodes: Vec<String>,
+        shared: bool,
+        device_usages: HashMap<String, Vec<(DeviceUsageKind, String)>>,
+    }
+
+    impl KubeInstanceBuilder {
+        pub fn new(name: &str, namespace: &str) -> Self {
+            Self {
+                name: name.to_string(),
+                namespace: namespace.to_string(),
+                configuration_name: String::default(),
+                nodes: Vec::new(),
+                shared: true,
+                device_usages: HashMap::new(),
+            }
+        }
+
+        pub fn add_node(&mut self, node: &str) -> &mut Self {
+            self.nodes.push(node.to_string());
+            self
+        }
+
+        pub fn add_device_usage(
+            &mut self,
+            instance_name: &str,
+            device_usage: (DeviceUsageKind, String),
+        ) -> &mut Self {
+            self.device_usages
+                .entry(instance_name.to_string())
+                .or_insert(Vec::new())
+                .push(device_usage);
+            self
+        }
+
+        pub fn add_device_usages(
+            &mut self,
+            instance_name: &str,
+            device_usages: Vec<(DeviceUsageKind, String)>,
+        ) -> &mut Self {
+            self.device_usages
+                .entry(instance_name.to_string())
+                .or_insert(Vec::new())
+                .extend(device_usages);
+            self
+        }
+
+        pub fn build(&self) -> Instance {
+            let instance_json = format!(
+                r#"{{
+                "apiVersion": "akri.sh/v0",
+                "kind": "Instance",
+                "metadata": {{
+                    "name": "{}",
+                    "namespace": "{}",
+                    "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+                }},
+                "spec": {{
+                    "configurationName": "",
+                    "nodes": [],
+                    "shared": true,
+                    "deviceUsage": {{
+                    }}
+                }}
+            }}
+            "#,
+                self.name, self.namespace
+            );
+            let mut instance: Instance = serde_json::from_str(&instance_json).unwrap();
+            instance.spec.configuration_name = self.configuration_name.clone();
+            instance.spec.nodes = self.nodes.clone();
+            instance.spec.shared = self.shared;
+            instance.spec.device_usage = self
+                .device_usages
+                .iter()
+                .flat_map(|(instance_name, usages)| {
+                    usages.iter().enumerate().map(move |(pos, (kind, node))| {
+                        let key = format!("{}-{}", instance_name, pos);
+                        (key, DeviceUsage::create(kind, node).unwrap().to_string())
+                    })
+                })
+                .collect::<HashMap<_, _>>();
+            instance
+        }
+    }
+
+    // Tests correct virtual devices are returned if all usage slots are free
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_all_free() {
+        let mock_instance_data = HashMap::from([("instance-1", None), ("instance-2", None)]);
+        let request_vdev_ids = vec!["vdev-a", "vdev-b"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids.clone())
+                .await;
+        assert_eq!(result.unwrap().len(), request_vdev_ids.len());
+    }
+
+    // Tests correct virtual devices are returned if all usage slots taken by Configuration(same vdev id)
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_all_taken_by_configuration_same_vdev_id() {
+        let mock_instance_data = HashMap::from([
+            ("instance-1", Some("vdev-a")),
+            ("instance-2", Some("vdev-b")),
+        ]);
+        let request_vdev_ids = vec!["vdev-a", "vdev-b"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids.clone())
+                .await;
+        assert_eq!(result.unwrap().len(), request_vdev_ids.len());
+    }
+
+    // Tests correct virtual devices are returned if all usage slots are free or taken by Configuration(same vdev id)
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_free_or_taken_by_configuration_same_vdev_id() {
+        let mock_instance_data =
+            HashMap::from([("instance-1", None), ("instance-2", Some("vdev-b"))]);
+        let request_vdev_ids = vec!["vdev-a", "vdev-b"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids.clone())
+                .await;
+        assert_eq!(result.unwrap().len(), request_vdev_ids.len());
+    }
+
+    // Tests get_virtual_device_resources returns err if all usage slots taken by Configuration(different vdev id)
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_all_taken_by_configuration_different_vdev_id() {
+        let mock_instance_data = HashMap::from([
+            ("instance-1", Some("other-vdev-a")),
+            ("instance-2", Some("other-vdev-b")),
+        ]);
+        let request_vdev_ids = vec!["vdev-a", "vdev-b"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids).await;
+        assert!(result.is_err());
+    }
+
+    // Tests get_virtual_device_resources returns err if one instance usage slots taken by Configuration(different vdev id)
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_some_taken_by_configuration_different_vdev_id() {
+        let mock_instance_data = HashMap::from([
+            ("instance-1", Some("other-vdev-a")),
+            ("instance-2", Some("vdev-b")),
+        ]);
+        let request_vdev_ids = vec!["vdev-1", "vdev-2"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids).await;
+        assert!(result.is_err());
+    }
+
+    // Tests get_virtual_device_resources returns err if one instance usage slots taken by Configuration(different vdev id)
+    #[tokio::test]
+    async fn test_get_virtual_device_resources_free_or_some_taken_by_configuration_different_vdev_id(
+    ) {
+        let mock_instance_data =
+            HashMap::from([("instance-1", Some("other-vdev-a")), ("instance-2", None)]);
+        let request_vdev_ids = vec!["vdev-1", "vdev-2"];
+
+        let result =
+            run_get_virtual_device_resources_test(mock_instance_data, request_vdev_ids).await;
+        assert!(result.is_err());
+    }
+
+    async fn run_get_virtual_device_resources_test(
+        instance_data: HashMap<&str, Option<&str>>,
+        request_vdev_ids: Vec<&str>,
+    ) -> Result<HashMap<String, (String, String)>, Status> {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let instance_namespace = "test-namespace";
+        let capacity = 5;
+        let mut instance_config_builder = InstanceConfigBuilder::new();
+        instance_data.keys().for_each(|instance_name| {
+            instance_config_builder
+                .add_instance(instance_name, &InstanceConnectivityStatus::Online);
+        });
+        let instance_config = instance_config_builder.build();
+        let mock_instances = instance_data
+            .iter()
+            .map(|(instance_name, mock_vdev_id)| {
+                let device_usage = if let Some(id) = mock_vdev_id {
+                    (
+                        DeviceUsageKind::Configuration(id.to_string()),
+                        this_node.to_string(),
+                    )
+                } else {
+                    (DeviceUsageKind::Free, "".to_string())
+                };
+                let mut kube_instance_builder =
+                    KubeInstanceBuilder::new(instance_name, instance_namespace);
+                kube_instance_builder.add_node(this_node);
+                kube_instance_builder.add_device_usage(instance_name, device_usage);
+
+                (instance_name.to_string(), kube_instance_builder.build())
+            })
+            .collect::<Vec<_>>();
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
+
+        get_virtual_device_resources(
+            request_vdev_ids.iter().map(|x| x.to_string()).collect(),
+            &instance_config,
+            this_node,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await
     }
 
     // Configuration resource from instance, no instance available, should receive nothing from the response stream
@@ -2177,7 +2768,7 @@ mod device_plugin_service_tests {
 
     // Configuration resource from instance, instance available, should return capacity virtual devices
     #[tokio::test]
-    async fn test_cdps_list_and_watch_with_instance() {
+    async fn test_cdps_internal_list_and_watch_with_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (device_plugin_service, _device_plugin_service_receivers) =
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);

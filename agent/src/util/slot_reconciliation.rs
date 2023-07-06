@@ -270,12 +270,9 @@ impl DevicePluginSlotReconciler {
                         (
                             slot.to_string(),
                             if slots_missing_this_node_name.contains_key(slot) {
-                                // Set usage to Unknown because there have been
+                                // Restore usage because there have been
                                 // cases where a Pod is running (which corresponds
                                 // to an Allocate call, but the Instance slot is empty.
-                                // We don't know what kind of device plugin reserved the slot previously
-                                // mark it as Unknown state to prevent the slot from being allocated
-                                // the slot will be freed by reconcile after the container that uses the slot exits
                                 let usage_kind = slots_missing_this_node_name.get(slot).unwrap();
                                 DeviceUsage::create(usage_kind, node_name)
                                     .unwrap()
