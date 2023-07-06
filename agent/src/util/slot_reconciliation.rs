@@ -104,7 +104,12 @@ impl DevicePluginSlotReconciler {
         // Any slot found in use should be scrubbed from our list
         node_slot_usage.iter().for_each(|slot| {
             trace!("reconcile - remove slot from tracked slots: {:?}", slot);
-            self.removal_slot_map.lock().unwrap().remove(slot);
+            if let Ok(slot_usage) = DeviceUsage::from_str(slot) {
+                self.removal_slot_map
+                    .lock()
+                    .unwrap()
+                    .remove(&slot_usage.get_usage_name());
+            }
         });
         trace!(
             "reconcile - removal_slot_map after removing node_slot_usage: {:?}",
@@ -166,19 +171,30 @@ impl DevicePluginSlotReconciler {
                 .iter()
                 .filter_map(|(k, v)| {
                     let same_node_name = match DeviceUsage::from_str(v) {
-                        Ok(usage) => usage.is_same_node(node_name),
+                        Ok(usage) => usage.is_same_usage(node_name),
                         Err(_) => false,
                     };
-                    if !same_node_name && node_slot_usage.contains(k) {
-                        // We need to add node_name to this slot IF
-                        //     the slot is not labeled with node_name AND
-                        //     there is a container using that slot on this node
-                        Some(k.to_string())
-                    } else {
+                    // We need to add node_name to this slot IF
+                    //     the slot is not labeled with node_name AND
+                    //     there is a container using that slot on this node
+                    if same_node_name {
                         None
+                    } else {
+                        node_slot_usage
+                            .iter()
+                            .find(|u| match DeviceUsage::from_str(u) {
+                                Ok(slot_usage) => slot_usage.is_same_usage(k),
+                                Err(_) => false,
+                            })
+                            .map(|usage| {
+                                (
+                                    k.to_string(),
+                                    DeviceUsage::from_str(usage).unwrap().get_kind(),
+                                )
+                            })
                     }
                 })
-                .collect::<HashSet<String>>();
+                .collect::<HashMap<String, DeviceUsageKind>>();
 
             // Check Instance to find slots that are registered to this node, but
             // there is no actual pod using the slot.  We should update the Instance
@@ -192,10 +208,17 @@ impl DevicePluginSlotReconciler {
                 .iter()
                 .filter_map(|(k, v)| {
                     let same_node_name = match DeviceUsage::from_str(v) {
-                        Ok(usage) => usage.is_same_node(node_name),
+                        Ok(usage) => usage.is_same_usage(node_name),
                         Err(_) => false,
                     };
-                    if same_node_name && !node_slot_usage.contains(k) {
+                    if same_node_name
+                        && node_slot_usage
+                            .iter()
+                            .all(|usage| match DeviceUsage::from_str(usage) {
+                                Ok(slot_usage) => !slot_usage.is_same_usage(k),
+                                Err(_) => true,
+                            })
+                    {
                         // We need to clean this slot IF
                         //     this slot is handled by this node AND
                         //     there are no containers using that slot on this node
@@ -246,14 +269,15 @@ impl DevicePluginSlotReconciler {
                     .map(|(slot, usage)| {
                         (
                             slot.to_string(),
-                            if slots_missing_this_node_name.contains(slot) {
+                            if slots_missing_this_node_name.contains_key(slot) {
                                 // Set usage to Unknown because there have been
                                 // cases where a Pod is running (which corresponds
                                 // to an Allocate call, but the Instance slot is empty.
                                 // We don't know what kind of device plugin reserved the slot previously
                                 // mark it as Unknown state to prevent the slot from being allocated
                                 // the slot will be freed by reconcile after the container that uses the slot exits
-                                DeviceUsage::create(&DeviceUsageKind::Unknown, node_name)
+                                let usage_kind = slots_missing_this_node_name.get(slot).unwrap();
+                                DeviceUsage::create(usage_kind, node_name)
                                     .unwrap()
                                     .to_string()
                             } else if slots_to_clean.contains(slot) {
@@ -535,7 +559,7 @@ mod reconcile_tests {
             "../test/json/shared-instance-list-slots.json",
             Some(UpdateInstance {
                 expected_slot_1_node: "node-a",
-                expected_slot_5_node: "U:node-a",
+                expected_slot_5_node: "node-a",
             }),
             grace_period,
             &reconciler,
@@ -663,7 +687,7 @@ mod reconcile_tests {
             "../test/json/shared-instance-list-slots.json",
             Some(UpdateInstance {
                 expected_slot_1_node: "",
-                expected_slot_5_node: "U:node-a",
+                expected_slot_5_node: "node-a",
             }),
             grace_period,
             &reconciler,

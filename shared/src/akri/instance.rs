@@ -333,16 +333,13 @@ pub mod device_usage {
         Instance,
         /// Device is reserved by Configuration Device Plugin
         Configuration(String),
-        /// Device is reserved but insufficient information to determine who reserve it
-        /// this happens where a Pod is running (corresponds to an Allocate call), but the Instance slot is empty.
-        Unknown,
     }
     #[derive(Debug, PartialEq, Eq)]
     pub struct ParseDeviceUsageError;
     #[derive(PartialEq, Clone, Debug, Default)]
     pub struct DeviceUsage {
         kind: DeviceUsageKind,
-        node_name: String,
+        usage_name: String,
     }
 
     impl std::fmt::Display for DeviceUsage {
@@ -350,12 +347,9 @@ pub mod device_usage {
             match &self.kind {
                 DeviceUsageKind::Free => write!(f, ""),
                 DeviceUsageKind::Configuration(vdev_id) => {
-                    write!(f, "C:{}:{}", vdev_id, self.node_name)
+                    write!(f, "C:{}:{}", vdev_id, self.usage_name)
                 }
-                DeviceUsageKind::Unknown => {
-                    write!(f, "U:{}", self.node_name)
-                }
-                DeviceUsageKind::Instance => write!(f, "{}", self.node_name),
+                DeviceUsageKind::Instance => write!(f, "{}", self.usage_name),
             }
         }
     }
@@ -366,56 +360,46 @@ pub mod device_usage {
             if s.is_empty() {
                 return Ok(DeviceUsage {
                     kind: DeviceUsageKind::Free,
-                    node_name: s.to_string(),
+                    usage_name: s.to_string(),
                 });
             }
 
-            // Format "C:<vdev_id>:<node_name>"
-            if let Some((vdev_id, node_name)) = s.strip_prefix("C:").and_then(|s| s.split_once(':'))
+            // Format "C:<vdev_id>:<usage_name>"
+            if let Some((vdev_id, usage_name)) =
+                s.strip_prefix("C:").and_then(|s| s.split_once(':'))
             {
-                if node_name.is_empty() {
+                if usage_name.is_empty() {
                     return Err(ParseDeviceUsageError);
                 }
                 return Ok(DeviceUsage {
                     kind: DeviceUsageKind::Configuration(vdev_id.to_string()),
-                    node_name: node_name.to_string(),
+                    usage_name: usage_name.to_string(),
                 });
             }
 
-            // Format "U:<node_name>"
-            if let Some(node_name) = s.strip_prefix("U:") {
-                if node_name.is_empty() {
-                    return Err(ParseDeviceUsageError);
-                }
-                return Ok(DeviceUsage {
-                    kind: DeviceUsageKind::Unknown,
-                    node_name: node_name.to_string(),
-                });
-            }
-
-            // Format "<node_name>"
+            // Format "<usage_name>"
             Ok(DeviceUsage {
                 kind: DeviceUsageKind::Instance,
-                node_name: s.to_string(),
+                usage_name: s.to_string(),
             })
         }
     }
 
     impl DeviceUsage {
-        pub fn create(kind: &DeviceUsageKind, node_name: &str) -> Result<Self, anyhow::Error> {
+        pub fn create(kind: &DeviceUsageKind, usage_name: &str) -> Result<Self, anyhow::Error> {
             match kind {
                 DeviceUsageKind::Free => {
-                    if !node_name.is_empty() {
+                    if !usage_name.is_empty() {
                         return Err(anyhow::anyhow!(
-                            "Invalid input parameter, node name: {} provided for free device usage",
-                            node_name
+                            "Invalid input parameter, usage name: {} provided for free device usage",
+                            usage_name
                         ));
                     };
                 }
                 _ => {
-                    if node_name.is_empty() {
+                    if usage_name.is_empty() {
                         return Err(anyhow::anyhow!(
-                            "Invalid input parameter, no node name provided for device usage"
+                            "Invalid input parameter, no usage name provided for device usage"
                         ));
                     };
                 }
@@ -423,7 +407,7 @@ pub mod device_usage {
 
             Ok(Self {
                 kind: kind.clone(),
-                node_name: node_name.into(),
+                usage_name: usage_name.into(),
             })
         }
 
@@ -431,12 +415,12 @@ pub mod device_usage {
             self.kind.clone()
         }
 
-        pub fn get_node_name(&self) -> String {
-            self.node_name.clone()
+        pub fn get_usage_name(&self) -> String {
+            self.usage_name.clone()
         }
 
-        pub fn is_same_node(&self, node_name: &str) -> bool {
-            self.node_name == node_name
+        pub fn is_same_usage(&self, usage_name: &str) -> bool {
+            self.usage_name == usage_name
         }
     }
 }

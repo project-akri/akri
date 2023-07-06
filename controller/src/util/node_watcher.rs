@@ -299,7 +299,7 @@ impl NodeWatcher {
             .iter()
             .map(|(slot, usage)| {
                 let same_node_name = match DeviceUsage::from_str(usage) {
-                    Ok(usage) => usage.is_same_node(vanished_node_name),
+                    Ok(node_usage) => node_usage.is_same_usage(vanished_node_name),
                     Err(_) => false,
                 };
 

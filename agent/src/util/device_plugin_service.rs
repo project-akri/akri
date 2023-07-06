@@ -461,9 +461,11 @@ impl InstanceDevicePlugin {
                     return Err(e);
                 }
 
+                let slot_usage =
+                    DeviceUsage::create(&DeviceUsageKind::Instance, &device_usage_id).unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    device_usage_id.clone(),
+                    slot_usage.to_string(),
                 );
 
                 // Add suffix _<instance_id> to each device property
@@ -734,9 +736,14 @@ impl ConfigurationDevicePlugin {
                     return Err(e);
                 }
 
+                let slot_usage = DeviceUsage::create(
+                    &DeviceUsageKind::Configuration(vdev_id.clone()),
+                    &device_usage_id,
+                )
+                .unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    device_usage_id.clone(),
+                    slot_usage.to_string(),
                 );
 
                 // Add suffix _<instance_id> to each device property
@@ -1020,9 +1027,8 @@ fn get_device_usage_state(device_usage: &DeviceUsage, node_name: &str) -> Device
             DeviceUsageStatus::ReservedByConfiguration(vdev_id)
         }
         DeviceUsageKind::Instance => DeviceUsageStatus::ReservedByInstance,
-        DeviceUsageKind::Unknown => DeviceUsageStatus::ReservedByOtherNode,
     };
-    if device_usage_state != DeviceUsageStatus::Free && !device_usage.is_same_node(node_name) {
+    if device_usage_state != DeviceUsageStatus::Free && !device_usage.is_same_usage(node_name) {
         return DeviceUsageStatus::ReservedByOtherNode;
     }
     device_usage_state
@@ -1130,7 +1136,7 @@ async fn try_update_instance_device_usage(
             }
             DeviceUsageStatus::ReservedByOtherNode => {
                 trace!("try_update_instance_device_usage - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!",
-                    device_usage_id, device_usage.get_node_name(), node_name);
+                    device_usage_id, device_usage.get_usage_name(), node_name);
                 return Err(Status::new(
                     Code::Unknown,
                     "Requested device already in use",
