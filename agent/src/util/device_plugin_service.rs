@@ -376,19 +376,19 @@ impl InstanceDevicePlugin {
                         let devices = prev_virtual_devices
                             .iter()
                             .map(|d| v1beta1::Device {
-                                id:d.id.clone(),
+                                id: d.id.clone(),
                                 health: UNHEALTHY.into()
                             })
                             .collect::<Vec<_>>();
                         if !devices.is_empty() {
-                        let resp = v1beta1::ListAndWatchResponse { devices };
-                        info!(
-                            "InstanceDevicePlugin::list_and_watch - for device plugin {}, end response = {:?}",
-                            dps.instance_name, resp
-                        );
-                        kubelet_update_sender.send(Ok(resp))
-                            .await
-                            .unwrap();
+                            let resp = v1beta1::ListAndWatchResponse { devices };
+                            info!(
+                                "InstanceDevicePlugin::list_and_watch - for device plugin {}, end response = {:?}",
+                                dps.instance_name, resp
+                            );
+                            kubelet_update_sender.send(Ok(resp))
+                                .await
+                                .unwrap();
                         }
                         dps.server_ender_sender.clone().send(()).await.unwrap();
                         keep_looping = false;
