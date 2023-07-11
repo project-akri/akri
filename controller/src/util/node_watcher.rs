@@ -1,5 +1,6 @@
 use akri_shared::{
     akri::{
+        instance::device_usage::DeviceUsage,
         instance::{Instance, InstanceSpec},
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     },
@@ -13,6 +14,7 @@ use kube_runtime::watcher::{default_backoff, watcher, Event};
 use kube_runtime::WatchStreamExt;
 use log::{error, info, trace};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 /// Node states that NodeWatcher is interested in
 ///
@@ -295,13 +297,18 @@ impl NodeWatcher {
             .spec
             .device_usage
             .iter()
-            .map(|(slot, node)| {
+            .map(|(slot, usage)| {
+                let same_node_name = match DeviceUsage::from_str(usage) {
+                    Ok(node_usage) => node_usage.is_same_usage(vanished_node_name),
+                    Err(_) => false,
+                };
+
                 (
                     slot.to_string(),
-                    if vanished_node_name == node {
-                        "".into()
+                    if same_node_name {
+                        DeviceUsage::default().to_string()
                     } else {
-                        node.into()
+                        usage.into()
                     },
                 )
             })

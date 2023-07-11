@@ -1,4 +1,5 @@
 use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
+use akri_shared::akri::instance::device_usage::{DeviceUsage, DeviceUsageKind};
 use akri_shared::{akri::instance::InstanceSpec, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
@@ -6,6 +7,7 @@ use k8s_openapi::api::core::v1::PodStatus;
 use mockall::{automock, predicate::*};
 use std::{
     collections::{HashMap, HashSet},
+    str::FromStr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -102,7 +104,12 @@ impl DevicePluginSlotReconciler {
         // Any slot found in use should be scrubbed from our list
         node_slot_usage.iter().for_each(|slot| {
             trace!("reconcile - remove slot from tracked slots: {:?}", slot);
-            self.removal_slot_map.lock().unwrap().remove(slot);
+            if let Ok(slot_usage) = DeviceUsage::from_str(slot) {
+                self.removal_slot_map
+                    .lock()
+                    .unwrap()
+                    .remove(&slot_usage.get_usage_name());
+            }
         });
         trace!(
             "reconcile - removal_slot_map after removing node_slot_usage: {:?}",
@@ -163,16 +170,31 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    if v != node_name && node_slot_usage.contains(k) {
-                        // We need to add node_name to this slot IF
-                        //     the slot is not labeled with node_name AND
-                        //     there is a container using that slot on this node
-                        Some(k.to_string())
-                    } else {
+                    let same_node_name = match DeviceUsage::from_str(v) {
+                        Ok(usage) => usage.is_same_usage(node_name),
+                        Err(_) => false,
+                    };
+                    // We need to add node_name to this slot IF
+                    //     the slot is not labeled with node_name AND
+                    //     there is a container using that slot on this node
+                    if same_node_name {
                         None
+                    } else {
+                        node_slot_usage
+                            .iter()
+                            .find(|u| match DeviceUsage::from_str(u) {
+                                Ok(slot_usage) => slot_usage.is_same_usage(k),
+                                Err(_) => false,
+                            })
+                            .map(|usage| {
+                                (
+                                    k.to_string(),
+                                    DeviceUsage::from_str(usage).unwrap().get_kind(),
+                                )
+                            })
                     }
                 })
-                .collect::<HashSet<String>>();
+                .collect::<HashMap<String, DeviceUsageKind>>();
 
             // Check Instance to find slots that are registered to this node, but
             // there is no actual pod using the slot.  We should update the Instance
@@ -185,7 +207,18 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    if v == node_name && !node_slot_usage.contains(k) {
+                    let same_node_name = match DeviceUsage::from_str(v) {
+                        Ok(usage) => usage.is_same_usage(node_name),
+                        Err(_) => false,
+                    };
+                    if same_node_name
+                        && node_slot_usage
+                            .iter()
+                            .all(|usage| match DeviceUsage::from_str(usage) {
+                                Ok(slot_usage) => !slot_usage.is_same_usage(k),
+                                Err(_) => true,
+                            })
+                    {
                         // We need to clean this slot IF
                         //     this slot is handled by this node AND
                         //     there are no containers using that slot on this node
@@ -233,22 +266,25 @@ impl DevicePluginSlotReconciler {
                     .spec
                     .device_usage
                     .iter()
-                    .map(|(slot, node)| {
+                    .map(|(slot, usage)| {
                         (
                             slot.to_string(),
-                            if slots_missing_this_node_name.contains(slot) {
-                                // Set this to node_name because there have been
+                            if slots_missing_this_node_name.contains_key(slot) {
+                                // Restore usage because there have been
                                 // cases where a Pod is running (which corresponds
                                 // to an Allocate call, but the Instance slot is empty.
-                                node_name.into()
+                                let usage_kind = slots_missing_this_node_name.get(slot).unwrap();
+                                DeviceUsage::create(usage_kind, node_name)
+                                    .unwrap()
+                                    .to_string()
                             } else if slots_to_clean.contains(slot) {
-                                // Set this to empty string because there is no
+                                // Set usage to free because there is no
                                 // Deallocate message from kubelet for us to know
                                 // when a slot is no longer in use
-                                "".into()
+                                DeviceUsage::default().to_string()
                             } else {
                                 // This slot remains unchanged.
-                                node.into()
+                                usage.into()
                             },
                         )
                     })

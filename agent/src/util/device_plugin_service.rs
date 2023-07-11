@@ -11,6 +11,7 @@ use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
     akri::{
         configuration::ConfigurationSpec,
+        instance::device_usage::{DeviceUsage, DeviceUsageKind},
         instance::InstanceSpec,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
         AKRI_SLOT_ANNOTATION_NAME_PREFIX,
@@ -23,7 +24,7 @@ use log::{error, info, trace};
 use mock_instant::Instant;
 #[cfg(not(test))]
 use std::time::Instant;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 use tokio::{
     sync::{broadcast, mpsc, RwLock},
     time::timeout,
@@ -66,6 +67,21 @@ pub enum DevicePluginBehavior {
     Instance(InstanceDevicePlugin),
 }
 
+#[derive(PartialEq, Clone, Debug)]
+pub enum DeviceUsageStatus {
+    /// Free
+    Free,
+    /// Reserved by Configuration Device Plugin on current node
+    ReservedByConfiguration(String),
+    /// Reserved by Instance Device Plugin on current node
+    ReservedByInstance,
+    /// Reserved by other nodes
+    ReservedByOtherNode,
+    /// Unknown, insufficient information to determine the status,
+    /// mostly due to the device usage slot is not found from the instance map
+    Unknown,
+}
+
 /// Kubernetes Device-Plugin for an Instance.
 ///
 /// `DevicePluginService` implements Kubernetes Device-Plugin v1beta1 API specification
@@ -97,7 +113,7 @@ pub struct DevicePluginService {
     pub list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     /// Upon send, terminates function that acts as the shutdown signal for this service
     pub server_ender_sender: mpsc::Sender<()>,
-    /// enum object that defines the behavior of the device plugin
+    /// Enum object that defines the behavior of the device plugin
     pub device_plugin_behavior: DevicePluginBehavior,
 }
 
@@ -247,10 +263,27 @@ impl InstanceDevicePlugin {
                 dps.instance_name
             );
 
-            let virtual_devices =
-                build_list_and_watch_response(dps.clone(), kube_interface.clone())
-                    .await
-                    .unwrap();
+            let device_usage_state = get_instance_device_usage_state(
+                &dps.node_name,
+                &dps.instance_name,
+                &dps.config_namespace,
+                &dps.config.capacity,
+                kube_interface.clone(),
+            )
+            .await;
+
+            let virtual_devices = device_usage_state
+                .into_iter()
+                .map(|(id, state)| v1beta1::Device {
+                    id,
+                    health: match state {
+                        DeviceUsageStatus::Free | DeviceUsageStatus::ReservedByInstance => {
+                            HEALTHY.to_string()
+                        }
+                        _ => UNHEALTHY.to_string(),
+                    },
+                })
+                .collect::<Vec<v1beta1::Device>>();
             // Only send the virtual devices if the list has changed
             if !(prev_virtual_devices
                 .iter()
@@ -261,6 +294,10 @@ impl InstanceDevicePlugin {
                 let resp = v1beta1::ListAndWatchResponse {
                     devices: virtual_devices,
                 };
+                info!(
+                    "InstanceDevicePlugin::list_and_watch - for device plugin {}, response = {:?}",
+                    dps.instance_name, resp
+                );
                 // Send virtual devices list back to kubelet
                 if let Err(e) = kubelet_update_sender.send(Ok(resp)).await {
                     trace!(
@@ -292,13 +329,23 @@ impl InstanceDevicePlugin {
                             "InstanceDevicePlugin::list_and_watch - for Instance {} received message to end",
                             dps.instance_name
                         );
-                        let devices = build_unhealthy_virtual_devices(
-                            dps.config.capacity,
-                            &dps.instance_name,
-                        );
-                        kubelet_update_sender.send(Ok(v1beta1::ListAndWatchResponse { devices }))
-                            .await
-                            .unwrap();
+                        let devices = prev_virtual_devices
+                            .iter()
+                            .map(|d| v1beta1::Device {
+                                id: d.id.clone(),
+                                health: UNHEALTHY.into()
+                            })
+                            .collect::<Vec<_>>();
+                        if !devices.is_empty() {
+                            let resp = v1beta1::ListAndWatchResponse { devices };
+                            info!(
+                                "InstanceDevicePlugin::list_and_watch - for device plugin {}, end response = {:?}",
+                                dps.instance_name, resp
+                            );
+                            kubelet_update_sender.send(Ok(resp))
+                                .await
+                                .unwrap();
+                        }
                         dps.server_ender_sender.clone().send(()).await.unwrap();
                         keep_looping = false;
                     }
@@ -324,7 +371,7 @@ impl InstanceDevicePlugin {
         kube_interface: Arc<impl KubeInterface>,
     ) -> Result<Response<AllocateResponse>, Status> {
         let mut container_responses: Vec<v1beta1::ContainerAllocateResponse> = Vec::new();
-        // suffix to add to each device property
+        // Suffix to add to each device property
         let device_property_suffix = self.instance_id.to_uppercase();
 
         for request in requests.into_inner().container_requests {
@@ -335,6 +382,7 @@ impl InstanceDevicePlugin {
             );
             let mut akri_annotations = HashMap::new();
             let mut akri_device_properties = HashMap::new();
+            let mut akri_devices = HashMap::<String, Device>::new();
             for device_usage_id in request.devices_i_ds {
                 trace!(
                     "InstanceDevicePlugin::allocate - for Instance {} processing request for device usage slot id {}",
@@ -342,12 +390,31 @@ impl InstanceDevicePlugin {
                     device_usage_id
                 );
 
+                if let Err(e) = try_update_instance_device_usage(
+                    &device_usage_id,
+                    &dps.node_name,
+                    &dps.instance_name,
+                    &dps.config_namespace,
+                    DeviceUsageKind::Instance,
+                    kube_interface.clone(),
+                )
+                .await
+                {
+                    trace!("InstanceDevicePlugin::allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &dps.node_name);
+                    dps.list_and_watch_message_sender
+                        .send(ListAndWatchMessageKind::Continue)
+                        .unwrap();
+                    return Err(e);
+                }
+
+                let slot_usage =
+                    DeviceUsage::create(&DeviceUsageKind::Instance, &device_usage_id).unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    device_usage_id.clone(),
+                    slot_usage.to_string(),
                 );
 
-                // add suffix _<instance_id> to each device property
+                // Add suffix _<instance_id> to each device property
                 let converted_properties = self
                     .device
                     .properties
@@ -360,22 +427,7 @@ impl InstanceDevicePlugin {
                     })
                     .collect::<HashMap<String, String>>();
                 akri_device_properties.extend(converted_properties);
-
-                if let Err(e) = try_update_instance_device_usage(
-                    &device_usage_id,
-                    &dps.node_name,
-                    &dps.instance_name,
-                    &dps.config_namespace,
-                    kube_interface.clone(),
-                )
-                .await
-                {
-                    trace!("InstanceDevicePlugin::allocate - could not assign {} slot to {} node ... forcing list_and_watch to continue", device_usage_id, &dps.node_name);
-                    dps.list_and_watch_message_sender
-                        .send(ListAndWatchMessageKind::Continue)
-                        .unwrap();
-                    return Err(e);
-                }
+                akri_devices.insert(dps.instance_name.clone(), self.device.clone());
 
                 trace!(
                     "InstanceDevicePlugin::allocate - finished processing device_usage_id {}",
@@ -389,7 +441,7 @@ impl InstanceDevicePlugin {
             let response = build_container_allocate_response(
                 broker_properties,
                 akri_annotations,
-                &self.device,
+                &akri_devices.into_values().collect(),
             );
             container_responses.push(response);
         }
@@ -403,46 +455,60 @@ impl InstanceDevicePlugin {
     }
 }
 
-/// This returns true if this node can reserve a `device_usage_id` slot for an instance
-/// and false if it is already reserved.
-/// # More details
-/// Cases based on the usage slot (`device_usage_id`) value
-/// 1. device_usage\[id\] == "" ... this means that the device is available for use
-///     * (ACTION) return true
-/// 2. device_usage\[id\] == self.nodeName ... this means THIS node previously used id, but the DevicePluginManager knows that this is no longer true
-///     * (ACTION) return false
-/// 3. device_usage\[id\] == (some other node) ... this means that we believe this device is in use by another node and should be marked unhealthy
-///     * (ACTION) return error
-/// 4. No corresponding id found ... this is an unknown error condition (BAD)
-///     * (ACTION) return error
-fn slot_available_to_reserve(
-    device_usage_id: &str,
+pub async fn get_instance_device_usage_state(
     node_name: &str,
-    instance: &InstanceSpec,
-) -> Result<bool, Status> {
-    if let Some(allocated_node) = instance.device_usage.get(device_usage_id) {
-        if allocated_node.is_empty() {
-            Ok(true)
-        } else if allocated_node == node_name {
-            Ok(false)
-        } else {
-            trace!("slot_available_to_reserve - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!", device_usage_id, allocated_node, node_name);
-            Err(Status::new(
-                Code::Unknown,
-                "Requested device already in use",
-            ))
+    instance_name: &str,
+    instance_namespace: &str,
+    capacity: &i32,
+    kube_interface: Arc<impl KubeInterface>,
+) -> Vec<(String, DeviceUsageStatus)> {
+    let mut device_usage_states = Vec::new();
+    match kube_interface
+        .find_instance(instance_name, instance_namespace)
+        .await
+    {
+        Ok(kube_akri_instance) => {
+            for (device_name, device_usage_string) in kube_akri_instance.spec.device_usage {
+                let device_usage_status = match DeviceUsage::from_str(&device_usage_string) {
+                    Ok(device_usage) => get_device_usage_state(&device_usage, node_name),
+                    Err(_) => DeviceUsageStatus::Unknown,
+                };
+                device_usage_states.push((device_name.clone(), device_usage_status));
+            }
+            device_usage_states
         }
-    } else {
-        // No corresponding id found
-        trace!(
-            "slot_available_to_reserve - could not find {} id in device_usage",
-            device_usage_id
-        );
-        Err(Status::new(
-            Code::Unknown,
-            "Could not find device usage slot",
-        ))
+        Err(_) => (0..*capacity)
+            .map(|x| {
+                (
+                    format!("{}-{}", instance_name, x),
+                    DeviceUsageStatus::Unknown,
+                )
+            })
+            .collect(),
     }
+}
+
+/// This returns device usage status of a `device_usage_id` slot for an instance on a given node
+/// # More details
+/// Cases based on the device usage value
+/// 1. DeviceUsageKind::Free ... this means that the device is available for use
+///     * (ACTION) return DeviceUsageStatus::Free
+/// 2. device_usage.usage == node_name ... this means node_name previously used device_usage
+///     * (ACTION) return previously reserved kind, DeviceUsageStatus::ReservedByConfiguration or DeviceUsageStatus::ReservedByInstance
+/// 3. device_usage.usage == (some other node) ... this means that we believe this device is in use by another node
+///     * (ACTION) return DeviceUsageStatus::ReservedByOtherNode
+fn get_device_usage_state(device_usage: &DeviceUsage, node_name: &str) -> DeviceUsageStatus {
+    let device_usage_state = match device_usage.get_kind() {
+        DeviceUsageKind::Free => DeviceUsageStatus::Free,
+        DeviceUsageKind::Configuration(vdev_id) => {
+            DeviceUsageStatus::ReservedByConfiguration(vdev_id)
+        }
+        DeviceUsageKind::Instance => DeviceUsageStatus::ReservedByInstance,
+    };
+    if device_usage_state != DeviceUsageStatus::Free && !device_usage.is_same_usage(node_name) {
+        return DeviceUsageStatus::ReservedByOtherNode;
+    }
+    device_usage_state
 }
 
 /// This tries up to `MAX_INSTANCE_UPDATE_TRIES` to update the requested slot of the Instance with the this node's name.
@@ -453,6 +519,7 @@ async fn try_update_instance_device_usage(
     node_name: &str,
     instance_name: &str,
     instance_namespace: &str,
+    device_usage_kind: DeviceUsageKind,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<(), Status> {
     let mut instance: InstanceSpec;
@@ -476,27 +543,93 @@ async fn try_update_instance_device_usage(
         }
 
         // Update the instance to reserve this slot for this node iff it is available and not already reserved for this node.
-        if slot_available_to_reserve(device_usage_id, node_name, &instance)? {
-            instance
-                .device_usage
-                .insert(device_usage_id.to_string(), node_name.to_string());
-
-            if let Err(e) = kube_interface
-                .update_instance(&instance, instance_name, instance_namespace)
-                .await
-            {
-                if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                    trace!("try_update_instance_device_usage - update_instance returned error [{}] after max tries ... returning error", e);
-                    return Err(Status::new(Code::Unknown, "Could not update Instance"));
-                }
-                random_delay().await;
-            } else {
-                return Ok(());
-            }
-        } else {
-            // Instance slot already reserved for this node
-            return Ok(());
+        let device_usage_string = instance.device_usage.get(device_usage_id);
+        if device_usage_string.is_none() {
+            // No corresponding id found
+            trace!(
+                "try_update_instance_device_usage - could not find {} id in device_usage",
+                device_usage_id
+            );
+            return Err(Status::new(
+                Code::Unknown,
+                "Could not find device usage slot",
+            ));
         }
+
+        let device_usage = DeviceUsage::from_str(device_usage_string.unwrap()).map_err(|_| {
+            Status::new(
+                Code::Unknown,
+                format!(
+                    "Fails to parse {} to DeviceUsage ",
+                    device_usage_string.unwrap()
+                ),
+            )
+        })?;
+        match get_device_usage_state(&device_usage, node_name) {
+            DeviceUsageStatus::Free => {
+                let new_device_usage =
+                    DeviceUsage::create(&device_usage_kind, node_name).map_err(|e| {
+                        Status::new(
+                            Code::Unknown,
+                            format!("Fails to create DeviceUsage - {}", e),
+                        )
+                    })?;
+                instance
+                    .device_usage
+                    .insert(device_usage_id.to_string(), new_device_usage.to_string());
+
+                if let Err(e) = kube_interface
+                    .update_instance(&instance, instance_name, instance_namespace)
+                    .await
+                {
+                    if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
+                        trace!("try_update_instance_device_usage - update_instance returned error [{}] after max tries ... returning error", e);
+                        return Err(Status::new(Code::Unknown, "Could not update Instance"));
+                    }
+                    random_delay().await;
+                } else {
+                    return Ok(());
+                }
+            }
+            DeviceUsageStatus::ReservedByConfiguration(_) => {
+                if matches!(device_usage_kind, DeviceUsageKind::Configuration(_)) {
+                    return Ok(());
+                } else {
+                    return Err(Status::new(
+                        Code::Unknown,
+                        "Requested device already in use",
+                    ));
+                }
+            }
+            DeviceUsageStatus::ReservedByInstance => {
+                if matches!(device_usage_kind, DeviceUsageKind::Instance) {
+                    return Ok(());
+                } else {
+                    return Err(Status::new(
+                        Code::Unknown,
+                        "Requested device already in use",
+                    ));
+                }
+            }
+            DeviceUsageStatus::ReservedByOtherNode => {
+                trace!("try_update_instance_device_usage - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!",
+                    device_usage_id, device_usage.get_usage_name(), node_name);
+                return Err(Status::new(
+                    Code::Unknown,
+                    "Requested device already in use",
+                ));
+            }
+            DeviceUsageStatus::Unknown => {
+                trace!(
+                    "try_update_instance_device_usage - request for device slot {} status unknown!",
+                    device_usage_id
+                );
+                return Err(Status::new(
+                    Code::Unknown,
+                    "Requested device usage status unknown",
+                ));
+            }
+        };
     }
     Ok(())
 }
@@ -505,35 +638,41 @@ async fn try_update_instance_device_usage(
 fn build_container_allocate_response(
     broker_properties: HashMap<String, String>,
     annotations: HashMap<String, String>,
-    device: &Device,
+    devices: &Vec<Device>,
 ) -> v1beta1::ContainerAllocateResponse {
-    // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
-    let mounts: Vec<Mount> = device
-        .mounts
-        .clone()
-        .into_iter()
-        .map(|mount| Mount {
-            container_path: mount.container_path,
-            host_path: mount.host_path,
-            read_only: mount.read_only,
-        })
-        .collect();
-    let device_specs: Vec<DeviceSpec> = device
-        .device_specs
-        .clone()
-        .into_iter()
-        .map(|device_spec| DeviceSpec {
-            container_path: device_spec.container_path,
-            host_path: device_spec.host_path,
-            permissions: device_spec.permissions,
-        })
-        .collect();
+    let mut total_mounts = Vec::new();
+    let mut total_device_specs = Vec::new();
+    for device in devices {
+        // Cast v0 discovery Mount and DeviceSpec types to v1beta1 DevicePlugin types
+        let mounts: Vec<Mount> = device
+            .mounts
+            .clone()
+            .into_iter()
+            .map(|mount| Mount {
+                container_path: mount.container_path,
+                host_path: mount.host_path,
+                read_only: mount.read_only,
+            })
+            .collect();
+        total_mounts.extend(mounts);
 
+        let device_specs: Vec<DeviceSpec> = device
+            .device_specs
+            .clone()
+            .into_iter()
+            .map(|device_spec| DeviceSpec {
+                container_path: device_spec.container_path,
+                host_path: device_spec.host_path,
+                permissions: device_spec.permissions,
+            })
+            .collect();
+        total_device_specs.extend(device_specs);
+    }
     // Create response, setting environment variables to be an instance's properties.
     v1beta1::ContainerAllocateResponse {
         annotations,
-        mounts,
-        devices: device_specs,
+        mounts: total_mounts,
+        devices: total_device_specs,
         envs: broker_properties,
     }
 }
@@ -560,7 +699,12 @@ async fn try_create_instance(
     }
 
     let device_usage: std::collections::HashMap<String, String> = (0..dps.config.capacity)
-        .map(|x| (format!("{}-{}", dps.instance_name, x), "".to_string()))
+        .map(|x| {
+            (
+                format!("{}-{}", dps.instance_name, x),
+                DeviceUsage::default().to_string(),
+            )
+        })
         .collect();
     let instance = InstanceSpec {
         configuration_name: dps.config_name.clone(),
@@ -656,125 +800,6 @@ async fn try_create_instance(
     );
 
     Ok(())
-}
-
-/// Returns list of "virtual" Devices and their health.
-/// If the instance is offline, returns all unhealthy virtual Devices.
-async fn build_list_and_watch_response(
-    dps: Arc<DevicePluginService>,
-    kube_interface: Arc<impl KubeInterface>,
-) -> Result<Vec<v1beta1::Device>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    info!(
-        "build_list_and_watch_response -- for Instance {} entered",
-        dps.instance_name
-    );
-
-    // If instance has been removed from map, send back all unhealthy device slots
-    if !dps
-        .instance_map
-        .read()
-        .await
-        .contains_key(&dps.instance_name)
-    {
-        trace!("build_list_and_watch_response - Instance {} removed from map ... returning unhealthy devices", dps.instance_name);
-        return Ok(build_unhealthy_virtual_devices(
-            dps.config.capacity,
-            &dps.instance_name,
-        ));
-    }
-    // If instance is offline, send back all unhealthy device slots
-    if dps
-        .instance_map
-        .read()
-        .await
-        .get(&dps.instance_name)
-        .unwrap()
-        .connectivity_status
-        != InstanceConnectivityStatus::Online
-    {
-        trace!("build_list_and_watch_response - device for Instance {} is offline ... returning unhealthy devices", dps.instance_name);
-        return Ok(build_unhealthy_virtual_devices(
-            dps.config.capacity,
-            &dps.instance_name,
-        ));
-    }
-
-    trace!(
-        "build_list_and_watch_response -- device for Instance {} is online",
-        dps.instance_name
-    );
-
-    match kube_interface
-        .find_instance(&dps.instance_name, &dps.config_namespace)
-        .await
-    {
-        Ok(kube_akri_instance) => Ok(build_virtual_devices(
-            &kube_akri_instance.spec.device_usage,
-            kube_akri_instance.spec.shared,
-            &dps.node_name,
-        )),
-        Err(_) => {
-            trace!("build_list_and_watch_response - could not find instance {} so returning unhealthy devices", dps.instance_name);
-            Ok(build_unhealthy_virtual_devices(
-                dps.config.capacity,
-                &dps.instance_name,
-            ))
-        }
-    }
-}
-
-/// This builds a list of unhealthy virtual Devices.
-fn build_unhealthy_virtual_devices(capacity: i32, instance_name: &str) -> Vec<v1beta1::Device> {
-    let mut devices: Vec<v1beta1::Device> = Vec::new();
-    for x in 0..capacity {
-        let device = v1beta1::Device {
-            id: format!("{}-{}", instance_name, x),
-            health: UNHEALTHY.to_string(),
-        };
-        trace!(
-            "build_unhealthy_virtual_devices -- for Instance {} reporting unhealthy devices for device with name [{}] and health: [{}]",
-            instance_name,
-            device.id,
-            device.health,
-        );
-        devices.push(device);
-    }
-    devices
-}
-
-/// This builds a list of virtual Devices, determining the health of each virtual Device as follows:
-/// Healthy if it is available to be used by this node or Unhealthy if it is already taken by another node.
-fn build_virtual_devices(
-    device_usage: &HashMap<String, String>,
-    shared: bool,
-    node_name: &str,
-) -> Vec<v1beta1::Device> {
-    let mut devices: Vec<v1beta1::Device> = Vec::new();
-    for (device_name, allocated_node) in device_usage {
-        // Throw error if unshared resource is reserved by another node
-        if !shared && !allocated_node.is_empty() && allocated_node != node_name {
-            panic!("build_virtual_devices - unshared device reserved by a different node");
-        }
-        // Advertise the device as Unhealthy if it is
-        // USED by !this_node && SHARED
-        let unhealthy = shared && !allocated_node.is_empty() && allocated_node != node_name;
-        let health = if unhealthy {
-            UNHEALTHY.to_string()
-        } else {
-            HEALTHY.to_string()
-        };
-        trace!(
-            "build_virtual_devices - [shared = {}] device with name [{}] and health: [{}]",
-            shared,
-            device_name,
-            health
-        );
-        devices.push(v1beta1::Device {
-            id: device_name.clone(),
-            health,
-        });
-    }
-    devices
 }
 
 /// This sends message to end `list_and_watch` and removes instance from InstanceMap.
@@ -879,6 +904,37 @@ mod device_plugin_service_tests {
             });
     }
 
+    fn setup_find_instance_with_mock_instances(
+        mock: &mut MockKubeInterface,
+        instance_namespace: &str,
+        mock_instances: Vec<(String, Instance)>,
+    ) {
+        for (instance_name, kube_instance) in mock_instances {
+            let instance_namespace = instance_namespace.to_string();
+            mock.expect_find_instance()
+                .times(1)
+                .withf(move |name: &str, namespace: &str| {
+                    namespace == instance_namespace && name == instance_name
+                })
+                .returning(move |_, _| Ok(kube_instance.clone()));
+        }
+    }
+
+    fn setup_find_instance_with_not_found_err(
+        mock: &mut MockKubeInterface,
+        instance_name: &str,
+        instance_namespace: &str,
+    ) {
+        let instance_name = instance_name.to_string();
+        let instance_namespace = instance_namespace.to_string();
+        mock.expect_find_instance()
+            .times(1)
+            .withf(move |name: &str, namespace: &str| {
+                namespace == instance_namespace && name == instance_name
+            })
+            .returning(move |_, _| Err(get_kube_not_found_error().into()));
+    }
+
     fn create_device_plugin_service(
         _device_plugin_kind: DevicePluginKind,
         connectivity_status: InstanceConnectivityStatus,
@@ -939,21 +995,6 @@ mod device_plugin_service_tests {
         )
     }
 
-    fn check_devices(instance_name: String, devices: Vec<v1beta1::Device>) {
-        let capacity: usize = 5;
-        // update_virtual_devices_health returns devices in jumbled order (ie 2, 4, 1, 5, 3)
-        let expected_device_ids: Vec<String> = (0..capacity)
-            .map(|x| format!("{}-{}", instance_name, x))
-            .collect();
-        assert_eq!(devices.len(), capacity);
-        for device in expected_device_ids {
-            assert!(devices
-                .iter()
-                .map(|device| device.id.clone())
-                .any(|d| d == device));
-        }
-    }
-
     fn get_kube_not_found_error() -> kube::Error {
         // Mock error thrown when instance not found
         kube::Error::Api(kube::error::ErrorResponse {
@@ -995,6 +1036,79 @@ mod device_plugin_service_tests {
         assert_eq!(all_properties.get("ENDPOINT").unwrap(), "123");
         assert_eq!(all_properties.get("USE HD").unwrap(), "true");
         assert_eq!(all_properties.get("OVERWRITE").unwrap(), "222");
+    }
+
+    // Test correct device usage status is returned when a device usage slot is used on the same node
+    #[test]
+    fn test_get_device_usage_state_same_node() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let vdev_id = "vdev_0";
+        // Free
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::Free
+        );
+        // Used by Configuration
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(
+                    &DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    this_node
+                )
+                .unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByConfiguration(vdev_id.to_string())
+        );
+        // Used by Instance
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Instance, this_node).unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByInstance
+        );
+    }
+
+    // Test DeviceUsageStatus::ReservedByOtherNode is returned when a device usage slot is used on a different node
+    #[test]
+    fn test_get_device_usage_state_different_node() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let this_node = "node-a";
+        let that_node = "node-b";
+        let vdev_id = "vdev_0";
+        // Free
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::Free
+        );
+        // Used by Configuration
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(
+                    &DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    that_node
+                )
+                .unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByOtherNode
+        );
+        // Used by Instance
+        assert_eq!(
+            get_device_usage_state(
+                &DeviceUsage::create(&DeviceUsageKind::Instance, that_node).unwrap(),
+                this_node
+            ),
+            DeviceUsageStatus::ReservedByOtherNode
+        );
     }
 
     fn configure_find_configuration(
@@ -1297,137 +1411,6 @@ mod device_plugin_service_tests {
         };
     }
 
-    #[tokio::test]
-    async fn test_build_virtual_devices() {
-        let mut device_usage: HashMap<String, String> = HashMap::new();
-        let mut expected_devices_nodea: HashMap<String, String> = HashMap::new();
-        let mut expected_devices_nodeb: HashMap<String, String> = HashMap::new();
-        let instance_name = "s0meH@sH";
-        for x in 0..5 {
-            if x % 2 == 0 {
-                device_usage.insert(format!("{}-{}", instance_name, x), "nodeA".to_string());
-                expected_devices_nodea
-                    .insert(format!("{}-{}", instance_name, x), HEALTHY.to_string());
-                expected_devices_nodeb
-                    .insert(format!("{}-{}", instance_name, x), UNHEALTHY.to_string());
-            } else {
-                device_usage.insert(format!("{}-{}", instance_name, x), "".to_string());
-                expected_devices_nodea
-                    .insert(format!("{}-{}", instance_name, x), HEALTHY.to_string());
-                expected_devices_nodeb
-                    .insert(format!("{}-{}", instance_name, x), HEALTHY.to_string());
-            }
-        }
-
-        // Test shared all healthy
-        let mut devices: Vec<v1beta1::Device> = build_virtual_devices(&device_usage, true, "nodeA");
-        for device in devices {
-            assert_eq!(
-                expected_devices_nodea.get(&device.id).unwrap(),
-                &device.health
-            );
-        }
-
-        // Test unshared all healthy
-        devices = build_virtual_devices(&device_usage, false, "nodeA");
-        for device in devices {
-            assert_eq!(
-                expected_devices_nodea.get(&device.id).unwrap(),
-                &device.health
-            );
-        }
-
-        // Test shared some unhealthy (taken by another node)
-        devices = build_virtual_devices(&device_usage, true, "nodeB");
-        for device in devices {
-            assert_eq!(
-                expected_devices_nodeb.get(&device.id).unwrap(),
-                &device.health
-            );
-        }
-
-        // Test unshared panic. A different node should never be listed under any device usage slots
-        let result =
-            std::panic::catch_unwind(|| build_virtual_devices(&device_usage, false, "nodeB"));
-        assert!(result.is_err());
-    }
-
-    // Tests when InstanceConnectivityStatus is offline and unhealthy devices are returned
-    #[tokio::test]
-    async fn test_build_list_and_watch_response_offline() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(
-                DevicePluginKind::Instance,
-                InstanceConnectivityStatus::Offline(Instant::now()),
-                true,
-            );
-        let mock = MockKubeInterface::new();
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
-        devices
-            .into_iter()
-            .for_each(|device| assert!(device.health == UNHEALTHY));
-    }
-
-    // Tests when instance has not yet been created for this device, all devices are returned as UNHEALTHY
-    #[tokio::test]
-    async fn test_build_list_and_watch_response_no_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(
-                DevicePluginKind::Instance,
-                InstanceConnectivityStatus::Online,
-                true,
-            );
-        let instance_name = device_plugin_service.instance_name.clone();
-        let instance_namespace = device_plugin_service.config_namespace.clone();
-        let mut mock = MockKubeInterface::new();
-        mock.expect_find_instance()
-            .times(1)
-            .withf(move |name: &str, namespace: &str| {
-                namespace == instance_namespace && name == instance_name
-            })
-            .returning(move |_, _| Err(get_kube_not_found_error().into()));
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
-        devices
-            .into_iter()
-            .for_each(|device| assert!(device.health == UNHEALTHY));
-    }
-
-    // Test when instance has already been created and includes this node
-    #[tokio::test]
-    async fn test_build_list_and_watch_response_no_instance_update() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (device_plugin_service, _device_plugin_service_receivers) =
-            create_device_plugin_service(
-                DevicePluginKind::Instance,
-                InstanceConnectivityStatus::Online,
-                true,
-            );
-        let instance_name = device_plugin_service.instance_name.clone();
-        let instance_namespace = device_plugin_service.config_namespace.clone();
-        let mut mock = MockKubeInterface::new();
-        configure_find_instance(
-            &mut mock,
-            "../test/json/local-instance.json",
-            instance_name.clone(),
-            instance_namespace.clone(),
-            String::new(),
-            NodeName::ThisNode,
-        );
-        let devices =
-            build_list_and_watch_response(Arc::new(device_plugin_service), Arc::new(mock))
-                .await
-                .unwrap();
-        check_devices(instance_name, devices);
-    }
-
     fn setup_internal_allocate_tests(
         mock: &mut MockKubeInterface,
         device_plugin_service: &DevicePluginService,
@@ -1643,5 +1626,139 @@ mod device_plugin_service_tests {
                 .unwrap(),
             ListAndWatchMessageKind::Continue
         );
+    }
+
+    // Tests correct device usage is returned when an Instance is found
+    // Expected behavior: should return correct device usage state for all usage slots
+    #[tokio::test]
+    async fn test_get_instance_device_usage_state() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let node_name = "node-a";
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let mock_device_usages = vec![(DeviceUsageKind::Free, "".to_string()); 5];
+        let capacity = mock_device_usages.len() as i32;
+        let mut kube_instance_builder = KubeInstanceBuilder::new(instance_name, instance_namespace);
+        kube_instance_builder.add_node(node_name);
+        kube_instance_builder.add_device_usages(instance_name, mock_device_usages);
+        let kube_instance = kube_instance_builder.build();
+        let mock_instances = vec![(instance_name.to_string(), kube_instance)];
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
+
+        let device_usage_state = get_instance_device_usage_state(
+            node_name,
+            instance_name,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(device_usage_state
+            .into_iter()
+            .all(|(_, v)| { v == DeviceUsageStatus::Free }));
+    }
+
+    // Tests correct device usage is returned when an Instance is not found
+    // Expected behavior: should return DeviceUsageStatus::Unknown for all usage slots
+    #[tokio::test]
+    async fn test_get_instance_device_usage_state_no_instance() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let node_name = "node-a";
+        let instance_name = "instance-1";
+        let instance_namespace = "test-namespace";
+        let capacity = 5i32;
+        let mut mock = MockKubeInterface::new();
+        setup_find_instance_with_not_found_err(&mut mock, instance_name, instance_namespace);
+
+        let device_usage_state = get_instance_device_usage_state(
+            node_name,
+            instance_name,
+            instance_namespace,
+            &capacity,
+            Arc::new(mock),
+        )
+        .await;
+        assert!(device_usage_state
+            .into_iter()
+            .all(|(_, v)| { v == DeviceUsageStatus::Unknown }));
+    }
+
+    #[derive(Clone)]
+    struct KubeInstanceBuilder {
+        name: String,
+        namespace: String,
+        configuration_name: String,
+        nodes: Vec<String>,
+        shared: bool,
+        device_usages: HashMap<String, Vec<(DeviceUsageKind, String)>>,
+    }
+
+    impl KubeInstanceBuilder {
+        pub fn new(name: &str, namespace: &str) -> Self {
+            Self {
+                name: name.to_string(),
+                namespace: namespace.to_string(),
+                configuration_name: String::default(),
+                nodes: Vec::new(),
+                shared: true,
+                device_usages: HashMap::new(),
+            }
+        }
+
+        pub fn add_node(&mut self, node: &str) -> &mut Self {
+            self.nodes.push(node.to_string());
+            self
+        }
+
+        pub fn add_device_usages(
+            &mut self,
+            instance_name: &str,
+            device_usages: Vec<(DeviceUsageKind, String)>,
+        ) -> &mut Self {
+            self.device_usages
+                .entry(instance_name.to_string())
+                .or_insert(Vec::new())
+                .extend(device_usages);
+            self
+        }
+
+        pub fn build(&self) -> Instance {
+            let instance_json = format!(
+                r#"{{
+                "apiVersion": "akri.sh/v0",
+                "kind": "Instance",
+                "metadata": {{
+                    "name": "{}",
+                    "namespace": "{}",
+                    "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+                }},
+                "spec": {{
+                    "configurationName": "",
+                    "nodes": [],
+                    "shared": true,
+                    "deviceUsage": {{
+                    }}
+                }}
+            }}
+            "#,
+                self.name, self.namespace
+            );
+            let mut instance: Instance = serde_json::from_str(&instance_json).unwrap();
+            instance.spec.configuration_name = self.configuration_name.clone();
+            instance.spec.nodes = self.nodes.clone();
+            instance.spec.shared = self.shared;
+            instance.spec.device_usage = self
+                .device_usages
+                .iter()
+                .flat_map(|(instance_name, usages)| {
+                    usages.iter().enumerate().map(move |(pos, (kind, node))| {
+                        let key = format!("{}-{}", instance_name, pos);
+                        (key, DeviceUsage::create(kind, node).unwrap().to_string())
+                    })
+                })
+                .collect::<HashMap<_, _>>();
+            instance
+        }
     }
 }

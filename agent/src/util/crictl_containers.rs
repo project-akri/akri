@@ -1,5 +1,6 @@
-use akri_shared::akri::AKRI_SLOT_ANNOTATION_NAME_PREFIX;
+use akri_shared::akri::{instance::device_usage::DeviceUsage, AKRI_SLOT_ANNOTATION_NAME_PREFIX};
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 /// Output from crictl query
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -23,12 +24,20 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
             .iter()
             .flat_map(|container| &container.annotations)
             .filter_map(|(key, value)| {
-                if key.starts_with(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
-                    && value.eq(key
+                if key.starts_with(AKRI_SLOT_ANNOTATION_NAME_PREFIX) {
+                    let slot_id = key
                         .strip_prefix(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
-                        .unwrap_or_default())
-                {
-                    Some(value.clone())
+                        .unwrap_or_default();
+                    match DeviceUsage::from_str(value) {
+                        Ok(slot_usage) => {
+                            if slot_usage.is_same_usage(slot_id) {
+                                Some(value.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        Err(_) => None,
+                    }
                 } else {
                     None
                 }

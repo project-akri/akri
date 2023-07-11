@@ -323,6 +323,108 @@ fn default_shared() -> bool {
     false
 }
 
+pub mod device_usage {
+    #[derive(PartialEq, Clone, Debug, Default)]
+    pub enum DeviceUsageKind {
+        /// Device is free
+        #[default]
+        Free,
+        /// Device is reserved by Instance Device Plugin
+        Instance,
+        /// Device is reserved by Configuration Device Plugin
+        Configuration(String),
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct ParseDeviceUsageError;
+    #[derive(PartialEq, Clone, Debug, Default)]
+    pub struct DeviceUsage {
+        kind: DeviceUsageKind,
+        usage_name: String,
+    }
+
+    impl std::fmt::Display for DeviceUsage {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match &self.kind {
+                DeviceUsageKind::Free => write!(f, ""),
+                DeviceUsageKind::Configuration(vdev_id) => {
+                    write!(f, "C:{}:{}", vdev_id, self.usage_name)
+                }
+                DeviceUsageKind::Instance => write!(f, "{}", self.usage_name),
+            }
+        }
+    }
+
+    impl std::str::FromStr for DeviceUsage {
+        type Err = ParseDeviceUsageError;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            if s.is_empty() {
+                return Ok(DeviceUsage {
+                    kind: DeviceUsageKind::Free,
+                    usage_name: s.to_string(),
+                });
+            }
+
+            // Format "C:<vdev_id>:<usage_name>"
+            if let Some((vdev_id, usage_name)) =
+                s.strip_prefix("C:").and_then(|s| s.split_once(':'))
+            {
+                if usage_name.is_empty() {
+                    return Err(ParseDeviceUsageError);
+                }
+                return Ok(DeviceUsage {
+                    kind: DeviceUsageKind::Configuration(vdev_id.to_string()),
+                    usage_name: usage_name.to_string(),
+                });
+            }
+
+            // Format "<usage_name>"
+            Ok(DeviceUsage {
+                kind: DeviceUsageKind::Instance,
+                usage_name: s.to_string(),
+            })
+        }
+    }
+
+    impl DeviceUsage {
+        pub fn create(kind: &DeviceUsageKind, usage_name: &str) -> Result<Self, anyhow::Error> {
+            match kind {
+                DeviceUsageKind::Free => {
+                    if !usage_name.is_empty() {
+                        return Err(anyhow::anyhow!(
+                            "Invalid input parameter, usage name: {} provided for free device usage",
+                            usage_name
+                        ));
+                    };
+                }
+                _ => {
+                    if usage_name.is_empty() {
+                        return Err(anyhow::anyhow!(
+                            "Invalid input parameter, no usage name provided for device usage"
+                        ));
+                    };
+                }
+            };
+
+            Ok(Self {
+                kind: kind.clone(),
+                usage_name: usage_name.into(),
+            })
+        }
+
+        pub fn get_kind(&self) -> DeviceUsageKind {
+            self.kind.clone()
+        }
+
+        pub fn get_usage_name(&self) -> String {
+            self.usage_name.clone()
+        }
+
+        pub fn is_same_usage(&self, usage_name: &str) -> bool {
+            self.usage_name == usage_name
+        }
+    }
+}
+
 #[cfg(test)]
 mod crd_serializeation_tests {
     use super::super::super::os::file;
