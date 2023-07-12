@@ -1,10 +1,10 @@
 ARG PLATFORM=amd64
-FROM ${PLATFORM}/debian:buster-slim
+FROM ${PLATFORM}/debian:bullseye-slim
 
 # Avoid tzdata prompt 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim" && \
+RUN echo "Creating container based on ${PLATFORM}/debian:bullseye-slim" && \
     apt-get update && \
     apt-get install -y protobuf-compiler libprotoc-dev python3-pip \
     python3-grpcio python3-sklearn && \

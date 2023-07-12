@@ -54,15 +54,15 @@ define add_opcua_target
 
   $(1)-build-amd64:
   ifeq (1, ${BUILD_AMD64})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim --build-arg DOTNET_PUBLISH_RUNTIME=linux-x64
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(AMD64_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-bullseye-slim --build-arg DOTNET_PUBLISH_RUNTIME=linux-x64
   endif
   $(1)-build-arm32:
   ifeq (1, ${BUILD_ARM32})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim-$(ARM32V7_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM32V7_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-bullseye-slim-$(ARM32V7_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm
   endif
   $(1)-build-arm64:
   ifeq (1, ${BUILD_ARM64})
-	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-buster-slim-$(ARM64V8_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm64
+	docker build $(CACHE_OPTION) -f $(DOCKERFILE_DIR)/Dockerfile.$(2) . -t $(PREFIX)/$(2):$(LABEL_PREFIX)-$(ARM64V8_SUFFIX) --build-arg OUTPUT_PLATFORM_TAG=3.1-bullseye-slim-$(ARM64V8_SUFFIX) --build-arg DOTNET_PUBLISH_RUNTIME=linux-arm64
   endif
 
   $(1)-docker-per-arch-amd64:

@@ -4,7 +4,7 @@ from the rtsp stream of the ONVIF camera at `ONVIF_DEVICE_SERVICE_URL`. Then, it
 interface. 
 
 ## Running
-1. Install .NET according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
+1. Install .NET according to [.NET instructions](https://docs.microsoft.com/dotnet/install/linux-ubuntu)
 1. Install [opencvsharp](https://github.com/shimat/opencvsharp), the OpenCV wrapper for .NET
 1. Build
     ```sh

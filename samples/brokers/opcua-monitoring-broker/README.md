@@ -5,7 +5,7 @@ value of the Node (or Variable) over gRPC for an [anomaly detection web applicat
 to consume. 
 
 ## Running
-1. Install .NET according to [.NET instructions](https://docs.microsoft.com/dotnet/core/install/linux-ubuntu)
+1. Install .NET according to [.NET instructions](https://docs.microsoft.com/dotnet/install/linux-ubuntu)
 1. Build
 ```sh
 cd ./samples/brokers/opcua-monitoring-broker

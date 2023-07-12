@@ -1,9 +1,9 @@
 ARG PLATFORM=amd64
 ARG CROSS_BUILD_TARGET=x86_64-unknown-linux-gnu
-FROM ${PLATFORM}/debian:buster-slim
+FROM ${PLATFORM}/debian:bullseye-slim
 ARG CROSS_BUILD_TARGET
 ARG BUILD_TYPE=release
-RUN echo "Creating container based on ${PLATFORM}/debian:buster-slim"
+RUN echo "Creating container based on ${PLATFORM}/debian:bullseye-slim"
 RUN echo "Using Rust binaries from ${CROSS_BUILD_TARGET}/${BUILD_TYPE}"
 
 # Link the container to the Akri repository
