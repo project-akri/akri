@@ -25,7 +25,7 @@ spec:
                     discoveryProperties:
                       nullable: true
                       type: array
-                      items: # {{EnvVar}}
+                      items: # {{DiscoveryProperty}}
                         x-kubernetes-preserve-unknown-fields: true
                         type: object
                 capacity:

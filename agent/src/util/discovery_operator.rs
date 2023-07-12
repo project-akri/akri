@@ -16,7 +16,7 @@ use akri_discovery_utils::discovery::v0::{
     DiscoverResponse,
 };
 use akri_shared::{
-    akri::configuration::Configuration,
+    akri::configuration::{Configuration, DiscoveryProperty, DiscoveryPropertySource},
     k8s,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
@@ -24,9 +24,7 @@ use blake2::{
     digest::{Update, VariableOutput},
     VarBlake2b,
 };
-use k8s_openapi::api::core::v1::{
-    ConfigMap, ConfigMapKeySelector, EnvVar, EnvVarSource, Secret, SecretKeySelector,
-};
+use k8s_openapi::api::core::v1::{ConfigMap, ConfigMapKeySelector, Secret, SecretKeySelector};
 use kube::api::Api;
 use log::{error, trace};
 #[cfg(test)]
@@ -481,7 +479,7 @@ impl DiscoveryOperator {
     async fn get_discovery_properties(
         &self,
         kube_interface: Arc<dyn k8s::KubeInterface>,
-        properties: &Option<Vec<EnvVar>>,
+        properties: &Option<Vec<DiscoveryProperty>>,
     ) -> anyhow::Result<HashMap<String, ByteData>> {
         match properties {
             None => Ok(HashMap::new()),
@@ -505,7 +503,7 @@ impl DiscoveryOperator {
     async fn get_discovery_property(
         &self,
         kube_interface: Arc<dyn k8s::KubeInterface>,
-        property: &EnvVar,
+        property: &DiscoveryProperty,
     ) -> anyhow::Result<Option<(String, ByteData)>> {
         let value;
         if let Some(v) = &property.value {
@@ -538,26 +536,25 @@ impl DiscoveryOperator {
     async fn get_discovery_property_value_from(
         &self,
         kube_client: &dyn KubeClient,
-        property: &EnvVarSource,
+        property: &DiscoveryPropertySource,
     ) -> anyhow::Result<Option<ByteData>> {
-        if let Some(config_map_key_ref) = &property.config_map_key_ref {
-            return get_discovery_property_value_from_config_map(
-                kube_client,
-                self.config.metadata.namespace.as_ref().unwrap(),
-                config_map_key_ref,
-            )
-            .await;
-        }
-        if let Some(secret_key_selector) = &property.secret_key_ref {
-            get_discovery_property_value_from_secret(
-                kube_client,
-                self.config.metadata.namespace.as_ref().unwrap(),
-                secret_key_selector,
-            )
-            .await
-        } else {
-            let error = Error::new(ErrorKind::InvalidInput, "no supported value_from found");
-            Err(error.into())
+        match property {
+            DiscoveryPropertySource::ConfigMapKeyRef(config_map_key_selector) => {
+                get_discovery_property_value_from_config_map(
+                    kube_client,
+                    self.config.metadata.namespace.as_ref().unwrap(),
+                    config_map_key_selector,
+                )
+                .await
+            }
+            DiscoveryPropertySource::SecretKeyRef(secret_key_selector) => {
+                get_discovery_property_value_from_secret(
+                    kube_client,
+                    self.config.metadata.namespace.as_ref().unwrap(),
+                    secret_key_selector,
+                )
+                .await
+            }
         }
     }
 }
@@ -1880,7 +1877,7 @@ pub mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
-        let properties = Vec::<EnvVar>::new();
+        let properties = Vec::<DiscoveryProperty>::new();
 
         // properties should be empty if property list is empty
         assert!(discovery_operator
@@ -1898,12 +1895,12 @@ pub mod tests {
         let property_name_1 = "property_name_1".to_string();
         let property_name_2 = "".to_string(); // allow empty property name
         let properties = vec![
-            EnvVar {
+            DiscoveryProperty {
                 name: property_name_1.clone(),
                 value: None,
                 value_from: None,
             },
-            EnvVar {
+            DiscoveryProperty {
                 name: property_name_2.clone(),
                 value: None,
                 value_from: None,
@@ -1932,12 +1929,12 @@ pub mod tests {
         let property_value_1 = "property_value_1".to_string();
         let property_value_2 = "property_value_2".to_string();
         let properties = vec![
-            EnvVar {
+            DiscoveryProperty {
                 name: property_name_1.clone(),
                 value: Some(property_value_1.clone()),
                 value_from: None,
             },
-            EnvVar {
+            DiscoveryProperty {
                 name: property_name_2.clone(),
                 value: Some(property_value_2.clone()),
                 value_from: None,
@@ -1964,26 +1961,6 @@ pub mod tests {
             .await
             .unwrap();
         assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn test_get_discovery_properties_value_from_unknown_ref() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let discovery_operator = create_discovery_operator("../test/yaml/config-a.yaml");
-        let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
-        let property_name = "property_name_1".to_string();
-        let property_value_from = EnvVarSource::default();
-        let properties = vec![EnvVar {
-            name: property_name.clone(),
-            value: None,
-            value_from: Some(property_value_from),
-        }];
-
-        // get_discovery_properties should return error if no supported key ref specified
-        assert!(discovery_operator
-            .get_discovery_properties(mock_kube_interface, &Some(properties))
-            .await
-            .is_err());
     }
 
     #[tokio::test]
@@ -2044,7 +2021,7 @@ pub mod tests {
             })
             .returning(move |_, _| Ok(None));
 
-        // get_discovery_property_value_from_secret should return error if no secret not found
+        // get_discovery_property_value_from_secret should return error if secret not found
         let result =
             get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
                 .await;
@@ -2319,7 +2296,7 @@ pub mod tests {
             })
             .returning(move |_, _| Ok(None));
 
-        // get_discovery_property_value_from_config_map should return error if no configMap not found
+        // get_discovery_property_value_from_config_map should return error if configMap not found
         let result = get_discovery_property_value_from_config_map(
             &mock_kube_client,
             namespace_name,
