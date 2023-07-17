@@ -807,7 +807,7 @@ mod tests {
     async fn test_validate_valid_jobspec() {
         let mut app = test::init_service(App::new().service(validate)).await;
         let valid: AdmissionReview =
-            serde_json::from_str(&get_valid_admission_review_with_broker_pod_spec())
+            serde_json::from_str(&get_valid_admission_review_with_broker_job_spec())
                 .expect("v1.AdmissionReview JSON");
         let rqst = test::TestRequest::post()
             .uri("/validate")
