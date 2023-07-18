@@ -38,9 +38,11 @@ pub struct DiscoveryProperty {
     pub name: String,
 
     /// value of the discovery property
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 
     /// Source for the discovery property value. Ignored if value is not empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value_from: Option<DiscoveryPropertySource>,
 }
 

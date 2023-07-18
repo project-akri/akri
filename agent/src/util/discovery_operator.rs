@@ -613,7 +613,11 @@ async fn get_discovery_property_value_from_secret(
         if optional {
             return Ok(None);
         }
-        return Err(Error::new(ErrorKind::InvalidInput, "secret name is none").into());
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "discoveryProperties' referenced Secret name is none",
+        )
+        .into());
     }
     let secret_key = &secret_key_selector.key;
     let secret_name = secret_key_selector.name.as_ref().unwrap();
@@ -623,7 +627,11 @@ async fn get_discovery_property_value_from_secret(
         if optional {
             return Ok(None);
         } else {
-            return Err(Error::new(ErrorKind::InvalidInput, "secret not found").into());
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "discoveryProperties' referenced Secret not found",
+            )
+            .into());
         }
     }
     let secret = secret.unwrap();
@@ -641,7 +649,11 @@ async fn get_discovery_property_value_from_secret(
     if optional {
         Ok(None)
     } else {
-        Err(Error::new(ErrorKind::InvalidInput, "secret data not found").into())
+        Err(Error::new(
+            ErrorKind::InvalidInput,
+            "discoveryProperties' referenced Secret data not found",
+        )
+        .into())
     }
 }
 
@@ -655,7 +667,11 @@ async fn get_discovery_property_value_from_config_map(
         if optional {
             return Ok(None);
         }
-        return Err(Error::new(ErrorKind::InvalidInput, "config_map name is none").into());
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "discoveryProperties' referenced ConfigMap name is none",
+        )
+        .into());
     }
     let config_map_name = config_map_key_selector.name.as_ref().unwrap();
     let config_map_key = &config_map_key_selector.key;
@@ -667,7 +683,11 @@ async fn get_discovery_property_value_from_config_map(
         if optional {
             return Ok(None);
         } else {
-            return Err(Error::new(ErrorKind::InvalidInput, "config_map not found").into());
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "discoveryProperties' referenced ConfigMap not found",
+            )
+            .into());
         }
     }
     let config_map = config_map.unwrap();
@@ -686,11 +706,15 @@ async fn get_discovery_property_value_from_config_map(
         }
     }
 
-    // config_map_key/value not found
+    // config_map key/value not found
     if optional {
         Ok(None)
     } else {
-        Err(Error::new(ErrorKind::InvalidInput, "config_map data not found").into())
+        Err(Error::new(
+            ErrorKind::InvalidInput,
+            "discoveryProperties' referenced ConfigMap data not found",
+        )
+        .into())
     }
 }
 
