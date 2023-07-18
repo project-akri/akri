@@ -4,12 +4,13 @@ kind: PodMonitor
 metadata:
   name: akri-agent-metrics
   namespace: {{ .Release.Namespace }}
-  labels:
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-agent
     release: prometheus
 spec:
   selector:
-    matchLabels:
-      name: akri-agent
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-agent
   podMetricsEndpoints:
   - port: {{ .Values.prometheus.portName | quote }}
     path: {{ .Values.prometheus.endpoint }}
@@ -19,12 +20,13 @@ kind: PodMonitor
 metadata:
   name: akri-controller-metrics
   namespace: {{ .Release.Namespace }}
-  labels:
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-controller
     release: prometheus
 spec:
   selector:
-    matchLabels:
-      app: akri-controller
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-controller
   podMetricsEndpoints:
   - port: {{ .Values.prometheus.portName | quote }}
     path: {{ .Values.prometheus.endpoint }}

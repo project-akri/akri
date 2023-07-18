@@ -3,14 +3,18 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: akri-onvif-discovery-daemonset
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-onvif-discovery
+    app.kubernetes.io/component: discovery-handler
 spec:
   selector:
-    matchLabels:
-      name: akri-onvif-discovery
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-onvif-discovery
   template:
     metadata:
-      labels:
-        name: akri-onvif-discovery
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: akri-onvif-discovery
+        app.kubernetes.io/component: discovery-handler
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

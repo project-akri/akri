@@ -3,14 +3,18 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: akri-debug-echo-discovery-daemonset
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-debug-echo-discovery
+    app.kubernetes.io/component: discovery-handler
 spec:
   selector:
-    matchLabels:
-      name: akri-debug-echo-discovery
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-debug-echo-discovery
   template:
     metadata:
-      labels:
-        name: akri-debug-echo-discovery
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: akri-debug-echo-discovery
+        app.kubernetes.io/component: discovery-handler
     spec:
       containers:
       - name: akri-debug-echo-discovery

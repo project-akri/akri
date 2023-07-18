@@ -3,14 +3,18 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ printf "%s-daemonset" .Values.custom.discovery.name }}
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ .Values.custom.discovery.name }}
+    app.kubernetes.io/component: discovery-handler
 spec:
   selector:
-    matchLabels:
-      name: {{ .Values.custom.discovery.name }}
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: {{ .Values.custom.discovery.name }}
   template:
     metadata:
-      labels:
-        name: {{ .Values.custom.discovery.name }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.custom.discovery.name }}
+        app.kubernetes.io/component: discovery-handler
     spec:
       containers:
       - name: {{ .Values.custom.discovery.name }}
