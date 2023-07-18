@@ -3,17 +3,24 @@ apiVersion: v1
 kind: List
 metadata:
   name: {{ .Values.webhookConfiguration.name }}
+  labels: {{- include "akri.labels" . | nindent 4 }}
 items:
   - apiVersion: v1
     kind: ServiceAccount
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
       namespace: {{ .Release.Namespace }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
       namespace: {{ .Release.Namespace }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
     rules:
     - apiGroups: [""]
       resources: ["pods"]
@@ -23,6 +30,9 @@ items:
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
       namespace: {{ .Release.Namespace }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
     roleRef:
       apiGroup: rbac.authorization.k8s.io
       kind: Role
@@ -35,15 +45,19 @@ items:
     kind: Deployment
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
     spec:
       replicas: 1
       selector:
-        matchLabels:
-          app: {{ .Values.webhookConfiguration.name }}
+        matchLabels: {{- include "akri.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
       template:
         metadata:
-          labels:
-            app: {{ .Values.webhookConfiguration.name }}
+          labels: {{- include "akri.labels" . | nindent 12 }}
+            app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+            app.kubernetes.io/component: admission-webhook
         spec:
           {{- if .Values.rbac.enabled }}
           serviceAccountName: {{ .Values.webhookConfiguration.name }}
@@ -107,9 +121,12 @@ items:
     kind: Service
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
     spec:
-      selector:
-        app: {{ .Values.webhookConfiguration.name }}
+      selector: {{- include "akri.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
       ports:
         - name: http
           port: 443
@@ -118,6 +135,9 @@ items:
     kind: ValidatingWebhookConfiguration
     metadata:
       name: {{ .Values.webhookConfiguration.name }}
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
+        app.kubernetes.io/component: admission-webhook
     webhooks:
       - name: {{ .Values.webhookConfiguration.name }}.{{ .Release.Namespace }}.svc
         clientConfig:
