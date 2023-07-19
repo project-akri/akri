@@ -263,7 +263,7 @@ impl InstanceDevicePlugin {
                 dps.instance_name
             );
 
-            let device_usage_state = get_instance_device_usage_state(
+            let device_usage_states = get_instance_device_usage_states(
                 &dps.node_name,
                 &dps.instance_name,
                 &dps.config_namespace,
@@ -272,7 +272,7 @@ impl InstanceDevicePlugin {
             )
             .await;
 
-            let virtual_devices = device_usage_state
+            let virtual_devices = device_usage_states
                 .into_iter()
                 .map(|(id, state)| v1beta1::Device {
                     id,
@@ -455,7 +455,7 @@ impl InstanceDevicePlugin {
     }
 }
 
-pub async fn get_instance_device_usage_state(
+pub async fn get_instance_device_usage_states(
     node_name: &str,
     instance_name: &str,
     instance_namespace: &str,
@@ -512,8 +512,10 @@ fn get_device_usage_state(device_usage: &DeviceUsage, node_name: &str) -> Device
 }
 
 /// This tries up to `MAX_INSTANCE_UPDATE_TRIES` to update the requested slot of the Instance with the this node's name.
-/// It cannot be assumed that this will successfully update Instance on first try since Device Plugins on other nodes may be simultaneously trying to update the Instance.
-/// This returns an error if slot does not need to be updated or `MAX_INSTANCE_UPDATE_TRIES` attempted.
+/// It cannot be assumed that this will successfully update Instance on first try since Device Plugins on other nodes
+/// may be simultaneously trying to update the Instance.
+/// This returns an error if slot already be reserved by other nodes or device plugins,
+/// cannot be updated or `MAX_INSTANCE_UPDATE_TRIES` attempted.
 async fn try_update_instance_device_usage(
     device_usage_id: &str,
     node_name: &str,
@@ -566,10 +568,10 @@ async fn try_update_instance_device_usage(
                     ),
                 )
             })?;
-        // Call get_device_usage_state to check current device usage to see if the slot can be used.
-        // A device usage slot can be used if it's free or own by this node and the desired usage kind matches.
-        // For slots owned by this node, ReservedByConfiguration or ReservedByInstance is returned.
-        // For slots owned by other nodes (by Configuration or Instance), ReservedByOtherNode is returned.
+        // Call get_device_usage_state to check current device usage to see if the slot can be reserved.
+        // A device usage slot can be reserved if it's free or already reserved by this node and the desired usage kind matches.
+        // For slots owned by this node, get_device_usage_state returns ReservedByConfiguration or ReservedByInstance.
+        // For slots owned by other nodes (by Configuration or Instance), get_device_usage_state returns ReservedByOtherNode.
         match get_device_usage_state(&current_device_usage, node_name) {
             DeviceUsageStatus::Free => {
                 let new_device_usage = DeviceUsage::create(&desired_device_usage_kind, node_name)
@@ -1651,7 +1653,7 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
 
-        let device_usage_state = get_instance_device_usage_state(
+        let device_usage_states = get_instance_device_usage_states(
             node_name,
             instance_name,
             instance_namespace,
@@ -1659,7 +1661,7 @@ mod device_plugin_service_tests {
             Arc::new(mock),
         )
         .await;
-        assert!(device_usage_state
+        assert!(device_usage_states
             .into_iter()
             .all(|(_, v)| { v == DeviceUsageStatus::Free }));
     }
@@ -1676,7 +1678,7 @@ mod device_plugin_service_tests {
         let mut mock = MockKubeInterface::new();
         setup_find_instance_with_not_found_err(&mut mock, instance_name, instance_namespace);
 
-        let device_usage_state = get_instance_device_usage_state(
+        let device_usage_states = get_instance_device_usage_states(
             node_name,
             instance_name,
             instance_namespace,
@@ -1684,7 +1686,7 @@ mod device_plugin_service_tests {
             Arc::new(mock),
         )
         .await;
-        assert!(device_usage_state
+        assert!(device_usage_states
             .into_iter()
             .all(|(_, v)| { v == DeviceUsageStatus::Unknown }));
     }
