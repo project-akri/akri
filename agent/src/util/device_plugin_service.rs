@@ -519,7 +519,7 @@ async fn try_update_instance_device_usage(
     node_name: &str,
     instance_name: &str,
     instance_namespace: &str,
-    device_usage_kind: DeviceUsageKind,
+    desired_device_usage_kind: DeviceUsageKind,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<(), Status> {
     let mut instance: InstanceSpec;
@@ -543,8 +543,8 @@ async fn try_update_instance_device_usage(
         }
 
         // Update the instance to reserve this slot for this node iff it is available and not already reserved for this node.
-        let device_usage_string = instance.device_usage.get(device_usage_id);
-        if device_usage_string.is_none() {
+        let current_device_usage_string = instance.device_usage.get(device_usage_id);
+        if current_device_usage_string.is_none() {
             // No corresponding id found
             trace!(
                 "try_update_instance_device_usage - could not find {} id in device_usage",
@@ -556,24 +556,29 @@ async fn try_update_instance_device_usage(
             ));
         }
 
-        let device_usage = DeviceUsage::from_str(device_usage_string.unwrap()).map_err(|_| {
-            Status::new(
-                Code::Unknown,
-                format!(
-                    "Fails to parse {} to DeviceUsage ",
-                    device_usage_string.unwrap()
-                ),
-            )
-        })?;
-        match get_device_usage_state(&device_usage, node_name) {
+        let current_device_usage = DeviceUsage::from_str(current_device_usage_string.unwrap())
+            .map_err(|_| {
+                Status::new(
+                    Code::Unknown,
+                    format!(
+                        "Fails to parse {} to DeviceUsage ",
+                        current_device_usage_string.unwrap()
+                    ),
+                )
+            })?;
+        // Call get_device_usage_state to check current device usage to see if the slot can be used.
+        // A device usage slot can be used if it's free or own by this node and the desired usage kind matches.
+        // For slots owned by this node, ReservedByConfiguration or ReservedByInstance is returned.
+        // For slots owned by other nodes (by Configuration or Instance), ReservedByOtherNode is returned.
+        match get_device_usage_state(&current_device_usage, node_name) {
             DeviceUsageStatus::Free => {
-                let new_device_usage =
-                    DeviceUsage::create(&device_usage_kind, node_name).map_err(|e| {
-                        Status::new(
-                            Code::Unknown,
-                            format!("Fails to create DeviceUsage - {}", e),
-                        )
-                    })?;
+                let new_device_usage = DeviceUsage::create(&desired_device_usage_kind, node_name)
+                    .map_err(|e| {
+                    Status::new(
+                        Code::Unknown,
+                        format!("Fails to create DeviceUsage - {}", e),
+                    )
+                })?;
                 instance
                     .device_usage
                     .insert(device_usage_id.to_string(), new_device_usage.to_string());
@@ -592,7 +597,7 @@ async fn try_update_instance_device_usage(
                 }
             }
             DeviceUsageStatus::ReservedByConfiguration(_) => {
-                if matches!(device_usage_kind, DeviceUsageKind::Configuration(_)) {
+                if matches!(desired_device_usage_kind, DeviceUsageKind::Configuration(_)) {
                     return Ok(());
                 } else {
                     return Err(Status::new(
@@ -602,7 +607,7 @@ async fn try_update_instance_device_usage(
                 }
             }
             DeviceUsageStatus::ReservedByInstance => {
-                if matches!(device_usage_kind, DeviceUsageKind::Instance) {
+                if matches!(desired_device_usage_kind, DeviceUsageKind::Instance) {
                     return Ok(());
                 } else {
                     return Err(Status::new(
@@ -613,7 +618,7 @@ async fn try_update_instance_device_usage(
             }
             DeviceUsageStatus::ReservedByOtherNode => {
                 trace!("try_update_instance_device_usage - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!",
-                    device_usage_id, device_usage.get_usage_name(), node_name);
+                    device_usage_id, current_device_usage.get_usage_name(), node_name);
                 return Err(Status::new(
                     Code::Unknown,
                     "Requested device already in use",
