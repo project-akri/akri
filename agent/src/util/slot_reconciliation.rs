@@ -178,21 +178,20 @@ impl DevicePluginSlotReconciler {
                     //     the slot is not labeled with node_name AND
                     //     there is a container using that slot on this node
                     if same_node_name {
-                        None
-                    } else {
-                        node_slot_usage
-                            .iter()
-                            .find(|u| match DeviceUsage::from_str(u) {
-                                Ok(slot_usage) => slot_usage.is_same_usage(k),
-                                Err(_) => false,
-                            })
-                            .map(|usage| {
-                                (
-                                    k.to_string(),
-                                    DeviceUsage::from_str(usage).unwrap().get_kind(),
-                                )
-                            })
+                        return None;
                     }
+                    node_slot_usage
+                        .iter()
+                        .find(|u| match DeviceUsage::from_str(u) {
+                            Ok(slot_usage) => slot_usage.is_same_usage(k),
+                            Err(_) => false,
+                        })
+                        .map(|usage| {
+                            (
+                                k.to_string(),
+                                DeviceUsage::from_str(usage).unwrap().get_kind(),
+                            )
+                        })
                 })
                 .collect::<HashMap<String, DeviceUsageKind>>();
 

@@ -455,6 +455,9 @@ impl InstanceDevicePlugin {
     }
 }
 
+/// This returns device usage status of all slots for an Instance on a given node
+/// if the Instance doesn't exist or fail to parse device usage of its slots return
+///  DeviceUsageStatus::Unknown since insufficient information to decide the usage state
 pub async fn get_instance_device_usage_states(
     node_name: &str,
     instance_name: &str,
@@ -471,7 +474,13 @@ pub async fn get_instance_device_usage_states(
             for (device_name, device_usage_string) in kube_akri_instance.spec.device_usage {
                 let device_usage_status = match DeviceUsage::from_str(&device_usage_string) {
                     Ok(device_usage) => get_device_usage_state(&device_usage, node_name),
-                    Err(_) => DeviceUsageStatus::Unknown,
+                    Err(_) => {
+                        error!(
+                            "get_instance_device_usage_states - fail to parse device usage {}",
+                            device_usage_string
+                        );
+                        DeviceUsageStatus::Unknown
+                    }
                 };
                 device_usage_states.push((device_name.clone(), device_usage_status));
             }
