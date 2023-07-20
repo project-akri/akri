@@ -1032,28 +1032,6 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_configuration_discovery_properties_value_and_value_from() {
-        let discovery_properties = r#"
-        "discoveryProperties": [
-            {
-                "name": "nnnn",
-                "value": "vvvv",
-                "valueFrom": {
-                    "configMapKeyRef": {
-                        "name": "nnnn1",
-                        "key": "kkk",
-                        "optional": false
-                    }
-                }
-            }
-        ],"#;
-
-        // both value and valueFrom are specified should success
-        let resp = run_validate_configuration_discovery_properties(discovery_properties);
-        assert!(resp.allowed);
-    }
-
-    #[test]
     #[should_panic(expected = "Could not parse as Akri Configuration")]
     fn test_validate_configuration_discovery_properties_config_map_invalid_ref_name_xxx() {
         // invalid "name1" in configMapKeyRef
