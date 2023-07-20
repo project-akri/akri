@@ -5,9 +5,7 @@
 //
 #![allow(non_camel_case_types)]
 use k8s_openapi::api::batch::v1::JobSpec;
-use k8s_openapi::api::core::v1::ConfigMapKeySelector;
 use k8s_openapi::api::core::v1::PodSpec;
-use k8s_openapi::api::core::v1::SecretKeySelector;
 use k8s_openapi::api::core::v1::ServiceSpec;
 use kube::CustomResource;
 use kube::{
@@ -20,14 +18,36 @@ use std::collections::HashMap;
 
 pub type ConfigurationList = ObjectList<Configuration>;
 
+/// Selects a key from a ConfigMap or Secret
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
+pub struct DiscoveryPropertyKeySelector {
+    /// The key to select.
+    pub key: String,
+
+    /// Name of the referent.
+    pub name: String,
+
+    /// Namespace of the referent
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
+
+    /// Specify whether the referent or its key must be defined
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub optional: Option<bool>,
+}
+
+fn default_namespace() -> String {
+    String::from("default")
+}
+
 /// This defines kinds of discovery property source
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum DiscoveryPropertySource {
     /// Source is a key of a ConfigMap.
-    ConfigMapKeyRef(ConfigMapKeySelector),
+    ConfigMapKeyRef(DiscoveryPropertyKeySelector),
     /// Source is a key of a Secret.
-    SecretKeyRef(SecretKeySelector),
+    SecretKeyRef(DiscoveryPropertyKeySelector),
 }
 
 /// DiscoveryProperty represents a property for discovery devices

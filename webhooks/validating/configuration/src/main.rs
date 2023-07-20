@@ -1054,7 +1054,8 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_configuration_discovery_properties_config_map_invalid_ref_name() {
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_config_map_invalid_ref_name_xxx() {
         // invalid "name1" in configMapKeyRef
         let discovery_properties = r#"
         "discoveryProperties": [
@@ -1070,8 +1071,7 @@ mod tests {
             }
         ],"#;
 
-        let resp = run_validate_configuration_discovery_properties(discovery_properties);
-        assert!(!resp.allowed);
+        run_validate_configuration_discovery_properties(discovery_properties);
     }
 
     #[test]

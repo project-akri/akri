@@ -16,7 +16,9 @@ use akri_discovery_utils::discovery::v0::{
     DiscoverResponse,
 };
 use akri_shared::{
-    akri::configuration::{Configuration, DiscoveryProperty, DiscoveryPropertySource},
+    akri::configuration::{
+        Configuration, DiscoveryProperty, DiscoveryPropertyKeySelector, DiscoveryPropertySource,
+    },
     k8s,
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
@@ -24,7 +26,7 @@ use blake2::{
     digest::{Update, VariableOutput},
     VarBlake2b,
 };
-use k8s_openapi::api::core::v1::{ConfigMap, ConfigMapKeySelector, Secret, SecretKeySelector};
+use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::api::Api;
 use log::{error, trace};
 #[cfg(test)]
@@ -540,20 +542,11 @@ impl DiscoveryOperator {
     ) -> anyhow::Result<Option<ByteData>> {
         match property {
             DiscoveryPropertySource::ConfigMapKeyRef(config_map_key_selector) => {
-                get_discovery_property_value_from_config_map(
-                    kube_client,
-                    self.config.metadata.namespace.as_ref().unwrap(),
-                    config_map_key_selector,
-                )
-                .await
+                get_discovery_property_value_from_config_map(kube_client, config_map_key_selector)
+                    .await
             }
             DiscoveryPropertySource::SecretKeyRef(secret_key_selector) => {
-                get_discovery_property_value_from_secret(
-                    kube_client,
-                    self.config.metadata.namespace.as_ref().unwrap(),
-                    secret_key_selector,
-                )
-                .await
+                get_discovery_property_value_from_secret(kube_client, secret_key_selector).await
             }
         }
     }
@@ -605,24 +598,16 @@ impl KubeClient for ActualKubeClient {
 
 async fn get_discovery_property_value_from_secret(
     kube_client: &dyn KubeClient,
-    namespace: &str,
-    secret_key_selector: &SecretKeySelector,
+    secret_key_selector: &DiscoveryPropertyKeySelector,
 ) -> anyhow::Result<Option<ByteData>> {
     let optional = secret_key_selector.optional.unwrap_or_default();
-    if secret_key_selector.name.is_none() {
-        if optional {
-            return Ok(None);
-        }
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "discoveryProperties' referenced Secret name is none",
-        )
-        .into());
-    }
+    let secret_name = &secret_key_selector.name;
+    let secret_namespace = &secret_key_selector.namespace;
     let secret_key = &secret_key_selector.key;
-    let secret_name = secret_key_selector.name.as_ref().unwrap();
 
-    let secret = kube_client.get_secret(secret_name, namespace).await?;
+    let secret = kube_client
+        .get_secret(secret_name, secret_namespace)
+        .await?;
     if secret.is_none() {
         if optional {
             return Ok(None);
@@ -659,25 +644,15 @@ async fn get_discovery_property_value_from_secret(
 
 async fn get_discovery_property_value_from_config_map(
     kube_client: &dyn KubeClient,
-    namespace: &str,
-    config_map_key_selector: &ConfigMapKeySelector,
+    config_map_key_selector: &DiscoveryPropertyKeySelector,
 ) -> anyhow::Result<Option<ByteData>> {
     let optional = config_map_key_selector.optional.unwrap_or_default();
-    if config_map_key_selector.name.is_none() {
-        if optional {
-            return Ok(None);
-        }
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "discoveryProperties' referenced ConfigMap name is none",
-        )
-        .into());
-    }
-    let config_map_name = config_map_key_selector.name.as_ref().unwrap();
+    let config_map_name = &config_map_key_selector.name;
+    let config_map_namespace = &config_map_key_selector.namespace;
     let config_map_key = &config_map_key_selector.key;
 
     let config_map = kube_client
-        .get_config_map(config_map_name, namespace)
+        .get_config_map(config_map_name, config_map_namespace)
         .await?;
     if config_map.is_none() {
         if optional {
@@ -1988,51 +1963,16 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_discovery_properties_value_from_secret_no_secret_name() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let namespace_name = "namespace_name";
-
-        let selector = SecretKeySelector::default();
-
-        let mock_kube_client = MockKubeClient::new();
-
-        // get_discovery_property_value_from_secret should return error if mandatory secret name is empty
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_get_discovery_properties_value_from_secret_no_secret_name_optional() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let namespace_name = "namespace_name";
-
-        let selector = SecretKeySelector {
-            key: String::default(),
-            name: None,
-            optional: Some(true),
-        };
-
-        let mock_kube_client = MockKubeClient::new();
-
-        // get_discovery_property_value_from_secret should return empty if optional secret name is empty
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
-        assert!(result.unwrap().is_none());
-    }
-
-    #[tokio::test]
     async fn test_get_discovery_properties_value_from_secret_no_secret_found() {
         let _ = env_logger::builder().is_test(true).try_init();
         let namespace_name = "namespace_name";
         let secret_name = "secret_1";
         let key_in_secret = "key_in_secret";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2046,9 +1986,7 @@ pub mod tests {
             .returning(move |_, _| Ok(None));
 
         // get_discovery_property_value_from_secret should return error if secret not found
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert!(result.is_err());
     }
 
@@ -2059,9 +1997,10 @@ pub mod tests {
         let secret_name = "secret_1";
         let key_in_secret = "key_in_secret";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2075,9 +2014,7 @@ pub mod tests {
             .returning(move |_, _| Ok(None));
 
         // get_discovery_property_value_from_secret for an optional key should return None if secret not found
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2088,9 +2025,10 @@ pub mod tests {
         let secret_name = "secret_1";
         let key_in_secret = "key_in_secret";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2104,13 +2042,11 @@ pub mod tests {
             .returning(move |_, _| Ok(Some(Secret::default())));
 
         // get_discovery_property_value_from_secret should return error if key in secret not found
-        assert!(get_discovery_property_value_from_secret(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await
-        .is_err());
+        assert!(
+            get_discovery_property_value_from_secret(&mock_kube_client, &selector,)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -2120,9 +2056,10 @@ pub mod tests {
         let secret_name = "secret_1";
         let key_in_secret = "key_in_config_map";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2136,9 +2073,7 @@ pub mod tests {
             .returning(move |_, _| Ok(Some(Secret::default())));
 
         // get_discovery_property_value_from_secret for an optional key should return None if key in secret not found
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2149,9 +2084,10 @@ pub mod tests {
         let secret_name = "secret_1";
         let key_in_secret = "key_in_secret";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2171,9 +2107,7 @@ pub mod tests {
             });
 
         // get_discovery_property_value_from_secret should return error if no value in secret
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert!(result.is_err());
     }
 
@@ -2184,9 +2118,10 @@ pub mod tests {
         let secret_name = "secret_1";
         let key_in_secret = "key_in_config_map";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2206,9 +2141,7 @@ pub mod tests {
             });
 
         // get_discovery_property_value_from_secret for an optional key should return None if key in secret not found
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2220,9 +2153,10 @@ pub mod tests {
         let key_in_secret = "key_in_secret";
         let value_in_secret = "value_in_secret";
 
-        let selector = SecretKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_secret.to_string(),
-            name: Some(secret_name.to_string()),
+            name: secret_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2250,52 +2184,8 @@ pub mod tests {
         };
 
         // get_discovery_property_value_from_secret should return correct value if data value in secret
-        let result =
-            get_discovery_property_value_from_secret(&mock_kube_client, namespace_name, &selector)
-                .await;
+        let result = get_discovery_property_value_from_secret(&mock_kube_client, &selector).await;
         assert_eq!(result.unwrap().unwrap(), expected_result);
-    }
-
-    #[tokio::test]
-    async fn test_get_discovery_properties_value_from_config_map_no_config_map_name() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let namespace_name = "namespace_name";
-
-        let selector = ConfigMapKeySelector::default();
-
-        let mock_kube_client = MockKubeClient::new();
-
-        // get_discovery_property_value_from_config_map should return error if mandatory configMap name is empty
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_get_discovery_properties_value_from_config_map_no_config_map_name_optional() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let namespace_name = "namespace_name";
-
-        let selector = ConfigMapKeySelector {
-            key: String::default(),
-            name: None,
-            optional: Some(true),
-        };
-
-        let mock_kube_client = MockKubeClient::new();
-
-        // get_discovery_property_value_from_config_map should return empty if optional configMap name is empty
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
-        assert!(result.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -2305,9 +2195,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2321,12 +2212,8 @@ pub mod tests {
             .returning(move |_, _| Ok(None));
 
         // get_discovery_property_value_from_config_map should return error if configMap not found
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.is_err());
     }
 
@@ -2337,9 +2224,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2353,12 +2241,8 @@ pub mod tests {
             .returning(move |_, _| Ok(None));
 
         // get_discovery_property_value_from_config_map for an optional key should return None if configMap not found
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2369,9 +2253,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2385,12 +2270,8 @@ pub mod tests {
             .returning(move |_, _| Ok(Some(ConfigMap::default())));
 
         // get_discovery_property_value_from_config_map should return error if key in configMap not found
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.is_err());
     }
 
@@ -2401,9 +2282,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2417,12 +2299,8 @@ pub mod tests {
             .returning(move |_, _| Ok(Some(ConfigMap::default())));
 
         // get_discovery_property_value_from_config_map for an optional key should return None if key in configMap not found
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2433,9 +2311,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2456,12 +2335,8 @@ pub mod tests {
             });
 
         // get_discovery_property_value_from_config_map should return error if no value in configMap
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.is_err());
     }
 
@@ -2472,9 +2347,10 @@ pub mod tests {
         let config_map_name = "config_map_1";
         let key_in_config_map = "key_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(true),
         };
 
@@ -2495,12 +2371,8 @@ pub mod tests {
             });
 
         // get_discovery_property_value_from_config_map for an optional key should return None if key in configMap not found
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert!(result.unwrap().is_none());
     }
 
@@ -2512,9 +2384,10 @@ pub mod tests {
         let key_in_config_map = "key_in_config_map";
         let value_in_config_map = "value_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2543,12 +2416,8 @@ pub mod tests {
         };
 
         // get_discovery_property_value_from_config_map should return correct value if data value in configMap
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert_eq!(result.unwrap().unwrap(), expected_result);
     }
 
@@ -2560,9 +2429,10 @@ pub mod tests {
         let key_in_config_map = "key_in_config_map";
         let value_in_config_map = "value_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2591,12 +2461,8 @@ pub mod tests {
         };
 
         // get_discovery_property_value_from_config_map should return correct value if binary data value in configMap
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert_eq!(result.unwrap().unwrap(), expected_result);
     }
 
@@ -2609,9 +2475,10 @@ pub mod tests {
         let value_in_config_map = "value_in_config_map";
         let binary_value_in_config_map = "binary_value_in_config_map";
 
-        let selector = ConfigMapKeySelector {
+        let selector = DiscoveryPropertyKeySelector {
             key: key_in_config_map.to_string(),
-            name: Some(config_map_name.to_string()),
+            name: config_map_name.to_string(),
+            namespace: namespace_name.to_string(),
             optional: Some(false),
         };
 
@@ -2644,12 +2511,8 @@ pub mod tests {
         };
 
         // get_discovery_property_value_from_config_map should return value from data if both data and binary data value exist
-        let result = get_discovery_property_value_from_config_map(
-            &mock_kube_client,
-            namespace_name,
-            &selector,
-        )
-        .await;
+        let result =
+            get_discovery_property_value_from_config_map(&mock_kube_client, &selector).await;
         assert_eq!(result.unwrap().unwrap(), expected_result);
     }
 }
