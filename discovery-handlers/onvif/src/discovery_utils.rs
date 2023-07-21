@@ -11,6 +11,7 @@ use sxd_xpath::Value;
 pub const ONVIF_DEVICE_SERVICE_URL_LABEL_ID: &str = "ONVIF_DEVICE_SERVICE_URL";
 pub const ONVIF_DEVICE_IP_ADDRESS_LABEL_ID: &str = "ONVIF_DEVICE_IP_ADDRESS";
 pub const ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID: &str = "ONVIF_DEVICE_MAC_ADDRESS";
+pub const ONVIF_DEVICE_UUID_LABEL_ID: &str = "ONVIF_DEVICE_UUID";
 pub const MEDIA_WSDL: &str = "http://www.onvif.org/ver10/media/wsdl";
 pub const DEVICE_WSDL: &str = "http://www.onvif.org/ver10/device/wsdl";
 
