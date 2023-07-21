@@ -1,3 +1,5 @@
+import time
+
 import kubernetes
 from pathlib import Path
 
@@ -117,17 +119,26 @@ def assert_akri_instances_present(
 ):
     version = f'v{akri_version.split(".")[0]}'
     v1_custom = kubernetes.client.CustomObjectsApi()
-    instances = v1_custom.list_namespaced_custom_object(
-        "akri.sh", version, "default", "instances"
-    )
-    resource_version = instances["metadata"]["resourceVersion"]
-    instances = {
-        instance["metadata"]["name"]
-        for instance in instances["items"]
-        if instance["spec"]["configurationName"] == config_name
-    }
+
+    def get_instances():
+        instances = v1_custom.list_namespaced_custom_object(
+            "akri.sh", version, "default", "instances"
+        )
+        resource_version = instances["metadata"]["resourceVersion"]
+        instances = {
+            instance["metadata"]["name"]
+            for instance in instances["items"]
+            if instance["spec"]["configurationName"] == config_name
+        }
+        return instances, resource_version
+
+    instances, resource_version = get_instances()
     if len(instances) == count:
-        return
+        # Check it is not a transient state
+        time.sleep(1)
+        instances, resource_version = get_instances()
+        if len(instances) == count:
+            return
     w = kubernetes.watch.Watch()
     for e in w.stream(
         v1_custom.list_namespaced_custom_object,
@@ -145,6 +156,10 @@ def assert_akri_instances_present(
         else:
             instances.add(e["raw_object"]["metadata"]["name"])
         if len(instances) == count:
-            w.stop()
-            return
+            # Check it is not a transient state
+            time.sleep(1)
+            instances, _ = get_instances()
+            if len(instances) == count:
+                w.stop()
+                return
     raise AssertionError(f"{count} != {len(instances)}")

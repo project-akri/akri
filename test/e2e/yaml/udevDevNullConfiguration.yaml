@@ -1,0 +1,10 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: akri-udev-dev-null
+spec:
+  discoveryHandler: 
+    name: udev
+    discoveryDetails: |+
+      udevRules:
+        - KERNEL=="null"
