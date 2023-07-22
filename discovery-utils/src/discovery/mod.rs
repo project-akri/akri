@@ -260,6 +260,7 @@ pub mod server {
             v0::{discovery_handler_client::DiscoveryHandlerClient, DiscoverRequest},
         };
         use super::*;
+        use std::collections::HashMap;
         use std::convert::TryFrom;
         use tempfile::Builder;
         use tokio::net::UnixStream;
@@ -290,6 +291,7 @@ pub mod server {
             let mut stream = discovery_handler_client
                 .discover(Request::new(DiscoverRequest {
                     discovery_details: String::new(),
+                    discovery_properties: HashMap::new(),
                 }))
                 .await
                 .unwrap()

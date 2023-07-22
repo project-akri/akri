@@ -33,10 +33,17 @@ service DiscoveryHandler {
   rpc Discover (DiscoverRequest) returns (stream DiscoverResponse);
 }
 
+message ByteData {
+    optional bytes vec = 1;
+}
+
 message DiscoverRequest {
     // String containing all the details (such as filtering options) 
     // the `DiscoveryHandler` needs to find a set of devices.
     string discovery_details = 1;
+    // list of Key-value pairs containing additional information 
+    // for the 'DiscoveryHandler' to discover devices
+    map<string, ByteData> discovery_properties = 2;
 }
 
 message DiscoverResponse {
