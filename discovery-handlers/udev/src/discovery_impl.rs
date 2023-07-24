@@ -81,7 +81,7 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Er
             ));
         }
 
-        let operation = inner_rules
+        let operation_rule = inner_rules
             .next()
             .unwrap()
             .into_inner()
@@ -90,15 +90,15 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Er
             .as_rule();
         let mut quoted_value = inner_rules.next().unwrap().into_inner();
         let value = quoted_value.next().unwrap().as_str();
-        if operation != Rule::action_operation {
+        if operation_rule != Rule::action_operation {
             udev_filters.push(UdevFilter {
                 field: inner_field,
-                operation,
+                operation: operation_rule,
                 value: value.to_string(),
             });
         } else {
             return Err(anyhow::format_err!("parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
-            inner_field.into_inner().as_str(), operation, value));
+            inner_field.into_inner().as_str(), operation_rule, value));
         }
     }
     Ok(udev_filters)

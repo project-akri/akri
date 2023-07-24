@@ -47,7 +47,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels
 */}}
 {{- define "akri.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "akri.name" . }}
+app.kubernetes.io/part-of: {{ include "akri.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 

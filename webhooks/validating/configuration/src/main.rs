@@ -249,6 +249,7 @@ mod tests {
     use super::*;
     use actix_web::test;
     const BROKER_SPEC_INSERTION_KEYWORD: &str = "INSERT_BROKER_SPEC_HERE";
+    const DISCOVERY_PROPERTIES_INSERTION_KEYWORD: &str = "INSERT_DISCOVERY_PROPERTIES_HERE";
     const ADMISSION_REVIEW: &str = r#"
     {
         "kind": "AdmissionReview",
@@ -391,6 +392,71 @@ mod tests {
                         }]
                     },
                     "capacity": 1
+                }
+            },
+            "oldObject": null,
+            "dryRun": false,
+            "options": {
+                "kind": "CreateOptions",
+                "apiVersion": "meta.k8s.io/v1"
+            }
+        }
+    }"#;
+
+    const ADMISSION_REVIEW_FOR_DISCOVERY_PROPERTIES: &str = r#"
+    {
+        "kind": "AdmissionReview",
+        "apiVersion": "admission.k8s.io/v1",
+        "request": {
+            "uid": "00000000-0000-0000-0000-000000000000",
+            "kind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "resource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "requestKind": {
+                "group": "akri.sh",
+                "version": "v0",
+                "kind": "Configuration"
+            },
+            "requestResource": {
+                "group": "akri.sh",
+                "version": "v0",
+                "resource": "configurations"
+            },
+            "name": "name",
+            "namespace": "default",
+            "operation": "CREATE",
+            "userInfo": {
+                "username": "admin",
+                "uid": "admin",
+                "groups": []
+            },
+            "object": {
+                "apiVersion": "akri.sh/v0",
+                "kind": "Configuration",
+                "metadata": {
+                    "annotations": {
+                        "kubectl.kubernetes.io/last-applied-configuration": ""
+                    },
+                    "creationTimestamp": "2021-01-01T00:00:00Z",
+                    "generation": 1,
+                    "managedFields": [],
+                    "name": "name",
+                    "namespace": "default",
+                    "uid": "00000000-0000-0000-0000-000000000000"
+                },
+                "spec": {
+                    "discoveryHandler": {
+                        INSERT_DISCOVERY_PROPERTIES_HERE
+                        "name": "debugEcho",
+                        "discoveryDetails": "descriptions:\n- \"foo0\"\n- \"foo1\"\n"
+                    }
                 }
             },
             "oldObject": null,
@@ -550,6 +616,11 @@ mod tests {
             BROKER_SPEC_INSERTION_KEYWORD,
             &invalid_setting_both_broker_job_and_pod,
         )
+    }
+
+    fn get_admission_review_with_discovery_properties(discovery_properties: &str) -> String {
+        ADMISSION_REVIEW_FOR_DISCOVERY_PROPERTIES
+            .replace(DISCOVERY_PROPERTIES_INSERTION_KEYWORD, discovery_properties)
     }
 
     // JSON Syntax Tests
@@ -787,6 +858,234 @@ mod tests {
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_empty() {
+        let discovery_properties = "";
+
+        // no discovery properties specified should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_empty_list() {
+        let discovery_properties = r#"
+        "discoveryProperties": [],
+        "#;
+
+        // empty discovery properties array should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_plain_text() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "value":"vvvv"
+            }
+        ],
+        "#;
+
+        // plain text discovery properties specified should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_plain_text_empty_value() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "value": ""
+            }
+        ],"#;
+
+        // plain text discovery properties, empty value should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_plain_text_no_value() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn"
+            }
+        ],"#;
+
+        // plain text discovery properties, value not specified should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_plain_text_empty_name() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": ""
+            }
+        ],"#;
+
+        // plain text discovery properties, empty name should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_plain_text_no_name() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "value":"vvvv"
+            }
+        ],
+        "#;
+
+        // plain text discovery properties without name should fail, missing field 'name'
+        run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_empty_value_from() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "valueFrom": {
+                }
+            }
+        ],"#;
+
+        // valueFrom discovery properties, not specified should fail, missing content of 'valueFrom'
+        run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_unknown_value_from() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "valueFrom": {
+                    "fieldRef": {
+                        "fieldPath": "ffff"
+                    }
+                }
+            }
+        ],"#;
+
+        // valueFrom discovery properties, unknown ref should fail
+        run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_secret() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "valueFrom": {
+                    "secretKeyRef": {
+                        "name": "nnnn1",
+                        "key": "kkk",
+                        "optional": false
+                    }
+                }
+            }
+        ],"#;
+
+        // valueFrom discovery properties, secretKeyRef should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    fn test_validate_configuration_discovery_properties_config_map() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "valueFrom": {
+                    "configMapKeyRef": {
+                        "name": "nnnn1",
+                        "key": "kkk",
+                        "optional": false
+                    }
+                }
+            }
+        ],"#;
+
+        // valueFrom discovery properties, configMapKeyRef should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_config_map_invalid_ref_name_xxx() {
+        // invalid "name1" in configMapKeyRef
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "nnnn",
+                "valueFrom": {
+                    "configMapKeyRef": {
+                        "name1": "nnnn1",
+                        "key": "kkk",
+                        "optional": false
+                    }
+                }
+            }
+        ],"#;
+
+        run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    #[test]
+    #[should_panic(expected = "Could not parse as Akri Configuration")]
+    fn test_validate_configuration_discovery_properties_config_map_multiple_value_from() {
+        let discovery_properties = r#"
+        "discoveryProperties": [
+            {
+                "name": "name1",
+                "valueFrom": {
+                    "configMapKeyRef": {
+                        "name": "nnnn1",
+                        "key": "kkk",
+                        "optional": false
+                    },
+                    "secretKeyRef": {
+                        "name": "nnnn1",
+                        "key": "kkk",
+                        "optional": false
+                    }
+                }
+            }
+        ],"#;
+
+        run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    fn run_validate_configuration_discovery_properties(
+        discovery_properties: &str,
+    ) -> AdmissionResponse {
+        let valid: AdmissionReview = serde_json::from_str(
+            &get_admission_review_with_discovery_properties(discovery_properties),
+        )
+        .expect("v1.AdmissionReview JSON");
+        let rqst = valid.request.expect("v1.AdmissionRequest JSON");
+        validate_configuration(&rqst)
     }
 
     #[actix_rt::test]
