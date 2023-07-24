@@ -1,5 +1,5 @@
 use super::{constants::SLOT_RECONCILIATION_CHECK_DELAY_SECS, crictl_containers};
-use akri_shared::akri::instance::device_usage::{DeviceUsage, DeviceUsageKind};
+use akri_shared::akri::instance::device_usage::{DeviceUsageKind, NodeUsage};
 use akri_shared::{akri::instance::InstanceSpec, k8s::KubeInterface};
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::PodStatus;
@@ -13,7 +13,8 @@ use std::{
 };
 use tokio::process::Command;
 
-type SlotQueryResult = Result<HashSet<String>, Box<dyn std::error::Error + Send + Sync + 'static>>;
+type SlotQueryResult =
+    Result<HashMap<String, DeviceUsageKind>, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -102,15 +103,13 @@ impl DevicePluginSlotReconciler {
         );
 
         // Any slot found in use should be scrubbed from our list
-        node_slot_usage.iter().for_each(|slot| {
-            trace!("reconcile - remove slot from tracked slots: {:?}", slot);
-            if let Ok(slot_usage) = DeviceUsage::from_str(slot) {
-                self.removal_slot_map
-                    .lock()
-                    .unwrap()
-                    .remove(&slot_usage.get_usage_name());
-            }
-        });
+        {
+            let mut removal_slot_map_guard = self.removal_slot_map.lock().unwrap();
+            node_slot_usage.iter().for_each(|(slot, _)| {
+                trace!("reconcile - remove slot from tracked slots: {:?}", slot);
+                removal_slot_map_guard.remove(slot);
+            });
+        }
         trace!(
             "reconcile - removal_slot_map after removing node_slot_usage: {:?}",
             self.removal_slot_map
@@ -170,28 +169,20 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    let same_node_name = match DeviceUsage::from_str(v) {
-                        Ok(usage) => usage.is_same_usage(node_name),
+                    let same_node_name = match NodeUsage::from_str(v) {
+                        Ok(node_usage) => node_usage.is_same_node(node_name),
                         Err(_) => false,
                     };
-                    // We need to add node_name to this slot IF
-                    //     the slot is not labeled with node_name AND
-                    //     there is a container using that slot on this node
-                    if same_node_name {
-                        return None;
+                    if !same_node_name {
+                        // We need to add node_name to this slot IF
+                        //     the slot is not labeled with node_name AND
+                        //     there is a container using that slot on this node
+                        node_slot_usage
+                            .get_key_value(k)
+                            .map(|(slot, kind)| (slot.to_string(), kind.clone()))
+                    } else {
+                        None
                     }
-                    node_slot_usage
-                        .iter()
-                        .find(|u| match DeviceUsage::from_str(u) {
-                            Ok(slot_usage) => slot_usage.is_same_usage(k),
-                            Err(_) => false,
-                        })
-                        .map(|usage| {
-                            (
-                                k.to_string(),
-                                DeviceUsage::from_str(usage).unwrap().get_kind(),
-                            )
-                        })
                 })
                 .collect::<HashMap<String, DeviceUsageKind>>();
 
@@ -206,18 +197,11 @@ impl DevicePluginSlotReconciler {
                 .device_usage
                 .iter()
                 .filter_map(|(k, v)| {
-                    let same_node_name = match DeviceUsage::from_str(v) {
-                        Ok(usage) => usage.is_same_usage(node_name),
+                    let same_node_name = match NodeUsage::from_str(v) {
+                        Ok(usage) => usage.is_same_node(node_name),
                         Err(_) => false,
                     };
-                    if same_node_name
-                        && node_slot_usage
-                            .iter()
-                            .all(|usage| match DeviceUsage::from_str(usage) {
-                                Ok(slot_usage) => !slot_usage.is_same_usage(k),
-                                Err(_) => true,
-                            })
-                    {
+                    if same_node_name && !node_slot_usage.contains_key(k) {
                         // We need to clean this slot IF
                         //     this slot is handled by this node AND
                         //     there are no containers using that slot on this node
@@ -273,14 +257,14 @@ impl DevicePluginSlotReconciler {
                                 // cases where a Pod is running (which corresponds
                                 // to an Allocate call, but the Instance slot is empty.
                                 let usage_kind = slots_missing_this_node_name.get(slot).unwrap();
-                                DeviceUsage::create(usage_kind, node_name)
+                                NodeUsage::create(usage_kind, node_name)
                                     .unwrap()
                                     .to_string()
                             } else if slots_to_clean.contains(slot) {
                                 // Set usage to free because there is no
                                 // Deallocate message from kubelet for us to know
                                 // when a slot is no longer in use
-                                DeviceUsage::default().to_string()
+                                NodeUsage::default().to_string()
                             } else {
                                 // This slot remains unchanged.
                                 usage.into()
@@ -388,7 +372,11 @@ mod reconcile_tests {
     use k8s_openapi::api::core::v1::Pod;
     use kube::api::ObjectList;
 
-    fn configure_get_node_slots(mock: &mut MockSlotQuery, result: HashSet<String>, error: bool) {
+    fn configure_get_node_slots(
+        mock: &mut MockSlotQuery,
+        result: HashMap<String, DeviceUsageKind>,
+        error: bool,
+    ) {
         mock.expect_get_node_slots().times(1).returning(move || {
             if !error {
                 Ok(result.clone())
@@ -422,7 +410,7 @@ mod reconcile_tests {
     }
 
     struct NodeSlots {
-        node_slots: HashSet<String>,
+        node_slots: HashMap<String, DeviceUsageKind>,
         node_slots_error: bool,
     }
 
@@ -501,7 +489,7 @@ mod reconcile_tests {
         };
         configure_scnenario(
             NodeSlots {
-                node_slots: HashSet::new(),
+                node_slots: HashMap::new(),
                 node_slots_error: false,
             },
             "../test/json/shared-instance-list.json",
@@ -521,7 +509,7 @@ mod reconcile_tests {
         };
         configure_scnenario(
             NodeSlots {
-                node_slots: HashSet::new(),
+                node_slots: HashMap::new(),
                 node_slots_error: true,
             },
             "",
@@ -541,9 +529,9 @@ mod reconcile_tests {
         };
 
         let grace_period = Duration::from_millis(100);
-        let mut node_slots = HashSet::new();
-        node_slots.insert("config-a-359973-3".to_string());
-        node_slots.insert("config-a-359973-5".to_string());
+        let mut node_slots = HashMap::new();
+        node_slots.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
+        node_slots.insert("config-a-359973-5".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify one slot used by this node
             NodeSlots {
@@ -580,8 +568,8 @@ mod reconcile_tests {
         };
 
         let grace_period = Duration::from_millis(100);
-        let mut node_slots = HashSet::new();
-        node_slots.insert("config-a-359973-3".to_string());
+        let mut node_slots = HashMap::new();
+        node_slots.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify one slot used by this node
             NodeSlots {
@@ -640,8 +628,8 @@ mod reconcile_tests {
         };
 
         let grace_period = Duration::from_millis(100);
-        let mut node_slots = HashSet::new();
-        node_slots.insert("config-a-359973-3".to_string());
+        let mut node_slots = HashMap::new();
+        node_slots.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify one slot used by this node
             NodeSlots {
@@ -669,9 +657,9 @@ mod reconcile_tests {
         std::thread::sleep(grace_period);
         std::thread::sleep(grace_period);
 
-        let mut node_slots_added = HashSet::new();
-        node_slots_added.insert("config-a-359973-3".to_string());
-        node_slots_added.insert("config-a-359973-5".to_string());
+        let mut node_slots_added = HashMap::new();
+        node_slots_added.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
+        node_slots_added.insert("config-a-359973-5".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify one slot used by this node
             NodeSlots {
@@ -703,8 +691,8 @@ mod reconcile_tests {
         };
 
         let grace_period = Duration::from_millis(100);
-        let mut node_slots = HashSet::new();
-        node_slots.insert("config-a-359973-3".to_string());
+        let mut node_slots = HashMap::new();
+        node_slots.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify one slot used by this node
             NodeSlots {
@@ -732,9 +720,9 @@ mod reconcile_tests {
         std::thread::sleep(grace_period);
         std::thread::sleep(grace_period);
 
-        let mut node_slots_added = HashSet::new();
-        node_slots_added.insert("config-a-359973-1".to_string());
-        node_slots_added.insert("config-a-359973-3".to_string());
+        let mut node_slots_added = HashMap::new();
+        node_slots_added.insert("config-a-359973-1".to_string(), DeviceUsageKind::Instance);
+        node_slots_added.insert("config-a-359973-3".to_string(), DeviceUsageKind::Instance);
         configure_scnenario(
             // slot_query to identify two slots used by this node
             NodeSlots {

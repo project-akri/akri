@@ -1,6 +1,6 @@
 use akri_shared::{
     akri::{
-        instance::device_usage::DeviceUsage,
+        instance::device_usage::NodeUsage,
         instance::{Instance, InstanceSpec},
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
     },
@@ -298,15 +298,15 @@ impl NodeWatcher {
             .device_usage
             .iter()
             .map(|(slot, usage)| {
-                let same_node_name = match DeviceUsage::from_str(usage) {
-                    Ok(node_usage) => node_usage.is_same_usage(vanished_node_name),
+                let same_node_name = match NodeUsage::from_str(usage) {
+                    Ok(node_usage) => node_usage.is_same_node(vanished_node_name),
                     Err(_) => false,
                 };
 
                 (
                     slot.to_string(),
                     if same_node_name {
-                        DeviceUsage::default().to_string()
+                        NodeUsage::default().to_string()
                     } else {
                         usage.into()
                     },

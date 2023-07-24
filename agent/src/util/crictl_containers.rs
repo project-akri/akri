@@ -1,5 +1,7 @@
-use akri_shared::akri::{instance::device_usage::DeviceUsage, AKRI_SLOT_ANNOTATION_NAME_PREFIX};
-use std::collections::{HashMap, HashSet};
+use akri_shared::akri::{
+    instance::device_usage::DeviceUsageKind, AKRI_SLOT_ANNOTATION_NAME_PREFIX,
+};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 /// Output from crictl query
@@ -16,8 +18,96 @@ struct CriCtlContainer {
     annotations: HashMap<String, String>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseSlotUsageError;
+#[derive(PartialEq, Clone, Debug, Default)]
+pub struct SlotUsage {
+    kind: DeviceUsageKind,
+    slot_id: String,
+}
+
+impl std::fmt::Display for SlotUsage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.kind {
+            DeviceUsageKind::Free => write!(f, ""),
+            DeviceUsageKind::Configuration(vdev_id) => {
+                write!(f, "C:{}:{}", vdev_id, self.slot_id)
+            }
+            DeviceUsageKind::Instance => write!(f, "{}", self.slot_id),
+        }
+    }
+}
+
+impl std::str::FromStr for SlotUsage {
+    type Err = ParseSlotUsageError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Ok(SlotUsage {
+                kind: DeviceUsageKind::Free,
+                slot_id: s.to_string(),
+            });
+        }
+
+        // Format "C:<vdev_id>:<slot_id>"
+        if let Some((vdev_id, slot_id)) = s.strip_prefix("C:").and_then(|s| s.split_once(':')) {
+            if slot_id.is_empty() {
+                return Err(ParseSlotUsageError);
+            }
+            return Ok(SlotUsage {
+                kind: DeviceUsageKind::Configuration(vdev_id.to_string()),
+                slot_id: slot_id.to_string(),
+            });
+        }
+
+        // Format "<usage_name>"
+        Ok(SlotUsage {
+            kind: DeviceUsageKind::Instance,
+            slot_id: s.to_string(),
+        })
+    }
+}
+
+impl SlotUsage {
+    pub fn create(kind: &DeviceUsageKind, slot_id: &str) -> Result<Self, anyhow::Error> {
+        match kind {
+            DeviceUsageKind::Free => {
+                if !slot_id.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "Invalid input parameter, slot name: {} provided for free slot usage",
+                        slot_id
+                    ));
+                };
+            }
+            _ => {
+                if slot_id.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "Invalid input parameter, no slot provided for slot usage"
+                    ));
+                };
+            }
+        };
+
+        Ok(Self {
+            kind: kind.clone(),
+            slot_id: slot_id.to_string(),
+        })
+    }
+
+    pub fn get_kind(&self) -> DeviceUsageKind {
+        self.kind.clone()
+    }
+
+    pub fn get_slot_id(&self) -> String {
+        self.slot_id.clone()
+    }
+
+    pub fn is_same_slot(&self, slot: &str) -> bool {
+        self.slot_id == slot
+    }
+}
+
 /// This gets the usage slots for an instance by getting the annotations that were stored at id `AKRI_SLOT_ANNOTATION_NAME_PREFIX` during allocate.
-pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
+pub fn get_container_slot_usage(crictl_output: &str) -> HashMap<String, DeviceUsageKind> {
     match serde_json::from_str::<CriCtlOutput>(crictl_output) {
         Ok(crictl_output_parsed) => crictl_output_parsed
             .containers
@@ -28,10 +118,10 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
                     let slot_id = key
                         .strip_prefix(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
                         .unwrap_or_default();
-                    match DeviceUsage::from_str(value) {
+                    match SlotUsage::from_str(value) {
                         Ok(slot_usage) => {
-                            if slot_usage.is_same_usage(slot_id) {
-                                Some(value.clone())
+                            if slot_usage.is_same_slot(slot_id) {
+                                Some((slot_usage.get_slot_id(), slot_usage.get_kind()))
                             } else {
                                 None
                             }
@@ -49,7 +139,7 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
                 e,
                 &crictl_output
             );
-            HashSet::default()
+            HashMap::default()
         }
     }
 }
@@ -95,30 +185,36 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         // Empty output
-        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#""#));
+        assert_eq!(
+            HashMap::<String, DeviceUsageKind>::new(),
+            get_container_slot_usage(r#""#)
+        );
         // Empty json output
-        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#"{}"#));
+        assert_eq!(
+            HashMap::<String, DeviceUsageKind>::new(),
+            get_container_slot_usage(r#"{}"#)
+        );
         // Expected output with no containers
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, DeviceUsageKind>::new(),
             get_container_slot_usage(r#"{\"containers\": []}"#)
         );
         // Output with syntax error
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, DeviceUsageKind>::new(),
             get_container_slot_usage(r#"{ddd}"#)
         ); // syntax error
            // Expected output with no slot
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, DeviceUsageKind>::new(),
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {} ] }}",
                 &get_container_str("")
             ))
         );
         // Expected output with slot (including unexpected property)
-        let mut expected = HashSet::new();
-        expected.insert("foo".to_string());
+        let mut expected = HashMap::new();
+        expected.insert("foo".to_string(), DeviceUsageKind::Instance);
         assert_eq!(
             expected,
             get_container_slot_usage(&format!(
@@ -135,9 +231,9 @@ mod tests {
             ))
         );
         // Expected output with multiple containers
-        let mut expected_2 = HashSet::new();
-        expected_2.insert("foo1".to_string());
-        expected_2.insert("foo2".to_string());
+        let mut expected_2 = HashMap::new();
+        expected_2.insert("foo1".to_string(), DeviceUsageKind::Instance);
+        expected_2.insert("foo2".to_string(), DeviceUsageKind::Instance);
         assert_eq!(
             expected_2,
             get_container_slot_usage(&format!(
