@@ -30,4 +30,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev open
 
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/agent /agent
 ENV RUST_LOG agent,akri_shared
-CMD ["./agent"]
+ENTRYPOINT ["./agent"]

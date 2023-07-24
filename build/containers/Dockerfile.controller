@@ -12,4 +12,4 @@ LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/controller /controller
 ENV RUST_LOG controller,akri_shared
-CMD ["./controller"]
+ENTRYPOINT ["./controller"]
