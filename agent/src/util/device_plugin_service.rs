@@ -1,7 +1,6 @@
 use super::constants::{
     HEALTHY, KUBELET_UPDATE_CHANNEL_CAPACITY, LIST_AND_WATCH_SLEEP_SECS, UNHEALTHY,
 };
-use super::crictl_containers::SlotUsage;
 use super::v1beta1;
 use super::v1beta1::{
     device_plugin_server::DevicePlugin, AllocateRequest, AllocateResponse, DevicePluginOptions,
@@ -408,11 +407,11 @@ impl InstanceDevicePlugin {
                     return Err(e);
                 }
 
-                let slot_usage =
-                    SlotUsage::create(&DeviceUsageKind::Instance, &device_usage_id).unwrap();
+                let node_usage =
+                    NodeUsage::create(&DeviceUsageKind::Instance, &dps.node_name).unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    slot_usage.to_string(),
+                    node_usage.to_string(),
                 );
 
                 // Add suffix _<instance_id> to each device property
