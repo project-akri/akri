@@ -2,6 +2,7 @@ use super::discovery_impl::util;
 use super::discovery_utils::{
     OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
     ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
+    ONVIF_DEVICE_UUID_LABEL_ID,
 };
 use akri_discovery_utils::{
     discovery::{
@@ -73,7 +74,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
         tokio::spawn(async move {
-            let mut previous_cameras = Vec::new();
+            let mut previous_cameras = HashMap::new();
             let mut filtered_camera_devices = HashMap::new();
             loop {
                 // Before each iteration, check if receiver has dropped
@@ -98,8 +99,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 .unwrap();
                 trace!("discover - discovered:{:?}", &latest_cameras);
                 // Remove cameras that have gone offline
-                previous_cameras.iter().for_each(|c| {
-                    if !latest_cameras.contains(c) {
+                previous_cameras.keys().for_each(|c| {
+                    if !latest_cameras.contains_key(c) {
                         changed_camera_list = true;
                         filtered_camera_devices.remove(c);
                     }
@@ -107,8 +108,10 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
                 let futures: Vec<_> = latest_cameras
                     .iter()
-                    .filter(|c| !previous_cameras.contains(c))
-                    .map(|c| apply_filters(&discovery_handler_config, c, &onvif_query))
+                    .filter(|(k, _)| !previous_cameras.contains_key(*k))
+                    .map(|(uri, uuid)| {
+                        apply_filters(&discovery_handler_config, uri, uuid, &onvif_query)
+                    })
                     .collect();
                 let options = futures_util::future::join_all(futures).await;
                 // Insert newly discovered camera that are not filtered out
@@ -150,9 +153,13 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 async fn apply_filters(
     discovery_handler_config: &OnvifDiscoveryDetails,
     device_service_uri: &str,
+    device_uuid: &str,
     onvif_query: &impl OnvifQuery,
 ) -> Option<(String, Device)> {
-    info!("apply_filters - device service url {}", device_service_uri);
+    info!(
+        "apply_filters - device service url {}, uuid {}",
+        device_service_uri, device_uuid
+    );
     let (ip_address, mac_address) = match onvif_query
         .get_device_ip_and_mac_address(device_service_uri)
         .await
@@ -184,19 +191,20 @@ async fn apply_filters(
         return None;
     }
 
-    let ip_and_mac_joined = format!("{}-{}", &ip_address, &mac_address);
+    let service_uri_and_uuid_joined = format!("{}-{}", device_service_uri, device_uuid);
     let mut properties = HashMap::new();
     properties.insert(
         ONVIF_DEVICE_SERVICE_URL_LABEL_ID.to_string(),
         device_service_uri.to_string(),
     );
+    properties.insert(ONVIF_DEVICE_UUID_LABEL_ID.into(), device_uuid.to_string());
     properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip_address);
     properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac_address);
 
     Some((
         device_service_uri.to_string(),
         Device {
-            id: ip_and_mac_joined,
+            id: service_uri_and_uuid_joined,
             properties,
             mounts: Vec::default(),
             device_specs: Vec::default(),
@@ -239,20 +247,20 @@ mod tests {
             .returning(move |_| Ok((ip.to_string(), mac.to_string())));
     }
 
-    fn expected_device(uri: &str, ip: &str, mac: &str) -> (String, Device) {
+    fn expected_device(uri: &str, uuid: &str, ip: &str, mac: &str) -> (String, Device) {
         let mut properties = HashMap::new();
         properties.insert(
             ONVIF_DEVICE_SERVICE_URL_LABEL_ID.to_string(),
             uri.to_string(),
         );
-
+        properties.insert(ONVIF_DEVICE_UUID_LABEL_ID.into(), uuid.to_string());
         properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip.to_string());
         properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac.to_string());
 
         (
             uri.to_string(),
             Device {
-                id: format!("{}-{}", ip, mac),
+                id: format!("{}-{}", uri, uuid),
                 properties,
                 mounts: Vec::default(),
                 device_specs: Vec::default(),
@@ -271,6 +279,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_no_filters() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -290,14 +299,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_include_ip_exist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -320,14 +335,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_include_ip_nonexist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
 
         let mut mock = MockOnvifQuery::new();
         configure_scenario(
@@ -348,7 +369,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }
@@ -356,6 +377,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_include_ip_similar() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
 
         let mut mock = MockOnvifQuery::new();
         configure_scenario(
@@ -376,7 +398,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }
@@ -384,6 +406,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_exclude_ip_nonexist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -406,14 +429,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_exclude_ip_exist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
 
         let mut mock = MockOnvifQuery::new();
@@ -435,7 +464,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }
@@ -443,6 +472,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_exclude_ip_similar() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -465,14 +495,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_include_mac_exist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -495,14 +531,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_include_mac_nonexist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
 
         let mut mock = MockOnvifQuery::new();
         configure_scenario(
@@ -523,7 +565,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }
@@ -531,6 +573,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_exclude_mac_nonexist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "mock:mac";
 
@@ -553,14 +596,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_exclude_mac_exist() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_mac = "mock:mac";
 
         let mut mock = MockOnvifQuery::new();
@@ -582,7 +631,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }
@@ -590,6 +639,7 @@ mod tests {
     #[tokio::test]
     async fn test_apply_filters_include_mac_exist_different_letter_cases() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "MocK:Mac";
 
@@ -612,14 +662,20 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        let instance = apply_filters(&onvif_config, mock_uri, &mock).await.unwrap();
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
 
-        assert_eq!(expected_device(mock_uri, mock_ip, mock_mac), instance);
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
     }
 
     #[tokio::test]
     async fn test_apply_filters_exclude_mac_exist_different_letter_cases() {
         let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
         let mock_ip = "mock.ip";
         let mock_mac = "MocK:Mac";
 
@@ -642,7 +698,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, &mock)
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
             .await
             .is_none());
     }

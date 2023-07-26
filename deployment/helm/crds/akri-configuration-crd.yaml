@@ -22,6 +22,58 @@ spec:
                       type: string
                     discoveryDetails:
                       type: string
+                    discoveryProperties:
+                      nullable: true
+                      type: array
+                      items: # {{DiscoveryProperty}}
+                        type: object
+                        required:
+                          - name
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                            nullable: true
+                          valueFrom:
+                            type: object
+                            properties:
+                              secretKeyRef:
+                                type: object
+                                required:
+                                  - name
+                                properties:
+                                  key:
+                                    type: string
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                  optional:
+                                    type: boolean
+                              configMapKeyRef:
+                                type: object
+                                required:
+                                  - name
+                                properties:
+                                  key:
+                                    type: string
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                  optional:
+                                    type: boolean
+                            oneOf:
+                              - properties:
+                                required: ["secretKeyRef"]
+                              - properties:
+                                required: ["configMapKeyRef"]
+                        oneOf:
+                          - properties:
+                            required: ["value"]
+                          - properties:
+                            required: ["valueFrom"]
                 capacity:
                   type: integer
                 brokerSpec: # {{BrokerSpec}}

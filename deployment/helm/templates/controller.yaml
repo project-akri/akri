@@ -3,15 +3,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: akri-controller-deployment
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-controller
+    app.kubernetes.io/component: controller
 spec:
   replicas: 1
   selector:
-    matchLabels:
-      app: akri-controller
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-controller
   template:
     metadata:
-      labels:
-        app: akri-controller
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: akri-controller
+        app.kubernetes.io/component: controller
     spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: 'akri-controller-sa'

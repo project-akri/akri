@@ -24,7 +24,7 @@ use std::{
 };
 use tokio::sync::{broadcast, mpsc, RwLock};
 
-type ConfigId = (String, String);
+pub type ConfigId = (String, String);
 type ConfigMap = Arc<RwLock<HashMap<ConfigId, ConfigInfo>>>;
 
 /// Information for managing a Configuration, such as all applied Instances of that Configuration

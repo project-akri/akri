@@ -333,7 +333,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "agent"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -361,7 +361,7 @@ dependencies = [
  "mock_instant",
  "mockall",
  "mockall_double",
- "prometheus 0.12.0",
+ "prometheus",
  "prost",
  "prost-types",
  "rand 0.8.5",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -422,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -510,7 +510,7 @@ dependencies = [
  "kube-runtime",
  "log",
  "mockall",
- "prometheus 0.11.0",
+ "prometheus",
  "rand 0.8.5",
  "schemars",
  "serde",
@@ -525,7 +525,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -1043,7 +1043,7 @@ checksum = "fbdcdcb6d86f71c5e97409ad45898af11cbc995b4ee8112d59095a28d376c935"
 
 [[package]]
 name = "controller"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -1058,7 +1058,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mockall",
- "prometheus 0.12.0",
+ "prometheus",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1243,7 +1243,7 @@ dependencies = [
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -2540,7 +2540,7 @@ checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2590,7 +2590,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -2943,23 +2943,6 @@ dependencies = [
  "hex",
  "lazy_static",
  "libc",
-]
-
-[[package]]
-name = "prometheus"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8425533e7122f0c3cc7a37e6244b16ad3a2cc32ae7ac6276e2a75da0d9c200d"
-dependencies = [
- "cfg-if 1.0.0",
- "fnv",
- "lazy_static",
- "libc",
- "parking_lot 0.11.2",
- "procfs",
- "protobuf",
- "regex",
- "thiserror",
 ]
 
 [[package]]
@@ -4206,7 +4189,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -4217,13 +4200,13 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "akri-shared",
  "env_logger",
  "lazy_static",
  "log",
- "prometheus 0.12.0",
+ "prometheus",
  "prost",
  "regex",
  "rscam",
@@ -4494,7 +4477,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.10.16"
+version = "0.11.4"
 dependencies = [
  "actix",
  "actix-rt 2.7.0",

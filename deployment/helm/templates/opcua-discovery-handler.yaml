@@ -3,14 +3,18 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: akri-opcua-discovery-daemonset
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-opcua-discovery
+    app.kubernetes.io/component: discovery-handler
 spec:
   selector:
-    matchLabels:
-      name: akri-opcua-discovery
+    matchLabels: {{- include "akri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: akri-opcua-discovery
   template:
     metadata:
-      labels:
-        name: akri-opcua-discovery
+      labels: {{- include "akri.labels" . | nindent 8 }}
+        app.kubernetes.io/name: akri-opcua-discovery
+        app.kubernetes.io/component: discovery-handler
     spec:
       containers:
       - name: akri-opcua-discovery
