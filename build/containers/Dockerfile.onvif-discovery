@@ -12,4 +12,4 @@ LABEL org.opencontainers.image.source https://github.com/project-akri/akri
 RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev openssl && apt-get clean
 COPY ./target/${CROSS_BUILD_TARGET}/${BUILD_TYPE}/onvif-discovery-handler /onvif-discovery-handler
 ENV RUST_LOG onvif_discovery_handler,akri_shared,akri_discovery_utils,akri_onvif
-CMD ["./onvif-discovery-handler"]
+ENTRYPOINT ["./onvif-discovery-handler"]

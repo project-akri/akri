@@ -253,6 +253,7 @@ pub mod config_for_tests {
         pod_namespace: &'static str,
         label_id: &'static str,
         label_value: &'static str,
+        error: bool,
     ) {
         trace!("mock.expect_create_pod pod_name:{}", pod_name);
         mock.expect_create_pod()
@@ -269,7 +270,10 @@ pub mod config_for_tests {
                         == label_value
                     && namespace == pod_namespace
             })
-            .returning(move |_, _| Ok(()));
+            .returning(move |_, _| match error {
+                false => Ok(()),
+                true => Err(anyhow::format_err!("create pod error")),
+            });
     }
 
     pub fn configure_remove_pod(

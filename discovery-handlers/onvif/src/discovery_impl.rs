@@ -101,6 +101,16 @@ pub mod common {
 
     #[derive(Default, PartialEq, Debug, YaDeserialize, YaSerialize)]
     #[yaserde(
+        prefix = "wsa",
+        namespace = "wsa: http://schemas.xmlsoap.org/ws/2004/08/addressing"
+    )]
+    pub struct EndpointReference {
+        #[yaserde(prefix = "wsa", rename = "Address")]
+        pub address: String,
+    }
+
+    #[derive(Default, PartialEq, Debug, YaDeserialize, YaSerialize)]
+    #[yaserde(
         prefix = "d",
         namespace = "d: http://schemas.xmlsoap.org/ws/2005/04/discovery",
         namespace = "wsa: http://schemas.xmlsoap.org/ws/2004/08/addressing"
@@ -109,7 +119,7 @@ pub mod common {
         #[yaserde(prefix = "d", rename = "XAddrs")]
         pub xaddrs: String,
         #[yaserde(prefix = "wsa", rename = "EndpointReference")]
-        pub endpoint_reference: String,
+        pub endpoint_reference: EndpointReference,
         #[yaserde(prefix = "d", rename = "Types")]
         pub probe_types: Vec<String>,
         #[yaserde(prefix = "d", rename = "Scopes")]
@@ -134,7 +144,7 @@ pub mod util {
     use super::{common, probe_types, to_deserialize, to_serialize};
     use akri_discovery_utils::filtering::{FilterList, FilterType};
     use log::{error, info, trace};
-    use std::collections::HashSet;
+    use std::collections::HashMap;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use tokio::{
         io::ErrorKind,
@@ -186,11 +196,14 @@ pub mod util {
     fn get_scope_filtered_uris_from_discovery_response(
         discovery_response: &str,
         scopes: Option<&FilterList>,
-    ) -> Vec<String> {
+    ) -> Vec<(String, String)> {
         let response_envelope =
             yaserde::de::from_str::<to_deserialize::Envelope>(discovery_response);
         // The response envelope follows this format:
         //   <Envelope><Body><ProbeMatches><ProbeMatch>
+        //      <EndpointReference>
+        //          <Address>uuid:12345678-1234-5678-abcd-123456789abc<Address>
+        //      </EndpointReference>
         //      <Scopes>onvif://www.onvif.org/name/foo onvif://www.onvif.org/hardware/bar</Scopes>
         //      <XAddrs>
         //          https://10.0.0.1:5357/svc
@@ -209,21 +222,26 @@ pub mod util {
                     scope.split_whitespace().any(|s| s == pattern)
                 })
             })
-            .flat_map(|probe_match| probe_match.xaddrs.split_whitespace())
-            .map(|addr| addr.to_string())
-            .collect::<Vec<String>>()
+            .flat_map(|probe_match| {
+                probe_match
+                    .xaddrs
+                    .split_whitespace()
+                    .map(move |addr| (addr, probe_match.endpoint_reference.address.as_str()))
+            })
+            .map(|(addr, ep_addr)| (addr.to_string(), get_onvif_device_id(ep_addr)))
+            .collect::<Vec<(String, String)>>()
     }
 
     async fn get_responsive_uris(
-        uris: HashSet<String>,
+        uris: HashMap<String, String>,
         onvif_query: &impl OnvifQuery,
-    ) -> Vec<String> {
+    ) -> HashMap<String, String> {
         let futures: Vec<_> = uris
-            .iter()
+            .keys()
             .map(|uri| onvif_query.is_device_responding(uri))
             .collect();
         let results = futures_util::future::join_all(futures).await;
-        results
+        let responsive_uris = results
             .into_iter()
             .filter_map(|r| match r {
                 Ok(uri) => Some(uri),
@@ -235,7 +253,17 @@ pub mod util {
                     None
                 }
             })
+            .collect::<Vec<_>>();
+        uris.into_iter()
+            .filter(|(uri, _)| responsive_uris.contains(uri))
             .collect()
+    }
+
+    // strip prefix "urn:", "urn:uuid:" if exist and normalized to all lower cases
+    fn get_onvif_device_id(s: &str) -> String {
+        let s = s.strip_prefix("urn:").unwrap_or(s);
+        let s = s.strip_prefix("uuid:").unwrap_or(s);
+        s.to_lowercase()
     }
 
     pub(crate) fn execute_filter<P>(
@@ -275,7 +303,7 @@ pub mod util {
         use super::*;
 
         /// Get SOAP probe match message with a list of XAddrs
-        fn get_expected_probe_match_message(xaddrs: &[String]) -> String {
+        fn get_expected_probe_match_message(device_uuid: &str, xaddrs: &[String]) -> String {
             format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
                     <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding"
@@ -326,7 +354,7 @@ pub mod util {
                             <d:ProbeMatches>
                                 <d:ProbeMatch>
                                     <wsa:EndpointReference>
-                                        <wsa:Address>urn:uuid:10919da4-5566-7788-99aa-0012414fb745</wsa:Address>
+                                        <wsa:Address>urn:uuid:{}</wsa:Address>
                                     </wsa:EndpointReference>
                                     <d:Types>dn:NetworkVideoTransmitter</d:Types>
                                     <d:Scopes>onvif://www.onvif.org/type/video_encoder onvif://www.onvif.org/type/audio_encoder onvif://www.onvif.org/hardware/IPC-model onvif://www.onvif.org/location/country/china onvif://www.onvif.org/name/NVT onvif://www.onvif.org/Profile/Streaming </d:Scopes>
@@ -336,6 +364,7 @@ pub mod util {
                             </d:ProbeMatches>
                         </SOAP-ENV:Body>
                     </SOAP-ENV:Envelope>"#,
+                device_uuid,
                 &xaddrs.join(" ")
             )
         }
@@ -345,9 +374,14 @@ pub mod util {
             let _ = env_logger::builder().is_test(true).try_init();
 
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let expected_uris = uris
+                .iter()
+                .map(|u| (u.to_string(), device_uuid.to_string()))
+                .collect::<Vec<_>>();
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert_eq!(
-                uris,
+                expected_uris,
                 get_scope_filtered_uris_from_discovery_response(&response, None)
             );
         }
@@ -361,9 +395,14 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name/NVT".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let expected_uris = uris
+                .iter()
+                .map(|u| (u.to_string(), device_uuid.to_string()))
+                .collect::<Vec<_>>();
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert_eq!(
-                uris,
+                expected_uris,
                 get_scope_filtered_uris_from_discovery_response(
                     &response,
                     Some(filter_list).as_ref()
@@ -380,7 +419,8 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name/NVT".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert!(get_scope_filtered_uris_from_discovery_response(
                 &response,
                 Some(filter_list).as_ref()
@@ -397,7 +437,8 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name/NVT123".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert!(get_scope_filtered_uris_from_discovery_response(
                 &response,
                 Some(filter_list).as_ref()
@@ -414,9 +455,14 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name/NVT123".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let expected_uris = uris
+                .iter()
+                .map(|u| (u.to_string(), device_uuid.to_string()))
+                .collect::<Vec<_>>();
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert_eq!(
-                uris,
+                expected_uris,
                 get_scope_filtered_uris_from_discovery_response(
                     &response,
                     Some(filter_list).as_ref()
@@ -433,7 +479,8 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert!(get_scope_filtered_uris_from_discovery_response(
                 &response,
                 Some(filter_list).as_ref()
@@ -450,14 +497,38 @@ pub mod util {
                 items: vec!["onvif://www.onvif.org/name".to_string()],
             };
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
-            let response = get_expected_probe_match_message(&uris);
+            let device_uuid = "device_uuid";
+            let expected_uris = uris
+                .iter()
+                .map(|u| (u.to_string(), device_uuid.to_string()))
+                .collect::<Vec<_>>();
+            let response = get_expected_probe_match_message(device_uuid, &uris);
             assert_eq!(
-                uris,
+                expected_uris,
                 get_scope_filtered_uris_from_discovery_response(
                     &response,
                     Some(filter_list).as_ref()
                 )
             );
+        }
+
+        #[test]
+        fn test_get_onvif_device_id() {
+            // expect either no prefix or the prefix is
+            // 'urn:uuid:' or 'urn:' or 'uuid:'
+            let test_strings = vec![
+                ("a", "a"),
+                ("urn:b", "b"),
+                ("uuid:c", "c"),
+                ("urn:uuid:d", "d"),
+                ("uuid:urn:e", "urn:e"),
+                ("urn:x:uuid:F", "x:uuid:f"),
+                ("x:uuid:G", "x:uuid:g"),
+            ];
+            for test_string in test_strings {
+                let result = get_onvif_device_id(test_string.0);
+                assert_eq!(result, test_string.1);
+            }
         }
     }
 
@@ -499,7 +570,7 @@ pub mod util {
         socket: &mut UdpSocket,
         scopes_filters: Option<&FilterList>,
         timeout: Duration,
-    ) -> Result<Vec<String>, anyhow::Error> {
+    ) -> Result<HashMap<String, String>, anyhow::Error> {
         let mut broadcast_responses = Vec::new();
 
         let start = Instant::now();
@@ -531,13 +602,10 @@ pub mod util {
             "simple_onvif_discover - uris discovered by udp broadcast {:?}",
             broadcast_responses
         );
-        let mut filtered_uris = std::collections::HashSet::new();
-        broadcast_responses.into_iter().for_each(|r| {
-            filtered_uris.extend(get_scope_filtered_uris_from_discovery_response(
-                &r,
-                scopes_filters,
-            ))
-        });
+        let filtered_uris = broadcast_responses
+            .into_iter()
+            .flat_map(|r| get_scope_filtered_uris_from_discovery_response(&r, scopes_filters))
+            .collect::<HashMap<String, String>>();
         trace!(
             "simple_onvif_discover - uris after filtering by scopes {:?}",
             filtered_uris

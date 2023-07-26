@@ -1,5 +1,5 @@
-use akri_shared::akri::{instance::device_usage::DeviceUsage, AKRI_SLOT_ANNOTATION_NAME_PREFIX};
-use std::collections::{HashMap, HashSet};
+use akri_shared::akri::{instance::device_usage::NodeUsage, AKRI_SLOT_ANNOTATION_NAME_PREFIX};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 /// Output from crictl query
@@ -17,7 +17,7 @@ struct CriCtlContainer {
 }
 
 /// This gets the usage slots for an instance by getting the annotations that were stored at id `AKRI_SLOT_ANNOTATION_NAME_PREFIX` during allocate.
-pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
+pub fn get_container_slot_usage(crictl_output: &str) -> HashMap<String, NodeUsage> {
     match serde_json::from_str::<CriCtlOutput>(crictl_output) {
         Ok(crictl_output_parsed) => crictl_output_parsed
             .containers
@@ -28,14 +28,8 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
                     let slot_id = key
                         .strip_prefix(AKRI_SLOT_ANNOTATION_NAME_PREFIX)
                         .unwrap_or_default();
-                    match DeviceUsage::from_str(value) {
-                        Ok(slot_usage) => {
-                            if slot_usage.is_same_usage(slot_id) {
-                                Some(value.clone())
-                            } else {
-                                None
-                            }
-                        }
+                    match NodeUsage::from_str(value) {
+                        Ok(node_usage) => Some((slot_id.to_string(), node_usage)),
                         Err(_) => None,
                     }
                 } else {
@@ -49,7 +43,7 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
                 e,
                 &crictl_output
             );
-            HashSet::default()
+            HashMap::default()
         }
     }
 }
@@ -57,6 +51,7 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use akri_shared::akri::instance::device_usage::DeviceUsageKind;
 
     fn get_container_str(annotation: &str) -> String {
         format!("{{ \
@@ -95,35 +90,44 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         // Empty output
-        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#""#));
+        assert_eq!(
+            HashMap::<String, NodeUsage>::new(),
+            get_container_slot_usage(r#""#)
+        );
         // Empty json output
-        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#"{}"#));
+        assert_eq!(
+            HashMap::<String, NodeUsage>::new(),
+            get_container_slot_usage(r#"{}"#)
+        );
         // Expected output with no containers
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, NodeUsage>::new(),
             get_container_slot_usage(r#"{\"containers\": []}"#)
         );
         // Output with syntax error
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, NodeUsage>::new(),
             get_container_slot_usage(r#"{ddd}"#)
         ); // syntax error
            // Expected output with no slot
         assert_eq!(
-            HashSet::<String>::new(),
+            HashMap::<String, NodeUsage>::new(),
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {} ] }}",
                 &get_container_str("")
             ))
         );
         // Expected output with slot (including unexpected property)
-        let mut expected = HashSet::new();
-        expected.insert("foo".to_string());
+        let mut expected = HashMap::new();
+        expected.insert(
+            "foo".to_string(),
+            NodeUsage::create(&DeviceUsageKind::Instance, "node-a").unwrap(),
+        );
         assert_eq!(
             expected,
             get_container_slot_usage(&format!(
                 "{{ \"ddd\": \"\", \"containers\": [ {} ] }}",
-                &get_container_str("\"akri.agent.slot-foo\": \"foo\",")
+                &get_container_str("\"akri.agent.slot-foo\": \"node-a\",")
             ))
         );
         // Expected output with slot
@@ -131,19 +135,25 @@ mod tests {
             expected,
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {} ] }}",
-                &get_container_str("\"akri.agent.slot-foo\": \"foo\",")
+                &get_container_str("\"akri.agent.slot-foo\": \"node-a\",")
             ))
         );
         // Expected output with multiple containers
-        let mut expected_2 = HashSet::new();
-        expected_2.insert("foo1".to_string());
-        expected_2.insert("foo2".to_string());
+        let mut expected_2 = HashMap::new();
+        expected_2.insert(
+            "foo1".to_string(),
+            NodeUsage::create(&DeviceUsageKind::Instance, "node-a").unwrap(),
+        );
+        expected_2.insert(
+            "foo2".to_string(),
+            NodeUsage::create(&DeviceUsageKind::Instance, "node-b").unwrap(),
+        );
         assert_eq!(
             expected_2,
             get_container_slot_usage(&format!(
                 "{{ \"containers\": [ {}, {} ] }}",
-                &get_container_str("\"akri.agent.slot-foo1\": \"foo1\","),
-                &get_container_str("\"akri.agent.slot-foo2\": \"foo2\","),
+                &get_container_str("\"akri.agent.slot-foo1\": \"node-a\","),
+                &get_container_str("\"akri.agent.slot-foo2\": \"node-b\","),
             ))
         );
     }

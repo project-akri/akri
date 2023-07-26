@@ -18,6 +18,54 @@ use std::collections::HashMap;
 
 pub type ConfigurationList = ObjectList<Configuration>;
 
+/// Selects a key from a ConfigMap or Secret
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
+pub struct DiscoveryPropertyKeySelector {
+    /// The key to select.
+    pub key: String,
+
+    /// Name of the referent.
+    pub name: String,
+
+    /// Namespace of the referent
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
+
+    /// Specify whether the referent or its key must be defined
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub optional: Option<bool>,
+}
+
+fn default_namespace() -> String {
+    String::from("default")
+}
+
+/// This defines kinds of discovery property source
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum DiscoveryPropertySource {
+    /// Source is a key of a ConfigMap.
+    ConfigMapKeyRef(DiscoveryPropertyKeySelector),
+    /// Source is a key of a Secret.
+    SecretKeyRef(DiscoveryPropertyKeySelector),
+}
+
+/// DiscoveryProperty represents a property for discovery devices
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoveryProperty {
+    /// Name of the discovery property
+    pub name: String,
+
+    /// value of the discovery property
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+
+    /// Source for the discovery property value. Ignored if value is not empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_from: Option<DiscoveryPropertySource>,
+}
+
 /// This specifies which `DiscoveryHandler` should be used for discovery
 /// and any details that need to be sent to the `DiscoveryHandler`.
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
@@ -27,6 +75,9 @@ pub struct DiscoveryHandlerInfo {
     /// A string that a Discovery Handler knows how to parse to obtain necessary discovery details
     #[serde(default)]
     pub discovery_details: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery_properties: Option<Vec<DiscoveryProperty>>,
 }
 
 /// This defines a workload that should be scheduled to nodes

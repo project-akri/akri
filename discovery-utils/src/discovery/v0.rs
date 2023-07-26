@@ -30,11 +30,20 @@ pub mod register_discovery_handler_request {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ByteData {
+    #[prost(bytes = "vec", optional, tag = "1")]
+    pub vec: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverRequest {
     /// String containing all the details (such as filtering options)
     /// the `DiscoveryHandler` needs to find a set of devices.
     #[prost(string, tag = "1")]
     pub discovery_details: ::prost::alloc::string::String,
+    /// list of Key-value pairs containing additional information
+    /// for the 'DiscoveryHandler' to discover devices
+    #[prost(map = "string, message", tag = "2")]
+    pub discovery_properties: ::std::collections::HashMap<::prost::alloc::string::String, ByteData>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DiscoverResponse {

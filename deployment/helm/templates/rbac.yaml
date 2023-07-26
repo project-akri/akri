@@ -3,16 +3,25 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: akri-controller-sa
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-controller
+    app.kubernetes.io/component: controller
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: akri-agent-sa
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-agent
+    app.kubernetes.io/component: agent
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "akri-controller-role"
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-controller
+    app.kubernetes.io/component: controller
 rules:
 - apiGroups: [""]
   resources: ["pods", "services"]
@@ -34,6 +43,9 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "akri-agent-role"
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-agent
+    app.kubernetes.io/component: agent
 rules:
 - apiGroups: [""]
   resources: ["pods"]
@@ -50,6 +62,9 @@ kind: 'ClusterRoleBinding'
 metadata:
   name: 'akri-controller-binding'
   namespace: {{ .Release.Namespace }}
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-controller
+    app.kubernetes.io/component: controller
 roleRef:
   apiGroup: ''
   kind: 'ClusterRole'
@@ -64,6 +79,9 @@ kind: 'ClusterRoleBinding'
 metadata:
   name: 'akri-agent-binding'
   namespace: {{ .Release.Namespace }}
+  labels: {{- include "akri.labels" . | nindent 4 }}
+    app.kubernetes.io/name: akri-agent
+    app.kubernetes.io/component: agent
 roleRef:
   apiGroup: ''
   kind: 'ClusterRole'

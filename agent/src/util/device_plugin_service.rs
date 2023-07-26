@@ -11,7 +11,7 @@ use akri_discovery_utils::discovery::v0::Device;
 use akri_shared::{
     akri::{
         configuration::ConfigurationSpec,
-        instance::device_usage::{DeviceUsage, DeviceUsageKind},
+        instance::device_usage::{DeviceUsageKind, NodeUsage},
         instance::InstanceSpec,
         retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
         AKRI_SLOT_ANNOTATION_NAME_PREFIX,
@@ -464,11 +464,11 @@ impl InstanceDevicePlugin {
                     return Err(e);
                 }
 
-                let slot_usage =
-                    DeviceUsage::create(&DeviceUsageKind::Instance, &device_usage_id).unwrap();
+                let node_usage =
+                    NodeUsage::create(&DeviceUsageKind::Instance, &dps.node_name).unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    slot_usage.to_string(),
+                    node_usage.to_string(),
                 );
 
                 // Add suffix _<instance_id> to each device property
@@ -738,14 +738,14 @@ impl ConfigurationDevicePlugin {
                     return Err(e);
                 }
 
-                let slot_usage = DeviceUsage::create(
+                let node_usage = NodeUsage::create(
                     &DeviceUsageKind::Configuration(vdev_id.clone()),
-                    &device_usage_id,
+                    &dps.node_name,
                 )
                 .unwrap();
                 akri_annotations.insert(
                     format!("{}{}", AKRI_SLOT_ANNOTATION_NAME_PREFIX, &device_usage_id),
-                    slot_usage.to_string(),
+                    node_usage.to_string(),
                 );
 
                 // Add suffix _<instance_id> to each device property
@@ -809,39 +809,6 @@ impl ConfigurationDevicePlugin {
         Ok(Response::new(v1beta1::AllocateResponse {
             container_responses,
         }))
-    }
-}
-
-pub async fn get_instance_device_usage_states(
-    node_name: &str,
-    instance_name: &str,
-    instance_namespace: &str,
-    capacity: &i32,
-    kube_interface: Arc<impl KubeInterface>,
-) -> Vec<(String, DeviceUsageStatus)> {
-    let mut device_usage_states = Vec::new();
-    match kube_interface
-        .find_instance(instance_name, instance_namespace)
-        .await
-    {
-        Ok(kube_akri_instance) => {
-            for (slot, device_usage_string) in kube_akri_instance.spec.device_usage {
-                let device_usage_status = match DeviceUsage::from_str(&device_usage_string) {
-                    Ok(device_usage) => get_device_usage_state(&device_usage, node_name),
-                    Err(_) => DeviceUsageStatus::Unknown,
-                };
-                device_usage_states.push((slot.clone(), device_usage_status));
-            }
-            device_usage_states
-        }
-        Err(_) => (0..*capacity)
-            .map(|x| {
-                (
-                    format!("{}-{}", instance_name, x),
-                    DeviceUsageStatus::Unknown,
-                )
-            })
-            .collect(),
     }
 }
 
@@ -999,38 +966,79 @@ async fn get_virtual_device_resources(
     Ok(usage_ids_to_use)
 }
 
+pub async fn get_instance_device_usage_states(
+    node_name: &str,
+    instance_name: &str,
+    instance_namespace: &str,
+    capacity: &i32,
+    kube_interface: Arc<impl KubeInterface>,
+) -> Vec<(String, DeviceUsageStatus)> {
+    let mut device_usage_states = Vec::new();
+    match kube_interface
+        .find_instance(instance_name, instance_namespace)
+        .await
+    {
+        Ok(kube_akri_instance) => {
+            for (device_name, device_usage_string) in kube_akri_instance.spec.device_usage {
+                let device_usage_status = match NodeUsage::from_str(&device_usage_string) {
+                    Ok(node_usage) => get_device_usage_state(&node_usage, node_name),
+                    Err(_) => {
+                        error!(
+                            "get_instance_device_usage_states - fail to parse device usage {}",
+                            device_usage_string
+                        );
+                        DeviceUsageStatus::Unknown
+                    }
+                };
+                device_usage_states.push((device_name.clone(), device_usage_status));
+            }
+            device_usage_states
+        }
+        Err(_) => (0..*capacity)
+            .map(|x| {
+                (
+                    format!("{}-{}", instance_name, x),
+                    DeviceUsageStatus::Unknown,
+                )
+            })
+            .collect(),
+    }
+}
+
 /// This returns device usage status of a `device_usage_id` slot for an instance on a given node
 /// # More details
 /// Cases based on the device usage value
 /// 1. DeviceUsageKind::Free ... this means that the device is available for use
 ///     * (ACTION) return DeviceUsageStatus::Free
-/// 2. device_usage.usage == node_name ... this means node_name previously used device_usage
+/// 2. node_usage.node_name ... this means node_name previously used device_usage
 ///     * (ACTION) return previously reserved kind, DeviceUsageStatus::ReservedByConfiguration or DeviceUsageStatus::ReservedByInstance
-/// 3. device_usage.usage == (some other node) ... this means that we believe this device is in use by another node
+/// 3. node_usage.node_name == (some other node) ... this means that we believe this device is in use by another node
 ///     * (ACTION) return DeviceUsageStatus::ReservedByOtherNode
-fn get_device_usage_state(device_usage: &DeviceUsage, node_name: &str) -> DeviceUsageStatus {
-    let device_usage_state = match device_usage.get_kind() {
+fn get_device_usage_state(node_usage: &NodeUsage, node_name: &str) -> DeviceUsageStatus {
+    let device_usage_state = match node_usage.get_kind() {
         DeviceUsageKind::Free => DeviceUsageStatus::Free,
         DeviceUsageKind::Configuration(vdev_id) => {
             DeviceUsageStatus::ReservedByConfiguration(vdev_id)
         }
         DeviceUsageKind::Instance => DeviceUsageStatus::ReservedByInstance,
     };
-    if device_usage_state != DeviceUsageStatus::Free && !device_usage.is_same_usage(node_name) {
+    if device_usage_state != DeviceUsageStatus::Free && !node_usage.is_same_node(node_name) {
         return DeviceUsageStatus::ReservedByOtherNode;
     }
     device_usage_state
 }
 
 /// This tries up to `MAX_INSTANCE_UPDATE_TRIES` to update the requested slot of the Instance with the this node's name.
-/// It cannot be assumed that this will successfully update Instance on first try since Device Plugins on other nodes may be simultaneously trying to update the Instance.
-/// This returns an error if slot does not need to be updated or `MAX_INSTANCE_UPDATE_TRIES` attempted.
+/// It cannot be assumed that this will successfully update Instance on first try since Device Plugins on other nodes
+/// may be simultaneously trying to update the Instance.
+/// This returns an error if slot already be reserved by other nodes or device plugins,
+/// cannot be updated or `MAX_INSTANCE_UPDATE_TRIES` attempted.
 async fn try_update_instance_device_usage(
     device_usage_id: &str,
     node_name: &str,
     instance_name: &str,
     instance_namespace: &str,
-    device_usage_kind: DeviceUsageKind,
+    desired_device_usage_kind: DeviceUsageKind,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<(), Status> {
     let mut instance: InstanceSpec;
@@ -1054,8 +1062,8 @@ async fn try_update_instance_device_usage(
         }
 
         // Update the instance to reserve this slot for this node iff it is available and not already reserved for this node.
-        let device_usage_string = instance.device_usage.get(device_usage_id);
-        if device_usage_string.is_none() {
+        let current_device_usage_string = instance.device_usage.get(device_usage_id);
+        if current_device_usage_string.is_none() {
             // No corresponding id found
             trace!(
                 "try_update_instance_device_usage - could not find {} id in device_usage",
@@ -1067,19 +1075,24 @@ async fn try_update_instance_device_usage(
             ));
         }
 
-        let device_usage = DeviceUsage::from_str(device_usage_string.unwrap()).map_err(|_| {
-            Status::new(
-                Code::Unknown,
-                format!(
-                    "Fails to parse {} to DeviceUsage ",
-                    device_usage_string.unwrap()
-                ),
-            )
-        })?;
-        match get_device_usage_state(&device_usage, node_name) {
+        let current_device_usage = NodeUsage::from_str(current_device_usage_string.unwrap())
+            .map_err(|_| {
+                Status::new(
+                    Code::Unknown,
+                    format!(
+                        "Fails to parse {} to DeviceUsage ",
+                        current_device_usage_string.unwrap()
+                    ),
+                )
+            })?;
+        // Call get_device_usage_state to check current device usage to see if the slot can be reserved.
+        // A device usage slot can be reserved if it's free or already reserved by this node and the desired usage kind matches.
+        // For slots owned by this node, get_device_usage_state returns ReservedByConfiguration or ReservedByInstance.
+        // For slots owned by other nodes (by Configuration or Instance), get_device_usage_state returns ReservedByOtherNode.
+        match get_device_usage_state(&current_device_usage, node_name) {
             DeviceUsageStatus::Free => {
-                let new_device_usage =
-                    DeviceUsage::create(&device_usage_kind, node_name).map_err(|e| {
+                let new_device_usage = NodeUsage::create(&desired_device_usage_kind, node_name)
+                    .map_err(|e| {
                         Status::new(
                             Code::Unknown,
                             format!("Fails to create DeviceUsage - {}", e),
@@ -1103,39 +1116,39 @@ async fn try_update_instance_device_usage(
                 }
             }
             DeviceUsageStatus::ReservedByConfiguration(_) => {
-                if matches!(device_usage_kind, DeviceUsageKind::Configuration(_)) {
+                if matches!(desired_device_usage_kind, DeviceUsageKind::Configuration(_)) {
                     return Ok(());
                 } else {
                     return Err(Status::new(
                         Code::Unknown,
                         format!(
                             "Requested device kind {:?} already in use by DeviceUsageKind::Configuration",
-                            device_usage_kind,
+                            desired_device_usage_kind,
                         ),
                     ));
                 }
             }
             DeviceUsageStatus::ReservedByInstance => {
-                if matches!(device_usage_kind, DeviceUsageKind::Instance) {
+                if matches!(desired_device_usage_kind, DeviceUsageKind::Instance) {
                     return Ok(());
                 } else {
                     return Err(Status::new(
                         Code::Unknown,
                         format!(
                             "Requested device kind {:?} already in use by DeviceUsageKind::Instance",
-                            device_usage_kind,
+                            desired_device_usage_kind,
                         ),
                     ));
                 }
             }
             DeviceUsageStatus::ReservedByOtherNode => {
                 trace!("try_update_instance_device_usage - request for device slot {} previously claimed by a diff node {} than this one {} ... indicates the device on THIS node must be marked unhealthy, invoking ListAndWatch ... returning failure, next scheduling should succeed!",
-                    device_usage_id, device_usage.get_usage_name(), node_name);
+                    device_usage_id, current_device_usage.get_node_name(), node_name);
                 return Err(Status::new(
                     Code::Unknown,
                     format!(
                         "Requested device kind {:?} already in use by other nodes",
-                        device_usage_kind,
+                        desired_device_usage_kind,
                     ),
                 ));
             }
@@ -1222,7 +1235,7 @@ async fn try_create_instance(
         .map(|x| {
             (
                 format!("{}-{}", dps.instance_name, x),
-                DeviceUsage::default().to_string(),
+                NodeUsage::default().to_string(),
             )
         })
         .collect();
@@ -1613,7 +1626,7 @@ mod device_plugin_service_tests {
         // Free
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                &NodeUsage::create(&DeviceUsageKind::Free, "").unwrap(),
                 this_node
             ),
             DeviceUsageStatus::Free
@@ -1621,7 +1634,7 @@ mod device_plugin_service_tests {
         // Used by Configuration
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(
+                &NodeUsage::create(
                     &DeviceUsageKind::Configuration(vdev_id.to_string()),
                     this_node
                 )
@@ -1633,7 +1646,7 @@ mod device_plugin_service_tests {
         // Used by Instance
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(&DeviceUsageKind::Instance, this_node).unwrap(),
+                &NodeUsage::create(&DeviceUsageKind::Instance, this_node).unwrap(),
                 this_node
             ),
             DeviceUsageStatus::ReservedByInstance
@@ -1650,7 +1663,7 @@ mod device_plugin_service_tests {
         // Free
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(&DeviceUsageKind::Free, "").unwrap(),
+                &NodeUsage::create(&DeviceUsageKind::Free, "").unwrap(),
                 this_node
             ),
             DeviceUsageStatus::Free
@@ -1658,7 +1671,7 @@ mod device_plugin_service_tests {
         // Used by Configuration
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(
+                &NodeUsage::create(
                     &DeviceUsageKind::Configuration(vdev_id.to_string()),
                     that_node
                 )
@@ -1670,7 +1683,7 @@ mod device_plugin_service_tests {
         // Used by Instance
         assert_eq!(
             get_device_usage_state(
-                &DeviceUsage::create(&DeviceUsageKind::Instance, that_node).unwrap(),
+                &NodeUsage::create(&DeviceUsageKind::Instance, that_node).unwrap(),
                 this_node
             ),
             DeviceUsageStatus::ReservedByOtherNode
@@ -2622,7 +2635,7 @@ mod device_plugin_service_tests {
                 .flat_map(|(instance_name, usages)| {
                     usages.iter().enumerate().map(move |(pos, (kind, node))| {
                         let key = format!("{}-{}", instance_name, pos);
-                        (key, DeviceUsage::create(kind, node).unwrap().to_string())
+                        (key, NodeUsage::create(kind, node).unwrap().to_string())
                     })
                 })
                 .collect::<HashMap<_, _>>();
@@ -2816,8 +2829,8 @@ mod device_plugin_service_tests {
         request_device_id: &str,
         config_namespace: &str,
         instance_name: &str,
-        formerly_device_usage: &DeviceUsage,
-        newly_device_usage: Option<&DeviceUsage>,
+        formerly_device_usage: &NodeUsage,
+        newly_device_usage: Option<&NodeUsage>,
         expected_calls: usize,
     ) -> Request<AllocateRequest> {
         let formerly_device_usage_string = formerly_device_usage.to_string();
@@ -2872,9 +2885,9 @@ mod device_plugin_service_tests {
             request_vdev_id,
             &device_plugin_service.config_namespace,
             &instance_name,
-            &DeviceUsage::default(),
+            &NodeUsage::default(),
             Some(
-                &DeviceUsage::create(
+                &NodeUsage::create(
                     &DeviceUsageKind::Configuration(request_vdev_id.to_string()),
                     &node_name,
                 )
@@ -2936,9 +2949,9 @@ mod device_plugin_service_tests {
             request_vdev_id,
             &device_plugin_service.config_namespace,
             &instance_name,
-            &DeviceUsage::default(),
+            &NodeUsage::default(),
             Some(
-                &DeviceUsage::create(
+                &NodeUsage::create(
                     &DeviceUsageKind::Configuration(request_vdev_id.to_string()),
                     &node_name,
                 )
@@ -2990,7 +3003,7 @@ mod device_plugin_service_tests {
             request_vdev_id,
             &device_plugin_service.config_namespace,
             &instance_name,
-            &DeviceUsage::create(
+            &NodeUsage::create(
                 &DeviceUsageKind::Configuration(request_vdev_id.to_string()),
                 &node_name,
             )
@@ -3031,7 +3044,7 @@ mod device_plugin_service_tests {
             request_vdev_id,
             &device_plugin_service.config_namespace,
             &instance_name,
-            &DeviceUsage::create(
+            &NodeUsage::create(
                 &DeviceUsageKind::Configuration(request_vdev_id.to_string()),
                 "other",
             )
@@ -3077,7 +3090,7 @@ mod device_plugin_service_tests {
             request_vdev_id,
             &device_plugin_service.config_namespace,
             &instance_name,
-            &DeviceUsage::create(&DeviceUsageKind::Instance, &node_name).unwrap(),
+            &NodeUsage::create(&DeviceUsageKind::Instance, &node_name).unwrap(),
             None,
             1,
         );

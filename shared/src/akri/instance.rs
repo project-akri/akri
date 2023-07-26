@@ -335,71 +335,70 @@ pub mod device_usage {
         Configuration(String),
     }
     #[derive(Debug, PartialEq, Eq)]
-    pub struct ParseDeviceUsageError;
+    pub struct ParseNodeUsageError;
     #[derive(PartialEq, Clone, Debug, Default)]
-    pub struct DeviceUsage {
+    pub struct NodeUsage {
         kind: DeviceUsageKind,
-        usage_name: String,
+        node_name: String,
     }
 
-    impl std::fmt::Display for DeviceUsage {
+    impl std::fmt::Display for NodeUsage {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match &self.kind {
                 DeviceUsageKind::Free => write!(f, ""),
                 DeviceUsageKind::Configuration(vdev_id) => {
-                    write!(f, "C:{}:{}", vdev_id, self.usage_name)
+                    write!(f, "C:{}:{}", vdev_id, self.node_name)
                 }
-                DeviceUsageKind::Instance => write!(f, "{}", self.usage_name),
+                DeviceUsageKind::Instance => write!(f, "{}", self.node_name),
             }
         }
     }
 
-    impl std::str::FromStr for DeviceUsage {
-        type Err = ParseDeviceUsageError;
+    impl std::str::FromStr for NodeUsage {
+        type Err = ParseNodeUsageError;
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             if s.is_empty() {
-                return Ok(DeviceUsage {
+                return Ok(NodeUsage {
                     kind: DeviceUsageKind::Free,
-                    usage_name: s.to_string(),
+                    node_name: s.to_string(),
                 });
             }
 
-            // Format "C:<vdev_id>:<usage_name>"
-            if let Some((vdev_id, usage_name)) =
-                s.strip_prefix("C:").and_then(|s| s.split_once(':'))
+            // Format "C:<vdev_id>:<node_name>"
+            if let Some((vdev_id, node_name)) = s.strip_prefix("C:").and_then(|s| s.split_once(':'))
             {
-                if usage_name.is_empty() {
-                    return Err(ParseDeviceUsageError);
+                if node_name.is_empty() {
+                    return Err(ParseNodeUsageError);
                 }
-                return Ok(DeviceUsage {
+                return Ok(NodeUsage {
                     kind: DeviceUsageKind::Configuration(vdev_id.to_string()),
-                    usage_name: usage_name.to_string(),
+                    node_name: node_name.to_string(),
                 });
             }
 
-            // Format "<usage_name>"
-            Ok(DeviceUsage {
+            // Format "<node_name>"
+            Ok(NodeUsage {
                 kind: DeviceUsageKind::Instance,
-                usage_name: s.to_string(),
+                node_name: s.to_string(),
             })
         }
     }
 
-    impl DeviceUsage {
-        pub fn create(kind: &DeviceUsageKind, usage_name: &str) -> Result<Self, anyhow::Error> {
+    impl NodeUsage {
+        pub fn create(kind: &DeviceUsageKind, node_name: &str) -> Result<Self, anyhow::Error> {
             match kind {
                 DeviceUsageKind::Free => {
-                    if !usage_name.is_empty() {
+                    if !node_name.is_empty() {
                         return Err(anyhow::anyhow!(
-                            "Invalid input parameter, usage name: {} provided for free device usage",
-                            usage_name
+                            "Invalid input parameter, node name: {} provided for free node usage",
+                            node_name
                         ));
                     };
                 }
                 _ => {
-                    if usage_name.is_empty() {
+                    if node_name.is_empty() {
                         return Err(anyhow::anyhow!(
-                            "Invalid input parameter, no usage name provided for device usage"
+                            "Invalid input parameter, no node name provided for node usage"
                         ));
                     };
                 }
@@ -407,7 +406,7 @@ pub mod device_usage {
 
             Ok(Self {
                 kind: kind.clone(),
-                usage_name: usage_name.into(),
+                node_name: node_name.into(),
             })
         }
 
@@ -415,12 +414,12 @@ pub mod device_usage {
             self.kind.clone()
         }
 
-        pub fn get_usage_name(&self) -> String {
-            self.usage_name.clone()
+        pub fn get_node_name(&self) -> String {
+            self.node_name.clone()
         }
 
-        pub fn is_same_usage(&self, usage_name: &str) -> bool {
-            self.usage_name == usage_name
+        pub fn is_same_node(&self, node_name: &str) -> bool {
+            self.node_name == node_name
         }
     }
 }

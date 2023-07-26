@@ -419,13 +419,13 @@ pub async fn handle_instance_change(
         }
     };
     if let Some(broker_spec) = &configuration.spec.broker_spec {
-        match broker_spec {
+        let instance_change_result = match broker_spec {
             BrokerSpec::BrokerPodSpec(p) => {
                 handle_instance_change_pod(instance, p, action, kube_interface).await
             }
             BrokerSpec::BrokerJobSpec(j) => {
                 handle_instance_change_job(
-                    instance.clone(),
+                    instance,
                     *configuration.metadata.generation.as_ref().unwrap(),
                     j,
                     action,
@@ -433,10 +433,12 @@ pub async fn handle_instance_change(
                 )
                 .await
             }
+        };
+        if let Err(e) = instance_change_result {
+            error!("Unable to handle Broker action: {:?}", e);
         }
-    } else {
-        Ok(())
     }
+    Ok(())
 }
 
 /// Called when an Instance has changed that requires a Job broker. Action determined by InstanceAction.
@@ -444,7 +446,7 @@ pub async fn handle_instance_change(
 /// InstanceAction::Remove => Delete all Jobs labeled with the Instance name
 /// InstanceAction::Update => No nothing
 pub async fn handle_instance_change_job(
-    instance: Instance,
+    instance: &Instance,
     config_generation: i64,
     job_spec: &JobSpec,
     action: &InstanceAction,
@@ -472,7 +474,7 @@ pub async fn handle_instance_change_job(
             trace!("handle_instance_change_job - instance added");
             let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
             let new_job = job::create_new_job_from_spec(
-                &instance,
+                instance,
                 OwnershipInfo::new(
                     OwnershipType::Instance,
                     instance_name.to_string(),
@@ -841,6 +843,7 @@ mod handle_instance_tests {
         new_pod_names: Vec<&'static str>,
         new_pod_instance_names: Vec<&'static str>,
         new_pod_namespaces: Vec<&'static str>,
+        new_pod_error: Vec<bool>,
     }
 
     fn configure_add_shared_config_a_359973(pod_name: &'static str) -> HandleAdditionWork {
@@ -848,6 +851,7 @@ mod handle_instance_tests {
             new_pod_names: vec![pod_name],
             new_pod_instance_names: vec!["config-a-359973"],
             new_pod_namespaces: vec!["config-a-namespace"],
+            new_pod_error: vec![false],
         }
     }
     fn get_config_work() -> HandleConfigWork {
@@ -857,11 +861,12 @@ mod handle_instance_tests {
             find_config_result: "../test/json/config-a.json",
         }
     }
-    fn configure_add_local_config_a_b494b6() -> HandleAdditionWork {
+    fn configure_add_local_config_a_b494b6(error: bool) -> HandleAdditionWork {
         HandleAdditionWork {
             new_pod_names: vec!["config-a-b494b6-pod"],
             new_pod_instance_names: vec!["config-a-b494b6"],
             new_pod_namespaces: vec!["config-a-namespace"],
+            new_pod_error: vec![error],
         }
     }
 
@@ -873,6 +878,7 @@ mod handle_instance_tests {
                 work.new_pod_namespaces[i],
                 AKRI_INSTANCE_LABEL_NAME,
                 work.new_pod_instance_names[i],
+                work.new_pod_error[i],
             );
         }
     }
@@ -944,7 +950,33 @@ mod handle_instance_tests {
                 find_pods_delete_start_time: false,
                 config_work: get_config_work(),
                 deletion_work: None,
-                addition_work: Some(configure_add_local_config_a_b494b6()),
+                addition_work: Some(configure_add_local_config_a_b494b6(false)),
+            },
+        );
+        run_handle_instance_change_test(
+            &mut mock,
+            "../test/json/local-instance.json",
+            &InstanceAction::Add,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_handle_instance_change_for_add_new_local_instance_error() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut mock = MockKubeInterface::new();
+        configure_for_handle_instance_change(
+            &mut mock,
+            &HandleInstanceWork {
+                find_pods_selector: "akri.sh/instance=config-a-b494b6",
+                find_pods_result: "../test/json/empty-list.json",
+                find_pods_phase: None,
+                find_pods_start_time: None,
+                find_pods_delete_start_time: false,
+                config_work: get_config_work(),
+                deletion_work: None,
+                addition_work: Some(configure_add_local_config_a_b494b6(true)),
             },
         );
         run_handle_instance_change_test(
@@ -1139,7 +1171,7 @@ mod handle_instance_tests {
                 find_pods_delete_start_time: false,
                 config_work: get_config_work(),
                 deletion_work: None,
-                addition_work: Some(configure_add_local_config_a_b494b6()),
+                addition_work: Some(configure_add_local_config_a_b494b6(false)),
             },
         );
         run_handle_instance_change_test(
