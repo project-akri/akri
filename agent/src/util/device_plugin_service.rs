@@ -978,6 +978,9 @@ async fn get_virtual_device_resources(
     Ok(usage_ids_to_use)
 }
 
+/// This returns device usage status of all slots for an Instance on a given node
+/// if the Instance doesn't exist or fail to parse device usage of its slots return
+///  DeviceUsageStatus::Unknown since insufficient information to decide the usage state
 pub async fn get_instance_device_usage_states(
     node_name: &str,
     instance_name: &str,
@@ -1022,7 +1025,7 @@ pub async fn get_instance_device_usage_states(
 /// Cases based on the device usage value
 /// 1. DeviceUsageKind::Free ... this means that the device is available for use
 ///     * (ACTION) return DeviceUsageStatus::Free
-/// 2. node_usage.node_name ... this means node_name previously used device_usage
+/// 2. node_usage.node_name == node_name ... this means node_name previously used device_usage
 ///     * (ACTION) return previously reserved kind, DeviceUsageStatus::ReservedByConfiguration or DeviceUsageStatus::ReservedByInstance
 /// 3. node_usage.node_name == (some other node) ... this means that we believe this device is in use by another node
 ///     * (ACTION) return DeviceUsageStatus::ReservedByOtherNode
