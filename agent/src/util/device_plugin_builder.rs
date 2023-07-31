@@ -4,8 +4,8 @@ use super::{
         KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
     },
     device_plugin_service::{
-        ConfigurationDevicePlugin, DevicePluginBehavior, DevicePluginService, InstanceDevicePlugin,
-        InstanceMap, ListAndWatchMessageKind,
+        ConfigurationDevicePlugin, DevicePluginBehavior, DevicePluginContext, DevicePluginService,
+        InstanceDevicePlugin, ListAndWatchMessageKind,
     },
     v1beta1,
     v1beta1::{
@@ -23,11 +23,12 @@ use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use std::sync::Arc;
 use std::{convert::TryFrom, env, path::Path, time::SystemTime};
 use tokio::{
     net::UnixListener,
     net::UnixStream,
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, RwLock},
     task,
 };
 use tonic::transport::{Endpoint, Server, Uri};
@@ -42,7 +43,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         instance_id: String,
         config: &Configuration,
         shared: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
 
@@ -50,7 +51,7 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         &self,
         device_plugin_name: String,
         config: &Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
     ) -> Result<
         broadcast::Sender<ListAndWatchMessageKind>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -69,7 +70,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         instance_id: String,
         config: &Configuration,
         shared: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!("build_device_plugin - entered for device {}", instance_name);
@@ -83,7 +84,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         self.build_device_plugin_service(
             &instance_name,
             config,
-            instance_map,
+            device_plugin_context,
             device_plugin_behavior,
             list_and_watch_message_sender,
         )
@@ -95,7 +96,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         &self,
         device_plugin_name: String,
         config: &Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
     ) -> Result<
         broadcast::Sender<ListAndWatchMessageKind>,
         Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -111,7 +112,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         self.build_device_plugin_service(
             &device_plugin_name,
             config,
-            instance_map,
+            device_plugin_context,
             device_plugin_behavior,
             list_and_watch_message_sender.clone(),
         )
@@ -125,7 +126,7 @@ impl DevicePluginBuilder {
         &self,
         device_plugin_name: &str,
         config: &Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device_plugin_behavior: DevicePluginBehavior,
         list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -147,7 +148,7 @@ impl DevicePluginBuilder {
             config_uid: config.metadata.uid.as_ref().unwrap().clone(),
             config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
             node_name: env::var("AGENT_NODE_NAME")?,
-            instance_map,
+            device_plugin_context,
             list_and_watch_message_sender,
             server_ender_sender: server_ender_sender.clone(),
             device_plugin_behavior,

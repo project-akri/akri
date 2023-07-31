@@ -72,14 +72,12 @@ pub struct InstanceInfo {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct InstanceConfig {
+pub struct DevicePluginContext {
     /// Sender to tell Configuration device plugin `list_and_watch` to either prematurely continue looping or end
     pub usage_update_message_sender: Option<broadcast::Sender<ListAndWatchMessageKind>>,
     /// Map of all Instances from the same Configuration
     pub instances: HashMap<String, InstanceInfo>,
 }
-
-pub type InstanceMap = Arc<RwLock<InstanceConfig>>;
 
 #[derive(Clone)]
 pub enum DevicePluginBehavior {
@@ -125,7 +123,7 @@ pub struct DevicePluginService {
     /// Hostname of node this Device Plugin is running on
     pub node_name: String,
     /// Map of all Instances that have the same Configuration CRD as this one
-    pub instance_map: InstanceMap,
+    pub device_plugin_context: Arc<RwLock<DevicePluginContext>>,
     /// Receiver for list_and_watch continue or end messages
     /// Note: since the tonic grpc generated list_and_watch definition takes in &self,
     /// using broadcast sender instead of mpsc receiver
@@ -342,7 +340,7 @@ impl InstanceDevicePlugin {
                     );
                     // This means kubelet is down/has been restarted. Remove instance from instance map so
                     // do_periodic_discovery will create a new device plugin service for this instance.
-                    dps.instance_map
+                    dps.device_plugin_context
                         .write()
                         .await
                         .instances
@@ -351,7 +349,11 @@ impl InstanceDevicePlugin {
                     keep_looping = false;
                 } else {
                     // Notify device usage had been changed
-                    if let Some(sender) = &dps.instance_map.read().await.usage_update_message_sender
+                    if let Some(sender) = &dps
+                        .device_plugin_context
+                        .read()
+                        .await
+                        .usage_update_message_sender
                     {
                         if let Err(e) = sender.send(ListAndWatchMessageKind::Continue) {
                             error!("InstanceDevicePlugin::list_and_watch - fails to notify device usage, error {}", e);
@@ -408,7 +410,12 @@ impl InstanceDevicePlugin {
         );
         // Notify device usage for this instance is gone
         // Best effort, channel may be closed in the case of the Configuration delete
-        if let Some(sender) = &dps.instance_map.read().await.usage_update_message_sender {
+        if let Some(sender) = &dps
+            .device_plugin_context
+            .read()
+            .await
+            .usage_update_message_sender
+        {
             if let Err(e) = sender.send(ListAndWatchMessageKind::Continue) {
                 trace!(
                     "InstanceDevicePlugin::list_and_watch - fails to notify device usage on ending, error {}",
@@ -504,7 +511,12 @@ impl InstanceDevicePlugin {
         }
 
         // Notify device usage had been changed
-        if let Some(sender) = &dps.instance_map.read().await.usage_update_message_sender {
+        if let Some(sender) = &dps
+            .device_plugin_context
+            .read()
+            .await
+            .usage_update_message_sender
+        {
             if let Err(e) = sender.send(ListAndWatchMessageKind::Continue) {
                 error!(
                     "InstanceDevicePlugin::allocate - fails to notify device usage, error {}",
@@ -542,7 +554,7 @@ impl ConfigurationDevicePlugin {
                 dps.instance_name
             );
             let available_virtual_devices = get_available_virtual_devices(
-                &dps.instance_map.read().await.clone(),
+                &dps.device_plugin_context.read().await.clone().instances,
                 &dps.node_name,
                 &dps.config_namespace,
                 &dps.config.capacity,
@@ -666,7 +678,7 @@ impl ConfigurationDevicePlugin {
 
             let virtual_devices_to_allocate = get_virtual_device_resources(
                 request.devices_i_ds.clone(),
-                &dps.instance_map.read().await.clone(),
+                &dps.device_plugin_context.read().await.clone().instances,
                 &dps.node_name,
                 &dps.config_namespace,
                 &dps.config.capacity,
@@ -698,7 +710,7 @@ impl ConfigurationDevicePlugin {
                     );
                 // Find device from instance_map
                 let (device, instance_id) = match dps
-                    .instance_map
+                    .device_plugin_context
                     .read()
                     .await
                     .instances
@@ -787,14 +799,14 @@ impl ConfigurationDevicePlugin {
 
         // Notify effected instance device plugin to rescan list and watch and update the cl_usage_slot
         {
-            let instance_map = dps.instance_map.read().await;
+            let device_plugin_context = dps.device_plugin_context.read().await;
             for instance_name in allocated_instances.keys() {
                 trace!(
                     "ConfigurationDevicePlugin::allocate - notify Instance {} to refresh list_and_watch",
                     instance_name,
                 );
 
-                if let Some(instance_info) = instance_map.instances.get(instance_name) {
+                if let Some(instance_info) = device_plugin_context.instances.get(instance_name) {
                     instance_info
                         .list_and_watch_message_sender
                         .send(ListAndWatchMessageKind::Continue)
@@ -813,14 +825,14 @@ impl ConfigurationDevicePlugin {
 }
 
 async fn get_available_virtual_devices(
-    instance_config: &InstanceConfig,
+    instances: &HashMap<String, InstanceInfo>,
     node_name: &str,
     instance_namespace: &str,
     capacity: &i32,
     kube_interface: Arc<impl KubeInterface>,
 ) -> HashSet<String> {
     let mut instance_device_usage_states = HashMap::new();
-    for instance_name in instance_config.instances.keys() {
+    for instance_name in instances.keys() {
         let device_usage_states = get_instance_device_usage_states(
             node_name,
             instance_name,
@@ -863,14 +875,14 @@ async fn get_available_virtual_devices(
 
 async fn get_virtual_device_resources(
     requested_vdev_ids: Vec<String>,
-    instance_config: &InstanceConfig,
+    instances: &HashMap<String, InstanceInfo>,
     node_name: &str,
     instance_namespace: &str,
     capacity: &i32,
     kube_interface: Arc<impl KubeInterface>,
 ) -> Result<HashMap<String, (String, String)>, Status> {
     let mut instance_device_usage_states = HashMap::new();
-    for instance_name in instance_config.instances.keys() {
+    for instance_name in instances.keys() {
         let device_usage_states = get_instance_device_usage_states(
             node_name,
             instance_name,
@@ -1324,7 +1336,7 @@ async fn try_create_instance(
     }
 
     // Successfully created or updated instance. Add it to instance_map.
-    dps.instance_map.write().await.instances.insert(
+    dps.device_plugin_context.write().await.instances.insert(
         dps.instance_name.clone(),
         InstanceInfo {
             list_and_watch_message_sender: dps.list_and_watch_message_sender.clone(),
@@ -1341,14 +1353,14 @@ async fn try_create_instance(
 /// Called when an instance has been offline for too long.
 pub async fn terminate_device_plugin_service(
     instance_name: &str,
-    instance_map: InstanceMap,
+    device_plugin_context: Arc<RwLock<DevicePluginContext>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let mut instance_map = instance_map.write().await;
+    let mut device_plugin_context = device_plugin_context.write().await;
     info!(
         "terminate_device_plugin_service -- forcing list_and_watch to end for Instance {}",
         instance_name
     );
-    instance_map
+    device_plugin_context
         .instances
         .get(instance_name)
         .unwrap()
@@ -1360,7 +1372,7 @@ pub async fn terminate_device_plugin_service(
         "terminate_device_plugin_service -- removing Instance {} from instance_map",
         instance_name
     );
-    instance_map.instances.remove(instance_name);
+    device_plugin_context.instances.remove(instance_name);
     Ok(())
 }
 
@@ -1518,7 +1530,7 @@ mod device_plugin_service_tests {
             };
             instances.insert(device_instance_name.clone(), instance_info);
         }
-        let instance_map: InstanceMap = Arc::new(RwLock::new(InstanceConfig {
+        let device_plugin_context = Arc::new(RwLock::new(DevicePluginContext {
             usage_update_message_sender: Some(configuration_list_and_watch_message_sender.clone()),
             instances,
         }));
@@ -1544,7 +1556,7 @@ mod device_plugin_service_tests {
             config_uid: kube_akri_config.metadata.uid.unwrap(),
             config_namespace: kube_akri_config.metadata.namespace.unwrap(),
             node_name: "node-a".to_string(),
-            instance_map,
+            device_plugin_context,
             list_and_watch_message_sender,
             server_ender_sender,
             device_plugin_behavior,
@@ -1757,7 +1769,7 @@ mod device_plugin_service_tests {
                     .is_ok()
             );
             assert!(dps
-                .instance_map
+                .device_plugin_context
                 .read()
                 .await
                 .instances
@@ -1812,7 +1824,7 @@ mod device_plugin_service_tests {
                     .is_ok()
             );
             assert!(dps
-                .instance_map
+                .device_plugin_context
                 .read()
                 .await
                 .instances
@@ -1857,7 +1869,7 @@ mod device_plugin_service_tests {
                     .is_ok()
             );
             assert!(dps
-                .instance_map
+                .device_plugin_context
                 .read()
                 .await
                 .instances
@@ -1950,7 +1962,7 @@ mod device_plugin_service_tests {
                     .is_err()
             );
             assert!(!dps
-                .instance_map
+                .device_plugin_context
                 .read()
                 .await
                 .instances
@@ -2347,11 +2359,11 @@ mod device_plugin_service_tests {
         let this_node = "node-a";
         let instance_namespace = "test-namespace";
         let capacity = 5;
-        let instance_config = InstanceConfigBuilder::new().build();
+        let device_plugin_context = DevicePluginContextBuilder::new().build();
         let mock = MockKubeInterface::new();
 
         let result = get_available_virtual_devices(
-            &instance_config,
+            &device_plugin_context.instances,
             this_node,
             instance_namespace,
             &capacity,
@@ -2369,14 +2381,15 @@ mod device_plugin_service_tests {
         let instance_name = "instance-1";
         let instance_namespace = "test-namespace";
         let capacity = 5;
-        let mut instance_config_builder = InstanceConfigBuilder::new();
-        instance_config_builder.add_instance(instance_name, &InstanceConnectivityStatus::Online);
-        let instance_config = instance_config_builder.build();
+        let mut device_plugin_context_builder = DevicePluginContextBuilder::new();
+        device_plugin_context_builder
+            .add_instance(instance_name, &InstanceConnectivityStatus::Online);
+        let device_plugin_context = device_plugin_context_builder.build();
         let mut mock = MockKubeInterface::new();
         setup_find_instance_with_not_found_err(&mut mock, instance_name, instance_namespace);
 
         let result = get_available_virtual_devices(
-            &instance_config,
+            &device_plugin_context.instances,
             this_node,
             instance_namespace,
             &capacity,
@@ -2493,9 +2506,10 @@ mod device_plugin_service_tests {
         let instance_namespace = "test-namespace";
         let capacity = device_usages.len() as i32;
 
-        let mut instance_config_builder = InstanceConfigBuilder::new();
-        instance_config_builder.add_instance(instance_name, &InstanceConnectivityStatus::Online);
-        let instance_config = instance_config_builder.build();
+        let mut device_plugin_context_builder = DevicePluginContextBuilder::new();
+        device_plugin_context_builder
+            .add_instance(instance_name, &InstanceConnectivityStatus::Online);
+        let device_plugin_context = device_plugin_context_builder.build();
 
         let mut kube_instance_builder = KubeInstanceBuilder::new(instance_name, instance_namespace);
         kube_instance_builder.add_node(node_name);
@@ -2506,7 +2520,7 @@ mod device_plugin_service_tests {
         setup_find_instance_with_mock_instances(&mut mock, instance_namespace, mock_instances);
 
         get_available_virtual_devices(
-            &instance_config,
+            &device_plugin_context.instances,
             node_name,
             instance_namespace,
             &capacity,
@@ -2516,11 +2530,11 @@ mod device_plugin_service_tests {
     }
 
     #[derive(Default, Clone)]
-    struct InstanceConfigBuilder {
-        instance_config: InstanceConfig,
+    struct DevicePluginContextBuilder {
+        device_plugin_context: DevicePluginContext,
     }
 
-    impl InstanceConfigBuilder {
+    impl DevicePluginContextBuilder {
         pub fn new() -> Self {
             Self::default()
         }
@@ -2542,14 +2556,14 @@ mod device_plugin_service_tests {
                     device_specs: Vec::new(),
                 },
             };
-            self.instance_config
+            self.device_plugin_context
                 .instances
                 .insert(instance_name.to_string(), instance_info);
             self
         }
 
-        pub fn build(&self) -> InstanceConfig {
-            self.instance_config.clone()
+        pub fn build(&self) -> DevicePluginContext {
+            self.device_plugin_context.clone()
         }
     }
 
@@ -2732,12 +2746,12 @@ mod device_plugin_service_tests {
         let this_node = "node-a";
         let instance_namespace = "test-namespace";
         let capacity = 5;
-        let mut instance_config_builder = InstanceConfigBuilder::new();
+        let mut device_plugin_context_builder = DevicePluginContextBuilder::new();
         instance_data.keys().for_each(|instance_name| {
-            instance_config_builder
+            device_plugin_context_builder
                 .add_instance(instance_name, &InstanceConnectivityStatus::Online);
         });
-        let instance_config = instance_config_builder.build();
+        let device_plugin_context = device_plugin_context_builder.build();
         let mock_instances = instance_data
             .iter()
             .map(|(instance_name, mock_vdev_id)| {
@@ -2762,7 +2776,7 @@ mod device_plugin_service_tests {
 
         get_virtual_device_resources(
             request_vdev_ids.iter().map(|x| x.to_string()).collect(),
-            &instance_config,
+            &device_plugin_context.instances,
             this_node,
             instance_namespace,
             &capacity,
@@ -2870,7 +2884,7 @@ mod device_plugin_service_tests {
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
-            .instance_map
+            .device_plugin_context
             .read()
             .await
             .instances
@@ -2934,7 +2948,7 @@ mod device_plugin_service_tests {
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
-            .instance_map
+            .device_plugin_context
             .read()
             .await
             .instances
@@ -2988,7 +3002,7 @@ mod device_plugin_service_tests {
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
-            .instance_map
+            .device_plugin_context
             .read()
             .await
             .instances
@@ -3029,7 +3043,7 @@ mod device_plugin_service_tests {
         let (device_plugin_service, mut device_plugin_service_receivers) =
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let instance_name = device_plugin_service
-            .instance_map
+            .device_plugin_context
             .read()
             .await
             .instances
@@ -3075,7 +3089,7 @@ mod device_plugin_service_tests {
             create_configuration_device_plugin_service(InstanceConnectivityStatus::Online, true);
         let node_name = device_plugin_service.node_name.clone();
         let instance_name = device_plugin_service
-            .instance_map
+            .device_plugin_context
             .read()
             .await
             .instances

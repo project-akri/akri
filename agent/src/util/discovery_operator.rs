@@ -7,7 +7,7 @@ use super::{
     device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface},
     device_plugin_service,
     device_plugin_service::{
-        get_device_instance_name, InstanceConnectivityStatus, InstanceInfo, InstanceMap,
+        get_device_instance_name, DevicePluginContext, InstanceConnectivityStatus, InstanceInfo,
     },
     registration::{DiscoveryDetails, DiscoveryHandlerEndpoint, RegisteredDiscoveryHandlerMap},
     streaming_extension::StreamingExt,
@@ -38,6 +38,7 @@ use std::io::{Error, ErrorKind};
 #[cfg(not(test))]
 use std::time::Instant;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use tokio::sync::RwLock;
 use tonic::transport::{Endpoint, Uri};
 
 /// StreamType provides a wrapper around the two different types of streams returned from embedded
@@ -63,8 +64,8 @@ pub struct DiscoveryOperator {
     /// The Akri Configuration associated with this `DiscoveryOperator`.
     /// The Configuration tells the `DiscoveryOperator` what to look for.
     config: Configuration,
-    /// Map of Akri Instances discovered by this `DiscoveryOperator`
-    instance_map: InstanceMap,
+    /// Akri Instances discovered by this `DiscoveryOperator`
+    device_plugin_context: Arc<RwLock<DevicePluginContext>>,
 }
 
 #[cfg_attr(test, automock)]
@@ -72,12 +73,12 @@ impl DiscoveryOperator {
     pub fn new(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         config: Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
     ) -> Self {
         DiscoveryOperator {
             discovery_handler_map,
             config,
-            instance_map,
+            device_plugin_context,
         }
     }
     fn get_config_id(&self) -> ConfigId {
@@ -97,10 +98,10 @@ impl DiscoveryOperator {
     pub fn get_config(&self) -> Configuration {
         self.config.clone()
     }
-    /// Returns instance_map field. Allows the struct to be mocked.
+    /// Returns device_plugin_context field. Allows the struct to be mocked.
     #[allow(dead_code)]
-    pub fn get_instance_map(&self) -> InstanceMap {
-        self.instance_map.clone()
+    pub fn get_device_plugin_context(&self) -> Arc<RwLock<DevicePluginContext>> {
+        self.device_plugin_context.clone()
     }
     #[allow(dead_code)]
     pub async fn stop_all_discovery(&self) {
@@ -293,8 +294,8 @@ impl DiscoveryOperator {
             self.config.metadata.name
         );
         let kube_interface_clone = kube_interface.clone();
-        let instance_map = self.instance_map.write().await.clone();
-        for (instance, instance_info) in instance_map.clone().instances {
+        let instance_map = self.device_plugin_context.write().await.clone().instances;
+        for (instance, instance_info) in instance_map {
             if let InstanceConnectivityStatus::Offline(instant) = instance_info.connectivity_status
             {
                 let time_offline = instant.elapsed().as_secs();
@@ -304,7 +305,7 @@ impl DiscoveryOperator {
                     trace!("delete_offline_instances - instance {} has been offline too long ... terminating device plugin", instance);
                     device_plugin_service::terminate_device_plugin_service(
                         &instance,
-                        self.instance_map.clone(),
+                        self.device_plugin_context.clone(),
                     )
                     .await
                     .unwrap();
@@ -349,11 +350,11 @@ impl DiscoveryOperator {
             .with_label_values(&[&config_name, &shared.to_string()])
             .set(currently_visible_instances.len() as i64);
         // Update the connectivity status of instances and return list of visible instances that don't have Instance CRs
-        let instance_map = self.instance_map.read().await.clone();
+        let device_plugin_context = self.device_plugin_context.read().await.clone();
         // Find all visible instances that do not have Instance CRDs yet
         let new_discovery_results: Vec<Device> = currently_visible_instances
             .iter()
-            .filter(|(name, _)| !instance_map.instances.contains_key(*name))
+            .filter(|(name, _)| !device_plugin_context.instances.contains_key(*name))
             .map(|(_, p)| p.clone())
             .collect();
         self.update_instance_connectivity_status(
@@ -372,14 +373,14 @@ impl DiscoveryOperator {
                     "handle_discovery_results - new instance {} came online",
                     instance_name
                 );
-                let instance_map = self.instance_map.clone();
+                let device_plugin_context = self.device_plugin_context.clone();
                 if let Err(e) = device_plugin_builder
                     .build_device_plugin(
                         instance_name,
                         id,
                         &self.config,
                         shared,
-                        instance_map,
+                        device_plugin_context,
                         discovery_result.clone(),
                     )
                     .await
@@ -403,8 +404,8 @@ impl DiscoveryOperator {
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
     ) -> anyhow::Result<()> {
-        let instance_map = self.instance_map.read().await.clone();
-        for (instance, instance_info) in instance_map.instances {
+        let instance_map = self.device_plugin_context.read().await.clone().instances;
+        for (instance, instance_info) in instance_map {
             trace!(
                 "update_instance_connectivity_status - checking connectivity status of instance {}",
                 instance
@@ -425,7 +426,7 @@ impl DiscoveryOperator {
                         instance_id: instance_info.instance_id.clone(),
                         device: device.clone(),
                     };
-                    self.instance_map
+                    self.device_plugin_context
                         .write()
                         .await
                         .instances
@@ -464,7 +465,7 @@ impl DiscoveryOperator {
                                 instance_id: instance_info.instance_id.clone(),
                                 device: instance_info.device.clone(),
                             };
-                            self.instance_map
+                            self.device_plugin_context
                                 .write()
                                 .await
                                 .instances
@@ -490,7 +491,7 @@ impl DiscoveryOperator {
                     trace!("update_instance_connectivity_status - instance {} has been offline too long ... terminating device plugin", instance);
                     device_plugin_service::terminate_device_plugin_service(
                         &instance,
-                        self.instance_map.clone(),
+                        self.device_plugin_context.clone(),
                     )
                     .await
                     .unwrap();
@@ -776,7 +777,7 @@ pub mod start_discovery {
         );
         let config_name = config.metadata.name.clone().unwrap();
         let mut tasks = Vec::new();
-        let instance_map = discovery_operator.get_instance_map();
+        let device_plugin_context = discovery_operator.get_device_plugin_context();
         let discovery_operator = Arc::new(discovery_operator);
 
         // Create a device plugin for the Configuration
@@ -786,11 +787,18 @@ pub mod start_discovery {
             config_dp_name
         );
         match device_plugin_builder
-            .build_configuration_device_plugin(config_dp_name, &config, instance_map.clone())
+            .build_configuration_device_plugin(
+                config_dp_name,
+                &config,
+                device_plugin_context.clone(),
+            )
             .await
         {
             Ok(s) => {
-                instance_map.write().await.usage_update_message_sender = Some(s);
+                device_plugin_context
+                    .write()
+                    .await
+                    .usage_update_message_sender = Some(s);
             }
             Err(e) => {
                 error!(
@@ -1071,7 +1079,7 @@ pub mod tests {
         device_plugin_builder::MockDevicePluginBuilderInterface,
         registration::{inner_register_embedded_discovery_handlers, DiscoveryDetails},
     };
-    use super::device_plugin_service::InstanceConfig;
+    use super::device_plugin_service::DevicePluginContext;
     use super::*;
     use akri_discovery_utils::discovery::mock_discovery_handler;
     use akri_shared::{
@@ -1084,14 +1092,14 @@ pub mod tests {
     use std::time::Duration;
     use tokio::sync::{broadcast, mpsc};
 
-    pub async fn build_instance_map(
+    pub async fn build_device_plugin_context(
         config: &Configuration,
         visible_discovery_results: &mut Vec<Device>,
         list_and_watch_message_receivers: &mut Vec<
             broadcast::Receiver<device_plugin_service::ListAndWatchMessageKind>,
         >,
         connectivity_status: InstanceConnectivityStatus,
-    ) -> InstanceMap {
+    ) -> Arc<RwLock<DevicePluginContext>> {
         let device1 = Device {
             id: "filter1".to_string(),
             properties: HashMap::new(),
@@ -1121,8 +1129,8 @@ pub mod tests {
         >,
         connectivity_status: InstanceConnectivityStatus,
         config_name: &str,
-    ) -> InstanceMap {
-        Arc::new(tokio::sync::RwLock::new(InstanceConfig {
+    ) -> Arc<RwLock<DevicePluginContext>> {
+        Arc::new(RwLock::new(DevicePluginContext {
             usage_update_message_sender: None,
             instances: discovery_results
                 .iter()
@@ -1148,7 +1156,7 @@ pub mod tests {
     fn create_mock_discovery_operator(
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         config: Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
     ) -> MockDiscoveryOperator {
         let ctx = MockDiscoveryOperator::new_context();
         let discovery_handler_map_clone = discovery_handler_map.clone();
@@ -1157,7 +1165,7 @@ pub mod tests {
             config.metadata.namespace.clone().unwrap(),
             config.metadata.namespace.clone().unwrap(),
         );
-        let instance_map_clone = instance_map.clone();
+        let device_plugin_context_clone = device_plugin_context.clone();
         ctx.expect().return_once(move |_, _, _| {
             // let mut discovery_handler_status_seq = Sequence::new();
             let mut mock = MockDiscoveryOperator::default();
@@ -1165,13 +1173,13 @@ pub mod tests {
                 .returning(move || discovery_handler_map_clone.clone());
             mock.expect_get_config()
                 .returning(move || config_clone.clone());
-            mock.expect_get_instance_map()
-                .returning(move || instance_map_clone.clone());
+            mock.expect_get_device_plugin_context()
+                .returning(move || device_plugin_context_clone.clone());
             mock.expect_get_config_id()
                 .returning(move || config_id.clone());
             mock
         });
-        MockDiscoveryOperator::new(discovery_handler_map, config, instance_map)
+        MockDiscoveryOperator::new(discovery_handler_map, config, device_plugin_context)
     }
 
     // Creates a discovery handler with specified properties and adds it to the RegisteredDiscoveryHandlerMap.
@@ -1237,7 +1245,7 @@ pub mod tests {
         create_mock_discovery_operator(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         )
     }
 
@@ -1294,7 +1302,7 @@ pub mod tests {
         let discovery_operator1 = Arc::new(DiscoveryOperator::new(
             discovery_handler_map.clone(),
             config1,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         ));
         let local_do1 = discovery_operator1.clone();
         let discover1 = tokio::spawn(async move {
@@ -1313,7 +1321,7 @@ pub mod tests {
         let discovery_operator2 = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config2,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         ));
         let discover2 = tokio::spawn(async move {
             discovery_operator2
@@ -1363,7 +1371,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         ));
         tokio::spawn(async move {
             discovery_operator.stop_all_discovery().await;
@@ -1574,7 +1582,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         ));
         let mut mock_device_plugin_builder = MockDevicePluginBuilderInterface::new();
         mock_device_plugin_builder
@@ -1605,7 +1613,7 @@ pub mod tests {
     async fn check_status_or_empty_loop(
         status: InstanceConnectivityStatus,
         equality: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         check_empty: bool,
     ) {
         let mut keep_looping = false;
@@ -1615,12 +1623,12 @@ pub mod tests {
             println!("try number {}", _x);
             keep_looping = false;
             tokio::time::sleep(Duration::from_millis(100)).await;
-            let unwrapped_instance_map = instance_map.read().await.clone();
-            if check_empty && unwrapped_instance_map.instances.is_empty() {
+            let unwrapped_device_plugin_context = device_plugin_context.read().await.clone();
+            if check_empty && unwrapped_device_plugin_context.instances.is_empty() {
                 map_is_empty = true;
                 break;
             }
-            for (_, instance_info) in unwrapped_instance_map.instances {
+            for (_, instance_info) in unwrapped_device_plugin_context.instances {
                 if instance_info.connectivity_status != status && equality {
                     keep_looping = true;
                 }
@@ -1655,7 +1663,7 @@ pub mod tests {
         let mut visible_discovery_results = Vec::new();
 
         // Assert no action (to delete instances by mock kube interface) is taken for all online instances
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1666,7 +1674,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map.clone(),
             config.clone(),
-            instance_map,
+            device_plugin_context,
         ));
         discovery_operator
             .delete_offline_instances(Arc::new(mock))
@@ -1676,7 +1684,7 @@ pub mod tests {
         // Assert no action (to delete instances by mock kube interface) is taken for instances offline for less than grace period
         let mock_now = Instant::now();
         MockClock::advance(Duration::from_secs(30));
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1687,7 +1695,7 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map.clone(),
             config.clone(),
-            instance_map,
+            device_plugin_context,
         ));
         discovery_operator
             .delete_offline_instances(Arc::new(mock))
@@ -1697,7 +1705,7 @@ pub mod tests {
         // Assert that all instances that have been offline for more than 5 minutes are deleted
         let mock_now = Instant::now();
         MockClock::advance(Duration::from_secs(301));
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1711,15 +1719,20 @@ pub mod tests {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map.clone(),
             config.clone(),
-            instance_map.clone(),
+            device_plugin_context.clone(),
         ));
         discovery_operator
             .delete_offline_instances(Arc::new(mock))
             .await
             .unwrap();
         // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
-        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
-            .await;
+        check_status_or_empty_loop(
+            InstanceConnectivityStatus::Online,
+            true,
+            device_plugin_context,
+            true,
+        )
+        .await;
     }
 
     // 1: InstanceConnectivityStatus of all instances that go offline is changed from Online to Offline
@@ -1751,7 +1764,7 @@ pub mod tests {
         //
         // 1: Assert that InstanceConnectivityStatus of non local instances that are no longer visible is changed to Offline
         //
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1763,7 +1776,7 @@ pub mod tests {
             config.clone(),
             HashMap::new(),
             shared,
-            instance_map.clone(),
+            device_plugin_context.clone(),
             discovery_handler_map.clone(),
             MockKubeInterface::new(),
         )
@@ -1773,7 +1786,7 @@ pub mod tests {
         check_status_or_empty_loop(
             InstanceConnectivityStatus::Online,
             false,
-            instance_map,
+            device_plugin_context,
             false,
         )
         .await;
@@ -1783,7 +1796,7 @@ pub mod tests {
         //
         let mock_now = Instant::now();
         MockClock::advance(Duration::from_secs(30));
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1802,7 +1815,7 @@ pub mod tests {
             config.clone(),
             currently_visible_instances.clone(),
             shared,
-            instance_map.clone(),
+            device_plugin_context.clone(),
             discovery_handler_map.clone(),
             MockKubeInterface::new(),
         )
@@ -1812,7 +1825,7 @@ pub mod tests {
         check_status_or_empty_loop(
             InstanceConnectivityStatus::Online,
             true,
-            instance_map,
+            device_plugin_context,
             false,
         )
         .await;
@@ -1822,7 +1835,7 @@ pub mod tests {
         //
         let mock_now = Instant::now();
         MockClock::advance(Duration::from_secs(301));
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1838,14 +1851,19 @@ pub mod tests {
             config.clone(),
             HashMap::new(),
             shared,
-            instance_map.clone(),
+            device_plugin_context.clone(),
             discovery_handler_map.clone(),
             mock,
         )
         .await;
         // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
-        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
-            .await;
+        check_status_or_empty_loop(
+            InstanceConnectivityStatus::Online,
+            true,
+            device_plugin_context,
+            true,
+        )
+        .await;
 
         //
         // 4: Assert that local devices that go offline are removed from the instance map
@@ -1855,7 +1873,7 @@ pub mod tests {
             .times(2)
             .returning(move |_, _| Ok(()));
 
-        let instance_map: InstanceMap = build_instance_map(
+        let device_plugin_context = build_device_plugin_context(
             &config,
             &mut visible_discovery_results,
             &mut list_and_watch_message_receivers,
@@ -1867,28 +1885,33 @@ pub mod tests {
             config,
             HashMap::new(),
             shared,
-            instance_map.clone(),
+            device_plugin_context.clone(),
             discovery_handler_map.clone(),
             mock,
         )
         .await;
         // Make sure all instances are deleted from map. Note, first 3 arguments are ignored.
-        check_status_or_empty_loop(InstanceConnectivityStatus::Online, true, instance_map, true)
-            .await;
+        check_status_or_empty_loop(
+            InstanceConnectivityStatus::Online,
+            true,
+            device_plugin_context,
+            true,
+        )
+        .await;
     }
 
     async fn run_update_instance_connectivity_status(
         config: Configuration,
         currently_visible_instances: HashMap<String, Device>,
         shared: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         discovery_handler_map: RegisteredDiscoveryHandlerMap,
         mock: MockKubeInterface,
     ) {
         let discovery_operator = Arc::new(DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            instance_map.clone(),
+            device_plugin_context.clone(),
         ));
         discovery_operator
             .update_instance_connectivity_status(
@@ -1907,7 +1930,7 @@ pub mod tests {
         DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         )
     }
 
@@ -1939,7 +1962,7 @@ pub mod tests {
         let discovery_operator = DiscoveryOperator::new(
             discovery_handler_map,
             config,
-            Arc::new(tokio::sync::RwLock::new(InstanceConfig::default())),
+            Arc::new(RwLock::new(DevicePluginContext::default())),
         );
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
 
