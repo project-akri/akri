@@ -12,7 +12,7 @@ use akri_discovery_utils::{
         },
         DiscoverStream,
     },
-    filtering::FilterList,
+    filtering::{FilterList, FilterType},
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
@@ -150,6 +150,61 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
     }
 }
 
+fn is_exclude_none(filter_list: Option<&FilterList>) -> bool {
+    filter_list.map_or(true, |f| {
+        f.items.is_empty() && f.action == FilterType::Exclude
+    })
+}
+
+async fn apply_ip_and_mac_address_filters(
+    ip_filter_list: Option<&FilterList>,
+    mac_filter_list: Option<&FilterList>,
+    device_service_uri: &str,
+    onvif_query: &impl OnvifQuery,
+) -> Option<HashMap<String, String>> {
+    let (ip_address, mac_address) = match onvif_query
+        .get_device_ip_and_mac_address(device_service_uri)
+        .await
+    {
+        Ok(ip_and_mac) => ip_and_mac,
+        Err(e) => {
+            error!(
+                "apply_filters - error getting ip and mac address from {}: {}",
+                device_service_uri, e
+            );
+            if is_exclude_none(ip_filter_list) && is_exclude_none(mac_filter_list) {
+                // Ip and mac address filtering not required, return empty property map
+                return Some(HashMap::new());
+            } else {
+                // Require Ip and mac address for filtering, return None
+                return None;
+            }
+        }
+    };
+    // Evaluate camera ip address against ip filter if provided
+    // use case-insensitive comparison in case of IPv6 is used
+    let ip_address_as_vec = vec![ip_address.clone()];
+    if util::execute_filter(ip_filter_list, &ip_address_as_vec, |scope, pattern| {
+        scope.to_lowercase() == pattern.to_lowercase()
+    }) {
+        return None;
+    }
+
+    // Evaluate camera mac address against mac filter if provided
+    let mac_address_as_vec = vec![mac_address.clone()];
+    if util::execute_filter(mac_filter_list, &mac_address_as_vec, |scope, pattern| {
+        scope.to_lowercase() == pattern.to_lowercase()
+    }) {
+        return None;
+    }
+
+    let mut properties = HashMap::new();
+    properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip_address);
+    properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac_address);
+
+    Some(properties)
+}
+
 async fn apply_filters(
     discovery_handler_config: &OnvifDiscoveryDetails,
     device_service_uri: &str,
@@ -160,36 +215,13 @@ async fn apply_filters(
         "apply_filters - device service url {}, uuid {}",
         device_service_uri, device_uuid
     );
-    let (ip_address, mac_address) = match onvif_query
-        .get_device_ip_and_mac_address(device_service_uri)
-        .await
-    {
-        Ok(ip_and_mac) => ip_and_mac,
-        Err(e) => {
-            error!("apply_filters - error getting ip and mac address: {}", e);
-            return None;
-        }
-    };
-    // Evaluate camera ip address against ip filter if provided
-    // use case-insensitive comparison in case of IPv6 is used
-    let ip_address_as_vec = vec![ip_address.clone()];
-    if util::execute_filter(
+    let ip_and_mac_properties = apply_ip_and_mac_address_filters(
         discovery_handler_config.ip_addresses.as_ref(),
-        &ip_address_as_vec,
-        |scope, pattern| scope.to_lowercase() == pattern.to_lowercase(),
-    ) {
-        return None;
-    }
-
-    // Evaluate camera mac address against mac filter if provided
-    let mac_address_as_vec = vec![mac_address.clone()];
-    if util::execute_filter(
         discovery_handler_config.mac_addresses.as_ref(),
-        &mac_address_as_vec,
-        |scope, pattern| scope.to_lowercase() == pattern.to_lowercase(),
-    ) {
-        return None;
-    }
+        device_service_uri,
+        onvif_query,
+    )
+    .await?;
 
     let service_uri_and_uuid_joined = format!("{}-{}", device_service_uri, device_uuid);
     let mut properties = HashMap::new();
@@ -198,8 +230,7 @@ async fn apply_filters(
         device_service_uri.to_string(),
     );
     properties.insert(ONVIF_DEVICE_UUID_LABEL_ID.into(), device_uuid.to_string());
-    properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip_address);
-    properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac_address);
+    properties.extend(ip_and_mac_properties);
 
     Some((
         device_service_uri.to_string(),
