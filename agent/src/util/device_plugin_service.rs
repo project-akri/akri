@@ -676,7 +676,7 @@ impl ConfigurationDevicePlugin {
                 request,
             );
 
-            let virtual_devices_to_allocate = get_virtual_device_resources(
+            let resources_to_allocate = match get_virtual_device_resources(
                 request.devices_i_ds.clone(),
                 &dps.device_plugin_context.read().await.clone().instances,
                 &dps.node_name,
@@ -684,9 +684,15 @@ impl ConfigurationDevicePlugin {
                 &dps.config.capacity,
                 kube_interface.clone(),
             )
-            .await;
-            let resources_to_allocate = match virtual_devices_to_allocate {
-                Ok(resources) => resources,
+            .await
+            {
+                Ok(resources) => {
+                    info!(
+                        "ConfigurationDevicePlugin::allocate - resource to allocate = {:?}",
+                        resources
+                    );
+                    resources
+                }
                 Err(e) => {
                     dps.list_and_watch_message_sender
                         .send(ListAndWatchMessageKind::Continue)
@@ -694,10 +700,6 @@ impl ConfigurationDevicePlugin {
                     return Err(e);
                 }
             };
-            info!(
-                "ConfigurationDevicePlugin::allocate - resource to allocate = {:?}",
-                resources_to_allocate
-            );
 
             let mut akri_annotations = HashMap::new();
             let mut akri_device_properties = HashMap::new();
