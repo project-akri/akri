@@ -143,7 +143,12 @@ impl CredentialStore {
                 let password = password_list
                     .remove(&device_uuid)
                     .and_then(|opt_s| opt_s.map(|s| s.to_string()));
-                (device_uuid.to_string(), (username.to_string(), password))
+                // Credential data key is in C_IDENTIFIER format
+                // convert it back to uuid string format by replacing "_" with "-"
+                (
+                    device_uuid.replace('_', "-"),
+                    (username.to_string(), password),
+                )
             })
             .collect::<HashMap<String, (String, Option<String>)>>();
         self.credentials.extend(result);
@@ -213,7 +218,7 @@ fn decode_base64_str(encoded_data: &str) -> Option<String> {
 mod tests {
     use super::*;
     struct DeviceCredentialData<'a> {
-        pub id: &'a str,
+        pub id: String,
         pub username: Option<&'a [u8]>,
         pub password: Option<&'a [u8]>,
     }
@@ -278,11 +283,11 @@ mod tests {
 
     #[test]
     fn test_credential_store_non_utf8_username() {
-        let test_data = vec![("deviceid_1", vec![200u8, 200u8, 200u8], "password_1")];
+        let test_data = vec![("deviceid-1", vec![200u8, 200u8, 200u8], "password_1")];
         let test_entries = test_data
             .iter()
             .map(|(id, uname, pwd)| DeviceCredentialData {
-                id,
+                id: id.replace('-', "_"),
                 username: Some(uname as &[u8]),
                 password: Some(pwd.as_bytes()),
             })
@@ -295,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_non_utf8_password() {
-        let test_data = vec![("deviceid_1", "username_1", vec![200u8, 200u8, 200u8])];
+        let test_data = vec![("deviceid-1", "username_1", vec![200u8, 200u8, 200u8])];
         let expected_result = test_data
             .iter()
             .map(|(id, uname, pwd)| {
@@ -311,7 +316,7 @@ mod tests {
         let test_entries = test_data
             .iter()
             .map(|(id, uname, pwd)| DeviceCredentialData {
-                id,
+                id: id.replace('-', "_"),
                 username: Some(uname.as_bytes()),
                 password: Some(pwd as &[u8]),
             })
@@ -331,7 +336,7 @@ mod tests {
         let secret_test_data = secret_data
             .iter()
             .map(|(id, uname, pwd)| DeviceCredentialData {
-                id,
+                id: id.replace('-', "_"),
                 username: Some(uname.as_bytes()),
                 password: Some(pwd.as_bytes()),
             })
