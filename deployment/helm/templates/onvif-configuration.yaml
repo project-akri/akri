@@ -32,6 +32,42 @@ spec:
         items: []
         {{- end }}
       discoveryTimeoutSeconds: {{ .Values.onvif.configuration.discoveryDetails.discoveryTimeoutSeconds }}
+    {{- if .Values.onvif.configuration.discoveryProperties}}
+    discoveryProperties:
+      {{- range $property := .Values.onvif.configuration.discoveryProperties }}
+      - name: {{ $property.name }}
+        {{- if $property.valueFrom }}
+        valueFrom:
+          {{- if $property.valueFrom.secretKeyRef }}
+          secretKeyRef:
+            name: {{ $property.valueFrom.secretKeyRef.name }}
+            {{- if $property.valueFrom.secretKeyRef.namespace }}
+            namespace: {{ $property.valueFrom.secretKeyRef.namespace }}
+            {{- end }}
+            {{- if $property.valueFrom.secretKeyRef.key }}
+            key: {{ $property.valueFrom.secretKeyRef.key }}
+            {{- end }}
+            {{- if hasKey $property.valueFrom.secretKeyRef "optional" }}
+            optional: {{ $property.valueFrom.secretKeyRef.optional }}
+            {{- end }}
+          {{- else if $property.valueFrom.configMapKeyRef}}
+          configMapKeyRef:
+            name: {{ $property.valueFrom.configMapKeyRef.name }}
+            {{- if $property.valueFrom.configMapKeyRef.namespace }}
+            namespace: {{ $property.valueFrom.configMapKeyRef.namespace }}
+            {{- end }}
+            {{- if $property.valueFrom.configMapKeyRef.key }}
+            key: {{ $property.valueFrom.configMapKeyRef.key }}
+            {{- end }}
+            {{- if hasKey $property.valueFrom.configMapKeyRef "optional" }}
+            optional: {{ $property.configMapKeyRef.optional }}
+            {{- end }}
+          {{- end }}
+        {{- else }}
+        value: {{ $property.value | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
   {{- if or .Values.onvif.configuration.brokerPod.image.repository .Values.onvif.configuration.brokerJob.image.repository }}
   {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
