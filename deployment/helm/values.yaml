@@ -424,6 +424,9 @@ onvif:
       scopes:
         action: Exclude
         items: []
+      uuids:
+        action: Exclude
+        items: []
       discoveryTimeoutSeconds: 1
     # capacity is the capacity for any instances created as a result of
     # applying this onvif configuration
