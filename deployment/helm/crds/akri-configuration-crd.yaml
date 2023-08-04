@@ -32,6 +32,7 @@ spec:
                         properties:
                           name:
                             type: string
+                            pattern: "^[_A-Za-z][_A-Za-z0-9]*$"
                           value:
                             type: string
                             nullable: true

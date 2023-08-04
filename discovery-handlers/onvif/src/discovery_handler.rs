@@ -37,6 +37,8 @@ pub struct OnvifDiscoveryDetails {
     pub mac_addresses: Option<FilterList>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scopes: Option<FilterList>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uuids: Option<FilterList>,
     #[serde(default = "default_discovery_timeout_seconds")]
     pub discovery_timeout_seconds: i32,
 }
@@ -215,6 +217,14 @@ async fn apply_filters(
         "apply_filters - device service url {}, uuid {}",
         device_service_uri, device_uuid
     );
+    // Evaluate device uuid against uuids filter if provided
+    if util::execute_filter(
+        discovery_handler_config.uuids.as_ref(),
+        &[device_uuid.to_string()],
+        |uuid, pattern| uuid.to_lowercase() == pattern.to_lowercase(),
+    ) {
+        return None;
+    }
     let ip_and_mac_properties = apply_ip_and_mac_address_filters(
         discovery_handler_config.ip_addresses.as_ref(),
         discovery_handler_config.mac_addresses.as_ref(),
@@ -328,6 +338,7 @@ mod tests {
             ip_addresses: None,
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -364,6 +375,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -398,6 +410,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -427,6 +440,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -458,6 +472,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -493,6 +508,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -524,6 +540,7 @@ mod tests {
             }),
             mac_addresses: None,
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -560,6 +577,7 @@ mod tests {
                 items: vec![mock_mac.to_string()],
             }),
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -594,6 +612,7 @@ mod tests {
                 items: vec!["nonexist:mac".to_string()],
             }),
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -625,6 +644,7 @@ mod tests {
                 items: vec!["nonexist:mac".to_string()],
             }),
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -660,6 +680,7 @@ mod tests {
                 items: vec![mock_mac.to_string()],
             }),
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -691,6 +712,7 @@ mod tests {
                 items: vec![mock_mac.to_uppercase()],
             }),
             scopes: None,
+            uuids: None,
             discovery_timeout_seconds: 1,
         };
         let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
@@ -727,6 +749,239 @@ mod tests {
                 items: vec![mock_mac.to_uppercase()],
             }),
             scopes: None,
+            uuids: None,
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_include_uuid_exist() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+        let mock_ip = "mock.ip";
+        let mock_mac = "mock:mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Include,
+                items: vec![mock_uuid.to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_include_uuid_nonexist() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+
+        let mock = MockOnvifQuery::new();
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Include,
+                items: vec!["nonexist-uuid".to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_include_uuid_similar() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+
+        let mock = MockOnvifQuery::new();
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Include,
+                items: vec!["device_uui".to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_uuid_exist() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+
+        let mock = MockOnvifQuery::new();
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec![mock_uuid.to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_uuid_nonexist() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+        let mock_ip = "mock.ip";
+        let mock_mac = "mock:mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip: "mock.ip",
+                mock_mac: "mock:mac",
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec!["nonexist-uuid".to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_uuid_similar() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+        let mock_ip = "mock.ip";
+        let mock_mac = "mock:mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec!["device_uui".to_string()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_include_uuid_exist_different_letter_cases() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+        let mock_ip = "mock.ip";
+        let mock_mac = "MocK:Mac";
+
+        let mut mock = MockOnvifQuery::new();
+        configure_scenario(
+            &mut mock,
+            Some(IpAndMac {
+                mock_uri,
+                mock_ip,
+                mock_mac,
+            }),
+        );
+
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Include,
+                items: vec![mock_uuid.to_uppercase()],
+            }),
+            discovery_timeout_seconds: 1,
+        };
+        let instance = apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_device(mock_uri, mock_uuid, mock_ip, mock_mac),
+            instance
+        );
+    }
+
+    #[tokio::test]
+    async fn test_apply_filters_exclude_uuid_exist_different_letter_cases() {
+        let mock_uri = "device_uri";
+        let mock_uuid = "device_uuid";
+
+        let mock = MockOnvifQuery::new();
+        let onvif_config = OnvifDiscoveryDetails {
+            ip_addresses: None,
+            mac_addresses: None,
+            scopes: None,
+            uuids: Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec![mock_uuid.to_uppercase()],
+            }),
             discovery_timeout_seconds: 1,
         };
         assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
