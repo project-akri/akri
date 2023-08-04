@@ -4,8 +4,8 @@ use super::{
         KUBELET_SOCKET, LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY,
     },
     device_plugin_service::{
-        DevicePluginBehavior, DevicePluginService, InstanceDevicePlugin, InstanceMap,
-        ListAndWatchMessageKind,
+        ConfigurationDevicePlugin, DevicePluginBehavior, DevicePluginContext, DevicePluginService,
+        InstanceDevicePlugin, ListAndWatchMessageKind,
     },
     v1beta1,
     v1beta1::{
@@ -23,11 +23,12 @@ use futures::TryFutureExt;
 use log::{info, trace};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use std::sync::Arc;
 use std::{convert::TryFrom, env, path::Path, time::SystemTime};
 use tokio::{
     net::UnixListener,
     net::UnixStream,
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, RwLock},
     task,
 };
 use tonic::transport::{Endpoint, Server, Uri};
@@ -42,9 +43,19 @@ pub trait DevicePluginBuilderInterface: Send + Sync {
         instance_id: String,
         config: &Configuration,
         shared: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+    async fn build_configuration_device_plugin(
+        &self,
+        device_plugin_name: String,
+        config: &Configuration,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
+    ) -> Result<
+        broadcast::Sender<ListAndWatchMessageKind>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    >;
 }
 
 /// For each Instance, builds a Device Plugin, registers it with the kubelet, and serves it over UDS.
@@ -59,7 +70,7 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         instance_id: String,
         config: &Configuration,
         shared: bool,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device: Device,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         info!("build_device_plugin - entered for device {}", instance_name);
@@ -73,11 +84,40 @@ impl DevicePluginBuilderInterface for DevicePluginBuilder {
         self.build_device_plugin_service(
             &instance_name,
             config,
-            instance_map,
+            device_plugin_context,
             device_plugin_behavior,
             list_and_watch_message_sender,
         )
         .await
+    }
+
+    /// This creates a new ConfigurationDevicePluginService for a Configuration and registers it with the kubelet
+    async fn build_configuration_device_plugin(
+        &self,
+        device_plugin_name: String,
+        config: &Configuration,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
+    ) -> Result<
+        broadcast::Sender<ListAndWatchMessageKind>,
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    > {
+        info!(
+            "build_configuration_device_plugin - entered for device {}",
+            device_plugin_name
+        );
+        let device_plugin_behavior =
+            DevicePluginBehavior::Configuration(ConfigurationDevicePlugin::default());
+        let (list_and_watch_message_sender, _) =
+            broadcast::channel(LIST_AND_WATCH_MESSAGE_CHANNEL_CAPACITY);
+        self.build_device_plugin_service(
+            &device_plugin_name,
+            config,
+            device_plugin_context,
+            device_plugin_behavior,
+            list_and_watch_message_sender.clone(),
+        )
+        .await?;
+        Ok(list_and_watch_message_sender)
     }
 }
 
@@ -86,7 +126,7 @@ impl DevicePluginBuilder {
         &self,
         device_plugin_name: &str,
         config: &Configuration,
-        instance_map: InstanceMap,
+        device_plugin_context: Arc<RwLock<DevicePluginContext>>,
         device_plugin_behavior: DevicePluginBehavior,
         list_and_watch_message_sender: broadcast::Sender<ListAndWatchMessageKind>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -108,7 +148,7 @@ impl DevicePluginBuilder {
             config_uid: config.metadata.uid.as_ref().unwrap().clone(),
             config_namespace: config.metadata.namespace.as_ref().unwrap().clone(),
             node_name: env::var("AGENT_NODE_NAME")?,
-            instance_map,
+            device_plugin_context,
             list_and_watch_message_sender,
             server_ender_sender: server_ender_sender.clone(),
             device_plugin_behavior,
