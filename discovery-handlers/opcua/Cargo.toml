@@ -1,6 +1,6 @@
 [package]
 name = "akri-opcua"
-version = "0.11.6"
+version = "0.12.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
