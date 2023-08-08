@@ -424,6 +424,9 @@ onvif:
       scopes:
         action: Exclude
         items: []
+      uuids:
+        action: Exclude
+        items: []
       discoveryTimeoutSeconds: 1
     # discoveryProperties is a map of properties fthat will be passed to discovery handler,
     # the properties can be direct specified or read from Secret or ConfigMap 

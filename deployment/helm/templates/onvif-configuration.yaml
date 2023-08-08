@@ -31,6 +31,14 @@ spec:
         {{- else }}
         items: []
         {{- end }}
+      uuids:
+        action: {{ .Values.onvif.configuration.discoveryDetails.uuids.action }}
+        {{- if .Values.onvif.configuration.discoveryDetails.uuids.items}}
+        items:
+        {{- toYaml .Values.onvif.configuration.discoveryDetails.uuids.items | nindent 8 }}
+        {{- else }}
+        items: []
+        {{- end }}
       discoveryTimeoutSeconds: {{ .Values.onvif.configuration.discoveryDetails.discoveryTimeoutSeconds }}
     {{- if .Values.onvif.configuration.discoveryProperties}}
     discoveryProperties:
