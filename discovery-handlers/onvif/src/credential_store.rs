@@ -5,22 +5,22 @@ use std::collections::HashMap;
 pub const DEVICE_CREDENTIAL_LIST: &str = "device_credential_list";
 /// Key name of device credential ref list in discoveryProperties
 pub const DEVICE_CREDENTIAL_REF_LIST: &str = "device_credential_ref_list";
-/// Key name prfix of username credential list in discoveryProperties
+/// Key name prefix of username credential list in discoveryProperties
 pub const DEVICE_CREDENTIAL_USERNAME_PREFIX: &str = "username_";
-/// Key name prfix of password credential list in discoveryProperties
+/// Key name prefix of password credential list in discoveryProperties
 pub const DEVICE_CREDENTIAL_PASSWORD_PREFIX: &str = "password_";
+/// Key name of default username
+pub const DEVICE_CREDENTIAL_DEFAULT_USERNAME: &str = "username_default";
+/// Key name of default password
+pub const DEVICE_CREDENTIAL_DEFAULT_PASSWORD: &str = "password_default";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct CredentialData {
     username: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     password: Option<String>,
-    #[serde(default = "default_base64encoded")]
+    #[serde(default)]
     base64encoded: bool,
-}
-
-fn default_base64encoded() -> bool {
-    false
 }
 
 impl CredentialData {
@@ -156,16 +156,13 @@ impl CredentialStore {
     }
 
     fn process_default_username_password(&mut self, credential_data: &HashMap<String, ByteData>) {
-        let username_key = format!("{}{}", DEVICE_CREDENTIAL_USERNAME_PREFIX, "default");
-        let password_key = format!("{}{}", DEVICE_CREDENTIAL_PASSWORD_PREFIX, "default");
-
         self.default_credential = credential_data
-            .get(&username_key)
+            .get(DEVICE_CREDENTIAL_DEFAULT_USERNAME)
             .and_then(byte_data_to_str)
             .map(|username| username.to_string())
             .map(|username| {
                 let password = credential_data
-                    .get(&password_key)
+                    .get(DEVICE_CREDENTIAL_DEFAULT_PASSWORD)
                     .and_then(byte_data_to_str)
                     .map(|password| password.to_string());
                 (username, password)
