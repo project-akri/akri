@@ -1,3 +1,5 @@
+/// This implements the Username token profile described in ONVIF Core Spec 5.9.4
+/// which is based on [WS-UsernameToken]: https://docs.oasis-open.org/wss/v1.1/wss-v1.1-spec-pr-UsernameTokenProfile-01.htm
 #[derive(Default, Debug, Clone)]
 pub struct UsernameToken {
     pub username: String,
