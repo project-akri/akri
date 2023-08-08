@@ -49,16 +49,16 @@ struct CredentialRefData {
 #[derive(Default)]
 pub struct CredentialStore {
     credentials: HashMap<String, (String, Option<String>)>,
+    default_credential: Option<(String, Option<String>)>,
 }
 
 impl CredentialStore {
     pub fn new(credential_data: &HashMap<String, ByteData>) -> Self {
-        let mut store = Self {
-            credentials: HashMap::new(),
-        };
+        let mut store = Self::default();
         store.process_credential_list(credential_data);
         store.process_credential_ref_list(credential_data);
         store.process_username_password(credential_data);
+        store.process_default_username_password(credential_data);
         store
     }
 
@@ -66,6 +66,7 @@ impl CredentialStore {
         self.credentials
             .get(uuid)
             .map(|(n, p)| (n.to_string(), p.as_ref().map(|p| p.to_string())))
+            .or(self.default_credential.clone())
     }
 
     fn process_credential_list(&mut self, credential_data: &HashMap<String, ByteData>) {
@@ -152,6 +153,23 @@ impl CredentialStore {
             })
             .collect::<HashMap<String, (String, Option<String>)>>();
         self.credentials.extend(result);
+    }
+
+    fn process_default_username_password(&mut self, credential_data: &HashMap<String, ByteData>) {
+        let username_key = format!("{}{}", DEVICE_CREDENTIAL_USERNAME_PREFIX, "default");
+        let password_key = format!("{}{}", DEVICE_CREDENTIAL_PASSWORD_PREFIX, "default");
+
+        self.default_credential = credential_data
+            .get(&username_key)
+            .and_then(byte_data_to_str)
+            .map(|username| username.to_string())
+            .map(|username| {
+                let password = credential_data
+                    .get(&password_key)
+                    .and_then(byte_data_to_str)
+                    .map(|password| password.to_string());
+                (username, password)
+            });
     }
 }
 
@@ -275,6 +293,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_empty() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let credential_data = HashMap::new();
 
         let credential_store = CredentialStore::new(&credential_data);
@@ -283,6 +302,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_non_utf8_username() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let test_data = vec![("deviceid-1", vec![200u8, 200u8, 200u8], "password_1")];
         let test_entries = test_data
             .iter()
@@ -300,6 +320,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_non_utf8_password() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let test_data = vec![("deviceid-1", "username_1", vec![200u8, 200u8, 200u8])];
         let expected_result = test_data
             .iter()
@@ -325,6 +346,19 @@ mod tests {
 
         let credential_store = CredentialStore::new(&credential_data);
         assert_eq!(credential_store.credentials, expected_result);
+    }
+
+    fn build_default_username_password_data() -> HashMap<String, ByteData> {
+        let secret_data = vec![("default", "default_username", "default_password")];
+        let secret_test_data = secret_data
+            .iter()
+            .map(|(id, uname, pwd)| DeviceCredentialData {
+                id: id.replace('-', "_"),
+                username: Some(uname.as_bytes()),
+                password: Some(pwd.as_bytes()),
+            })
+            .collect::<Vec<_>>();
+        generate_username_password_credential_data(secret_test_data)
     }
 
     fn build_username_password_data() -> HashMap<String, ByteData> {
@@ -429,7 +463,21 @@ mod tests {
     }
 
     #[test]
+    fn test_credential_store_default_username_password() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let expected_result = (
+            "default_username".to_string(),
+            Some("default_password".to_string()),
+        );
+        let credential_data = build_default_username_password_data();
+
+        let credential_store = CredentialStore::new(&credential_data);
+        assert_eq!(credential_store.default_credential, Some(expected_result));
+    }
+
+    #[test]
     fn test_credential_store_username_password() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([(
             "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
             ("username_5f".to_string(), Some("password_5f".to_string())),
@@ -442,6 +490,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_list() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -464,6 +513,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_ref_list() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -482,6 +532,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_list_and_username_password() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -510,6 +561,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_list_and_credential_ref_list() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -538,6 +590,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_ref_list_and_username_password() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -562,6 +615,7 @@ mod tests {
 
     #[test]
     fn test_credential_store_device_credential_all() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let expected_result = HashMap::from([
             (
                 "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
@@ -588,5 +642,77 @@ mod tests {
         let credential_store = CredentialStore::new(&credential_data);
 
         assert_eq!(credential_store.credentials, expected_result);
+    }
+
+    #[test]
+    fn test_get_credential_found_no_default() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let credential = (
+            "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
+            ("username_5f".to_string(), Some("password_5f".to_string())),
+        );
+        let credentials = HashMap::from([credential.clone()]);
+        let credential_store = CredentialStore {
+            credentials,
+            default_credential: None,
+        };
+        let result = credential_store.get(&credential.0);
+        assert_eq!(result, Some(credential.1));
+    }
+
+    #[test]
+    fn test_get_credential_not_found_no_default() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let credential = (
+            "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
+            ("username_5f".to_string(), Some("password_5f".to_string())),
+        );
+        let credentials = HashMap::from([credential]);
+        let credential_store = CredentialStore {
+            credentials,
+            default_credential: None,
+        };
+        let result = credential_store.get("not-exist-uuid");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_credential_found_with_default() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let credential = (
+            "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
+            ("username_5f".to_string(), Some("password_5f".to_string())),
+        );
+        let default_credential = (
+            "default_username".to_string(),
+            Some("default_password".to_string()),
+        );
+        let credentials = HashMap::from([credential.clone()]);
+        let credential_store = CredentialStore {
+            credentials,
+            default_credential: Some(default_credential),
+        };
+        let result = credential_store.get(&credential.0);
+        assert_eq!(result, Some(credential.1));
+    }
+
+    #[test]
+    fn test_get_credential_not_found_with_default() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let credential = (
+            "5f5a69c2-e0ae-504f-829b-00fcdab169cc".to_string(),
+            ("username_5f".to_string(), Some("password_5f".to_string())),
+        );
+        let default_credential = (
+            "default_username".to_string(),
+            Some("default_password".to_string()),
+        );
+        let credentials = HashMap::from([credential]);
+        let credential_store = CredentialStore {
+            credentials,
+            default_credential: Some(default_credential.clone()),
+        };
+        let result = credential_store.get("not-exist-uuid");
+        assert_eq!(result, Some(default_credential));
     }
 }
