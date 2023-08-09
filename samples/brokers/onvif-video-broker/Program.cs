@@ -32,17 +32,17 @@ namespace FrameServer
 
 				if (frame == null)
 				{
-					Console.WriteLine("No frame available for {0}", Program.RtspUrl);
+					Console.WriteLine("No frame available for {0}", Program.RtspUrl.MaskedUrl);
 				}
 				else 
 				{
-					Console.WriteLine("Sending frame for {0}, Q size: {1}", Program.RtspUrl, Program.Frames.Count);
+					Console.WriteLine("Sending frame for {0}, Q size: {1}", Program.RtspUrl.MaskedUrl, Program.Frames.Count);
 				}
 			}
 
 			return Task.FromResult(new NotifyResponse
 			{
-				Camera = Program.RtspUrl,
+				Camera = Program.RtspUrl.Url,
 				Frame = (frame == null ? Google.Protobuf.ByteString.Empty : Google.Protobuf.ByteString.CopyFrom(frame))
 			});
 		}
@@ -73,10 +73,36 @@ namespace FrameServer
 		}
 	}
 
+	public class RtspUrlContent {
+		private readonly string rtspUrl;
+		private readonly string maskedRtspUrl;
+
+		public RtspUrlContent(string rtspUrl) {
+			this.rtspUrl = rtspUrl;
+			this.maskedRtspUrl = GetMaskedUrl(rtspUrl);
+		}
+
+		public string Url { get { return rtspUrl; } }
+		public string MaskedUrl { get { return maskedRtspUrl; } }
+
+		private string GetMaskedUrl(string rtspUrl) {
+			const string rtspPrefix = "rtsp://";
+			var maskedRtspUrl = rtspUrl;
+			if (rtspUrl.StartsWith(rtspPrefix)) {
+				var atPos = rtspUrl.IndexOf('@', rtspPrefix.Length);
+				if (atPos != -1) {
+					maskedRtspUrl = rtspUrl.Substring(atPos);
+					maskedRtspUrl = String.Format("{0}----:----{1}", rtspPrefix, maskedRtspUrl);
+				}
+			}
+			return maskedRtspUrl;
+		}
+	}
+
 	class Program
     {
 		public static Task FrameTask;
-		public static string RtspUrl;
+		public static RtspUrlContent RtspUrl;
 		public static LimitedSizeStack<byte[]> Frames;
 
 		static void Main(string[] args)
@@ -89,15 +115,15 @@ namespace FrameServer
 				throw new ArgumentNullException("Unable to create Frames");
 			}
 
-			RtspUrl = Environment.GetEnvironmentVariable("RTSP_URL");
-			if (string.IsNullOrEmpty(RtspUrl)) {
-				RtspUrl = Akri.Akri.GetRtspUrl();
+			var rtspUrl = Environment.GetEnvironmentVariable("RTSP_URL");
+			if (string.IsNullOrEmpty(rtspUrl)) {
+				rtspUrl = Akri.Akri.GetRtspUrl();
 			}
-			if (string.IsNullOrEmpty(RtspUrl))
+			if (string.IsNullOrEmpty(rtspUrl))
 			{
 				throw new ArgumentNullException("Unable to find RTSP URL");
 			}
-
+			RtspUrl = new RtspUrlContent(rtspUrl);
 			CamerasCounter.Inc();
 
 			FrameTask = Task.Run(() => Process(RtspUrl));
@@ -127,13 +153,13 @@ namespace FrameServer
 			"camera_disconnects", 
 			"Number of times camera connection had to be restablished.");
 
-		static void Process(string videoPath)
+		static void Process(RtspUrlContent videoPath)
 		{
-			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPath}");
+			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPath.MaskedUrl}");
 
 			while (true)
 			{
-				var capture = new VideoCapture(videoPath);
+				var capture = new VideoCapture(videoPath.Url);
 				Console.WriteLine("Ready " + capture.IsOpened());
 
 				using (var image = new Mat()) // Frame image buffer
@@ -146,7 +172,7 @@ namespace FrameServer
 							var imageBytes = image.ToBytes();
 							Frames.Push(imageBytes);
 							JobsInQueue.Set(Frames.Count);
-							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", Program.RtspUrl, Program.Frames.Count, imageBytes.Length);
+							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", videoPath.MaskedUrl, Program.Frames.Count, imageBytes.Length);
 						}
 					}
 				}
@@ -155,7 +181,6 @@ namespace FrameServer
 				Console.WriteLine($"[VideoProcessor] Reopening");
 			}
 		}
-
 	}
 }
 
