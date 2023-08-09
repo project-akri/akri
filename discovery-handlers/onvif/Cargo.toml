@@ -12,7 +12,9 @@ akri-discovery-utils = { path = "../../discovery-utils" }
 akri-shared = { path = "../../shared" }
 anyhow = "1.0.38"
 async-trait = "0.1.0"
+base64 = "0.13.1"
 bytes = "1.0.1"
+chrono = "0.4.10"
 env_logger = "0.10.0"
 futures-util = "0.3"
 hyper = { version = "0.14.11", package = "hyper" }
@@ -21,6 +23,7 @@ serde = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
+sha1 = "0.6.1"
 sxd-document = "0.3.0"
 sxd-xpath = "0.4.0"
 tokio = { version = "1.0", features = ["time", "net", "sync"] }
