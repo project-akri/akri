@@ -13,6 +13,8 @@ pub const DEVICE_CREDENTIAL_PASSWORD_PREFIX: &str = "password_";
 pub const DEVICE_CREDENTIAL_DEFAULT_USERNAME: &str = "username_default";
 /// Key name of default password
 pub const DEVICE_CREDENTIAL_DEFAULT_PASSWORD: &str = "password_default";
+/// Name of default credential for querying CredentialStore
+pub const DEFAULT_CREDENTIAL_ID: &str = "default";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct CredentialData {
@@ -49,7 +51,6 @@ struct CredentialRefData {
 #[derive(Default)]
 pub struct CredentialStore {
     credentials: HashMap<String, (String, Option<String>)>,
-    default_credential: Option<(String, Option<String>)>,
 }
 
 impl CredentialStore {
@@ -65,8 +66,8 @@ impl CredentialStore {
     pub fn get(&self, uuid: &str) -> Option<(String, Option<String>)> {
         self.credentials
             .get(uuid)
+            .or_else(|| self.credentials.get(DEFAULT_CREDENTIAL_ID))
             .map(|(n, p)| (n.to_string(), p.as_ref().map(|p| p.to_string())))
-            .or(self.default_credential.clone())
     }
 
     fn process_credential_list(&mut self, credential_data: &HashMap<String, ByteData>) {
@@ -156,7 +157,7 @@ impl CredentialStore {
     }
 
     fn process_default_username_password(&mut self, credential_data: &HashMap<String, ByteData>) {
-        self.default_credential = credential_data
+        let default_credential = credential_data
             .get(DEVICE_CREDENTIAL_DEFAULT_USERNAME)
             .and_then(byte_data_to_str)
             .map(|username| username.to_string())
@@ -167,6 +168,10 @@ impl CredentialStore {
                     .map(|password| password.to_string());
                 (username, password)
             });
+        if let Some(credential) = default_credential {
+            self.credentials
+                .insert(DEFAULT_CREDENTIAL_ID.to_string(), credential);
+        }
     }
 }
 
@@ -469,7 +474,7 @@ mod tests {
         let credential_data = build_default_username_password_data();
 
         let credential_store = CredentialStore::new(&credential_data);
-        assert_eq!(credential_store.default_credential, Some(expected_result));
+        assert_eq!(credential_store.get("any_id"), Some(expected_result));
     }
 
     #[test]
@@ -649,10 +654,7 @@ mod tests {
             ("username_5f".to_string(), Some("password_5f".to_string())),
         );
         let credentials = HashMap::from([credential.clone()]);
-        let credential_store = CredentialStore {
-            credentials,
-            default_credential: None,
-        };
+        let credential_store = CredentialStore { credentials };
         let result = credential_store.get(&credential.0);
         assert_eq!(result, Some(credential.1));
     }
@@ -665,10 +667,7 @@ mod tests {
             ("username_5f".to_string(), Some("password_5f".to_string())),
         );
         let credentials = HashMap::from([credential]);
-        let credential_store = CredentialStore {
-            credentials,
-            default_credential: None,
-        };
+        let credential_store = CredentialStore { credentials };
         let result = credential_store.get("not-exist-uuid");
         assert!(result.is_none());
     }
@@ -681,14 +680,14 @@ mod tests {
             ("username_5f".to_string(), Some("password_5f".to_string())),
         );
         let default_credential = (
-            "default_username".to_string(),
-            Some("default_password".to_string()),
+            "default".to_string(),
+            (
+                "default_username".to_string(),
+                Some("default_password".to_string()),
+            ),
         );
-        let credentials = HashMap::from([credential.clone()]);
-        let credential_store = CredentialStore {
-            credentials,
-            default_credential: Some(default_credential),
-        };
+        let credentials = HashMap::from([credential.clone(), default_credential]);
+        let credential_store = CredentialStore { credentials };
         let result = credential_store.get(&credential.0);
         assert_eq!(result, Some(credential.1));
     }
@@ -701,15 +700,15 @@ mod tests {
             ("username_5f".to_string(), Some("password_5f".to_string())),
         );
         let default_credential = (
-            "default_username".to_string(),
-            Some("default_password".to_string()),
+            "default".to_string(),
+            (
+                "default_username".to_string(),
+                Some("default_password".to_string()),
+            ),
         );
-        let credentials = HashMap::from([credential]);
-        let credential_store = CredentialStore {
-            credentials,
-            default_credential: Some(default_credential.clone()),
-        };
+        let credentials = HashMap::from([credential, default_credential.clone()]);
+        let credential_store = CredentialStore { credentials };
         let result = credential_store.get("not-exist-uuid");
-        assert_eq!(result, Some(default_credential));
+        assert_eq!(result, Some(default_credential.1));
     }
 }
