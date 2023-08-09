@@ -1,3 +1,4 @@
+use super::credential_store::CredentialStore;
 use super::discovery_impl::util;
 use super::discovery_utils::{
     OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
@@ -75,6 +76,8 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let discovery_handler_config: OnvifDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+        let credential_store = CredentialStore::new(&discover_request.discovery_properties);
+        let onvif_query = OnvifQueryImpl::new(credential_store);
         tokio::spawn(async move {
             let mut previous_cameras = HashMap::new();
             let mut filtered_camera_devices = HashMap::new();
@@ -88,7 +91,6 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     break;
                 }
                 let mut changed_camera_list = false;
-                let onvif_query = OnvifQueryImpl {};
 
                 trace!("discover - filters:{:?}", &discovery_handler_config,);
                 let mut socket = util::get_discovery_response_socket().await.unwrap();
@@ -172,7 +174,7 @@ async fn apply_filters(
     }
 
     let (ip_address, mac_address) = match onvif_query
-        .get_device_ip_and_mac_address(device_service_uri)
+        .get_device_ip_and_mac_address(device_service_uri, device_uuid)
         .await
     {
         Ok(ip_and_mac) => ip_and_mac,
@@ -254,8 +256,8 @@ mod tests {
     ) {
         mock.expect_get_device_ip_and_mac_address()
             .times(1)
-            .withf(move |u| u == uri)
-            .returning(move |_| Ok((ip.to_string(), mac.to_string())));
+            .withf(move |u, _uuid| u == uri)
+            .returning(move |_, _| Ok((ip.to_string(), mac.to_string())));
     }
 
     fn expected_device(uri: &str, uuid: &str, ip: &str, mac: &str) -> (String, Device) {

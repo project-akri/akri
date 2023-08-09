@@ -1,6 +1,8 @@
+mod credential_store;
 pub mod discovery_handler;
 mod discovery_impl;
 mod discovery_utils;
+mod username_token;
 
 #[macro_use]
 extern crate serde_derive;
