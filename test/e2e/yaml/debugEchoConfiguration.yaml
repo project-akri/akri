@@ -1,0 +1,43 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: akri-debug-echo-foo
+spec:
+  discoveryHandler: 
+    name: debugEcho
+    discoveryDetails: |+
+      descriptions:
+        - bar0
+        - bar1
+  brokerSpec:
+    brokerPodSpec:
+      containers:
+      - name: akri-debug-echo-foo-broker
+        image: "nginx:stable-alpine"
+        resources:
+          requests:
+            "{{PLACEHOLDER}}" : "1"
+            memory: 10Mi
+            cpu: 10m
+          limits:
+            "{{PLACEHOLDER}}" : "1"
+            memory: 30Mi
+            cpu: 29m
+  instanceServiceSpec:
+    type: ClusterIP
+    ports:
+    - name: akri-debug-echo-foo-instance-service
+      port: 6052
+      protocol: TCP
+      targetPort: 6052
+  configurationServiceSpec:
+    type: ClusterIP
+    ports:
+    - name: akri-debug-echo-foo-configuration-service
+      port: 6052
+      protocol: TCP
+      targetPort: 6052
+  brokerProperties:
+    RESOLUTION_WIDTH: "800"
+    RESOLUTION_HEIGHT: "600"
+  capacity: 2
