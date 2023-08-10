@@ -218,7 +218,7 @@ pub mod util {
             .probe_match
             .iter()
             .filter(|probe_match| {
-                !execute_filter(scopes, &probe_match.scopes, |scope, pattern| {
+                !execute_filter(scopes, Some(&probe_match.scopes), |scope, pattern| {
                     scope.split_whitespace().any(|s| s == pattern)
                 })
             })
@@ -268,7 +268,7 @@ pub mod util {
 
     pub(crate) fn execute_filter<P>(
         filter_list: Option<&FilterList>,
-        filter_against: &[String],
+        filter_against: Option<&Vec<String>>,
         predicate: P,
     ) -> bool
     where
@@ -277,9 +277,16 @@ pub mod util {
         if filter_list.is_none() {
             return false;
         }
-        let filter_action = filter_list.as_ref().unwrap().action.clone();
+        let filter_list = filter_list.unwrap();
+        if filter_list.items.is_empty() && filter_list.action == FilterType::Exclude {
+            return false;
+        }
+        if filter_against.is_none() {
+            return true;
+        }
+        let filter_against = filter_against.unwrap();
+        let filter_action = filter_list.action.clone();
         let filter_count = filter_list
-            .unwrap()
             .items
             .iter()
             .filter(|pattern| {
@@ -529,6 +536,145 @@ pub mod util {
                 let result = get_onvif_device_id(test_string.0);
                 assert_eq!(result, test_string.1);
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod filter_tests {
+        use super::*;
+
+        // execute_filter should return false (not filter out)
+        // if filter_list is None
+        #[test]
+        fn test_execute_filter_filter_list_is_none() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let predicate_match = |_v: &str, _p: &str| true;
+            let predicate_not_match = |_v: &str, _p: &str| false;
+            let filter_list: Option<&FilterList> = None;
+
+            assert!(!execute_filter(None, None, predicate_match,));
+            assert!(!execute_filter(None, None, predicate_not_match,));
+            assert!(!execute_filter(
+                filter_list,
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate_match,
+            ));
+            assert!(!execute_filter(
+                filter_list,
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate_not_match,
+            ));
+        }
+
+        // execute_filter should return false (not filter out)
+        // if filter_list is Exclude:empty items vector
+        #[test]
+        fn test_execute_filter_filter_list_is_exclude_nothing() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let predicate_match = |_v: &str, _p: &str| true;
+            let predicate_not_match = |_v: &str, _p: &str| false;
+            let filter_list = Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec![],
+            });
+
+            assert!(!execute_filter(filter_list.as_ref(), None, predicate_match,));
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                None,
+                predicate_not_match,
+            ));
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate_match,
+            ));
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate_not_match,
+            ));
+        }
+
+        // execute_filter should return true (filter out)
+        // if filter_against is None
+        #[test]
+        fn test_execute_filter_filter_against_is_none() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let predicate_match = |_v: &str, _p: &str| true;
+            let predicate_not_match = |_v: &str, _p: &str| false;
+            let filter_list = Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec!["foo".to_string(), "bar".to_string()],
+            });
+
+            assert!(execute_filter(filter_list.as_ref(), None, predicate_match,));
+            assert!(execute_filter(
+                filter_list.as_ref(),
+                None,
+                predicate_not_match,
+            ));
+
+            let filter_list = Some(FilterList {
+                action: FilterType::Include,
+                items: vec!["foo".to_string(), "bar".to_string()],
+            });
+            assert!(execute_filter(filter_list.as_ref(), None, predicate_match,));
+            assert!(execute_filter(
+                filter_list.as_ref(),
+                None,
+                predicate_not_match,
+            ));
+        }
+
+        #[test]
+        fn test_execute_filter() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let predicate = |v: &str, p: &str| v == p;
+            let filter_list = Some(FilterList {
+                action: FilterType::Exclude,
+                items: vec!["foo".to_string(), "bar".to_string()],
+            });
+
+            assert!(execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate,
+            ));
+            assert!(execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["bar".to_string()]).as_ref(),
+                predicate,
+            ));
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foobar".to_string()]).as_ref(),
+                predicate,
+            ));
+
+            let filter_list = Some(FilterList {
+                action: FilterType::Include,
+                items: vec!["foo".to_string(), "bar".to_string()],
+            });
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foo".to_string()]).as_ref(),
+                predicate,
+            ));
+            assert!(!execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["bar".to_string()]).as_ref(),
+                predicate,
+            ));
+            assert!(execute_filter(
+                filter_list.as_ref(),
+                Some(vec!["foobar".to_string()]).as_ref(),
+                predicate,
+            ));
         }
     }
 
