@@ -1,6 +1,7 @@
 [package]
 name = "udev-discovery-handler"
 version = "0.12.4"
+license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
