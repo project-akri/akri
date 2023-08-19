@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-namespace Akri 
+namespace Akri
 {
 	class Credential {
 		public string Username { get; set; }
@@ -12,14 +12,14 @@ namespace Akri
 	}
 
 	class CredentialData {
-    	public string Username { get; set; }
-    	public string Password { get; set; }
-    	public bool Base64encoded { get; set; }
+		public string Username { get; set; }
+		public string Password { get; set; }
+		public bool Base64encoded { get; set; }
 	}
-	
+
 	class CredentialRefData {
-    	public string Username_ref { get; set; }
-	    public string Password_ref { get; set; }
+		public string Username_ref { get; set; }
+		public string Password_ref { get; set; }
 	}
 
 	class CredentialStore {
@@ -75,8 +75,8 @@ namespace Akri
 				}
 			}
 
-            var isDefault = false;
-            if (!allRefDictionary.TryGetValue(id, out CredentialRefData credentialRefData)) {
+			var isDefault = false;
+			if (!allRefDictionary.TryGetValue(id, out CredentialRefData credentialRefData)) {
 				if (!allRefDictionary.TryGetValue("default", out credentialRefData)) {
 					return (null, false);
 				}
@@ -100,7 +100,7 @@ namespace Akri
 			if (credentialList == null) {
 				return (null, false);
 			}
-			
+
 			var allCredentialDictionary = new Dictionary<string, CredentialData>();
 			foreach (var refList in credentialList) {
 				var credentialRef = ReadStringFromFile(this.secretDirectory, refList);
@@ -112,8 +112,8 @@ namespace Akri
 				}
 			}
 
-            var isDefault = false;
-            if (!allCredentialDictionary.TryGetValue(id, out CredentialData credentialData)) {
+			var isDefault = false;
+			if (!allCredentialDictionary.TryGetValue(id, out CredentialData credentialData)) {
 				if (!allCredentialDictionary.TryGetValue("default", out credentialData)) {
 					return (null, false);
 				}
@@ -124,7 +124,7 @@ namespace Akri
 				byte[] data = Convert.FromBase64String(credentialData.Password);
 				decodedPassword = System.Text.Encoding.UTF8.GetString(data);
 			}
-			
+
 			Credential credential = new Credential() {
 					Username = credentialData.Username,
 					Password = decodedPassword

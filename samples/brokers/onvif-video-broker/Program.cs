@@ -34,7 +34,7 @@ namespace FrameServer
 				{
 					Console.WriteLine("No frame available for {0}", Program.RtspUrl.MaskedUrl);
 				}
-				else 
+				else
 				{
 					Console.WriteLine("Sending frame for {0}, Q size: {1}", Program.RtspUrl.MaskedUrl, Program.Frames.Count);
 				}
@@ -100,7 +100,7 @@ namespace FrameServer
 	}
 
 	class Program
-    {
+	{
 		public static Task FrameTask;
 		public static RtspUrlContent RtspUrl;
 		public static LimitedSizeStack<byte[]> Frames;
@@ -142,15 +142,15 @@ namespace FrameServer
 		});
 
 		public static readonly Gauge JobsInQueue = Metrics.CreateGauge(
-			"cached_frames", 
+			"cached_frames",
 			"Number of cached camera frames.");
 
 		private static readonly Counter CamerasCounter = Metrics.CreateCounter(
-			"cameras", 
+			"cameras",
 			"Number of connected cameras.");
 
 		private static readonly Counter CameraDisconnectCounter = Metrics.CreateCounter(
-			"camera_disconnects", 
+			"camera_disconnects",
 			"Number of times camera connection had to be restablished.");
 
 		static void Process(RtspUrlContent videoPath)

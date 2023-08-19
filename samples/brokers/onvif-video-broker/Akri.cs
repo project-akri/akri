@@ -10,10 +10,10 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.XPath;
 
-namespace Akri 
+namespace Akri
 {
-    public static class Akri 
-    {
+	public static class Akri
+	{
 		private static string PostSoapRequest(String requestUri, String action, String soapMessage)
 		{
 			var request = (HttpWebRequest) WebRequest.CreateDefault(new Uri(requestUri));
@@ -30,9 +30,9 @@ namespace Akri
 			{
 				using (StreamReader responseReader = new StreamReader(requestResponse.GetResponseStream()))
 				{
-					return responseReader.ReadToEnd();  
-				}  
-			}  			
+					return responseReader.ReadToEnd();
+				}
+			}
 		}
 
 		private const String MEDIA_WSDL = "http://www.onvif.org/ver10/media/wsdl";
@@ -64,7 +64,7 @@ namespace Akri
 		</soap:Envelope>";
 
 		// Regular expression pattern of environment variables that hold OPC UA DiscoveryURL
-		// The pattern is ONVIF_DEVICE_SERVICE_URL_ followed by 6 digit digest.  e.g.
+		// The pattern is ONVIF_DEVICE_SERVICE_URL_ followed by 6 digit digest. e.g.
 		// ONVIF_DEVICE_SERVICE_URL_123456, ONVIF_DEVICE_SERVICE_URL_ABCDEF
 		private const string OnvifDeviceServiceUrlLabelPattern = "^ONVIF_DEVICE_SERVICE_URL_[A-F0-9]{6,6}$";
 		private const string OnvifDeviceUuidLabelPattern = "^ONVIF_DEVICE_UUID_[A-F0-9]{6,6}$";
@@ -134,41 +134,41 @@ namespace Akri
 				if (!String.IsNullOrEmpty(usernameToken.Username)) {
 					var password = usernameToken.Password ?? "";
 					var credential_string = String.Format("{0}:{1}@", usernameToken.Username, password);
-    				streaming_uri = streaming_uri.Substring(rtspPrefix.Length);
+					streaming_uri = streaming_uri.Substring(rtspPrefix.Length);
 					streaming_uri = String.Format("{0}{1}{2}", rtspPrefix, credential_string, streaming_uri);
 				}
 			}
 			return streaming_uri;
 		}
 
-        private static List<string> GetDeviceServiceUrls()
-        {
-            var values = new List<string>();
-            foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
-            {
-                if (Regex.IsMatch(de.Key.ToString(), OnvifDeviceServiceUrlLabelPattern))
-                {
-                    values.Add(de.Value.ToString());
-                }
-            }
-            return values;
-        }
+		private static List<string> GetDeviceServiceUrls()
+		{
+			var values = new List<string>();
+			foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
+			{
+				if (Regex.IsMatch(de.Key.ToString(), OnvifDeviceServiceUrlLabelPattern))
+				{
+					values.Add(de.Value.ToString());
+				}
+			}
+			return values;
+		}
 
-        private static List<string> GetDeviceUuids()
-        {
-            var values = new List<string>();
-            foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
-            {
-                if (Regex.IsMatch(de.Key.ToString(), OnvifDeviceUuidLabelPattern))
-                {
-                    values.Add(de.Value.ToString());
-                }
-            }
-            return values;
-        }
+		private static List<string> GetDeviceUuids()
+		{
+			var values = new List<string>();
+			foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
+			{
+				if (Regex.IsMatch(de.Key.ToString(), OnvifDeviceUuidLabelPattern))
+				{
+					values.Add(de.Value.ToString());
+				}
+			}
+			return values;
+		}
 
-        public static string GetRtspUrl()
-        {
+		public static string GetRtspUrl()
+		{
 			var device_uuids = GetDeviceUuids();
 			var device_uuid = (device_uuids.Count != 0) ? device_uuids[0] : "";
 			Credential credential = null;
@@ -181,9 +181,9 @@ namespace Akri
 			}
 			var userNameToken = new UsernameToken(credential?.Username, credential?.Password);
 
-            // Get the first found Onvif device service url and use it
-            var device_service_urls = GetDeviceServiceUrls();
-            var device_service_url = (device_service_urls.Count != 0) ? device_service_urls[0] : "";
+			// Get the first found Onvif device service url and use it
+			var device_service_urls = GetDeviceServiceUrls();
+			var device_service_url = (device_service_urls.Count != 0) ? device_service_urls[0] : "";
 			if (string.IsNullOrEmpty(device_service_url))
 			{
 				throw new ArgumentNullException("ONVIF_DEVICE_SERVICE_URL undefined");
@@ -193,6 +193,6 @@ namespace Akri
 			var profile = GetProfile(media_url, userNameToken);
 			var streaming_url = GetStreamingUri(media_url, profile, userNameToken);
 			return streaming_url;
-        }
+		}
 	}
 }

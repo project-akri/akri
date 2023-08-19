@@ -2,7 +2,7 @@ using System;
 using System.Text;
 using System.Security.Cryptography;
 
-namespace Akri 
+namespace Akri
 {
 	class UsernameToken {
 		public string Username { get; }
@@ -36,26 +36,26 @@ namespace Akri
 		</wsse:Security>";
 
 		private string CalculateNonce()
-        {
-            var buffer = new byte[16];
-            using (var r = RandomNumberGenerator.Create())
-            {
-                r.GetBytes(buffer);
-            }
-            return Convert.ToBase64String(buffer);
-        }
+		{
+			var buffer = new byte[16];
+			using (var r = RandomNumberGenerator.Create())
+			{
+				r.GetBytes(buffer);
+			}
+			return Convert.ToBase64String(buffer);
+		}
 
-        private string CalculatePasswordDigest(string nonceStr, string created, string password)
-        {
-            var nonce = Convert.FromBase64String(nonceStr); 
-            var createdBytes = Encoding.UTF8.GetBytes(created);
-            var passwordBytes = Encoding.UTF8.GetBytes(password);
-            var combined = new byte[createdBytes.Length + nonce.Length + passwordBytes.Length];
-            Buffer.BlockCopy(nonce, 0, combined, 0, nonce.Length);
-            Buffer.BlockCopy(createdBytes, 0, combined, nonce.Length, createdBytes.Length);
-            Buffer.BlockCopy(passwordBytes, 0, combined, nonce.Length + createdBytes.Length, passwordBytes.Length);
+		private string CalculatePasswordDigest(string nonceStr, string created, string password)
+		{
+			var nonce = Convert.FromBase64String(nonceStr);
+			var createdBytes = Encoding.UTF8.GetBytes(created);
+			var passwordBytes = Encoding.UTF8.GetBytes(password);
+			var combined = new byte[createdBytes.Length + nonce.Length + passwordBytes.Length];
+			Buffer.BlockCopy(nonce, 0, combined, 0, nonce.Length);
+			Buffer.BlockCopy(createdBytes, 0, combined, nonce.Length, createdBytes.Length);
+			Buffer.BlockCopy(passwordBytes, 0, combined, nonce.Length + createdBytes.Length, passwordBytes.Length);
 
-            return Convert.ToBase64String(SHA1.Create().ComputeHash(combined));
-        }
+			return Convert.ToBase64String(SHA1.Create().ComputeHash(combined));
+		}
 	}
 }
