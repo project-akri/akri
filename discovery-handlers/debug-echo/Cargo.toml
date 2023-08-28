@@ -10,14 +10,9 @@ rust-version = "1.68.1"
 
 [dependencies]
 akri-discovery-utils = { path = "../../discovery-utils" }
-anyhow = "1.0.38"
 async-trait = "0.1.0"
-env_logger = "0.10.0"
-futures-util = "0.3"
 log = "0.4"
 serde = "1.0.104"
-serde_json = "1.0.45"
-serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
 tokio = { version = "1.0.1", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
@@ -25,3 +20,6 @@ tonic = { version = "0.5.2", features = ["tls"] }
 
 [dev-dependencies]
 akri-shared = { path = "../../shared" }
+anyhow = "1.0.38"
+serde_json = "1.0.45"
+serde_yaml = "0.8.11"
