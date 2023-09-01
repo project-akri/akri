@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.12.3"
+version = "0.12.4"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
 rust-version = "1.68.1"
