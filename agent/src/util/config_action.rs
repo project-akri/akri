@@ -50,6 +50,7 @@ pub struct ConfigInfo {
 pub async fn do_config_watch(
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
+    node_name: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     info!("do_config_watch - enter");
     let config_map: ConfigMap = Arc::new(RwLock::new(HashMap::new()));
@@ -63,6 +64,7 @@ pub async fn do_config_watch(
         let discovery_handler_map = discovery_handler_map.clone();
         let new_discovery_handler_sender = new_discovery_handler_sender.clone();
         let new_kube_interface = kube_interface.clone();
+        let new_node_name = node_name.clone();
         tasks.push(tokio::spawn(async move {
             handle_config_add(
                 new_kube_interface,
@@ -70,6 +72,7 @@ pub async fn do_config_watch(
                 config_map,
                 discovery_handler_map,
                 new_discovery_handler_sender,
+                new_node_name,
             )
             .await
             .unwrap();
@@ -83,6 +86,7 @@ pub async fn do_config_watch(
             config_map,
             discovery_handler_map,
             new_discovery_handler_sender,
+            node_name,
         )
         .await
         .unwrap();
@@ -99,6 +103,7 @@ async fn watch_for_config_changes(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
+    node_name: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("watch_for_config_changes - start");
     let resource = Api::<Configuration>::all(kube_interface.get_kube_client());
@@ -121,6 +126,7 @@ async fn watch_for_config_changes(
             config_map.clone(),
             discovery_handler_map.clone(),
             new_discovery_handler_sender,
+            node_name.clone(),
         )
         .await?
     }
@@ -135,6 +141,7 @@ async fn handle_config(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
+    node_name: String,
 ) -> anyhow::Result<()> {
     trace!("handle_config - something happened to a configuration");
     match event {
@@ -149,6 +156,7 @@ async fn handle_config(
                 config_map,
                 discovery_handler_map,
                 new_discovery_handler_sender,
+                node_name,
             )
             .await?;
         }
@@ -186,6 +194,7 @@ async fn handle_config(
                     config_map.clone(),
                     discovery_handler_map.clone(),
                     new_discovery_handler_sender.clone(),
+                    node_name.clone(),
                 )
                 .await?;
             }
@@ -200,6 +209,7 @@ async fn handle_config_apply(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
+    node_name: String,
 ) -> anyhow::Result<()> {
     // Applied events can either be newly added Configurations or modified Configurations.
     // If modified delete all associated instances and device plugins and then recreate them to reflect updated config
@@ -231,6 +241,7 @@ async fn handle_config_apply(
             config_map,
             discovery_handler_map,
             new_discovery_handler_sender,
+            node_name,
         )
         .await
         .unwrap();
@@ -246,6 +257,7 @@ async fn handle_config_add(
     config_map: ConfigMap,
     discovery_handler_map: RegisteredDiscoveryHandlerMap,
     new_discovery_handler_sender: broadcast::Sender<String>,
+    node_name: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let config_id: ConfigId = (
         config.metadata.namespace.clone().unwrap(),
@@ -276,6 +288,7 @@ async fn handle_config_add(
             stop_discovery_sender,
             &mut finished_discovery_sender,
             kube_interface,
+            node_name,
         )
         .await
         .unwrap();
@@ -446,6 +459,7 @@ mod config_action_tests {
             config_map.clone(),
             dh_map.clone(),
             tx.clone(),
+            "node-a".to_string(),
         )
         .await
         .is_ok());
@@ -461,6 +475,7 @@ mod config_action_tests {
             config_map.clone(),
             dh_map,
             tx,
+            "node-a".to_string(),
         )
         .await
         .is_ok());

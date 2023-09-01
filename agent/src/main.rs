@@ -12,6 +12,7 @@ use log::{info, trace};
 use prometheus::{HistogramVec, IntGaugeVec};
 use std::{
     collections::HashMap,
+    env,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -52,6 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     );
 
     let mut tasks = Vec::new();
+    let node_name = env::var("AGENT_NODE_NAME")?;
 
     // Start server for Prometheus metrics
     tasks.push(tokio::spawn(async move {
@@ -83,9 +85,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     }));
 
     tasks.push(tokio::spawn(async move {
-        config_action::do_config_watch(discovery_handler_map, new_discovery_handler_sender_clone)
-            .await
-            .unwrap()
+        config_action::do_config_watch(
+            discovery_handler_map,
+            new_discovery_handler_sender_clone,
+            node_name,
+        )
+        .await
+        .unwrap()
     }));
 
     futures::future::try_join_all(tasks).await?;
