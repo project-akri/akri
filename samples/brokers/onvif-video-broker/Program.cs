@@ -21,6 +21,8 @@ namespace FrameServer
 		public override Task<NotifyResponse> GetFrame(
 			NotifyRequest request, ServerCallContext context)
 		{
+			// Mask credential information in Program.RtspUrl to prevent the credential info shown in console output
+			var rtspUrlWithMaskedCredential = RtspUrlHelper.GetMaskedCredentialUrl(Program.RtspUrl);
 			byte[] frame = null;
 			lock (Program.Frames)
 			{
@@ -32,17 +34,17 @@ namespace FrameServer
 
 				if (frame == null)
 				{
-					Console.WriteLine("No frame available for {0}", Program.RtspUrl.MaskedUrl);
+					Console.WriteLine("No frame available for {0}", rtspUrlWithMaskedCredential);
 				}
 				else
 				{
-					Console.WriteLine("Sending frame for {0}, Q size: {1}", Program.RtspUrl.MaskedUrl, Program.Frames.Count);
+					Console.WriteLine("Sending frame for {0}, Q size: {1}", rtspUrlWithMaskedCredential, Program.Frames.Count);
 				}
 			}
 
 			return Task.FromResult(new NotifyResponse
 			{
-				Camera = Program.RtspUrl.Url,
+				Camera = Program.RtspUrl,
 				Frame = (frame == null ? Google.Protobuf.ByteString.Empty : Google.Protobuf.ByteString.CopyFrom(frame))
 			});
 		}
@@ -73,19 +75,8 @@ namespace FrameServer
 		}
 	}
 
-	public class RtspUrlContent {
-		private readonly string rtspUrl;
-		private readonly string maskedRtspUrl;
-
-		public RtspUrlContent(string rtspUrl) {
-			this.rtspUrl = rtspUrl;
-			this.maskedRtspUrl = GetMaskedUrl(rtspUrl);
-		}
-
-		public string Url { get { return rtspUrl; } }
-		public string MaskedUrl { get { return maskedRtspUrl; } }
-
-		private string GetMaskedUrl(string rtspUrl) {
+	public static class RtspUrlHelper {
+		public static string GetMaskedCredentialUrl(string rtspUrl) {
 			const string rtspPrefix = "rtsp://";
 			var maskedRtspUrl = rtspUrl;
 			if (rtspUrl.StartsWith(rtspPrefix)) {
@@ -102,7 +93,7 @@ namespace FrameServer
 	class Program
 	{
 		public static Task FrameTask;
-		public static RtspUrlContent RtspUrl;
+		public static string RtspUrl;
 		public static LimitedSizeStack<byte[]> Frames;
 
 		static void Main(string[] args)
@@ -115,15 +106,15 @@ namespace FrameServer
 				throw new ArgumentNullException("Unable to create Frames");
 			}
 
-			var rtspUrl = Environment.GetEnvironmentVariable("RTSP_URL");
-			if (string.IsNullOrEmpty(rtspUrl)) {
-				rtspUrl = Akri.Akri.GetRtspUrl();
+			RtspUrl = Environment.GetEnvironmentVariable("RTSP_URL");
+			if (string.IsNullOrEmpty(RtspUrl)) {
+				RtspUrl = Akri.Akri.GetRtspUrl();
 			}
-			if (string.IsNullOrEmpty(rtspUrl))
+			if (string.IsNullOrEmpty(RtspUrl))
 			{
 				throw new ArgumentNullException("Unable to find RTSP URL");
 			}
-			RtspUrl = new RtspUrlContent(rtspUrl);
+
 			CamerasCounter.Inc();
 
 			FrameTask = Task.Run(() => Process(RtspUrl));
@@ -153,13 +144,15 @@ namespace FrameServer
 			"camera_disconnects",
 			"Number of times camera connection had to be restablished.");
 
-		static void Process(RtspUrlContent videoPath)
+		static void Process(string videoPath)
 		{
-			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPath.MaskedUrl}");
+			// Mask credential information in videoPath to prevent the credential info shown in console output
+			var videoPathWithMaskedCredential = RtspUrlHelper.GetMaskedCredentialUrl(videoPath);
+			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPathWithMaskedCredential}");
 
 			while (true)
 			{
-				var capture = new VideoCapture(videoPath.Url);
+				var capture = new VideoCapture(videoPath);
 				Console.WriteLine("Ready " + capture.IsOpened());
 
 				using (var image = new Mat()) // Frame image buffer
@@ -172,7 +165,7 @@ namespace FrameServer
 							var imageBytes = image.ToBytes();
 							Frames.Push(imageBytes);
 							JobsInQueue.Set(Frames.Count);
-							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", videoPath.MaskedUrl, Program.Frames.Count, imageBytes.Length);
+							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", videoPathWithMaskedCredential, Program.Frames.Count, imageBytes.Length);
 						}
 					}
 				}
