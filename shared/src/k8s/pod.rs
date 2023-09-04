@@ -225,8 +225,13 @@ pub fn modify_pod_spec(
             map.remove(RESOURCE_REQUIREMENTS_KEY);
         }
     };
-
-    for container in &mut pod_spec.containers {
+    for container in pod_spec.containers.iter_mut().chain(
+        pod_spec
+            .init_containers
+            .as_mut()
+            .unwrap_or(&mut Vec::default())
+            .iter_mut(),
+    ) {
         if let Some(resources) = container.resources.as_ref() {
             container.resources = Some(ResourceRequirements {
                 limits: {
@@ -342,6 +347,7 @@ mod broker_podspec_tests {
                 }),
                 ..Default::default()
             }],
+            None,
         );
     }
 
@@ -375,15 +381,65 @@ mod broker_podspec_tests {
                     ..Default::default()
                 },
             ],
+            None,
         );
     }
 
-    fn do_pod_spec_creation_test(image_names: Vec<String>, container_specs: Vec<Container>) {
+    #[test]
+    fn test_pod_spec_creation_with_init_containers() {
+        let mut placeholder_limits: ResourceQuantityType = BTreeMap::new();
+        placeholder_limits.insert(RESOURCE_REQUIREMENTS_KEY.to_string(), Default::default());
+        placeholder_limits.insert("do-not-change-this".to_string(), Default::default());
+        do_pod_spec_creation_test(
+            vec![
+                "image1".to_string(),
+                "image2".to_string(),
+                "image3".to_string(),
+            ],
+            vec![
+                Container {
+                    image: Some("image1".to_string()),
+                    resources: Some(ResourceRequirements {
+                        limits: Some(placeholder_limits.clone()),
+                        requests: Some(placeholder_limits.clone()),
+                    }),
+                    ..Default::default()
+                },
+                Container {
+                    image: Some("image2".to_string()),
+                    resources: Some(ResourceRequirements {
+                        limits: Some(placeholder_limits.clone()),
+                        requests: Some(placeholder_limits.clone()),
+                    }),
+                    ..Default::default()
+                },
+            ],
+            Some(vec![Container {
+                image: Some("image3".to_string()),
+                resources: Some(ResourceRequirements {
+                    limits: Some(placeholder_limits.clone()),
+                    requests: Some(placeholder_limits.clone()),
+                }),
+                ..Default::default()
+            }]),
+        );
+    }
+
+    fn do_pod_spec_creation_test(
+        image_names: Vec<String>,
+        container_specs: Vec<Container>,
+        init_containers_specs: Option<Vec<Container>>,
+    ) {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let num_containers = image_names.len();
+        let num_containers = container_specs.len();
+        let num_init_containers = init_containers_specs
+            .as_ref()
+            .unwrap_or(&Vec::default())
+            .len();
         let pod_spec = PodSpec {
             containers: container_specs,
+            init_containers: init_containers_specs,
             affinity: Some(Affinity {
                 node_affinity: Some(NodeAffinity {
                     required_during_scheduling_ignored_during_execution: Some(NodeSelector {
@@ -798,6 +854,127 @@ mod broker_podspec_tests {
                         .clone()
                         .unwrap()
                         .containers
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
+                        .contains_key(&resource_limit_name.clone())
+                );
+            }
+
+            for i in 0..num_init_containers {
+                assert_eq!(
+                    &image_names.get(num_containers + i).unwrap(),
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .image
+                        .as_ref()
+                        .unwrap()
+                );
+
+                // Validate existing limits/requires unchanged
+                assert_eq!(
+                    &true,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
+                        .contains_key("do-not-change-this")
+                );
+                assert_eq!(
+                    &true,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
+                        .contains_key("do-not-change-this")
+                );
+                // Validate the limits/requires added
+                assert_eq!(
+                    &false,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
+                        .contains_key(RESOURCE_REQUIREMENTS_KEY)
+                );
+                assert_eq!(
+                    &false,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .requests
+                        .as_ref()
+                        .unwrap()
+                        .contains_key(RESOURCE_REQUIREMENTS_KEY)
+                );
+                assert_eq!(
+                    &true,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
+                        .get(i)
+                        .unwrap()
+                        .resources
+                        .as_ref()
+                        .unwrap()
+                        .limits
+                        .as_ref()
+                        .unwrap()
+                        .contains_key(&resource_limit_name.clone())
+                );
+                assert_eq!(
+                    &true,
+                    &pod.spec
+                        .clone()
+                        .unwrap()
+                        .init_containers
+                        .unwrap()
                         .get(i)
                         .unwrap()
                         .resources
