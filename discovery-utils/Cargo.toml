@@ -1,6 +1,6 @@
 [package]
 name = "akri-discovery-utils"
-version = "0.12.4"
+version = "0.12.5"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
