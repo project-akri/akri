@@ -3,30 +3,6 @@
 version = 3
 
 [[package]]
-name = "actix"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3720d0064a0ce5c0de7bd93bdb0a6caebab2a9b5668746145d7b3b0c5da02914"
-dependencies = [
- "actix-rt 2.7.0",
- "actix_derive",
- "bitflags",
- "bytes 1.4.0",
- "crossbeam-channel",
- "futures-core",
- "futures-sink",
- "futures-task",
- "futures-util",
- "log",
- "once_cell",
- "parking_lot 0.11.2",
- "pin-project-lite 0.2.9",
- "smallvec",
- "tokio 1.26.0",
- "tokio-util 0.6.10",
-]
-
-[[package]]
 name = "actix-codec"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -315,17 +291,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix_derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d44b8fee1ced9671ba043476deddef739dd0959bf77030b26b738cc591737a7"
-dependencies = [
- "proc-macro2 1.0.56",
- "quote 1.0.26",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -333,7 +298,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "agent"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -345,13 +310,8 @@ dependencies = [
  "async-stream",
  "async-trait",
  "blake2",
- "cfg-if 1.0.0",
- "chrono",
  "env_logger",
  "futures",
- "futures-core",
- "futures-util",
- "h2 0.3.3",
  "hyper",
  "k8s-openapi",
  "kube",
@@ -363,8 +323,6 @@ dependencies = [
  "mockall_double",
  "prometheus",
  "prost",
- "prost-types",
- "rand 0.8.5",
  "serde",
  "serde_derive",
  "serde_json",
@@ -375,8 +333,6 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tower",
- "url 2.3.1",
- "uuid",
 ]
 
 [[package]]
@@ -402,14 +358,12 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
  "anyhow",
  "async-trait",
- "env_logger",
- "futures-util",
  "log",
  "serde",
  "serde_derive",
@@ -422,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -444,10 +398,9 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
- "akri-shared",
  "anyhow",
  "async-trait",
  "base64 0.13.1",
@@ -461,7 +414,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_yaml",
  "sha1 0.6.1",
  "sxd-document",
  "sxd-xpath",
@@ -475,22 +427,17 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
- "akri-shared",
  "anyhow",
  "async-trait",
- "env_logger",
- "futures-util",
  "log",
  "mockall",
  "opcua",
- "prost",
  "serde",
  "serde_derive",
  "serde_json",
- "serde_yaml",
  "tokio 1.26.0",
  "tokio-stream",
  "tonic",
@@ -499,18 +446,14 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "anyhow",
  "async-trait",
  "either",
  "env_logger",
- "futures",
- "futures-util",
- "hyper",
  "k8s-openapi",
  "kube",
- "kube-runtime",
  "log",
  "mockall",
  "prometheus",
@@ -528,23 +471,20 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
  "async-trait",
  "env_logger",
- "futures-util",
  "log",
  "mockall",
  "pest",
  "pest_derive",
- "prost",
  "regex",
  "serde",
  "serde_derive",
  "serde_json",
- "serde_yaml",
  "tokio 1.26.0",
  "tokio-stream",
  "tonic",
@@ -1046,12 +986,11 @@ checksum = "fbdcdcb6d86f71c5e97409ad45898af11cbc995b4ee8112d59095a28d376c935"
 
 [[package]]
 name = "controller"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-shared",
  "anyhow",
  "async-std",
- "async-trait",
  "chrono",
  "env_logger",
  "futures",
@@ -1062,10 +1001,7 @@ dependencies = [
  "log",
  "mockall",
  "prometheus",
- "serde",
- "serde_derive",
  "serde_json",
- "serde_yaml",
  "tokio 1.26.0",
 ]
 
@@ -1114,16 +1050,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
 dependencies = [
  "cfg-if 1.0.0",
-]
-
-[[package]]
-name = "crossbeam-channel"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
-dependencies = [
- "cfg-if 1.0.0",
- "crossbeam-utils",
 ]
 
 [[package]]
@@ -1246,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -2543,7 +2469,7 @@ checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2593,7 +2519,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -4192,7 +4118,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -4203,7 +4129,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
  "akri-shared",
  "env_logger",
@@ -4480,20 +4406,16 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.12.5"
+version = "0.12.6"
 dependencies = [
- "actix",
  "actix-rt 2.7.0",
  "actix-web",
  "akri-shared",
  "clap",
  "k8s-openapi",
  "kube",
- "kube-runtime",
  "openapi",
  "openssl",
- "rustls",
- "serde",
  "serde_json",
 ]
 

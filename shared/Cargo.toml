@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.12.5"
+version = "0.12.6"
 license = "Apache-2.0"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2018"
@@ -9,16 +9,11 @@ rust-version = "1.68.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.38"
 async-trait = "0.1.0"
 either = '*'
-anyhow = "1.0.38"
-futures = "0.3.1"
-futures-util = "0.3"
-env_logger = "0.10.0"
-hyper = { version = "0.14.2", package = "hyper" }
-kube = { version = "0.80.0",  features = ["derive"] }
-kube-runtime = "0.80.0"
 k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
+kube = { version = "0.80.0",  features = ["derive"] }
 log = "0.4"
 mockall = "0.10.2"
 prometheus = { version = "0.12.0", features = ["process"] }
@@ -32,3 +27,7 @@ tokio = { version = "1.0.1", features = ["full"] }
 tonic = "0.5.2"
 tower = "0.4.8"
 warp = "0.3.4"
+
+[dev-dependencies]
+env_logger = "0.10.0"
+

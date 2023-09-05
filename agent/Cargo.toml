@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.12.5"
+version = "0.12.6"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
@@ -9,56 +9,50 @@ rust-version = "1.68.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-akri-debug-echo = { path = "../discovery-handlers/debug-echo" }
+akri-debug-echo = { path = "../discovery-handlers/debug-echo", optional = true }
 akri-discovery-utils = { path = "../discovery-utils" }
 akri-onvif = { path = "../discovery-handlers/onvif", optional = true }
 akri-opcua = { path = "../discovery-handlers/opcua", optional = true }
-akri-udev = { path = "../discovery-handlers/udev", optional = true }
 akri-shared = { path = "../shared" }
+akri-udev = { path = "../discovery-handlers/udev", optional = true }
 anyhow = "1.0.38"
 async-stream = "0.3"
 async-trait = "0.1.0"
 blake2 = "0.9.0"
-chrono = "0.4.10"
-cfg-if = "1.0.0"
 env_logger = "0.10.0"
 futures = { version = "0.3.1", package = "futures" }
-futures-core = "0.3"
-futures-util = "0.3"
 hyper = "0.14.2"
-h2 = "=0.3.3"
+k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
 kube = { version = "0.80.0",  features = ["derive"] }
 kube-runtime = "0.80.0"
-k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
 lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.2.0"
 prometheus = { version = "0.12.0", features = ["process"] }
 prost = "0.8.0"
-prost-types = "0.8.0"
-rand = "0.8.2"
 serde = "1.0.104"
-serde_json = "1.0.45"
-serde_yaml = "0.8.11"
 serde_derive = "1.0.104"
+serde_json = "1.0.45"
+serde_yaml = { version = "0.8.11", optional = true }
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
 tonic = "0.5.2"
 tower = "0.4.8"
-url = "2.1.0"
-uuid = { version = "0.8.1", features = ["v4"] }
 
 [build-dependencies]
 tonic-build = "0.5.2"
 
 [dev-dependencies]
 # for testing using a simple discovery handler
+akri-debug-echo = { path = "../discovery-handlers/debug-echo" }
 akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discovery-handler"] }
 akri-onvif = { path = "../discovery-handlers/onvif" }
 akri-opcua = { path = "../discovery-handlers/opcua" }
 akri-udev = { path = "../discovery-handlers/udev"}
-mockall = "0.10.2"
+env_logger = "0.10.0"
 mock_instant = { version = "0.2", features = ["sync"] }
+mockall = "0.10.2"
+serde_yaml = "0.8.11"
 tempfile = "3.1.0"
 
 [features]
@@ -69,4 +63,4 @@ default = []
 onvif-feat = [ "akri-onvif"]
 opcua-feat = ["akri-opcua"]
 udev-feat = ["akri-udev"]
-agent-full = []
+agent-full = ["serde_yaml", "akri-debug-echo"]
