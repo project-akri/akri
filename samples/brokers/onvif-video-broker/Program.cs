@@ -21,6 +21,8 @@ namespace FrameServer
 		public override Task<NotifyResponse> GetFrame(
 			NotifyRequest request, ServerCallContext context)
 		{
+			// Mask credential information in Program.RtspUrl to prevent the credential info shown in console output
+			var rtspUrlWithMaskedCredential = RtspUrlHelper.GetMaskedCredentialUrl(Program.RtspUrl);
 			byte[] frame = null;
 			lock (Program.Frames)
 			{
@@ -32,11 +34,11 @@ namespace FrameServer
 
 				if (frame == null)
 				{
-					Console.WriteLine("No frame available for {0}", Program.RtspUrl);
+					Console.WriteLine("No frame available for {0}", rtspUrlWithMaskedCredential);
 				}
-				else 
+				else
 				{
-					Console.WriteLine("Sending frame for {0}, Q size: {1}", Program.RtspUrl, Program.Frames.Count);
+					Console.WriteLine("Sending frame for {0}, Q size: {1}", rtspUrlWithMaskedCredential, Program.Frames.Count);
 				}
 			}
 
@@ -73,8 +75,23 @@ namespace FrameServer
 		}
 	}
 
+	public static class RtspUrlHelper {
+		public static string GetMaskedCredentialUrl(string rtspUrl) {
+			const string rtspPrefix = "rtsp://";
+			var maskedRtspUrl = rtspUrl;
+			if (rtspUrl.StartsWith(rtspPrefix)) {
+				var atPos = rtspUrl.IndexOf('@', rtspPrefix.Length);
+				if (atPos != -1) {
+					maskedRtspUrl = rtspUrl.Substring(atPos);
+					maskedRtspUrl = String.Format("{0}----:----{1}", rtspPrefix, maskedRtspUrl);
+				}
+			}
+			return maskedRtspUrl;
+		}
+	}
+
 	class Program
-    {
+	{
 		public static Task FrameTask;
 		public static string RtspUrl;
 		public static LimitedSizeStack<byte[]> Frames;
@@ -116,20 +133,22 @@ namespace FrameServer
 		});
 
 		public static readonly Gauge JobsInQueue = Metrics.CreateGauge(
-			"cached_frames", 
+			"cached_frames",
 			"Number of cached camera frames.");
 
 		private static readonly Counter CamerasCounter = Metrics.CreateCounter(
-			"cameras", 
+			"cameras",
 			"Number of connected cameras.");
 
 		private static readonly Counter CameraDisconnectCounter = Metrics.CreateCounter(
-			"camera_disconnects", 
+			"camera_disconnects",
 			"Number of times camera connection had to be restablished.");
 
 		static void Process(string videoPath)
 		{
-			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPath}");
+			// Mask credential information in videoPath to prevent the credential info shown in console output
+			var videoPathWithMaskedCredential = RtspUrlHelper.GetMaskedCredentialUrl(videoPath);
+			Console.WriteLine($"[VideoProcessor] Processing RTSP stream: {videoPathWithMaskedCredential}");
 
 			while (true)
 			{
@@ -146,7 +165,7 @@ namespace FrameServer
 							var imageBytes = image.ToBytes();
 							Frames.Push(imageBytes);
 							JobsInQueue.Set(Frames.Count);
-							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", Program.RtspUrl, Program.Frames.Count, imageBytes.Length);
+							Console.WriteLine("Adding frame from {0}, Q size: {1}, frame size: {2}", videoPathWithMaskedCredential, Program.Frames.Count, imageBytes.Length);
 						}
 					}
 				}
@@ -155,7 +174,6 @@ namespace FrameServer
 				Console.WriteLine($"[VideoProcessor] Reopening");
 			}
 		}
-
 	}
 }
 
