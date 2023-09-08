@@ -1,6 +1,6 @@
 [package]
 name = "akri-udev"
-version = "0.12.7"
+version = "0.12.8"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
