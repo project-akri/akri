@@ -201,10 +201,11 @@ jobs:
       - if: startsWith(matrix.kube.runtime, 'k8s')
         name: Install Kubernetes
         run: |
+          SHORTVERSION=$(cut -d '.' -f 1,2 <<< "${{ matrix.kube.version }}")
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https ca-certificates curl
-          sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://dl.k8s.io/apt/doc/apt-key.gpg
-          echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+          curl -fsSL https://pkgs.k8s.io/core:/stable:/v${SHORTVERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${SHORTVERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
           sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
           sudo apt-get update
@@ -238,15 +239,9 @@ jobs:
 
           verlte() { [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ] ; }
           verlt()  { [ "$1" = "$2" ] && return 1 || verlte $1 $2 ; }
-          # Kubernetes 1.24+ has control plane label
-          if verlte "1.24.0" "${{ matrix.kube.version }}" ; then
-            kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-          fi
-          # Kubernetes before 1.25 has master label
-          if verlt "${{ matrix.kube.version }}" "1.25.0" ; then
-            kubectl taint nodes --all node-role.kubernetes.io/master-
-          fi
-
+          # Remove control plane label
+          kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+          
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
       - if: startsWith(matrix.kube.runtime, 'k8s')
