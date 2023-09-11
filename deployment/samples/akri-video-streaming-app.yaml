@@ -19,7 +19,7 @@ spec:
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
-          runAsNonRoot: true
+          runAsNonRoot: false
           readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
