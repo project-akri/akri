@@ -146,13 +146,13 @@ jobs:
           - runtime: k3s
             version: v1.28.1+k3s1
           - runtime: k8s
-            version: 1.25.13-00
+            version: 1.25.13
           - runtime: k8s
-            version: 1.26.8-00
+            version: 1.26.8
           - runtime: k8s
-            version: 1.27.5-00
+            version: 1.27.5
           - runtime: k8s
-            version: 1.28.1-00
+            version: 1.28.1
 
     steps:
       - name: Checkout the head commit of the branch
@@ -209,7 +209,7 @@ jobs:
           sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
           sudo apt-get update
-          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }} kubeadm=${{ matrix.kube.version }} kubectl=${{ matrix.kube.version }} containerd.io
+          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-* kubeadm=${{ matrix.kube.version }}-* kubectl=${{ matrix.kube.version }}-* containerd.io
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
