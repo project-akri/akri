@@ -100,6 +100,14 @@ def install_akri(request, distribution_config, pytestconfig, akri_version):
                     "agent.allowDebugEcho=true,debugEcho.configuration.shared=false",
                 ]
             )
+        if pytestconfig.getoption("--use-local"):
+            local_tag = pytestconfig.getoption("--local-tag", "pr-amd64")
+            helm_install_command.extend(
+                [
+                    "--set",
+                    f"{discovery_handler}.discovery.image.pullPolicy=Never,"
+                    f"{discovery_handler}.discovery.image.tag={local_tag}"
+                ])
         helm_install_command.extend(
             [
                 "--set",
