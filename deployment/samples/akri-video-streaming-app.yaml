@@ -18,8 +18,9 @@ spec:
         image: ghcr.io/project-akri/akri/video-streaming-app:latest-dev
         imagePullPolicy: Always
         securityContext:
+          runAsUser: 1000
           allowPrivilegeEscalation: false
-          runAsNonRoot: false
+          runAsNonRoot: true
           readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
