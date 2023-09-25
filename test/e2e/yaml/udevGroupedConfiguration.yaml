@@ -1,0 +1,11 @@
+apiVersion: akri.sh/v0
+kind: Configuration
+metadata:
+  name: akri-udev-grouped
+spec:
+  discoveryHandler: 
+    name: udev
+    discoveryDetails: |+
+      groupRecursive: true
+      udevRules:
+        - ENV{{ID_PATH}}=="{}"
