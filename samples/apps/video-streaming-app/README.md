@@ -10,7 +10,6 @@ This app streams images in mjpeg (Motion JPEG) format, since all browsers native
 application will only work on cameras that support MJPG or JPEG. The onvif-video-broker connects to the RTSP stream of
 the cameras, which supports JPEG; however, not all usb cameras support MJPG/JPEG. To check that your camera supports
 MJPG/JPEG, observe the output of `sudo  v4l2-ctl --list-formats` on the associated node.
-## Running
 
 ## Dependencies
 > Note: using a virtual environment is recommended with pip
@@ -29,7 +28,7 @@ To clean up, simply run `pip uninstall -r requirements.txt -y`.
 ## Generating Protobuf Code
 Generate using `grpc-tools.protoc`. `grpc-tools` should've been installed in the previous step. 
 ```
-python -m grpc_tools.protoc -I=./ --python_out=. --grpc_python_out=./camera.proto
+python3 -m grpc_tools.protoc -I./ --python_out=. --grpc_python_out=. camera.proto
 ```
 
 ## Running
