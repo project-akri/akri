@@ -24,8 +24,8 @@ To clean up, simply run `pip uninstall -r requirements.txt -y`.
 ## Generating Protobuf Code
 Set the path of the `opcua_node.proto` file and generate using `grpc-tools.protoc`. `grpc-tools` should've been installed in the previous step. The following assumes the `akri` repository is in the `$HOME` directory.
 ```
-export SRC_DIR=$HOME/akri/samples/brokers/opcua-monitoring-broker
-python -m grpc_tools.protoc -I=$SRC_DIR --python_out=. --grpc_python_out=. $SRC_DIR/opcua_node.proto
+export SRC_DIR=../../../samples/brokers/opcua-monitoring-broker
+python3 -m grpc_tools.protoc -I=$SRC_DIR --python_out=. --grpc_python_out=. $SRC_DIR/opcua_node.proto
 ```
 
 ## Running
