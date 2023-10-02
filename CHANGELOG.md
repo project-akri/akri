@@ -1,3 +1,103 @@
+# v0.12.9
+
+## Announcing Akri v0.12.9!
+Akri v0.12.9 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.12.9 release contains the following changes:
+
+1. **Configuration-level resource support** (https://github.com/project-akri/akri/pull/627). This implements the [proposal](https://github.com/project-akri/akri-docs/blob/main/proposals/configuration-level-resources.md#configuration-level-resources) of exposing resources at the Configuration level. This allows users to select resources to use at the configuration-level without having know the instance ID beforehand. 
+2. **Support discoveryProperties in the Configuration** (https://github.com/project-akri/akri/pull/619). This implements the [proposal](https://github.com/project-akri/akri-docs/pull/61) for allowing users to specify credential data through the discoveryProperties section in the configuration. The Agent can read these properties and pass them to the discovery handlers for discovering authenticated devices. This provides a native K8s experience by supporting K8s Secrets and K8s configMaps. 
+3. **Enable ONVIF discovery handler and broker to discover and access authenticated devices** (https://github.com/project-akri/akri/pull/638, https://github.com/project-akri/akri/pull/646). This allows the ONVIF discovery handler to discover IP cameras and other ONVIF devices that require authentication. Once authenticated devices are discovered using the credential data passed through, the broker can also access the data from these devices using the device UUID to look up credentials from the credential directories and authenticate the device.
+
+**Fixes, features, and optimizations**
+- opt: Improve udev testability and tests (https://github.com/project-akri/akri/pull/582)
+- opt: Generate a self-signed certificate for webhook if none given in Helm (https://github.com/project-akri/akri/pull/588)
+- fix: Update env_logger and clap to fix RUSTSEC-2021-0145 (https://github.com/project-akri/akri/pull/590)
+- opt: Add protobuf-compiler to crossbuild intermediate containers (https://github.com/project-akri/akri/pull/594)
+- opt: Add K8s 1.27 to test cases and remove 1.23 (https://github.com/project-akri/akri/pull/595)
+- fix: Fix intermediate dotnet openCV image build (https://github.com/project-akri/akri/pull/596)
+- opt: Force all Akri components to use the Linux node selector (https://github.com/project-akri/akri/pull/599)
+- fix: Fix possible crash when modifying Configuration (https://github.com/project-akri/akri/pull/602)
+- fix: Upgrade Docker images from Debian Buster to Bullseye (https://github.com/project-akri/akri/issues/606, https://github.com/project-akri/akri/pull/607, https://github.com/project-akri/akri/pull/609)
+- fix: Fix discovery channels being stopped when Configurations are modified or deleted (https://github.com/project-akri/akri/pull/612)
+- fix: Stop the controller from panicking when unable to create pod and output log instead (https://github.com/project-akri/akri/pull/615)
+- fix: Correct ONVIF filtering (IP address, MAC address, scopes) (https://github.com/project-akri/akri/pull/622)
+- opt: Revamp E2E test suite (https://github.com/project-akri/akri/pull/623)
+- feat: Add udev E2E tests (https://github.com/project-akri/akri/pull/637)
+- fix: Return discovered devices that fails to get IP/MAC address if IP/MAC filters are not used (https://github.com/project-akri/akri/pull/640)
+- feat: Add UUID filter to ONVIF discovery handler (https://github.com/project-akri/akri/pull/641)
+- opt: Remove unused Rust dependencies (https://github.com/project-akri/akri/pull/653)
+- fix: Correct Agent's behavior on Instance deletion (https://github.com/project-akri/akri/pull/654)
+- fix: Update dependencies of sample applications to fix security vulnerability (https://github.com/project-akri/akri/pull/660)
+
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.10.4...v.0.12.9)
+
+## Breaking Changes
+1. With [the ONVIF discovery handler using UUID_serviceUrl as the device ID](https://github.com/project-akri/akri/pull/630) this changes the hash ID in the Akri instance of the discovered camera. Now, the ONVIF discovery handler always exposes the device UUID in device properties.
+2. With [the IP/MAC address filtering in device properties becoming optional](https://github.com/project-akri/akri/pull/640), the ONVIF discovery handler only expose the IP/MAC addresses when it is able to get them from the device. Retrieving the IP/MAC address requires credentials, so if none are provided, the discovery handler reports the devices without exposing the IP/MAC addresses in properties. 
+
+## Known Issues
+N/A
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | v1.28.1 |
+| Kubernetes | v1.27.5 |
+| Kubernetes | v1.26.8 |
+| Kubernetes | v1.25.13 |
+| K3s | v1.28.1+k3s1 |
+| K3s | v1.27.5+k3s1 |
+| K3s | v1.26.8+k3s1 |
+| K3s | v1.25.13+k3s1 |
+| MicroK8s | 1.28/stable |
+| MicroK8s | 1.27/stable |
+| MicroK8s | 1.26/stable |
+| MicroK8s | 1.25/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper.
+
+**⭐ Contributors to v0.12.9 ⭐**
+- @johnsonshih
+- @diconico07
+- @jbpaux
+- @kate-goldenring
+- @bfjelds
+- @yujinkim-msft
+- @gauravgahlot
+- @ag17sep
+
+(Please send us (`@Kate Goldenring` or `@Yu Jin Kim`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.12.9 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.12.9/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
+
+## Previous Releases:
+
 # v0.10.4
 
 ## Announcing Akri v0.10.4!
@@ -94,9 +194,6 @@ helm install akri akri-helm-charts/akri --version 0.10.4 \
 ## Release history
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.10.4/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
-
-## Previous Releases:
 
 
 # v0.8.23
