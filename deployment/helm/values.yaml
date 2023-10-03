@@ -54,6 +54,7 @@ controller:
     pullPolicy: "Always"
   # ensures container doesn't run with unnecessary priviledges
   securityContext:
+    runAsUser: 1000
     allowPrivilegeEscalation: false
     runAsNonRoot: true
     readOnlyRootFilesystem: true
