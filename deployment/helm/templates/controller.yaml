@@ -38,6 +38,10 @@ spec:
         {{- with .Values.controller.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
+        {{- if .Values.controller.securityContext }}
+        securityContext:
+        {{- toYaml .Values.controller.securityContext | nindent 10 }}
+        {{- end}}
         resources:
           requests:
             memory: {{ .Values.controller.resources.memoryRequest }}
