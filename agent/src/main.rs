@@ -9,7 +9,7 @@ mod util;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
 use log::{info, trace};
-use prometheus::{HistogramVec, IntGaugeVec};
+use prometheus::{opts, register_int_counter_vec, HistogramVec, IntCounterVec, IntGaugeVec};
 use std::{
     collections::HashMap,
     env,
@@ -33,6 +33,11 @@ lazy_static! {
     pub static ref INSTANCE_COUNT_METRIC: IntGaugeVec = prometheus::register_int_gauge_vec!("akri_instance_count", "Akri Instance Count", &["configuration", "is_shared"]).unwrap();
     // Reports the time to get discovery results, grouped by Configuration
     pub static ref DISCOVERY_RESPONSE_TIME_METRIC: HistogramVec = prometheus::register_histogram_vec!("akri_discovery_response_time", "Akri Discovery Response Time", &["configuration"]).unwrap();
+    // reports the result of discover requests, grouped by Discovery Handler name and whether it is succeeded
+    pub static ref DISCOVERY_RESPONSE_RESULT_METRIC: IntCounterVec = register_int_counter_vec!(
+        opts!("akri_discovery_response_result", "Akri Discovery Response Result"),
+        &["discovery_handler_name", "result"])
+        .expect("akri_discovery_response_result metric can be created");
 }
 
 /// This is the entry point for the Akri Agent.

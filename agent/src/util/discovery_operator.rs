@@ -794,6 +794,7 @@ async fn get_discovery_property_value_from_config_map(
 }
 
 pub mod start_discovery {
+    use super::super::super::DISCOVERY_RESPONSE_RESULT_METRIC;
     use super::super::registration::{DiscoveryDetails, DiscoveryHandlerEndpoint};
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     use super::super::device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface};
@@ -1038,11 +1039,17 @@ pub mod start_discovery {
         dh_details: &'a DiscoveryDetails,
         node_name: String,
     ) -> anyhow::Result<()> {
+        // get discovery handler name for metric use
+        let dh_name = discovery_operator.get_config().spec.discovery_handler.name;
         loop {
-            if let Some(stream_type) = discovery_operator
+            let stream_type = discovery_operator
                 .get_stream(kube_interface.clone(), endpoint)
-                .await
-            {
+                .await;
+            let request_result = stream_type.as_ref().map(|_| "Success").unwrap_or("Fail");
+            DISCOVERY_RESPONSE_RESULT_METRIC
+                .with_label_values(&[&dh_name, request_result])
+                .inc();
+            if let Some(stream_type) = stream_type {
                 match stream_type {
                     StreamType::External(mut stream) => {
                         match discovery_operator
