@@ -1,6 +1,6 @@
-use super::super::INSTANCE_COUNT_METRIC;
 #[cfg(any(test, feature = "agent-full"))]
 use super::embedded_discovery_handlers::get_discovery_handler;
+use super::metrics::INSTANCE_COUNT_METRIC;
 use super::{
     config_action::ConfigId,
     constants::SHARED_INSTANCE_OFFLINE_GRACE_PERIOD_SECS,
@@ -802,7 +802,7 @@ async fn get_discovery_property_value_from_config_map(
 }
 
 pub mod start_discovery {
-    use super::super::super::{DISCOVERY_RESPONSE_RESULT_METRIC, DISCOVERY_RESPONSE_TIME_METRIC};
+    use super::super::metrics::{DISCOVERY_RESPONSE_RESULT_METRIC, DISCOVERY_RESPONSE_TIME_METRIC};
     use super::super::registration::{DiscoveryDetails, DiscoveryHandlerEndpoint};
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     use super::super::device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface};
