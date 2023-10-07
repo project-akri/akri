@@ -68,6 +68,8 @@ pub struct DiscoveryOperator {
     config: Configuration,
     /// Akri Instances discovered by this `DiscoveryOperator`
     device_plugin_context: Arc<RwLock<DevicePluginContext>>,
+    /// Timestamp of DiscoveryOperator is created when config is created or updated
+    config_timestamp: Instant,
 }
 
 #[cfg_attr(test, automock)]
@@ -81,6 +83,7 @@ impl DiscoveryOperator {
             discovery_handler_map,
             config,
             device_plugin_context,
+            config_timestamp: Instant::now(),
         }
     }
     fn get_config_id(&self) -> ConfigId {
@@ -104,6 +107,11 @@ impl DiscoveryOperator {
     #[allow(dead_code)]
     pub fn get_device_plugin_context(&self) -> Arc<RwLock<DevicePluginContext>> {
         self.device_plugin_context.clone()
+    }
+    /// Returns config_timestamp field. Allows the struct to be mocked.
+    #[allow(dead_code)]
+    pub fn get_config_timestamp(&self) -> Instant {
+        self.config_timestamp
     }
     #[allow(dead_code)]
     pub async fn stop_all_discovery(&self) {
@@ -794,7 +802,7 @@ async fn get_discovery_property_value_from_config_map(
 }
 
 pub mod start_discovery {
-    use super::super::super::DISCOVERY_RESPONSE_RESULT_METRIC;
+    use super::super::super::{DISCOVERY_RESPONSE_RESULT_METRIC, DISCOVERY_RESPONSE_TIME_METRIC};
     use super::super::registration::{DiscoveryDetails, DiscoveryHandlerEndpoint};
     // Use this `mockall` macro to automate importing a mock type in test mode, or a real type otherwise.
     use super::super::device_plugin_builder::{DevicePluginBuilder, DevicePluginBuilderInterface};
@@ -1041,6 +1049,8 @@ pub mod start_discovery {
     ) -> anyhow::Result<()> {
         // get discovery handler name for metric use
         let dh_name = discovery_operator.get_config().spec.discovery_handler.name;
+        let (_config_namespace, config_name) = discovery_operator.get_config_id();
+        let mut first_call = true;
         loop {
             let stream_type = discovery_operator
                 .get_stream(kube_interface.clone(), endpoint)
@@ -1049,6 +1059,13 @@ pub mod start_discovery {
             DISCOVERY_RESPONSE_RESULT_METRIC
                 .with_label_values(&[&dh_name, request_result])
                 .inc();
+            if first_call {
+                first_call = false;
+                let start_time = discovery_operator.get_config_timestamp();
+                DISCOVERY_RESPONSE_TIME_METRIC
+                    .with_label_values(&[&config_name])
+                    .observe(start_time.elapsed().as_secs_f64());
+            }
             if let Some(stream_type) = stream_type {
                 match stream_type {
                     StreamType::External(mut stream) => {
@@ -1581,6 +1598,11 @@ pub mod tests {
                         .unwrap();
                 });
         }
+        // Config timestamp should be called
+        mock_discovery_operator
+            .expect_get_config_timestamp()
+            .times(1)
+            .returning(Instant::now);
         let (mut finished_discovery_sender, finished_discovery_receiver) =
             tokio::sync::mpsc::channel(2);
         let (new_dh_sender, _) = broadcast::channel(2);
@@ -1643,6 +1665,11 @@ pub mod tests {
             .expect_internal_do_discover()
             .times(1)
             .returning(|_, _, _, _| Ok(()));
+        // Config timestamp should be called
+        mock_discovery_operator
+            .expect_get_config_timestamp()
+            .times(1)
+            .returning(Instant::now);
         let mock_kube_interface: Arc<dyn k8s::KubeInterface> = Arc::new(MockKubeInterface::new());
         start_discovery::do_discover(
             Arc::new(mock_discovery_operator),
