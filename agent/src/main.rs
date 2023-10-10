@@ -1,7 +1,5 @@
 extern crate hyper;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
@@ -9,7 +7,6 @@ mod util;
 
 use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
 use log::{info, trace};
-use prometheus::{HistogramVec, IntGaugeVec};
 use std::{
     collections::HashMap,
     env,
@@ -27,13 +24,6 @@ use util::{
     registration::{run_registration_server, DiscoveryHandlerName},
     slot_reconciliation::periodic_slot_reconciliation,
 };
-
-lazy_static! {
-    // Reports the number of Instances visible to this node, grouped by Configuration and whether it is shared
-    pub static ref INSTANCE_COUNT_METRIC: IntGaugeVec = prometheus::register_int_gauge_vec!("akri_instance_count", "Akri Instance Count", &["configuration", "is_shared"]).unwrap();
-    // Reports the time to get discovery results, grouped by Configuration
-    pub static ref DISCOVERY_RESPONSE_TIME_METRIC: HistogramVec = prometheus::register_histogram_vec!("akri_discovery_response_time", "Akri Discovery Response Time", &["configuration"]).unwrap();
-}
 
 /// This is the entry point for the Akri Agent.
 /// It must be built on unix systems, since the underlying libraries for the `DevicePluginService` unix socket connection are unix only.
