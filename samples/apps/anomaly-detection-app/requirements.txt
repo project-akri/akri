@@ -1,5 +1,5 @@
 grpcio==1.53.0
 grpcio-tools==1.53.0
 Flask==2.2.5
-numpy==1.21.4
+numpy
 protobuf==4.21.6
