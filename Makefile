@@ -1,26 +1,28 @@
-BUILD_AMD64 ?= 1
-BUILD_ARM32 ?= 1
-BUILD_ARM64 ?= 1
+BUILDX_ARGS =
+EXTRA_CARGO_ARGS =
+
+PUSH ?= 
+LOAD ?=
+LOCAL_ARCH = $(shell uname -m)
+ifeq ($(LOAD), 1)
+PLATFORMS ?= LOCAL_ARCH
+$(intcmp 1,$(words $(PLATFORMS)), $(error Cannot load for more than one platform))
+else
+PLATFORMS ?= amd64 arm64 arm/v7
+endif
+
+null  :=
+space := $(null) #
+comma := ,
+
+DOCKER_PLATFORMS = $(subst $(space),$(comma),$(strip $(addprefix linux/, $(PLATFORMS))))
 
 # Specify flag to build optimized release version of rust components.
 # Set to be empty to use debug builds.
 BUILD_RELEASE_FLAG ?= 1
 
-# Space separated list of rust packages to not build such as the following to not build 
-# the udev discovery handler library or module: "akri-udev udev-discovery-handler"
-PACKAGES_TO_EXCLUDE ?=
-
-# Incremental compilation causes rustc to save additional information to disk which will be 
-# reused when recompiling the crate, improving re-compile times. 
-# The additional information is stored in the target directory.
-# By default for cargo builds, it is enabled in debug mode and disabled in release mode.
-CARGO_INCREMENTAL ?= 0
-
-BUILD_SLIM_AGENT ?= 1
-FULL_AGENT_EXECUTABLE_NAME ?= agent-full
 # Specify which features of the Agent to build, namely which Discovery Handlers
-# should be embedded if any. The "agent-full" feature must be enabled to use the embedded
-# Discovery Handlers. IE: AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat"
+# should be embedded if any. IE: AGENT_FEATURES="onvif-feat opcua-feat udev-feat"
 AGENT_FEATURES ?=
 
 REGISTRY ?= devcaptest.azurecr.io
@@ -47,12 +49,21 @@ AMD64_SUFFIX = amd64
 ARM32V7_SUFFIX = arm32v7
 ARM64V8_SUFFIX = arm64v8
 
-AMD64_TARGET = x86_64-unknown-linux-gnu
-ARM32V7_TARGET = armv7-unknown-linux-gnueabihf
-ARM64V8_TARGET = aarch64-unknown-linux-gnu
-
+COMMON_DOCKER_BUILD_ARGS = $(if $(LOAD), --load) $(if $(PUSH), --push) --platform=$(DOCKER_PLATFORMS) 
 # Intermediate container defines
 include build/intermediate-containers.mk
 
 # Akri container defines
 include build/akri-containers.mk
+include build/samples.mk
+
+.PHONY: all
+all: akri samples opencv-base
+
+.PHONY: push
+push: PUSH = 1
+push: all
+
+.PHONY: load
+load: LOAD = 1
+load: all

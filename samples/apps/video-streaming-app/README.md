@@ -36,10 +36,10 @@ The streaming application works in two modes.
 1. Explicitly target a set of cameras by setting `CAMERA_COUNT`, a service to target all cameras (`CAMERAS_SOURCE_SVC`),
    and services for each individual camera (`CAMERA1_SOURCE_SVC` to `CAMERA${CAMERA_COUNT}_SOURCE_SVC`) 
 ```sh
-CAMERA_COUNT="2"  CAMERAS_SOURCE_SVC=10.2.2.2 CAMERA1_SOURCE_SVC=10.1.2.3 CAMERA2_SOURCE_SVC=10.2.3.4 python3 ./streaming.py
+CAMERA_COUNT="2"  CAMERAS_SOURCE_SVC=10.2.2.2 CAMERA1_SOURCE_SVC=10.1.2.3 CAMERA2_SOURCE_SVC=10.2.3.4 python3 ./app.py
 ```
 2. Target all services of an Akri Configuration. The application will query for services prefixed with the Configuration
    name.
 ```sh
-CONFIGURATION_NAME="akri-udev" python3 ./streaming.py
+CONFIGURATION_NAME="akri-udev" python3 ./app.py
 ```

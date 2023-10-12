@@ -85,8 +85,6 @@ items:
               limits:
                 memory: {{ .Values.webhookConfiguration.resources.memoryLimit }}
                 cpu: {{ .Values.webhookConfiguration.resources.cpuLimit }}
-            command:
-            - /server
             args:
             - --tls-crt-file=/secrets/tls.crt
             - --tls-key-file=/secrets/tls.key
