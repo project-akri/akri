@@ -12,7 +12,7 @@ RUN echo "Creating container based on ${PLATFORM}/debian:bullseye-slim" && \
     apt-get install -y protobuf-compiler libprotoc-dev python3-pip \
     python3-grpcio python3-sklearn && \
     apt-get clean && \
-    pip3 install numpy protobuf flask
+    pip3 install -r ./requirements.txt
 
 # Link the container to the Akri repository
 LABEL org.opencontainers.image.source https://github.com/project-akri/akri
