@@ -13,7 +13,7 @@ def pytest_addoption(parser):
     )
     parser.addoption("--test-version", action="store", help="version to test")
     parser.addoption(
-        "--local-tag", action="store", default="pr-amd64", help="tag for local images"
+        "--local-tag", action="store", default="pr", help="tag for local images"
     )
     parser.addoption("--use-local", action="store_true", help="use local images if set")
     parser.addoption("--release", action="store_true", help="use released helm chart")
@@ -69,7 +69,7 @@ def install_akri(request, distribution_config, pytestconfig, akri_version):
     helm_install_command = ["helm", "install", "akri"]
 
     if pytestconfig.getoption("--use-local"):
-        local_tag = pytestconfig.getoption("--local-tag", "pr-amd64")
+        local_tag = pytestconfig.getoption("--local-tag", "pr")
         helm_install_command.extend(
             [
                 Path(__file__).parent / "../../deployment/helm",
@@ -101,7 +101,7 @@ def install_akri(request, distribution_config, pytestconfig, akri_version):
                 ]
             )
         if pytestconfig.getoption("--use-local"):
-            local_tag = pytestconfig.getoption("--local-tag", "pr-amd64")
+            local_tag = pytestconfig.getoption("--local-tag", "pr")
             helm_install_command.extend(
                 [
                     "--set",

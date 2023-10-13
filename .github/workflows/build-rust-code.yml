@@ -1,69 +1,41 @@
-name: Build Production Rust Code
+name: Build Production Rust Containers
 
 on:
   push:
     branches: [ main ]
     paths:
-    - .github/actions/build-component-per-arch/**
-    - .github/actions/build-component-multi-arch/**
     - .github/workflows/build-rust-code.yml
-    - .github/workflows/build-agent-container.yml
-    - .github/workflows/build-controller-container.yml
-    - .github/workflows/build-udev-video-broker-container.yml
-    - .github/workflows/build-webhook-configuration-container.yml
-    - build/containers/Dockerfile.agent
-    - build/containers/Dockerfile.controller
-    - build/containers/Dockerfile.udev-video-broker
-    - build/containers/Dockerfile.webhook-configuration
+    - build/containers/Dockerfile.rust
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
     - version.txt
-    - build/akri-containers.mk
-    - build/akri-rust-containers.mk
-    - Makefile
   pull_request:
     branches: [ main ]
     paths:
-    - .github/actions/build-component-per-arch/**
-    - .github/actions/build-component-multi-arch/**
     - .github/workflows/build-rust-code.yml
-    - .github/workflows/build-agent-container.yml
-    - .github/workflows/build-controller-container.yml
-    - .github/workflows/build-udev-video-broker-container.yml
-    - .github/workflows/build-webhook-configuration-container.yml
-    - build/containers/Dockerfile.agent
-    - build/containers/Dockerfile.controller
-    - build/containers/Dockerfile.udev-video-broker
-    - build/containers/Dockerfile.webhook-configuration
+    - build/containers/Dockerfile.rust
     - '**.rs'
     - '**/Cargo.toml'
     - '**/Cargo.lock'
     - version.txt
-    - build/akri-containers.mk
-    - build/akri-rust-containers.mk
-    - Makefile
   release:
     types:
       - published
 
 jobs:
 
-  build-rust:
+  build-agents:
+    # Run separately to heat the cache for every architecture
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 80
     strategy:
       matrix:
-        arch:
-          - label: arm64v8
-            make-target: arm64
-            rust-target-path: aarch64-unknown-linux-gnu
-          - label: arm32v7
-            make-target: arm32
-            rust-target-path: armv7-unknown-linux-gnueabihf
-          - label: amd64
-            make-target: amd64
-            rust-target-path: x86_64-unknown-linux-gnu
+        component:
+          - label: agent
+            cargo-build-args: --release
+          - label: agent-full
+            cargo-build-args: --release -F agent-full,onvif-feat,opcua-feat,udev-feat
     
     steps:
     - name: Checkout the head commit of the branch
@@ -71,32 +43,106 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Rust install
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: 1.68.1
-        components: clippy, rustfmt
-
-    - name: Build production rust for ${{ matrix.arch.label }}
-      env:
-        AGENT_FEATURES: "agent-full onvif-feat opcua-feat udev-feat" 
+    - name: Get version.txt
+      id: version-string
       run: |
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        make install-cross
-        cross --version
-        make akri-cross-build-${{ matrix.arch.make-target }}
+        echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-    - name: Package build binaries
-      run: |
-        tar_manifest='/tmp/tar-contents.txt'
-        > $tar_manifest
-        for f in target/${{ matrix.arch.rust-target-path }}/release/*; do filetype=$( file "$f" ); case "$filetype" in *ELF*) echo "$f" >> $tar_manifest ;; esac; done
-        tar -cvf /tmp/rust-${{ matrix.arch.label }}-binaries.tar `cat $tar_manifest`
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-    - name: Upload target binaries as artifact
-      uses: actions/upload-artifact@v3
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
       with:
-        name: rust-${{ matrix.arch.label }}-binaries
-        path: /tmp/rust-${{ matrix.arch.label }}-binaries.tar
-        retention-days: 1
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Docker meta
+      uses: docker/metadata-action@v5
+      id: meta
+      with:
+        images: ghcr.io/project-akri/akri/${{ matrix.component.label }}
+        labels: |
+          org.opencontainers.image.title=akri-${{matrix.component.label}}
+        tags: |
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=${{steps.version-string.outputs.version}},enable=${{github.event_name != 'release'}}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: ${{ github.event_name != 'pull_request' }}
+        build-args: |
+          AKRI_COMPONENT=agent
+          EXTRA_CARGO_ARGS=${{matrix.component.cargo-build-args}}
+        cache-from: type=gha,scope=${{github.ref_name}}-${{matrix.component.label}}
+        cache-to: type=gha,mode=max,scope=${{github.ref_name}}-${{matrix.component.label}}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: build/containers/Dockerfile.rust
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
+
+  build-others:
+    runs-on: ubuntu-latest
+    needs: build-agents
+    timeout-minutes: 50
+    strategy:
+      matrix:
+        component:
+          - label: controller
+          - label: webhook-configuration
+          - label: debug-echo-discovery-handler
+          - label: udev-discovery-handler
+          - label: opcua-discovery-handler
+          - label: onvif-discovery-handler
+          - label: udev-video-broker
+    
+    steps:
+    - name: Checkout the head commit of the branch
+      uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+
+    - name: Get version.txt
+      id: version-string
+      run: |
+        echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Docker meta
+      uses: docker/metadata-action@v5
+      id: meta
+      with:
+        images: ghcr.io/project-akri/akri/${{ matrix.component.label }}
+        labels: |
+          org.opencontainers.image.title=akri-${{matrix.component.label}}
+        tags: |
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=${{steps.version-string.outputs.version}},enable=${{github.event_name != 'release'}}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: ${{ github.event_name != 'pull_request' }}
+        build-args: |
+          AKRI_COMPONENT=agent
+          EXTRA_CARGO_ARGS=--release
+        cache-from: type=gha,scope=${{github.ref_name}}-agent
+        # No cache-to here as we want to use the one from agent
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: build/containers/Dockerfile.rust
+        platforms: linux/amd64,linux/arm64,linux/arm/v7

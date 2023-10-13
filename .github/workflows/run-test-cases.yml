@@ -6,8 +6,7 @@ on:
     paths:
       - test/e2e/**
       - .github/workflows/run-test-cases.yml
-      - build/containers/Dockerfile.agent
-      - build/containers/Dockerfile.controller
+      - build/containers/Dockerfile.rust
       - deployment/helm/**
       - agent/**
       - controller/**
@@ -20,8 +19,7 @@ on:
     paths:
       - test/e2e/**
       - .github/workflows/run-test-cases.yml
-      - build/containers/Dockerfile.agent
-      - build/containers/Dockerfile.controller
+      - build/containers/Dockerfile.rust
       - deployment/helm/**
       - agent/**
       - controller/**
@@ -44,38 +42,25 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Rust install
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.68.1
-          components: clippy, rustfmt
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build local containers for PR tests
         if: startsWith(github.event_name, 'pull_request')
         env:
-          BUILD_AMD64: 1
-          BUILD_ARM32: 0
-          BUILD_ARM64: 0
-          BUILD_SLIM_AGENT: 1
           PREFIX: ghcr.io/project-akri/akri
           LABEL_PREFIX: pr
-          CARGO_INCREMENTAL: 0
         run: |
-          make akri-build
-          make controller-build-amd64
-          make agent-build-amd64
-          make webhook-configuration-build-amd64
-          make debug-echo-discovery-build-amd64
-          make udev-discovery-build-amd64
-          make onvif-discovery-build-amd64
-          make opcua-discovery-build-amd64
-          docker save ${PREFIX}/agent:${LABEL_PREFIX}-amd64 > agent.tar
-          docker save ${PREFIX}/controller:${LABEL_PREFIX}-amd64 > controller.tar
-          docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX}-amd64 > webhook-configuration.tar
-          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX}-amd64 > debug-echo-discovery.tar
-          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX}-amd64 > udev-discovery.tar
-          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX}-amd64 > opcua-discovery.tar
-          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX}-amd64 > onvif-discovery.tar
+          make akri LOAD=1
+          docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
+          docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
+          docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
+          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
+          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
+          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
+          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')

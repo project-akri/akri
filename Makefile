@@ -5,8 +5,10 @@ PUSH ?=
 LOAD ?=
 LOCAL_ARCH = $(shell uname -m)
 ifeq ($(LOAD), 1)
-PLATFORMS ?= LOCAL_ARCH
-$(intcmp 1,$(words $(PLATFORMS)), $(error Cannot load for more than one platform))
+PLATFORMS ?= $(LOCAL_ARCH)
+ifneq (1, $(words $(PLATFORMS)))
+$(error Cannot load for more than one platform: [$(PLATFORMS)])
+endif
 else
 PLATFORMS ?= amd64 arm64 arm/v7
 endif
