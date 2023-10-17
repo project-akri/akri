@@ -18,7 +18,7 @@ serde = "1.0.104"
 serde_derive = "1.0.1"
 tokio = { version = "1.0.2", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
-tonic = { version = "0.5.2", features = ["tls"] }
+tonic = { version = "0.10", features = ["tls"] }
 url = "2.2.0"
 
 [dev-dependencies]

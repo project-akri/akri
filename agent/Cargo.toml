@@ -29,18 +29,18 @@ lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.2.0"
 prometheus = { version = "0.12.0", features = ["process"] }
-prost = "0.8.0"
+prost = "0.12"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = { version = "0.8.11", optional = true }
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
-tonic = "0.5.2"
+tonic = "0.10"
 tower = "0.4.8"
 
 [build-dependencies]
-tonic-build = "0.5.2"
+tonic-build = "0.10"
 
 [dev-dependencies]
 # for testing using a simple discovery handler
