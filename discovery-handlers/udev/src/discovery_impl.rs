@@ -117,7 +117,7 @@ fn find_devices(
     // (1) Enumerator can filter for field by equality/match
     // (2) Enumerator can filter for field by inequality/nomatch
     // (3) Enumerator cannot filter for field. Must manually filter by looking at each Device the filtered Enumerator returns.
-    let match_fields = vec![
+    let match_fields = [
         Rule::devpath,
         Rule::kernel,
         Rule::tag,
@@ -125,7 +125,7 @@ fn find_devices(
         Rule::attribute,
         Rule::property,
     ];
-    let nomatch_fields = vec![Rule::attribute, Rule::subsystem];
+    let nomatch_fields = [Rule::attribute, Rule::subsystem];
 
     let mut match_udev_filters: Vec<&UdevFilter> = Vec::new();
     let mut nomatch_udev_filters: Vec<&UdevFilter> = Vec::new();

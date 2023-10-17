@@ -1089,7 +1089,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_validate_valid_podspec() {
-        let mut app = actix_web::test::init_service(App::new().service(validate)).await;
+        let app = actix_web::test::init_service(App::new().service(validate)).await;
         let valid: AdmissionReview =
             serde_json::from_str(&get_valid_admission_review_with_broker_pod_spec())
                 .expect("v1.AdmissionReview JSON");
@@ -1097,13 +1097,13 @@ mod tests {
             .uri("/validate")
             .set_json(&valid)
             .to_request();
-        let resp = actix_web::test::call_service(&mut app, rqst).await;
+        let resp = actix_web::test::call_service(&app, rqst).await;
         assert!(resp.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_validate_valid_jobspec() {
-        let mut app = actix_web::test::init_service(App::new().service(validate)).await;
+        let app = actix_web::test::init_service(App::new().service(validate)).await;
         let valid: AdmissionReview =
             serde_json::from_str(&get_valid_admission_review_with_broker_job_spec())
                 .expect("v1.AdmissionReview JSON");
@@ -1111,13 +1111,13 @@ mod tests {
             .uri("/validate")
             .set_json(&valid)
             .to_request();
-        let resp = actix_web::test::call_service(&mut app, rqst).await;
+        let resp = actix_web::test::call_service(&app, rqst).await;
         assert!(resp.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_validate_invalid_podspec() {
-        let mut app = actix_web::test::init_service(App::new().service(validate)).await;
+        let app = actix_web::test::init_service(App::new().service(validate)).await;
         let invalid: AdmissionReview =
             serde_json::from_str(&get_invalid_admission_review_with_broker_pod_spec())
                 .expect("v1.AdmissionReview JSON");
@@ -1125,13 +1125,13 @@ mod tests {
             .uri("/validate")
             .set_json(&invalid)
             .to_request();
-        let resp = actix_web::test::call_service(&mut app, rqst).await;
+        let resp = actix_web::test::call_service(&app, rqst).await;
         assert!(resp.status().is_success());
     }
 
     #[actix_web::test]
     async fn test_validate_invalid_jobspec() {
-        let mut app = actix_web::test::init_service(App::new().service(validate)).await;
+        let app = actix_web::test::init_service(App::new().service(validate)).await;
         let invalid: AdmissionReview =
             serde_json::from_str(&get_invalid_admission_review_with_broker_job_spec())
                 .expect("v1.AdmissionReview JSON");
@@ -1139,7 +1139,7 @@ mod tests {
             .uri("/validate")
             .set_json(&invalid)
             .to_request();
-        let resp = actix_web::test::call_service(&mut app, rqst).await;
+        let resp = actix_web::test::call_service(&app, rqst).await;
         assert!(resp.status().is_success());
     }
 }
