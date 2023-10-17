@@ -1,3 +1,9 @@
+[patch.crates-io]
+# Patch needed to get yet unreleased version with a fix for an error with recent rust/cargo
+opcua = { git = 'https://github.com/locka99/opcua' }
+# Patch is still needed, using one from upstream PR for now
+h2 = { git = 'https://github.com/arthurlm/h2' }
+
 [workspace]
 members = [
     "shared", 
