@@ -21,3 +21,4 @@ members = [
     "discovery-handler-modules/opcua-discovery-handler", 
     "discovery-handler-modules/udev-discovery-handler",
 ]
+resolver = "2"
