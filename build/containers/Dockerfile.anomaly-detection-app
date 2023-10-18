@@ -11,7 +11,6 @@ RUN echo "Creating container based on ${PLATFORM}/debian:bullseye-slim" && \
     apt-get update && \
     apt-get install -y protobuf-compiler libprotoc-dev python3-pip python3-sklearn && \
     apt-get clean && \
-    pip3 install --upgrade pip && \
     pip3 install -r ./requirements.txt
 
 # Link the container to the Akri repository
