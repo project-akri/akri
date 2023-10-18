@@ -1438,7 +1438,7 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.3.21"
-source = "git+https://github.com/arthurlm/h2#7820c42ca36699d0004f0f173300244beddd0094"
+source = "git+https://github.com/project-akri/h2?branch=patch-authority#df101dfa3ae5010cb13d9146a4dd97e606d01b7a"
 dependencies = [
  "bytes",
  "fnv",
@@ -1446,7 +1446,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http",
- "indexmap 1.9.3",
+ "indexmap 2.0.2",
  "slab",
  "tokio",
  "tokio-util 0.7.9",
