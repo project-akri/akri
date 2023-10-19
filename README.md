@@ -9,7 +9,7 @@
 [![Check Rust](https://github.com/project-akri/akri/workflows/Check%20Rust/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Check+Rust%22)
 [![Tarpaulin Code Coverage](https://github.com/project-akri/akri/workflows/Tarpaulin%20Code%20Coverage/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Tarpaulin+Code+Coverage%22)
 [![Build Controller](https://github.com/project-akri/akri/workflows/Build%20Controller/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Build+Controller%22)
-[![Build Agent](https://github.com/project-akri/akri/workflows/Build%20Agent/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Build+Agents%22)
+[![Build Agent](https://github.com/project-akri/akri/workflows/Build%20Agents/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Build+Agents%22)
 [![Test K3s, Kubernetes, and MicroK8s](https://github.com/project-akri/akri/workflows/Test%20K3s,%20Kubernetes,%20and%20MicroK8s/badge.svg?branch=main&event=push)](https://github.com/project-akri/akri/actions?query=workflow%3A%22Test+K3s%2C+Kubernetes%2C+and+MicroK8s%22)
 
 
