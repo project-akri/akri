@@ -1,6 +1,6 @@
 [package]
 name = "agent"
-version = "0.12.13"
+version = "0.12.14"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
 edition = "2018"
