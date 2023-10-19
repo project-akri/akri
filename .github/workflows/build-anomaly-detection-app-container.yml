@@ -54,7 +54,7 @@ jobs:
     - name: Prepare To Install
       uses: actions/setup-node@v3
       with:
-        node-version: 12
+        node-version: 18
     - name: Install Deps
       run: |
         yarn install
@@ -89,7 +89,7 @@ jobs:
     - name: Prepare To Install
       uses: actions/setup-node@v3
       with:
-        node-version: 12
+        node-version: 18
     - name: Install Deps
       run: |
         yarn install
