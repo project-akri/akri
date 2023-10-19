@@ -249,8 +249,11 @@ impl DevicePluginBuilder {
         };
 
         // We will ignore this dummy uri because UDS does not use it.
+        // Some servers will check the uri content so the uri needs to
+        // be in valid format even it's not used, the scheme part is used
+        // to specific what scheme to use, such as http or https
         let kubelet_socket_closure = kubelet_socket.to_string();
-        let channel = Endpoint::try_from("http://[::]:50051")?
+        let channel = Endpoint::try_from("http://[::1]:50051")?
             .connect_with_connector(service_fn(move |_: Uri| {
                 UnixStream::connect(kubelet_socket_closure.clone())
             }))

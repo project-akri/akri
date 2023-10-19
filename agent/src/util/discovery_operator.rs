@@ -187,7 +187,10 @@ impl DiscoveryOperator {
                 // Clone socket for closure which has static lifetime
                 let socket = socket.clone();
                 // We will ignore this dummy uri because UDS does not use it.
-                match Endpoint::try_from("http://[::]:50051")
+                // Some servers will check the uri content so the uri needs to
+                // be in valid format even it's not used, the scheme part is used
+                // to specific what scheme to use, such as http or https
+                match Endpoint::try_from("http://[::1]:50051")
                     .unwrap()
                     .connect_with_connector(tower::service_fn(move |_: Uri| {
                         let endpoint = socket.clone();

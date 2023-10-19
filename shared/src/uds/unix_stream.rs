@@ -80,7 +80,10 @@ pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
     {
         let path = socket_path.to_string();
         // We will ignore this dummy uri because UDS does not use it.
-        if let Ok(_v) = tonic::transport::Endpoint::try_from("http://[::]:50051")
+        // Some servers will check the uri content so the uri needs to
+        // be in valid format even it's not used, the scheme part is used
+        // to specific what scheme to use, such as http or https
+        if let Ok(_v) = tonic::transport::Endpoint::try_from("http://[::1]:50051")
             .map_err(|e| anyhow::format_err!("{}", e))?
             .connect_with_connector(tower::service_fn(move |_: tonic::transport::Uri| {
                 tokio::net::UnixStream::connect(path.clone())
