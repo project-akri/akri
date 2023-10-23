@@ -55,7 +55,7 @@ jobs:
         images: ghcr.io/project-akri/akri/opcua-monitoring-broker
         labels: |
           org.opencontainers.image.title=akri-opcua-monitoring-broker
-          org.opencontainers.image.description=Akri sample opcua monitoring broker
+          org.opencontainers.image.description="Akri sample OPC UA monitoring broker"
         tags: |
           type=ref,event=pr
           type=semver,pattern={{version}}
