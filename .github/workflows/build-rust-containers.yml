@@ -138,7 +138,7 @@ jobs:
         context: .
         push: ${{ github.event_name != 'pull_request' }}
         build-args: |
-          AKRI_COMPONENT=agent
+          AKRI_COMPONENT=${{matrix.component.label}}
           EXTRA_CARGO_ARGS=--release
         cache-from: type=gha,scope=${{github.ref_name}}-agent
         # No cache-to here as we want to use the one from agent
