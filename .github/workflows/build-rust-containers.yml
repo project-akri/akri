@@ -48,6 +48,12 @@ jobs:
       run: |
         echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.ref_name }}-${{ matrix.component.label }}
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
@@ -81,12 +87,18 @@ jobs:
         build-args: |
           AKRI_COMPONENT=agent
           EXTRA_CARGO_ARGS=${{matrix.component.cargo-build-args}}
-        cache-from: type=gha,scope=${{github.ref_name}}-${{matrix.component.label}}
-        cache-to: type=gha,mode=max,scope=${{github.ref_name}}-${{matrix.component.label}}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         file: build/containers/Dockerfile.rust
         platforms: linux/amd64,linux/arm64,linux/arm/v7
+
+    # This ensures we don't end-up with an ever-growing cache
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache  
 
   build-others:
     runs-on: ubuntu-latest
@@ -114,6 +126,13 @@ jobs:
       run: |
         echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
 
+    - name: Cache Docker layers
+      uses: actions/cache/restore@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.ref_name }}-agent
+        fail-on-cache-miss: true
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
@@ -140,7 +159,7 @@ jobs:
         build-args: |
           AKRI_COMPONENT=${{matrix.component.label}}
           EXTRA_CARGO_ARGS=--release
-        cache-from: type=gha,scope=${{github.ref_name}}-agent
+        cache-from: type=local,src=/tmp/.buildx-cache
         # No cache-to here as we want to use the one from agent
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
