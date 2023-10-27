@@ -108,7 +108,7 @@ jobs:
   test-cases:
     needs: build-containers
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 95
 
     strategy:
       fail-fast: false
@@ -279,8 +279,8 @@ jobs:
       # For push and release, we need to wait for the Helm chart and
       # associated containers to build.
       - if: github.event_name == 'push' || github.event_name == 'release'
-        name: sleep before running script for 2700s
-        run: sleep 2700
+        name: sleep before running script for 80 minutes
+        run: sleep 4800
 
       - name: Execute test script
         working-directory: ./test/e2e
