@@ -1,0 +1,23 @@
+ARG PYTHON_VERSION=3.9
+FROM python:${PYTHON_VERSION}-bookworm
+
+# Avoid tzdata prompt 
+ARG DEBIAN_FRONTEND=noninteractive
+RUN echo "Creating container based on debian:bullseye-slim for ${TARGETPLATFORM}" && \
+    apt-get update && \
+    apt-get install -y protobuf-compiler libprotoc-dev && \
+    apt-get clean
+
+WORKDIR /app
+
+ARG APPLICATION
+COPY ./samples/apps/${APPLICATION}/requirements.txt .
+
+RUN pip3 install --no-cache-dir -r ./requirements.txt
+
+COPY ./samples/apps/${APPLICATION} .
+
+# Link the container to the Akri repository
+LABEL org.opencontainers.image.source https://github.com/project-akri/akri
+
+CMD [ "python3", "./app.py" ]

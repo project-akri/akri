@@ -1,7 +1,19 @@
 name: Cancel Previous PR Workflows
 on:
   workflow_run:
-    workflows: ["Dependencies autoupdate", "Build Agents", "Build Anomaly Detection App Container", "Build Controller", "Build ONVIF Broker (.NET)", "Build OPC UA Monitoring Broker", "Build OpenCV Base", "Build Production Rust Code", "Build Rust CrossBuild", "Build UDEV Broker", "Build Video Streaming App Container", "Build Webhook Configuration", "Check Rust", "Check versioning", "Helm", "Tarpaulin Code Coverage", "Test K3s, Kubernetes, and MicroK8s"]
+    workflows: 
+      - "Dependencies autoupdate"
+      - "Build Sample Apps Containers"
+      - "Build ONVIF Broker (.NET)"
+      - "Build OPC UA Monitoring Broker"
+      - "Build OpenCV Base"
+      - "Build Production Rust Containers"
+      - "Build UDEV Broker"
+      - "Check Rust"
+      - "Check versioning"
+      - "Helm"
+      - "Tarpaulin Code Coverage"
+      - "Test K3s, Kubernetes, and MicroK8s"
     types:
       - requested
 jobs:

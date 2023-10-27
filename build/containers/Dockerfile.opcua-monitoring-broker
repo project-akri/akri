@@ -1,23 +1,16 @@
-ARG BUILD_PLATFORM_TAG=3.1-bullseye
-ARG OUTPUT_PLATFORM_TAG=3.1-bullseye-slim
-ARG DOTNET_PUBLISH_RUNTIME=linux-x64
-
-FROM mcr.microsoft.com/dotnet/sdk:${BUILD_PLATFORM_TAG} AS build
-ARG BUILD_PLATFORM_TAG
-RUN echo "Build base image: mcr.microsoft.com/dotnet/sdk:${BUILD_PLATFORM_TAG}"
+FROM --platform=${BUILDPLATFORM}  mcr.microsoft.com/dotnet/sdk:6.0-bookworm-slim AS build
 
 WORKDIR /src
 COPY ["samples/brokers/opcua-monitoring-broker/opcua-monitoring-broker.csproj", "."]
 RUN dotnet restore "opcua-monitoring-broker.csproj"
 COPY ["samples/brokers/opcua-monitoring-broker", "."]
 
-ARG DOTNET_PUBLISH_RUNTIME
-RUN echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}"
-RUN dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "opcua-monitoring-broker.csproj" -c Release -o /app/publish
+ARG TARGETARCH
+RUN DOTNET_PUBLISH_RUNTIME="linux-$(echo ${TARGETARCH} | sed 's/amd/x/')"; \
+    echo "Publishing to: ${DOTNET_PUBLISH_RUNTIME}" && \
+    dotnet publish -r ${DOTNET_PUBLISH_RUNTIME} "opcua-monitoring-broker.csproj" -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:${OUTPUT_PLATFORM_TAG} AS final
-ARG OUTPUT_PLATFORM_TAG
-RUN echo "Output base image: mcr.microsoft.com/dotnet/aspnet:${OUTPUT_PLATFORM_TAG}"
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bookworm-slim AS final
 
 WORKDIR /app
 COPY --from=build /app/publish .

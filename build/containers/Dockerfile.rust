@@ -1,0 +1,40 @@
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:master AS xx
+
+FROM  --platform=$BUILDPLATFORM rust:1.72-slim-bookworm AS build
+RUN rustup component add rustfmt
+RUN apt-get update && apt-get install -y clang lld protobuf-compiler pkg-config mmdebstrap wget
+COPY --from=xx / /
+ARG TARGETPLATFORM
+
+# See https://github.com/tonistiigi/xx/issues/108
+RUN sed -i -E 's/xx-clang --setup-target-triple/XX_VENDOR=\$vendor ARM_TARGET_ARCH="" xx-clang --setup-target-triple/' $(which xx-cargo) && \
+    sed -i -E 's/\$\(xx-info\)-/\$\(XX_VENDOR=\$vendor ARM_TARGET_ARCH="" xx-info\)-/g' $(which xx-cargo)
+
+# Generate minimal runtime environment
+RUN mmdebstrap --architectures=$(xx-info debian-arch) --include=libc6,libssl3,libudev1,libv4l-0,busybox --variant=extract bookworm /installroot
+RUN mkdir -p /installroot/usr/local/bin /build/bin && for tool in sh uniq tail sort grep cut; do ln -s /bin/busybox /installroot/bin/$tool; done
+
+
+RUN xx-apt-get install -y xx-c-essentials libssl-dev libudev-dev libv4l-dev pkg-config
+COPY . /app
+WORKDIR /app
+ARG EXTRA_CARGO_ARGS
+RUN XX_DEBUG_CARGO=1 xx-cargo build ${EXTRA_CARGO_ARGS}
+ARG AKRI_COMPONENT
+RUN PROFILE=$(echo "${EXTRA_CARGO_ARGS}" | grep -q -- --release && echo "release" || echo "debug"); \
+    xx-verify ./target/$(xx-cargo --print-target-triple)/${PROFILE}/${AKRI_COMPONENT}\ 
+    && cp ./target/$(xx-cargo --print-target-triple)/${PROFILE}/${AKRI_COMPONENT} /build/bin/akri
+# Prepare crictl for agent
+RUN VERSION=v1.25.0; if [ "x${AKRI_COMPONENT}" = "xagent" ]; then wget \ 
+    "https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-$(xx-info arch).tar.gz" -O crictl.tar.gz\ 
+    && tar zxvf crictl.tar.gz -C /build/bin; fi
+
+
+FROM scratch
+COPY --from=build /installroot /
+COPY --from=build /build/bin /usr/local/bin
+ENV RUST_LOG agent,akri_debug_echo,akri_discovery_utils,akri_onvif,akri_opcua,akri_shared,akri_udev\ 
+,controller,debug_echo_discovery_handler,onvif_discovery_handler,opcua_discovery_handler,udev_discovery_handler
+# Using a fixed value here as we can't use any variable in entrypoint
+ENTRYPOINT [ "/usr/local/bin/akri" ]
+

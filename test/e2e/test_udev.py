@@ -42,7 +42,7 @@ def grouped_config(akri_version):
     ).items
     base_command = ["/bin/sh", "-c"]
     # This command will get the ID_PATH to use to get a device with many "subdevices"
-    command = "grep -hr ID_PATH= /run/udev/data | sort | uniq -cd | sort -h | tail -1 | cut -d '=' -f 2"
+    command = "grep -hr ID_PATH= /run/udev/data | sort | uniq -cd | sort -n | tail -1 | cut -d '=' -f 2"
     paths = set()
     # Get the ID_PATH we can use
     for pod in pods:
@@ -60,7 +60,7 @@ def grouped_config(akri_version):
         try:
             paths.add(resp.readline_stdout(timeout=3).strip())
         except:
-            pytest.skip("No udev ?")
+            pytest.skip(f"No udev ?")
     if len(paths) == 0:
         pytest.skip("No groupable devices found")
     path = paths.pop()

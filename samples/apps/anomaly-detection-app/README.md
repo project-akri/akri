@@ -36,5 +36,5 @@ where the gRPC servers should be running.
 
 For example, if the servers are running at `localhost:80`, run the following:
 ```sh
-CONFIGURATION_NAME="akri-opcua"  AKRI_OPCUA_SVC_SERVICE_HOST=localhost AKRI_OPCUA_SVC_SERVICE_PORT_GRPC=80 python3 ./anomaly_detection.py
+CONFIGURATION_NAME="akri-opcua"  AKRI_OPCUA_SVC_SERVICE_HOST=localhost AKRI_OPCUA_SVC_SERVICE_PORT_GRPC=80 python3 ./app.py
 ```

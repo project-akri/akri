@@ -1,80 +1,11 @@
-
-# Ignore everything
 **
-
-# The anomaly detection app is built using a `docker build` command, 
-# so the source code needs to be available to the container
-# build
-!samples/apps/anomaly-detection-app
-
-# ONVIF broker is built using a `docker build` command, so
-# the source code needs to be available to the DotNet container
-# build
-!samples/brokers/onvif-video-broker
-
-# OPC UA broker is built using a `docker build` command, so
-# the source code needs to be available to the DotNet container
-# build
-!samples/brokers/opcua-monitoring-broker
-
-# The streaming app is built using a `docker build` command, so
-# the source code needs to be available to the container
-# build
-!samples/apps/video-streaming-app
-
-# The Rust binaries are not built with a `docker build`
-# command (they are built using Cargo Cross, which I think
-# uses a docker run).  Because of this, the Rust src and 
-# Cargo.toml files can be ignored by docker.
-
-
-# Cross-build binaries need to be available
-#    It is not clear to me why !target/*/*/controller
-#    does not work here, but it doesn't seem to.  So
-#    for now, explicitly specifying each cross-build
-#    target and configuration path.
-!target/x86_64-unknown-linux-gnu/debug/controller
-!target/x86_64-unknown-linux-gnu/release/controller
-!target/x86_64-unknown-linux-gnu/debug/agent
-!target/x86_64-unknown-linux-gnu/release/agent
-!target/x86_64-unknown-linux-gnu/debug/agent-full
-!target/x86_64-unknown-linux-gnu/release/agent-full
-!target/x86_64-unknown-linux-gnu/debug/udev-video-broker
-!target/x86_64-unknown-linux-gnu/release/udev-video-broker
-!target/x86_64-unknown-linux-gnu/debug/webhook-configuration
-!target/x86_64-unknown-linux-gnu/release/webhook-configuration
-!target/x86_64-unknown-linux-gnu/release/udev-discovery-handler
-!target/x86_64-unknown-linux-gnu/release/debug-echo-discovery-handler
-!target/x86_64-unknown-linux-gnu/release/onvif-discovery-handler
-!target/x86_64-unknown-linux-gnu/release/opcua-discovery-handler
-!target/aarch64-unknown-linux-gnu/debug/controller
-!target/aarch64-unknown-linux-gnu/release/controller
-!target/aarch64-unknown-linux-gnu/debug/agent
-!target/aarch64-unknown-linux-gnu/release/agent
-!target/aarch64-unknown-linux-gnu/debug/agent-full
-!target/aarch64-unknown-linux-gnu/release/agent-full
-!target/aarch64-unknown-linux-gnu/debug/udev-video-broker
-!target/aarch64-unknown-linux-gnu/release/udev-video-broker
-!target/aarch64-unknown-linux-gnu/debug/webhook-configuration
-!target/aarch64-unknown-linux-gnu/release/webhook-configuration
-!target/aarch64-unknown-linux-gnu/release/udev-discovery-handler
-!target/aarch64-unknown-linux-gnu/release/debug-echo-discovery-handler
-!target/aarch64-unknown-linux-gnu/release/onvif-discovery-handler
-!target/aarch64-unknown-linux-gnu/release/opcua-discovery-handler
-!target/armv7-unknown-linux-gnueabihf/debug/controller
-!target/armv7-unknown-linux-gnueabihf/release/controller
-!target/armv7-unknown-linux-gnueabihf/debug/agent
-!target/armv7-unknown-linux-gnueabihf/release/agent
-!target/armv7-unknown-linux-gnueabihf/debug/agent-full
-!target/armv7-unknown-linux-gnueabihf/release/agent-full
-!target/armv7-unknown-linux-gnueabihf/debug/udev-video-broker
-!target/armv7-unknown-linux-gnueabihf/release/udev-video-broker
-!target/armv7-unknown-linux-gnueabihf/debug/webhook-configuration
-!target/armv7-unknown-linux-gnueabihf/release/webhook-configuration
-!target/armv7-unknown-linux-gnueabihf/release/udev-discovery-handler
-!target/armv7-unknown-linux-gnueabihf/release/debug-echo-discovery-handler
-!target/armv7-unknown-linux-gnueabihf/release/onvif-discovery-handler
-!target/armv7-unknown-linux-gnueabihf/release/opcua-discovery-handler
-
-# Cross toml file needs to be available for making the cross build containers
-!Cross.toml
+!Cargo.toml
+!Cargo.lock
+!agent
+!controller
+!discovery-handler-modules
+!discovery-handlers
+!discovery-utils
+!samples
+!shared
+!webhooks

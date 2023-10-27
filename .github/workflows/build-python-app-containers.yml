@@ -1,19 +1,19 @@
-name: Build OPC UA Monitoring Broker
+name: Build Sample Apps Containers
 
 on:
   push:
     branches: [ main ]
     paths:
-    - .github/workflows/build-opcua-monitoring-broker-container.yml
-    - build/containers/Dockerfile.opcua-monitoring-broker
-    - samples/brokers/opcua-monitoring-broker/**
+    - .github/workflows/build-python-app-container.yml
+    - build/containers/Dockerfile.python-app
+    - samples/apps/**
     - version.txt
   pull_request:
     branches: [ main ]
     paths:
-    - .github/workflows/build-opcua-monitoring-broker-container.yml
-    - build/containers/Dockerfile.opcua-monitoring-broker
-    - samples/brokers/opcua-monitoring-broker/**
+    - .github/workflows/build-python-app-container.yml
+    - build/containers/Dockerfile.python-app
+    - samples/apps/**
     - version.txt
   release:
     types:
@@ -21,9 +21,14 @@ on:
 
 jobs:
 
-  build-broker:
+  build-apps:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      matrix:
+        component:
+          - anomaly-detection-app
+          - video-streaming-app
 
     steps:
     - name: Checkout the head commit of the branch
@@ -52,10 +57,10 @@ jobs:
       uses: docker/metadata-action@v5
       id: meta
       with:
-        images: ghcr.io/project-akri/akri/opcua-monitoring-broker
+        images: ghcr.io/project-akri/akri/${{ matrix.component }}
         labels: |
-          org.opencontainers.image.title=akri-opcua-monitoring-broker
-          org.opencontainers.image.description="Akri sample OPC UA monitoring broker"
+          org.opencontainers.image.title=akri-${{matrix.component}}
+          org.opencontainers.image.description=Akri Sample App
         tags: |
           type=ref,event=pr
           type=semver,pattern={{version}}
@@ -67,7 +72,10 @@ jobs:
       with:
         context: .
         push: ${{ github.event_name != 'pull_request' }}
+        build-args: |
+          APPLICATION=${{matrix.component}}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        file: build/containers/Dockerfile.opcua-monitoring-broker
-        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        file: build/containers/Dockerfile.python-app
+        # Don't build python sample apps for arm/v7 as many modules don't provide armv7 wheels.
+        platforms: linux/amd64,linux/arm64

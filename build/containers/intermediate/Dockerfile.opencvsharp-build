@@ -8,65 +8,74 @@
 # A second Pull Request should subsequently be made to update
 # Makefile's USE_OPENCV_BASE_VERSION.
 #
+# This Dockerfile is a port (with cross-compilation addition) of the
+# official upstream Dockerfile: 
+# https://github.com/shimat/opencvsharp/blob/main/docker/ubuntu22-dotnet6-opencv4.8.0/Dockerfile
 
-ARG PLATFORM=
-FROM mcr.microsoft.com/dotnet/aspnet:3.1-bullseye-slim${PLATFORM} AS base
-WORKDIR /app
+ARG OPENCV_SHARP_VERSION="4.8.0.20230711"
 
-# Link the container to the Akri repository
-LABEL org.opencontainers.image.source https://github.com/project-akri/akri
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:master AS xx
 
-# based on https://xaviergeerinck.com/opencv-in-dotnet-core
-ENV OPENCV_VERSION="4.5.4"
-ENV OPENCV_INSTALLATION_DIR="/opt/opencv/"
-ENV OPENCV_SHARP_VERSION="4.5.3.20210821"
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:6.0-bookworm-slim as builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+#ENV OPENCV_VERSION=${OPENCV_SHARP_VERSION%.*}
+
+WORKDIR /
+COPY --from=xx / /
+
+RUN apt-get update && apt-get -y install --no-install-recommends \
+      apt-transport-https \
+      software-properties-common \
+      wget \
+      unzip \
+      ca-certificates \
+      build-essential \
+      cmake \
+      git \
+      clang
+
+ARG TARGETPLATFORM
 
 # Install opencv dependencies
-RUN apt-get update && apt-get -y install --no-install-recommends \
-    apt-transport-https \
-    software-properties-common \
-    wget \
-    unzip \
-    ca-certificates \
-    build-essential \
-    cmake \
-    git \
-    libtbb-dev \
-    libatlas-base-dev \
-    libgtk2.0-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libdc1394-22-dev \
-    libxine2-dev \
-    libv4l-dev \
-    libtheora-dev \
-    libvorbis-dev \
-    libxvidcore-dev \
-    libopencore-amrnb-dev \
-    libopencore-amrwb-dev \
-    libavresample-dev \
-    x264 \
-    libtesseract-dev \
-    libgdiplus \
-    && apt-get -y clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN xx-apt install -y xx-c-essentials xx-cxx-essentials \
+      libtbb-dev \
+      libatlas-base-dev \
+      libgtk2.0-dev \
+      libx11-dev \
+      liblerc-dev \
+      libavcodec-dev \
+      libavformat-dev \
+      libswscale-dev \
+      libdc1394-dev \
+      libxine2-dev \
+      libv4l-dev \
+      libtheora-dev \
+      libvorbis-dev \
+      libxvidcore-dev \
+      libopencore-amrnb-dev \
+      libopencore-amrwb-dev \
+      x264 \
+      libtesseract-dev \
+      libgdiplus
 
-RUN mkdir ${OPENCV_INSTALLATION_DIR} && \
-	cd ${OPENCV_INSTALLATION_DIR} && \
-	wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip -Oopencv-${OPENCV_VERSION}.zip && \
-	unzip opencv-${OPENCV_VERSION}.zip && \
-	wget https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip -Oopencv_contrib-${OPENCV_VERSION}.zip && \
-	unzip opencv_contrib-${OPENCV_VERSION}.zip && \
-	rm ${OPENCV_INSTALLATION_DIR}/*.zip && \
-	cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} 
-	
-	
-RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
-    mkdir build && cd build && \
-	cmake \
+ARG OPENCV_SHARP_VERSION
+# Setup opencv and opencv-contrib source
+RUN OPENCV_VERSION=${OPENCV_SHARP_VERSION%.*}; \ 
+    wget -q https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
+    unzip -q ${OPENCV_VERSION}.zip && \
+    rm ${OPENCV_VERSION}.zip && \
+    mv opencv-${OPENCV_VERSION} opencv && \
+    wget -q https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip && \
+    unzip -q ${OPENCV_VERSION}.zip && \
+    rm ${OPENCV_VERSION}.zip && \
+    mv opencv_contrib-${OPENCV_VERSION} opencv_contrib
+
+# Build OpenCV
+RUN cd opencv && mkdir build && cd build && \
+    cmake $(xx-clang --print-cmake-defines) \
+    -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
     -D CMAKE_BUILD_TYPE=RELEASE \
-    -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules \
     -D BUILD_SHARED_LIBS=OFF \
     -D ENABLE_CXX11=ON \
     -D BUILD_EXAMPLES=OFF \
@@ -74,7 +83,7 @@ RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
     -D BUILD_PERF_TESTS=OFF \
     -D BUILD_TESTS=OFF \
     -D BUILD_JAVA=OFF \
-    -D BUILD_opencv_app=OFF \
+    -D BUILD_opencv_apps=OFF \
     -D BUILD_opencv_barcode=OFF \
     -D BUILD_opencv_java_bindings_generator=OFF \
     -D BUILD_opencv_js_bindings_generator=OFF \
@@ -98,62 +107,52 @@ RUN cd ${OPENCV_INSTALLATION_DIR}/opencv-${OPENCV_VERSION} && \
     -D BUILD_opencv_structured_light=OFF \
     -D BUILD_opencv_surface_matching=OFF \
     -D BUILD_opencv_videostab=OFF \
-    -D BUILD_opencv_wechat_qrcode=OFF \
+    -D BUILD_opencv_wechat_qrcode=ON \
     -D WITH_GSTREAMER=OFF \
     -D WITH_ADE=OFF \
+    -D WITH_IPP=OFF \
     -D OPENCV_ENABLE_NONFREE=ON \
-    .. && make -j$(nproc) && \
-	make install -j8 && \
-	ldconfig
+    .. && make -j$(nproc) && make install && ldconfig
 
-RUN cd ${OPENCV_INSTALLATION_DIR} && \
-	git clone --depth=1 --branch=${OPENCV_SHARP_VERSION} https://github.com/shimat/opencvsharp.git opencvsharp && \
-	cd opencvsharp/src && \
-	mkdir build && \
-	cd build && \
-	cmake -D CMAKE_INSTALL_PREFIX=${OPENCV_INSTALLATION_DIR} .. && \
-	make -j$(nproc) && \
-	make install && \
-	ldconfig && \
-	cp OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib
+# Download OpenCvSharp
+RUN git clone --depth=1 --branch=${OPENCV_SHARP_VERSION} https://github.com/shimat/opencvsharp.git opencvsharp
 
-# Don't force architecture here as it won't be working as expected
-FROM mcr.microsoft.com/dotnet/sdk:3.1-bullseye AS build-dotnet-env
+# Install the Extern lib.
+RUN mkdir /opencvsharp/make && cd /opencvsharp/make && \
+    cmake $(xx-clang --print-cmake-defines) -D CMAKE_INSTALL_PREFIX=/opencvsharp/make /opencvsharp/src && \
+    make -j$(nproc) && make install && \
+    rm -rf /opencv && \
+    rm -rf /opencv_contrib && \
+    cp /opencvsharp/make/OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib/
 
-ARG PLATFORM
+RUN xx-verify /opencvsharp/make/OpenCvSharpExtern/libOpenCvSharpExtern.so
 
-ENV OPENCV_SHARP_VERSION="4.5.3.20210821"
-ENV ARCH=${PLATFORM:--x64}
-
-WORKDIR /
-COPY --from=base /usr/lib/libOpenCvSharpExtern.so ./
-RUN git clone --depth=1 --branch=${OPENCV_SHARP_VERSION} https://github.com/shimat/opencvsharp.git
-
+ARG BUILDPLATFORM
 # Install Build the C# part of OpenCvSharp
-RUN cd /opencvsharp/src/OpenCvSharp && \
-    dotnet build -r linux${ARCH%32} -c Release -f netstandard2.0 
+RUN DOTNET_PUBLISH_RUNTIME="linux-$(echo ${TARGETARCH} | sed 's/amd/x/')"; \
+    cd /opencvsharp/src/OpenCvSharp && \
+    dotnet build --no-self-contained -r ${DOTNET_PUBLISH_RUNTIME} -c Release -f net6.0 && \
+    cd /opencvsharp/src/OpenCvSharp.Extensions && \
+    dotnet build --no-self-contained -r ${DOTNET_PUBLISH_RUNTIME} -c Release -f net6.0
+    
+RUN mkdir /artifacts && cd /artifacts && \
+    cp /opencvsharp/src/OpenCvSharp/bin/Release/net6.0/*/* . && \
+    cp /opencvsharp/src/OpenCvSharp.Extensions/bin/Release/net6.0/*/* .
 
-RUN cd /opencvsharp/src/OpenCvSharp.Extensions && \
-    dotnet build -r linux${ARCH%32} -c Release -f netstandard2.0 
+########## Final image ##########
 
-RUN mkdir /opencvsharp/build && \
-    cd /opencvsharp/build && \
-    cp /opencvsharp/src/OpenCvSharp/bin/$([ -n "$PLATFORM" ] && echo "*")/Release/netstandard2.0/*/* . && \
-    cp /opencvsharp/src/OpenCvSharp.Extensions/bin/$([ -n "$PLATFORM" ] && echo "*")/Release/netstandard2.0/*/* .
-
-# Copy over OpenCvSharp binaries and OpenCvSharpExtern shared library
-FROM mcr.microsoft.com/dotnet/aspnet:3.1-bullseye-slim${PLATFORM}
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bookworm-slim as final
 WORKDIR /app
-COPY --from=build-dotnet-env /opencvsharp/build ./
-COPY --from=build-dotnet-env /libOpenCvSharpExtern.so /usr/lib
 # Install OpenCVSharpExtern dependencies
 RUN apt-get update && apt-get -y install --no-install-recommends \
     libgtk2.0-dev \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
-    libdc1394-22-dev \
-    libavresample-dev \
+    libdc1394-dev \
     libtesseract-dev \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/lib/libOpenCvSharpExtern.so /usr/lib
+COPY --from=builder /artifacts ./
