@@ -1,6 +1,6 @@
 [package]
 name = "onvif-discovery-handler"
-version = "0.12.14"
+version = "0.12.15"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2018"
