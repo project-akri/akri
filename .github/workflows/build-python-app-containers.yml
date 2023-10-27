@@ -4,14 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
-    - .github/workflows/build-python-app-container.yml
+    - .github/workflows/build-python-app-containers.yml
     - build/containers/Dockerfile.python-app
     - samples/apps/**
     - version.txt
   pull_request:
     branches: [ main ]
     paths:
-    - .github/workflows/build-python-app-container.yml
+    - .github/workflows/build-python-app-containers.yml
     - build/containers/Dockerfile.python-app
     - samples/apps/**
     - version.txt
@@ -47,11 +47,12 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Login to GitHub Container Registry
+      if: github.event_name == 'push' || github.event_name == 'release'
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ secrets.crUsername }}
+        password: ${{ secrets.crPassword }}
 
     - name: Docker meta
       uses: docker/metadata-action@v5
