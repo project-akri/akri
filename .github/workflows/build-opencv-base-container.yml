@@ -73,7 +73,7 @@ jobs:
           org.opencontainers.image.description=Akri opencvsharp base image for samples build
         tags: |
           type=ref,event=pr
-          type=raw,value=${{steps.version-string.outputs.version}}
+          type=raw,value=${{steps.version-string.outputs.BUILD_OPENCV_BASE_VERSION}}
 
     - name: Build and push
       uses: docker/build-push-action@v5

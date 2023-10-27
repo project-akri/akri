@@ -57,5 +57,5 @@ jobs:
 
     - name: Build and push
       run: |
-        make onvif-video-broker $(${{ github.event_name != 'pull_request' }} && echo "PUSH=1")
+        make onvif-video-broker PREFIX=ghcr.io/project-akri/akri $(${{ github.event_name != 'pull_request' }} && echo "PUSH=1")
 
