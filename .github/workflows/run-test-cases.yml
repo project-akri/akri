@@ -189,9 +189,9 @@ jobs:
           SHORTVERSION=$(cut -d '.' -f 1,2 <<< "${{ matrix.kube.version }}")
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https ca-certificates curl
-          curl -fsSL https://pkgs.k8s.io/core:/stable:/v${SHORTVERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          curl -fsSL https://pkgs.k8s.io/core:/stable:/v${SHORTVERSION}/deb/Release.key  | sudo gpg --yes --batch --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
           echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${SHORTVERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --batch --dearmor -o /usr/share/keyrings/docker.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
           sudo apt-get update
           sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-* kubeadm=${{ matrix.kube.version }}-* kubectl=${{ matrix.kube.version }}-* containerd.io
