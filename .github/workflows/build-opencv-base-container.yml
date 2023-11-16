@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
     paths:
-    - .github/actions/build-intermediate/**
     - .github/workflows/build-opencv-base-container.yml
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
@@ -13,13 +12,10 @@ on:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main ]
     paths:
-    - .github/actions/build-intermediate/**
     - .github/workflows/build-opencv-base-container.yml
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
     - Makefile
-  issue_comment:
-    types: [created, edited]
 
 env:
   AKRI_COMPONENT: opencvsharp-build
@@ -57,11 +53,12 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Login to GitHub Container Registry
+      if: github.event_name == 'push' || github.event_name == 'release'
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ secrets.crUsername }}
+        password: ${{ secrets.crPassword }}
 
     - name: Docker meta
       uses: docker/metadata-action@v5
@@ -73,7 +70,7 @@ jobs:
           org.opencontainers.image.description=Akri opencvsharp base image for samples build
         tags: |
           type=ref,event=pr
-          type=raw,value=${{steps.version-string.outputs.version}}
+          type=raw,value=${{steps.version-string.outputs.BUILD_OPENCV_BASE_VERSION}}
 
     - name: Build and push
       uses: docker/build-push-action@v5
