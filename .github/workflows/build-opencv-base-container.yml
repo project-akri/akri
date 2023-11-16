@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
     paths:
-    - .github/actions/build-intermediate/**
     - .github/workflows/build-opencv-base-container.yml
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
@@ -13,13 +12,10 @@ on:
     types: [opened, synchronize, reopened, labeled]
     branches: [ main ]
     paths:
-    - .github/actions/build-intermediate/**
     - .github/workflows/build-opencv-base-container.yml
     - build/containers/intermediate/Dockerfile.opencvsharp-build
     - build/intermediate-containers.mk
     - Makefile
-  issue_comment:
-    types: [created, edited]
 
 env:
   AKRI_COMPONENT: opencvsharp-build
