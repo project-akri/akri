@@ -76,9 +76,9 @@ jobs:
           org.opencontainers.image.title=akri-${{matrix.component.label}}
         tags: |
           type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=${{steps.version-string.outputs.version}},enable=${{github.event_name != 'release'}}
+          type=semver,pattern=v{{version}}
+          type=semver,pattern=v{{major}}.{{minor}}
+          type=raw,value=v${{steps.version-string.outputs.version}}-dev,enable=${{github.event_name != 'release'}}
 
     - name: Build and push
       uses: docker/build-push-action@v5
@@ -126,6 +126,7 @@ jobs:
       id: version-string
       run: |
         echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+        echo "component_tag=$(echo "${{ matrix.component.label }}" | sed 's/-handler$//')" >> $GITHUB_OUTPUT
 
     - name: Cache Docker layers
       uses: actions/cache/restore@v3
@@ -151,14 +152,14 @@ jobs:
       uses: docker/metadata-action@v5
       id: meta
       with:
-        images: ghcr.io/project-akri/akri/${{ matrix.component.label }}
+        images: ghcr.io/project-akri/akri/${{steps.version-string.outputs.component_tag}}
         labels: |
           org.opencontainers.image.title=akri-${{matrix.component.label}}
         tags: |
           type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=${{steps.version-string.outputs.version}},enable=${{github.event_name != 'release'}}
+          type=semver,pattern=v{{version}}
+          type=semver,pattern=v{{major}}.{{minor}}
+          type=raw,value=v${{steps.version-string.outputs.version}}-dev,enable=${{github.event_name != 'release'}}
 
     - name: Build and push
       uses: docker/build-push-action@v5
