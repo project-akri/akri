@@ -64,9 +64,9 @@ jobs:
           org.opencontainers.image.description=Akri Sample App
         tags: |
           type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=${{steps.version-string.outputs.version}},enable=${{github.event_name != 'release'}}
+          type=semver,pattern=v{{version}}
+          type=semver,pattern=v{{major}}.{{minor}}
+          type=raw,value=v${{steps.version-string.outputs.version}}-dev,enable=${{github.event_name != 'release'}}
 
     - name: Build and push
       uses: docker/build-push-action@v5
