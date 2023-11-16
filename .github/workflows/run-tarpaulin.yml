@@ -16,7 +16,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_VERSION: 1.68.1
+  CARGO_VERSION: 1.73.0
 
 jobs:
   build:

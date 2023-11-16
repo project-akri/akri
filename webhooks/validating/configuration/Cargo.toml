@@ -1,10 +1,10 @@
 [package]
 name = "webhook-configuration"
-version = "0.12.18"
+version = "0.12.19"
 license = "Apache-2.0"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2018"
-rust-version = "1.68.1"
+rust-version = "1.73.0"
 
 [dependencies]
 actix-web = { version = "3.3.2", features = ["openssl"] }
