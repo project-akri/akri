@@ -126,9 +126,10 @@ def test_cleanup(akri_version, faker):
 
 
 def test_slot_reconciliation():
+    #TODO: Add some real testing of this feature
     agent_logs = get_agent_logs(since=20)
     for logs in agent_logs.values():
-        assert "get_node_slots - crictl called successfully" in logs
+        assert "reclaiming unused slots - start" in logs
 
 
 def test_broker_recreated_if_deleted(basic_config):

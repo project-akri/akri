@@ -12,6 +12,7 @@ use k8s_openapi::api::core::v1::{Node, Pod, Service};
 use kube::{api::ObjectList, client::Client};
 use mockall::{automock, predicate::*};
 
+pub mod crud;
 pub mod job;
 pub mod node;
 pub mod pod;
@@ -509,6 +510,8 @@ impl KubeInterface for KubeImpl {
     /// kube.create_instance(
     ///     &InstanceSpec{
     ///         configuration_name: "capability_configuration_name".to_string(),
+    ///         cdi_name: "akri.sh/config-1=instance-1".to_string(),
+    ///         capacity: 1,
     ///         shared: true,
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),
@@ -574,6 +577,8 @@ impl KubeInterface for KubeImpl {
     /// kube.update_instance(
     ///     &InstanceSpec{
     ///         configuration_name: "capability_configuration_name".to_string(),
+    ///         cdi_name: "akri.sh/capability_configuration_name=instance-1".to_string(),
+    ///         capacity: 1,
     ///         shared: true,
     ///         nodes: Vec::new(),
     ///         device_usage: std::collections::HashMap::new(),

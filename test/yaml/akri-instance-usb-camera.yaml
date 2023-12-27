@@ -4,6 +4,8 @@ metadata:
   name: usb-dev-video0-ffffff
 spec:
   configurationName: usb-dev-video0
+  capacity: 5
+  cdiName: akri.sh/usb-dev-video0=ffffff
   shared: false
   nodes:
   - "linux-dev3"
