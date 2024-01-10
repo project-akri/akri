@@ -27,7 +27,7 @@ kube = { version = "0.80.0",  features = ["derive"] }
 kube-runtime = "0.80.0"
 lazy_static = "1.4"
 log = "0.4"
-mockall_double = "0.2.0"
+mockall_double = "0.3.1"
 prometheus = { version = "0.12.0", features = ["process"] }
 prost = "0.12"
 serde = "1.0.104"
@@ -51,7 +51,7 @@ akri-opcua = { path = "../discovery-handlers/opcua" }
 akri-udev = { path = "../discovery-handlers/udev"}
 env_logger = "0.10.0"
 mock_instant = { version = "0.2", features = ["sync"] }
-mockall = "0.10.2"
+mockall = "0.12"
 serde_yaml = "0.8.11"
 tempfile = "3.1.0"
 
