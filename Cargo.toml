@@ -1,6 +1,4 @@
 [patch.crates-io]
-# Patch needed to get yet unreleased version with a fix for an error with recent rust/cargo
-opcua = { git = 'https://github.com/locka99/opcua' }
 # Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help
 # with supply chain integrity.
 h2 = { git = 'https://github.com/project-akri/h2', branch = 'patch-authority'}
