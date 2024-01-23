@@ -1,9 +1,9 @@
 [package]
 name = "akri-opcua"
-version = "0.12.19"
+version = "0.12.20"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.73.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,15 +13,15 @@ akri-discovery-utils = { path = "../../discovery-utils" }
 anyhow = "1.0.38"
 async-trait = "0.1.0"
 log = "0.4"
-opcua = { version = "0.11.0", features = ["client"] }
+opcua = { version = "0.12.0", features = ["client"] }
 serde = "1.0.104"
 serde_derive = "1.0.1"
 tokio = { version = "1.0.2", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
-tonic = { version = "0.5.2", features = ["tls"] }
+tonic = { version = "0.10", features = ["tls"] }
 url = "2.2.0"
 
 [dev-dependencies]
-mockall = "0.10.2"
+mockall = "0.12"
 serde_json = "1.0.45"
 

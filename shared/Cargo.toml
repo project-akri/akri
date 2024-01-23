@@ -1,9 +1,9 @@
 [package]
 name = "akri-shared"
-version = "0.12.19"
+version = "0.12.20"
 license = "Apache-2.0"
 authors = ["<bfjelds@microsoft.com>"]
-edition = "2018"
+edition = "2021"
 rust-version = "1.73.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,7 +15,7 @@ either = '*'
 k8s-openapi = { version = "0.17.0", default-features = false, features = ["schemars", "v1_23"] }
 kube = { version = "0.80.0",  features = ["derive"] }
 log = "0.4"
-mockall = "0.10.2"
+mockall = "0.12"
 prometheus = { version = "0.12.0", features = ["process"] }
 rand = "0.8.3"
 schemars = "0.8.0"
@@ -24,7 +24,7 @@ serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
 tokio = { version = "1.0.1", features = ["full"] }
-tonic = "0.5.2"
+tonic = "0.10"
 tower = "0.4.8"
 warp = "0.3.6"
 

@@ -1588,7 +1588,7 @@ mod device_plugin_service_tests {
     // Tests that configuration device plugin names are formatted correctly
     #[test]
     fn test_get_device_configuration_name() {
-        let names_to_test = vec![
+        let names_to_test = [
             ("no_dash_no_dot", "no_dash_no_dot"),
             ("usb/camera", "usb-camera"),
             ("another//camera", "another--camera"),
@@ -2441,7 +2441,7 @@ mod device_plugin_service_tests {
     #[tokio::test]
     async fn test_get_available_virtual_devices_all_taken_by_configuration_same_vdev_id() {
         let this_node = "node-a";
-        let vdev_ids = vec!["vdev-a"; 5];
+        let vdev_ids = ["vdev-a"; 5];
         let expected_length = 1;
         let mock_device_usages = vdev_ids
             .iter()
@@ -2462,7 +2462,7 @@ mod device_plugin_service_tests {
     #[tokio::test]
     async fn test_get_available_virtual_devices_all_taken_by_configuration() {
         let this_node = "node-a";
-        let vdev_ids = vec!["vdev-a", "vdev-b", "vdev-c", "vdev-d", "vdev-e"];
+        let vdev_ids = ["vdev-a", "vdev-b", "vdev-c", "vdev-d", "vdev-e"];
         let expected_length = vdev_ids.len();
         let mock_device_usages = vdev_ids
             .iter()
@@ -2483,7 +2483,7 @@ mod device_plugin_service_tests {
     #[tokio::test]
     async fn test_get_available_virtual_devices_some_taken_by_configuration() {
         let this_node = "node-a";
-        let vdev_ids = vec!["vdev-a", "vdev-b"];
+        let vdev_ids = ["vdev-a", "vdev-b"];
         let expected_length = 2 + 1; // 2 vdev_ids + 1 free
         let mut mock_device_usages = vec![(DeviceUsageKind::Free, "".to_string()); 3];
         mock_device_usages.extend(
@@ -2606,7 +2606,7 @@ mod device_plugin_service_tests {
         ) -> &mut Self {
             self.device_usages
                 .entry(instance_name.to_string())
-                .or_insert(Vec::new())
+                .or_default()
                 .push(device_usage);
             self
         }
@@ -2618,7 +2618,7 @@ mod device_plugin_service_tests {
         ) -> &mut Self {
             self.device_usages
                 .entry(instance_name.to_string())
-                .or_insert(Vec::new())
+                .or_default()
                 .extend(device_usages);
             self
         }

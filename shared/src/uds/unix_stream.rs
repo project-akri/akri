@@ -58,7 +58,6 @@ impl AsyncWrite for UnixStream {
 }
 
 pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
-    use std::convert::TryFrom;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     // Test that server is running, trying for at most 10 seconds

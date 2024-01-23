@@ -264,7 +264,7 @@ mod tests {
         entries
             .into_iter()
             .map(|(k, v)| generate_credential_data_entry(k, v))
-            .chain(list_data.into_iter())
+            .chain(list_data)
             .collect::<HashMap<String, ByteData>>()
     }
 
@@ -351,7 +351,7 @@ mod tests {
     }
 
     fn build_default_username_password_data() -> HashMap<String, ByteData> {
-        let secret_data = vec![("default", "default_username", "default_password")];
+        let secret_data = [("default", "default_username", "default_password")];
         let secret_test_data = secret_data
             .iter()
             .map(|(id, uname, pwd)| DeviceCredentialData {
@@ -364,7 +364,7 @@ mod tests {
     }
 
     fn build_username_password_data() -> HashMap<String, ByteData> {
-        let secret_data = vec![(
+        let secret_data = [(
             "5f5a69c2-e0ae-504f-829b-00fcdab169cc",
             "username_5f",
             "password_5f",
@@ -438,7 +438,7 @@ mod tests {
                 }
         }
         "#;
-        let secret_ref_username_password = vec![
+        let secret_ref_username_password = [
             ("device_1_username", "user_foo"),
             ("device_1_password", "password_foo"),
             ("device_2_username", "user_bar"),
@@ -460,7 +460,7 @@ mod tests {
         secret_ref_username_password
             .iter()
             .map(|(k, v)| generate_credential_data_entry(k, Some(v.as_bytes())))
-            .chain(credential_ref_list_data.into_iter())
+            .chain(credential_ref_list_data)
             .collect::<HashMap<String, ByteData>>()
     }
 
@@ -553,8 +553,8 @@ mod tests {
         let username_password_data = build_username_password_data();
         let credential_data = HashMap::new()
             .into_iter()
-            .chain(credential_list_data.into_iter())
-            .chain(username_password_data.into_iter())
+            .chain(credential_list_data)
+            .chain(username_password_data)
             .collect();
         let credential_store = CredentialStore::new(&credential_data);
 
@@ -582,8 +582,8 @@ mod tests {
         let credential_ref_list_data = build_device_credential_ref_list_data();
         let credential_data = HashMap::new()
             .into_iter()
-            .chain(credential_list_data.into_iter())
-            .chain(credential_ref_list_data.into_iter())
+            .chain(credential_list_data)
+            .chain(credential_ref_list_data)
             .collect();
         let credential_store = CredentialStore::new(&credential_data);
 
@@ -607,8 +607,8 @@ mod tests {
         let username_password_data = build_username_password_data();
         let credential_data = HashMap::new()
             .into_iter()
-            .chain(credential_ref_list_data.into_iter())
-            .chain(username_password_data.into_iter())
+            .chain(credential_ref_list_data)
+            .chain(username_password_data)
             .collect();
         let credential_store = CredentialStore::new(&credential_data);
 
@@ -637,9 +637,9 @@ mod tests {
         let username_password_data = build_username_password_data();
         let credential_data = HashMap::new()
             .into_iter()
-            .chain(credential_list_data.into_iter())
-            .chain(credential_ref_list_data.into_iter())
-            .chain(username_password_data.into_iter())
+            .chain(credential_list_data)
+            .chain(credential_ref_list_data)
+            .chain(username_password_data)
             .collect();
         let credential_store = CredentialStore::new(&credential_data);
 

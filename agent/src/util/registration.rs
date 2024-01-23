@@ -102,7 +102,7 @@ impl Registration for AgentRegistration {
         let endpoint = req.endpoint.clone();
         let dh_endpoint = create_discovery_handler_endpoint(
             &endpoint,
-            EndpointType::from_i32(req.endpoint_type).unwrap(),
+            EndpointType::try_from(req.endpoint_type).unwrap(),
         );
         info!(
             "register_discovery_handler - called with register request {:?}",
