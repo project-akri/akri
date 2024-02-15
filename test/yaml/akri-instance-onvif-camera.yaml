@@ -4,6 +4,8 @@ metadata:
   name: onvif-camera-ffffff
 spec:
   configurationName: onvif-camera
+  capacity: 5
+  cdiName: akri.sh/onvif-camera=ffffff
   shared: true
   nodes:
   - "linux-dev3"

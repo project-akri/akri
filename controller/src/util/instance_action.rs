@@ -12,8 +12,8 @@ use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
-use kube::api::{Api, ListParams};
-use kube_runtime::watcher::{default_backoff, watcher, Event};
+use kube::api::Api;
+use kube_runtime::watcher::{watcher, Config, Event};
 use kube_runtime::WatchStreamExt;
 use log::{error, info, trace};
 use std::collections::HashMap;
@@ -93,7 +93,7 @@ async fn internal_do_instance_watch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("internal_do_instance_watch - enter");
     let resource = Api::<Instance>::all(kube_interface.get_kube_client());
-    let watcher = watcher(resource, ListParams::default()).backoff(default_backoff());
+    let watcher = watcher(resource, Config::default()).default_backoff();
     let mut informer = watcher.boxed();
     let mut first_event = true;
     // Currently, this does not handle None except to break the loop.

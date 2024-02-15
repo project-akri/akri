@@ -107,6 +107,8 @@ agent:
     discoveryHandlers: /var/lib/akri
     # kubeletDevicePlugins is the location of the kubelet device-plugin sockets
     kubeletDevicePlugins: /var/lib/kubelet/device-plugins
+    # kubeletPodResources is the location of the kubelet pod-resources socket
+    kubeletPodResources: /var/lib/kubelet/pod-resources
     # containerRuntimeSocket is the default node path of the container runtime socket. 
     # For MicroK8s, set to "/var/snap/microk8s/common/run/containerd.sock"
     # For K3s, set to "/run/k3s/containerd/containerd.sock"

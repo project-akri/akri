@@ -90,6 +90,8 @@ pub async fn find_jobs_with_selector(
 /// let api_client = Client::try_default().await.unwrap();
 /// let instance_spec = InstanceSpec {
 ///     configuration_name: "configuration_name".to_string(),
+///     cdi_name: "akri.sh/configuration_name=instance_name".to_string(),
+///     capacity: 1,
 ///     shared: true,
 ///     nodes: Vec::new(),
 ///     device_usage: std::collections::HashMap::new(),

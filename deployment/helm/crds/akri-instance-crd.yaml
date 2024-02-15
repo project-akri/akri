@@ -1,56 +1,88 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: instances.akri.sh
 spec:
   group: akri.sh
+  names:
+    categories: []
+    kind: Instance
+    plural: instances
+    shortNames:
+      - akrii
+    singular: instance
+  scope: Namespaced
   versions:
-    - name: v0
-      served: true
-      storage: true
+    - additionalPrinterColumns:
+        - description: The Configuration this Instance belongs to
+          jsonPath: ".spec.configurationName"
+          name: Config
+          type: string
+        - description: Describes whether this Instance is shared
+          jsonPath: ".spec.shared"
+          name: Shared
+          type: boolean
+        - description: Nodes that expose this Instance
+          jsonPath: ".spec.nodes"
+          name: Nodes
+          type: string
+        - jsonPath: ".metadata.creationTimestamp"
+          name: Age
+          type: date
+      name: v0
       schema:
         openAPIV3Schema:
-          type: object
+          description: "Auto-generated derived type for InstanceSpec via `CustomResource`"
           properties:
             spec:
-              type: object
+              description: "Defines the information in the Instance CRD\n\nAn Instance is a specific instance described by a Configuration.  For example, a Configuration may describe many cameras, each camera will be represented by a Instance."
               properties:
-                configurationName:
-                  type: string
                 brokerProperties:
                   additionalProperties:
                     type: string
+                  default: {}
+                  description: "This defines some properties that will be set as environment variables in broker Pods that request the resource this Instance represents. It contains the `Configuration.broker_properties` from this Instance's Configuration and the `Device.properties` set by the Discovery Handler that discovered the resource this Instance represents."
                   type: object
-                shared:
-                  type: boolean
-                nodes:
-                  type: array
-                  items:
-                    type: string
-                deviceUsage: # map<string, string>
+                capacity:
+                  description: This contains the number of slots for the Instance
+                  format: uint
+                  minimum: 0.0
+                  type: integer
+                cdiName:
+                  description: This contains the CDI fully qualified name of the device linked to the Instance
+                  type: string
+                configurationName:
+                  description: This contains the name of the corresponding Configuration
+                  type: string
+                deviceUsage:
                   additionalProperties:
                     type: string
+                  default: {}
+                  description: This contains a map of capability slots to node names.  The number of slots corresponds to the associated Configuration.capacity field.  Each slot will either map to an empty string (if the slot has not been claimed) or to a node name (corresponding to the node that has claimed the slot)
                   type: object
-      additionalPrinterColumns:
-      - name: Config
-        type: string
-        description: The Configuration this Instance belongs to
-        jsonPath: .spec.configurationName
-      - name: Shared
-        type: boolean
-        description: Describes whether this Instance is shared
-        jsonPath: .spec.shared
-      - name: Nodes
-        type: string
-        description: Nodes that expose this Instance
-        jsonPath: .spec.nodes
-      - name: Age
-        type: date
-        jsonPath: .metadata.creationTimestamp
-  scope: Namespaced
-  names:
-    plural: instances
-    singular: instance
-    kind: Instance
-    shortNames:
-    - akrii
+                  x-kubernetes-map-type: granular
+                nodes:
+                  default: []
+                  description: This contains a list of the nodes that can access this capability instance
+                  items:
+                    type: string
+                  type: array
+                  x-kubernetes-list-type: set
+                shared:
+                  default: false
+                  description: This defines whether the capability is to be shared by multiple nodes
+                  type: boolean
+              required:
+                - capacity
+                - cdiName
+                - configurationName
+              type: object
+          required:
+            - spec
+          title: Instance
+          type: object
+      served: true
+      storage: true
+      subresources: {}
+

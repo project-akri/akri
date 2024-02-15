@@ -84,6 +84,8 @@ spec:
             mountPath: /var/lib/akri
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
+          - name: pod-resources
+            mountPath: /var/lib/kubelet/pod-resources
           - name: var-run-dockershim
             mountPath: /host/run/containerd/containerd.sock
           {{- if .Values.agent.host.udev }}
@@ -106,6 +108,9 @@ spec:
       - name: device-plugin
         hostPath:
           path: "{{ .Values.agent.host.kubeletDevicePlugins }}"
+      - name: pod-resources
+        hostPath:
+          path: "{{ .Values.agent.host.kubeletPodResources }}"
       - name: var-run-dockershim
         hostPath:
           {{- if ne "" .Values.agent.host.containerRuntimeSocket }}

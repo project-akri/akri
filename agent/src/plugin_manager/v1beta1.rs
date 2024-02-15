@@ -4,6 +4,9 @@ pub struct DevicePluginOptions {
     /// Indicates if PreStartContainer call is required before each container start
     #[prost(bool, tag = "1")]
     pub pre_start_required: bool,
+    /// Indicates if GetPreferredAllocation is implemented and available for calling
+    #[prost(bool, tag = "2")]
+    pub get_preferred_allocation_available: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -26,7 +29,7 @@ pub struct RegisterRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 /// ListAndWatch returns a stream of List of Devices
-/// Whenever a Device state change or a Device disapears, ListAndWatch
+/// Whenever a Device state change or a Device disappears, ListAndWatch
 /// returns the new list
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -34,10 +37,25 @@ pub struct ListAndWatchResponse {
     #[prost(message, repeated, tag = "1")]
     pub devices: ::prost::alloc::vec::Vec<Device>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TopologyInfo {
+    #[prost(message, repeated, tag = "1")]
+    pub nodes: ::prost::alloc::vec::Vec<NumaNode>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NumaNode {
+    #[prost(int64, tag = "1")]
+    pub id: i64,
+}
 /// E.g:
 /// struct Device {
 ///     ID: "GPU-fef8089b-4820-abfc-e83e-94318197576e",
-///     State: "Healthy",
+///     Health: "Healthy",
+///     Topology:
+///       Node:
+///         ID: 1
 /// }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -50,6 +68,9 @@ pub struct Device {
     /// Health of the device, can be healthy or unhealthy, see constants.go
     #[prost(string, tag = "2")]
     pub health: ::prost::alloc::string::String,
+    /// Topology for device
+    #[prost(message, optional, tag = "3")]
+    pub topology: ::core::option::Option<TopologyInfo>,
 }
 /// - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.
 /// - PreStartContainer allows kubelet to pass reinitialized devices to containers.
@@ -65,6 +86,44 @@ pub struct PreStartContainerRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PreStartContainerResponse {}
+/// PreferredAllocationRequest is passed via a call to GetPreferredAllocation()
+/// at pod admission time. The device plugin should take the list of
+/// `available_deviceIDs` and calculate a preferred allocation of size
+/// 'allocation_size' from them, making sure to include the set of devices
+/// listed in 'must_include_deviceIDs'.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PreferredAllocationRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub container_requests: ::prost::alloc::vec::Vec<ContainerPreferredAllocationRequest>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContainerPreferredAllocationRequest {
+    /// List of available deviceIDs from which to choose a preferred allocation
+    #[prost(string, repeated, tag = "1")]
+    pub available_device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// List of deviceIDs that must be included in the preferred allocation
+    #[prost(string, repeated, tag = "2")]
+    pub must_include_device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Number of devices to include in the preferred allocation
+    #[prost(int32, tag = "3")]
+    pub allocation_size: i32,
+}
+/// PreferredAllocationResponse returns a preferred allocation,
+/// resulting from a PreferredAllocationRequest.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PreferredAllocationResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub container_responses: ::prost::alloc::vec::Vec<ContainerPreferredAllocationResponse>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContainerPreferredAllocationResponse {
+    #[prost(string, repeated, tag = "1")]
+    pub device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 /// - Allocate is expected to be called during pod creation since allocation
 ///    failures for any container would result in pod startup failure.
 /// - Allocate allows kubelet to exposes additional artifacts in a pod's
@@ -366,7 +425,7 @@ pub mod device_plugin_client {
             self.inner.unary(req, path, codec).await
         }
         /// ListAndWatch returns a stream of List of Devices
-        /// Whenever a Device state change or a Device disapears, ListAndWatch
+        /// Whenever a Device state change or a Device disappears, ListAndWatch
         /// returns the new list
         pub async fn list_and_watch(
             &mut self,
@@ -387,6 +446,33 @@ pub mod device_plugin_client {
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1beta1.DevicePlugin", "ListAndWatch"));
             self.inner.server_streaming(req, path, codec).await
+        }
+        /// GetPreferredAllocation returns a preferred set of devices to allocate
+        /// from a list of available ones. The resulting preferred allocation is not
+        /// guaranteed to be the allocation ultimately performed by the
+        /// devicemanager. It is only designed to help the devicemanager make a more
+        /// informed allocation decision when possible.
+        pub async fn get_preferred_allocation(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PreferredAllocationRequest>,
+        ) -> std::result::Result<tonic::Response<super::PreferredAllocationResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1beta1.DevicePlugin/GetPreferredAllocation",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new(
+                "v1beta1.DevicePlugin",
+                "GetPreferredAllocation",
+            ));
+            self.inner.unary(req, path, codec).await
         }
         /// Allocate is called during container creation so that the Device
         /// Plugin can run device specific operations and instruct Kubelet
@@ -410,7 +496,7 @@ pub mod device_plugin_client {
         }
         /// PreStartContainer is called, if indicated by Device Plugin during registeration phase,
         /// before each container start. Device plugin can run device specific operations
-        /// such as reseting the device before making devices available to the container
+        /// such as resetting the device before making devices available to the container
         pub async fn pre_start_container(
             &mut self,
             request: impl tonic::IntoRequest<super::PreStartContainerRequest>,
@@ -621,12 +707,21 @@ pub mod device_plugin_server {
             > + Send
             + 'static;
         /// ListAndWatch returns a stream of List of Devices
-        /// Whenever a Device state change or a Device disapears, ListAndWatch
+        /// Whenever a Device state change or a Device disappears, ListAndWatch
         /// returns the new list
         async fn list_and_watch(
             &self,
             request: tonic::Request<super::Empty>,
         ) -> std::result::Result<tonic::Response<Self::ListAndWatchStream>, tonic::Status>;
+        /// GetPreferredAllocation returns a preferred set of devices to allocate
+        /// from a list of available ones. The resulting preferred allocation is not
+        /// guaranteed to be the allocation ultimately performed by the
+        /// devicemanager. It is only designed to help the devicemanager make a more
+        /// informed allocation decision when possible.
+        async fn get_preferred_allocation(
+            &self,
+            request: tonic::Request<super::PreferredAllocationRequest>,
+        ) -> std::result::Result<tonic::Response<super::PreferredAllocationResponse>, tonic::Status>;
         /// Allocate is called during container creation so that the Device
         /// Plugin can run device specific operations and instruct Kubelet
         /// of the steps to make the Device available in the container
@@ -636,7 +731,7 @@ pub mod device_plugin_server {
         ) -> std::result::Result<tonic::Response<super::AllocateResponse>, tonic::Status>;
         /// PreStartContainer is called, if indicated by Device Plugin during registeration phase,
         /// before each container start. Device plugin can run device specific operations
-        /// such as reseting the device before making devices available to the container
+        /// such as resetting the device before making devices available to the container
         async fn pre_start_container(
             &self,
             request: tonic::Request<super::PreStartContainerRequest>,
@@ -792,6 +887,49 @@ pub mod device_plugin_server {
                                 max_encoding_message_size,
                             );
                         let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/v1beta1.DevicePlugin/GetPreferredAllocation" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetPreferredAllocationSvc<T: DevicePlugin>(pub Arc<T>);
+                    impl<T: DevicePlugin>
+                        tonic::server::UnaryService<super::PreferredAllocationRequest>
+                        for GetPreferredAllocationSvc<T>
+                    {
+                        type Response = super::PreferredAllocationResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PreferredAllocationRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DevicePlugin>::get_preferred_allocation(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetPreferredAllocationSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)

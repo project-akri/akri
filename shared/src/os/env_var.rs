@@ -3,7 +3,7 @@ use std::{env, env::VarError};
 
 /// This provides a mockable way to query an env var.
 #[automock]
-pub trait EnvVarQuery {
+pub trait EnvVarQuery: Send + Sync {
     fn get_env_var(&self, name: &'static str) -> Result<String, VarError>;
     fn get_env_vars(&self) -> Vec<(String, String)>;
 }

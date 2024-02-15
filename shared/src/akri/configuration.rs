@@ -108,12 +108,13 @@ pub enum BrokerSpec {
 pub struct ConfigurationSpec {
     /// This defines the `DiscoveryHandler` that should be used to
     /// discover the capability and any information needed by the `DiscoveryHandler`.
+    #[schemars(schema_with = "immutable_dh_info")]
     pub discovery_handler: DiscoveryHandlerInfo,
 
     /// This defines the number of nodes that can schedule workloads for
     /// any given capability that is found
     #[serde(default = "default_capacity")]
-    pub capacity: i32,
+    pub capacity: usize,
 
     /// This defines a workload that should be scheduled to any
     /// node that can access any capability described by this
@@ -143,6 +144,17 @@ pub struct ConfigurationSpec {
     /// that represent the discovered resources.
     #[serde(default)]
     pub broker_properties: HashMap<String, String>,
+}
+
+fn immutable_dh_info(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema: schemars::schema::SchemaObject =
+        <DiscoveryHandlerInfo>::json_schema(gen).into();
+    schema.extensions.insert(
+        "x-kubernetes-validations".to_owned(),
+        serde_json::from_str(r#"[{"message": "Value is immutable", "rule": "self == oldSelf"}]"#)
+            .unwrap(),
+    );
+    schema.into()
 }
 
 /// Get Configurations for a given namespace
@@ -230,7 +242,7 @@ pub async fn find_configuration(
         },
     }
 }
-fn default_capacity() -> i32 {
+fn default_capacity() -> usize {
     1
 }
 

@@ -16,13 +16,49 @@ pub type InstanceList = ObjectList<Instance>;
 /// a Configuration.  For example, a Configuration
 /// may describe many cameras, each camera will be represented by a
 /// Instance.
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 // group = API_NAMESPACE and version = API_VERSION
-#[kube(group = "akri.sh", version = "v0", kind = "Instance", namespaced)]
+#[kube(
+    group = "akri.sh",
+    version = "v0",
+    kind = "Instance",
+    namespaced,
+    shortname = "akrii",
+    printcolumn = r#"{
+        "name": "Config",
+        "type": "string",
+        "jsonPath": ".spec.configurationName",
+        "description": "The Configuration this Instance belongs to"
+    }"#,
+    printcolumn = r#"{
+        "name": "Shared",
+        "type": "boolean",
+        "jsonPath": ".spec.shared",
+        "description": "Describes whether this Instance is shared"
+    }"#,
+    printcolumn = r#"{
+        "name": "Nodes",
+        "type": "string",
+        "jsonPath": ".spec.nodes",
+        "description": "Nodes that expose this Instance"
+    }"#,
+    printcolumn = r#"{
+        "name": "Age",
+        "type": "date",
+        "jsonPath": ".metadata.creationTimestamp"
+    }"#,
+    derive = "PartialEq"
+)]
 pub struct InstanceSpec {
     /// This contains the name of the corresponding Configuration
     pub configuration_name: String,
+
+    /// This contains the CDI fully qualified name of the device linked to the Instance
+    pub cdi_name: String,
+
+    /// This contains the number of slots for the Instance
+    pub capacity: usize,
 
     /// This defines some properties that will be set as
     /// environment variables in broker Pods that request
@@ -40,6 +76,7 @@ pub struct InstanceSpec {
 
     /// This contains a list of the nodes that can access this capability instance
     #[serde(default)]
+    #[schemars(schema_with = "ssa_nodes_set")]
     pub nodes: Vec<String>,
 
     /// This contains a map of capability slots to node names.  The number of
@@ -48,7 +85,27 @@ pub struct InstanceSpec {
     /// been claimed) or to a node name (corresponding to the node that has claimed
     /// the slot)
     #[serde(default)]
+    #[schemars(schema_with = "ssa_usage_granular")]
     pub device_usage: HashMap<String, String>,
+}
+
+fn ssa_nodes_set(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema: schemars::schema::SchemaObject = <Vec<String>>::json_schema(gen).into();
+    schema.extensions.insert(
+        "x-kubernetes-list-type".to_owned(),
+        serde_json::Value::String("set".to_owned()),
+    );
+    schema.into()
+}
+
+fn ssa_usage_granular(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema: schemars::schema::SchemaObject =
+        <HashMap<String, String>>::json_schema(gen).into();
+    schema.extensions.insert(
+        "x-kubernetes-map-type".to_owned(),
+        serde_json::Value::String("granular".to_owned()),
+    );
+    schema.into()
 }
 
 /// Get Instances for a given namespace
@@ -154,6 +211,8 @@ pub async fn find_instance(
 /// let instance = instance::create_instance(
 ///     &InstanceSpec {
 ///         configuration_name: "capability_configuration_name".to_string(),
+///         cdi_name: "akri.sh/config-1=instance-1".to_string(),
+///         capacity: 1,
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
@@ -274,6 +333,8 @@ pub async fn delete_instance(
 /// let instance = instance::update_instance(
 ///     &InstanceSpec {
 ///         configuration_name: "capability_configuration_name".to_string(),
+///         cdi_name: "akri.sh/config-1=instance-1".to_string(),
+///         capacity: 1,
 ///         shared: true,
 ///         nodes: Vec::new(),
 ///         device_usage: std::collections::HashMap::new(),
@@ -443,7 +504,7 @@ mod crd_serializeation_tests {
     fn test_instance_defaults_with_json_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationName": "foo"}"#;
+        let json = r#"{"configurationName": "foo", "cdiName": "akri.sh/foo=bar", "capacity": 1}"#;
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
         assert_eq!(0, deserialized.broker_properties.len());
@@ -452,7 +513,7 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","cdiName":"akri.sh/foo=bar","capacity":1,"brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -462,6 +523,8 @@ mod crd_serializeation_tests {
 
         let json = r#"
         configurationName: foo
+        cdiName: akri.sh/foo=bar
+        capacity: 1
         "#;
         let deserialized: InstanceSpec = serde_yaml::from_str(json).unwrap();
         assert_eq!("foo".to_string(), deserialized.configuration_name);
@@ -471,7 +534,7 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.device_usage.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
+        let expected_deserialized = r#"{"configurationName":"foo","cdiName":"akri.sh/foo=bar","capacity":1,"brokerProperties":{},"shared":false,"nodes":[],"deviceUsage":{}}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -479,7 +542,7 @@ mod crd_serializeation_tests {
     fn test_instance_serialization() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let json = r#"{"configurationName":"blah","brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
+        let json = r#"{"configurationName":"blah","cdiName": "akri.sh/foo=bar", "capacity": 1, "brokerProperties":{"a":"two"},"shared":true,"nodes":["n1","n2"],"deviceUsage":{"0":"","1":"n1"}}"#;
         let deserialized: InstanceSpec = serde_json::from_str(json).unwrap();
         assert_eq!("blah".to_string(), deserialized.configuration_name);
         assert_eq!(1, deserialized.broker_properties.len());
