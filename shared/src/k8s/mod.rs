@@ -12,7 +12,7 @@ use k8s_openapi::api::core::v1::{Node, Pod, Service};
 use kube::{api::ObjectList, client::Client};
 use mockall::{automock, predicate::*};
 
-pub mod crud;
+pub mod api;
 pub mod job;
 pub mod node;
 pub mod pod;

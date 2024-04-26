@@ -6,7 +6,7 @@ mod registration_socket;
 
 use std::{collections::HashMap, sync::Arc};
 
-use akri_shared::{akri::configuration::Configuration, k8s::crud::IntoApi};
+use akri_shared::{akri::configuration::Configuration, k8s::api::IntoApi};
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use kube_runtime::reflector::ObjectRef;
@@ -58,7 +58,7 @@ impl<T: IntoApi<Secret> + IntoApi<ConfigMap>> DiscoveryManagerKubeInterface for 
 #[cfg(test)]
 mod mock {
 
-    use akri_shared::k8s::crud::{Api, IntoApi, MockIntoApi};
+    use akri_shared::k8s::api::{Api, IntoApi, MockIntoApi};
     use k8s_openapi::api::core::v1::{ConfigMap, Secret};
     #[derive(Default)]
     pub struct MockDiscoveryManagerKubeInterface {

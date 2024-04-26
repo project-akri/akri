@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use akri_shared::{akri::instance::Instance, k8s::crud::IntoApi};
+use akri_shared::{akri::instance::Instance, k8s::api::IntoApi};
 use async_trait::async_trait;
 use futures::StreamExt;
 use itertools::Itertools;
@@ -718,7 +718,10 @@ pub struct DevicePluginManager {
     node_name: String,
     kube_client: Arc<dyn IntoApi<Instance>>,
     device_manager: Arc<dyn DeviceManager>,
+    error_backoffs: std::sync::Mutex<HashMap<String, Duration>>,
 }
+
+const SUCCESS_REQUEUE: Duration = Duration::from_secs(600);
 
 impl DevicePluginManager {
     pub fn new(
@@ -732,6 +735,7 @@ impl DevicePluginManager {
             node_name,
             kube_client,
             device_manager,
+            error_backoffs: std::sync::Mutex::new(HashMap::default()),
         }
     }
 
@@ -885,20 +889,33 @@ pub async fn reconcile(
             .add_plugin(instance.name_any(), instance_plugin)
             .await;
     }
-    Ok(Action::requeue(Duration::from_secs(300)))
+    ctx.error_backoffs
+        .lock()
+        .unwrap()
+        .remove(&instance.name_any());
+    Ok(Action::requeue(SUCCESS_REQUEUE))
 }
 
 pub fn error_policy(
     dc: Arc<Instance>,
     error: &DevicePluginError,
-    _ctx: Arc<DevicePluginManager>,
+    ctx: Arc<DevicePluginManager>,
 ) -> Action {
-    error!(
-        "Error during reconciliation of Instance {}: {:?}",
+    let mut error_backoffs = ctx.error_backoffs.lock().unwrap();
+    let previous_duration = error_backoffs
+        .get(&dc.name_any())
+        .cloned()
+        .unwrap_or(Duration::from_millis(500));
+    let next_duration = previous_duration * 2;
+    warn!(
+        "Error during reconciliation of Instance {:?}::{}, retrying in {}s: {:?}",
+        dc.namespace(),
         dc.name_any(),
+        next_duration.as_secs_f32(),
         error
     );
-    Action::requeue(Duration::from_secs(60))
+    error_backoffs.insert(dc.name_any(), next_duration);
+    Action::requeue(next_duration)
 }
 
 #[cfg(test)]
@@ -907,7 +924,7 @@ mod tests {
 
     use akri_shared::{
         akri::instance::InstanceSpec,
-        k8s::crud::{MockApi, MockIntoApi},
+        k8s::api::{MockApi, MockIntoApi},
     };
     use tokio_stream::StreamExt;
 

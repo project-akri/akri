@@ -1,4 +1,3 @@
-pub mod pluginregistration; // Pros generated pluginregistration module
 pub mod v1; // Prost generated podresources module
 pub mod v1beta1; // Prost generated pluginapi module
 

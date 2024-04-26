@@ -127,7 +127,7 @@ async fn solve_value_from_secret(
 mod tests {
     use std::collections::BTreeMap;
 
-    use akri_shared::k8s::crud::MockApi;
+    use akri_shared::k8s::api::MockApi;
     use k8s_openapi::ByteString;
 
     use crate::discovery_handler_manager::mock::MockDiscoveryManagerKubeInterface;

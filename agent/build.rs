@@ -8,9 +8,4 @@ fn main() {
             &["./proto"],
         )
         .expect("failed to compile protos");
-    tonic_build::configure()
-        .build_client(false)
-        .out_dir("./src/plugin_manager")
-        .compile(&["./proto/pluginregistration.proto"], &["./proto"])
-        .expect("failed to compile protos");
 }

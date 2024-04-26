@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
             run_metrics_server().await.unwrap();
         }));
 
-        let (device_notifier, discovery_handler_registry, conf_notifier) =
+        let (device_notifier, discovery_handler_registry, config_notifier) =
             discovery_handler_manager::new_registry(kube_client.clone());
 
         let dh_registry = Arc::new(discovery_handler_registry);
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
                 instances_cache,
                 dh_registry,
                 client: kube_client.clone(),
-                agent_instance_name: node_name.clone(),
+                agent_identifier: node_name.clone(),
                 error_backoffs: Mutex::new(HashMap::new()),
             },
         );
@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         tasks.push(tokio::spawn(async {
             util::discovery_configuration_controller::start_controller(
                 config_controller_context,
-                conf_notifier,
+                config_notifier,
             )
             .await;
         }));

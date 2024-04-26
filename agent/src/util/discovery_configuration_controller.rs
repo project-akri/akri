@@ -9,7 +9,7 @@ use akri_shared::{
         configuration::{Configuration, DiscoveryProperty},
         instance::Instance,
     },
-    k8s::crud::IntoApi,
+    k8s::api::IntoApi,
 };
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -34,6 +34,8 @@ pub enum Error {
     Other(#[from] anyhow::Error),
 }
 
+const SUCCESS_REQUEUE: Duration = Duration::from_secs(600);
+
 pub trait DiscoveryConfigurationKubeClient: IntoApi<Configuration> + IntoApi<Instance> {}
 
 impl<T: IntoApi<Configuration> + IntoApi<Instance>> DiscoveryConfigurationKubeClient for T {}
@@ -42,10 +44,12 @@ pub struct ControllerContext {
     pub instances_cache: Store<Instance>,
     pub dh_registry: Arc<dyn DiscoveryHandlerRegistry>,
     pub client: Arc<dyn DiscoveryConfigurationKubeClient>,
-    pub agent_instance_name: String,
+    pub agent_identifier: String,
     pub error_backoffs: Mutex<HashMap<String, Duration>>,
 }
 
+/// This function starts the reconciling loop for the Configuration controller.
+/// It is expected to run this as a task.
 pub async fn start_controller(
     ctx: Arc<ControllerContext>,
     rec: mpsc::Receiver<ObjectRef<Configuration>>,
@@ -59,6 +63,7 @@ pub async fn start_controller(
                 tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
             signal.recv().await;
         })
+        // Reconcile the Configuration when the discovery handler manager signals a change
         .reconcile_on(tokio_stream::wrappers::ReceiverStream::new(rec))
         .run(reconcile, error_policy, ctx)
         .for_each(|_| futures::future::ready(()))
@@ -77,30 +82,29 @@ pub async fn reconcile(
 
         ctx.client
             .namespaced(&namespace)
-            .remove_finalizer(dc.as_ref(), &ctx.agent_instance_name)
+            .remove_finalizer(dc.as_ref(), &ctx.agent_identifier)
             .await
             .map_err(|e| Error::Other(e.into()))?;
 
         return Ok(Action::await_change());
     }
 
-    if !dc.finalizers().contains(&ctx.agent_instance_name) {
+    if !dc.finalizers().contains(&ctx.agent_identifier) {
         ctx.client
             .namespaced(&namespace)
-            .add_finalizer(dc.as_ref(), &ctx.agent_instance_name)
+            .add_finalizer(dc.as_ref(), &ctx.agent_identifier)
             .await
             .map_err(|e| Error::Other(e.into()))?
     }
 
     let dh_name = &dc.spec.discovery_handler.name;
     let dh_details = &dc.spec.discovery_handler.discovery_details;
-    let empty_vec = vec![];
-    let dh_properties: &Vec<DiscoveryProperty> = dc
+    let dh_properties: &[DiscoveryProperty] = dc
         .spec
         .discovery_handler
         .discovery_properties
-        .as_ref()
-        .unwrap_or(&empty_vec);
+        .as_deref()
+        .unwrap_or_default();
     let dh_extra_device_properties = dc.spec.broker_properties.clone();
 
     let discovered_instances: Vec<Instance> =
@@ -110,7 +114,7 @@ pub async fn reconcile(
                 .into_iter()
                 .map(|mut instance| {
                     // Add
-                    instance.spec.nodes = vec![ctx.agent_instance_name.to_owned()];
+                    instance.spec.nodes = vec![ctx.agent_identifier.to_owned()];
                     instance.owner_references_mut().push(owner_ref.clone());
                     instance.spec.capacity = dc.spec.capacity;
                     instance
@@ -140,7 +144,7 @@ pub async fn reconcile(
             delete_instance(
                 ctx.client.as_ref(),
                 instance.as_ref(),
-                &ctx.agent_instance_name,
+                &ctx.agent_identifier,
             )
             .await?
         }
@@ -149,13 +153,13 @@ pub async fn reconcile(
     for instance in discovered_instances {
         ctx.client
             .namespaced(&namespace)
-            .apply(instance, &ctx.agent_instance_name)
+            .apply(instance, &ctx.agent_identifier)
             .await
             .map_err(|e| Error::Other(e.into()))?;
     }
 
     ctx.error_backoffs.lock().unwrap().remove(&dc.name_any());
-    Ok(Action::requeue(Duration::from_secs(600)))
+    Ok(Action::requeue(SUCCESS_REQUEUE))
 }
 
 pub fn error_policy(dc: Arc<Configuration>, error: &Error, ctx: Arc<ControllerContext>) -> Action {
@@ -205,7 +209,7 @@ mod tests {
             configuration::{ConfigurationSpec, DiscoveryHandlerInfo},
             instance::InstanceSpec,
         },
-        k8s::crud::{Api, MockApi, MockIntoApi},
+        k8s::api::{Api, MockApi, MockIntoApi},
     };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
     use kube::core::{ObjectMeta, Status};
@@ -297,7 +301,7 @@ mod tests {
             instances_cache: store,
             dh_registry: Arc::new(MockDiscoveryHandlerRegistry::new()),
             client: Arc::new(MockDiscoveryConfigurationKubeClient::default()),
-            agent_instance_name: "node-a".to_string(),
+            agent_identifier: "node-a".to_string(),
             error_backoffs: Default::default(),
         });
 
@@ -473,7 +477,7 @@ mod tests {
             instances_cache: store,
             dh_registry: Arc::new(registry),
             client: Arc::new(client),
-            agent_instance_name: "node-a".to_string(),
+            agent_identifier: "node-a".to_string(),
             error_backoffs: Default::default(),
         });
 
@@ -608,7 +612,7 @@ mod tests {
             instances_cache: store,
             dh_registry: Arc::new(registry),
             client: Arc::new(client),
-            agent_instance_name: "node-a".to_string(),
+            agent_identifier: "node-a".to_string(),
             error_backoffs: Default::default(),
         });
 

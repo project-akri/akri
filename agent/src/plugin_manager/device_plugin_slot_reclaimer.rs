@@ -18,6 +18,8 @@ use super::{
 
 /// Path of the Kubelet registry socket
 pub const KUBELET_SOCKET: &str = "/var/lib/kubelet/pod-resources/kubelet.sock";
+const SLOT_GRACE_PERIOD: Duration = Duration::from_secs(20);
+const SLOT_RECLAIM_INTERVAL: Duration = Duration::from_secs(10);
 
 async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
     // We will ignore this dummy uri because UDS does not use it.
@@ -73,25 +75,33 @@ pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
             let theoretical_slots = dp_manager.get_used_slots().await;
             trace!("theoretical slots: {:?}", theoretical_slots);
             let mut new_stalled_slots: HashMap<String, Instant> = HashMap::new();
-            let now = Instant::now();
-            for slot in theoretical_slots.difference(&used_slots) {
-                if let Some(at) = stalled_slots.get(slot) {
-                    if now.saturating_duration_since(*at) >= Duration::from_secs(20) {
-                        trace!("freeing slot: {}", slot);
-                        if dp_manager.free_slot(slot.to_string()).await.is_err() {
-                            new_stalled_slots.insert(slot.to_string(), at.to_owned());
+            let reclaim_iteration_start = Instant::now();
+            for slot_to_reclaim in theoretical_slots.difference(&used_slots) {
+                // See if slot was already stalled at previous iteration
+                if let Some(at) = stalled_slots.get(slot_to_reclaim) {
+                    if reclaim_iteration_start.saturating_duration_since(*at) >= SLOT_GRACE_PERIOD {
+                        // Slot is stalled for more than grace period, free it
+                        trace!("freeing slot: {}", slot_to_reclaim);
+                        if dp_manager
+                            .free_slot(slot_to_reclaim.to_string())
+                            .await
+                            .is_err()
+                        {
+                            new_stalled_slots.insert(slot_to_reclaim.to_string(), at.to_owned());
                         };
                     } else {
-                        new_stalled_slots.insert(slot.to_string(), at.to_owned());
+                        // Keep slot as stall
+                        new_stalled_slots.insert(slot_to_reclaim.to_string(), at.to_owned());
                     }
                 } else {
-                    new_stalled_slots.insert(slot.to_string(), now);
+                    // Mark slot as stall
+                    new_stalled_slots.insert(slot_to_reclaim.to_string(), reclaim_iteration_start);
                 }
             }
             stalled_slots = new_stalled_slots;
         }
         tokio::select! {
-            _ = tokio::time::sleep(Duration::from_secs(10)) => {},
+            _ = tokio::time::sleep(SLOT_RECLAIM_INTERVAL) => {},
             _ = signal.recv() => return,
         };
     }
