@@ -71,10 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
             ),
         );
 
-        let (instances_cache, task) = plugin_manager::device_plugin_instance_controller::start_dpm(
-            device_plugin_manager.clone(),
-        );
-        tasks.push(task);
+        let (instances_cache, device_plugin_controller_task) =
+            plugin_manager::device_plugin_instance_controller::start_dpm(
+                device_plugin_manager.clone(),
+            );
+        tasks.push(device_plugin_controller_task);
 
         tasks.push(tokio::spawn(
             plugin_manager::device_plugin_slot_reclaimer::start_reclaimer(device_plugin_manager),

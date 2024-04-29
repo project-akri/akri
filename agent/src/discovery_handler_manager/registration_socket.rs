@@ -7,7 +7,7 @@ use akri_discovery_utils::discovery::v0::{
 };
 use akri_shared::uds::unix_stream;
 use async_trait::async_trait;
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
+use futures::{Stream, StreamExt, TryFutureExt};
 use tokio::{select, sync::watch};
 use tokio_stream::StreamExt as _;
 use tonic::{transport::Channel, Request, Response, Status};
@@ -67,15 +67,12 @@ impl NetworkEndpoint {
         sender: watch::Sender<Vec<Arc<DiscoveredDevice>>>,
         mut stream: Pin<Box<dyn Stream<Item = Result<DiscoverResponse, tonic::Status>> + Send>>,
     ) {
-        let mut signal =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
         loop {
             let msg = select! {
                 // This means all queries for this endpoint must end.
                 _ = stopper.stopped() => return,
                 // This means all receiver dropped (i.e no one cares about this query anymore)
                 _ = sender.closed() => return,
-                _ = signal.recv() => return,
                 msg = stream.try_next() => match msg {
                     Ok(Some(msg)) => msg,
                     Ok(None) => {
@@ -216,8 +213,6 @@ pub async fn run_registration_server(
             }
         }
     };
-    let mut signal =
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
     tonic::transport::Server::builder()
         .add_service(
             akri_discovery_utils::discovery::v0::registration_server::RegistrationServer::new(
@@ -227,7 +222,7 @@ pub async fn run_registration_server(
                 },
             ),
         )
-        .serve_with_incoming_shutdown(incoming, signal.recv().map(|_| ()))
+        .serve_with_incoming(incoming)
         .await?;
     trace!(
         "internal_run_registration_server - gracefully shutdown ... deleting socket {}",

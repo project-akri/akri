@@ -36,12 +36,9 @@ impl EmbeddedHandlerEndpoint {
         sender: watch::Sender<Vec<Arc<DiscoveredDevice>>>,
         mut stream: ReceiverStream<Result<DiscoverResponse, tonic::Status>>,
     ) {
-        let mut signal =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
         loop {
             let msg = select! {
                 _ = sender.closed() => return,
-                _ = signal.recv() => return,
                 msg = stream.try_next() =>  match msg {
                     Ok(Some(msg)) => msg,
                     Ok(None) => {

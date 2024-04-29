@@ -9,7 +9,9 @@ use tokio::net::UnixStream;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
 
-use crate::plugin_manager::v1::ListPodResourcesRequest;
+use crate::plugin_manager::{
+    device_plugin_instance_controller::DP_SLOT_PREFIX, v1::ListPodResourcesRequest,
+};
 
 use super::{
     device_plugin_instance_controller::DevicePluginManager,
@@ -21,6 +23,10 @@ pub const KUBELET_SOCKET: &str = "/var/lib/kubelet/pod-resources/kubelet.sock";
 const SLOT_GRACE_PERIOD: Duration = Duration::from_secs(20);
 const SLOT_RECLAIM_INTERVAL: Duration = Duration::from_secs(10);
 
+/// This function connects to kubelet's resource monitoring interface and extracts
+/// the set of resources currently used by pods on the node.
+/// It uses this Kubelet interface:
+///  https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/#grpc-endpoint-list
 async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
     // We will ignore this dummy uri because UDS does not use it.
     // Some servers will check the uri content so the uri needs to
@@ -51,7 +57,7 @@ async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
         .flat_map(|pr| {
             pr.containers.into_iter().flat_map(|cr| {
                 cr.devices.into_iter().flat_map(|cd| {
-                    if cd.resource_name.starts_with("akri.sh/") {
+                    if cd.resource_name.starts_with(DP_SLOT_PREFIX) {
                         cd.device_ids
                     } else {
                         vec![]
@@ -66,8 +72,6 @@ async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
 
 pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
     let mut stalled_slots: HashMap<String, Instant> = HashMap::new();
-    let mut signal =
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
     loop {
         trace!("reclaiming unused slots - start");
         if let Ok(used_slots) = get_used_slots().await {
@@ -102,7 +106,6 @@ pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
         }
         tokio::select! {
             _ = tokio::time::sleep(SLOT_RECLAIM_INTERVAL) => {},
-            _ = signal.recv() => return,
         };
     }
 }

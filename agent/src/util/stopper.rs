@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use futures::stream::{AbortHandle, Abortable};
-use tokio::{signal::unix::SignalKind, sync::watch};
+use tokio::sync::watch;
 
 #[derive(Clone)]
 pub struct Stopper {
@@ -16,10 +16,8 @@ impl Stopper {
         };
         let local_s = s.clone();
         tokio::spawn(async move {
-            let mut signal = tokio::signal::unix::signal(SignalKind::terminate()).unwrap();
             tokio::select! {
                 _ = local_s.stopped() => {},
-                _ = signal.recv() => local_s.stop()
             }
         });
         s

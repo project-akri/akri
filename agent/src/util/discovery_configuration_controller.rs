@@ -58,11 +58,6 @@ pub async fn start_controller(
     let controller = Controller::new(api, Default::default());
 
     controller
-        .graceful_shutdown_on(async {
-            let mut signal =
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
-            signal.recv().await;
-        })
         // Reconcile the Configuration when the discovery handler manager signals a change
         .reconcile_on(tokio_stream::wrappers::ReceiverStream::new(rec))
         .run(reconcile, error_policy, ctx)
@@ -70,6 +65,17 @@ pub async fn start_controller(
         .await;
 }
 
+/// This function is the main Reconcile function for Configurations resources
+/// This will get called every time a Configuration gets added or is changed, it will also be called
+/// for every existing configuration on startup.
+/// We also set-up discovery manager to trigger reconciliation upon discovery state change
+///
+/// Here the function will (in order):
+///  - Check if Configuration awaits deletion, and if so terminate pending discovery, remove finalizer and return early
+///  - Add finalizer if not here already
+///  - Start discovery if not already started
+///  - Get discovery results (empty list if just started)
+///  - Create/Delete Instances according to discovery results
 pub async fn reconcile(
     dc: Arc<Configuration>,
     ctx: Arc<ControllerContext>,
@@ -515,7 +521,7 @@ mod tests {
                     namespace: Some("namespace-a".to_string()),
                     name: Some("instance-1".to_string()),
                     owner_references: Some(vec![OwnerReference {
-                        api_version: "akri.sh/v0".to_string(),
+                        api_version: Instance::api_version(&()).to_string(),
                         block_owner_deletion: None,
                         controller: Some(true),
                         kind: "Configuration".to_string(),
@@ -539,7 +545,7 @@ mod tests {
                     namespace: Some("namespace-a".to_string()),
                     name: Some("instance-2".to_string()),
                     owner_references: Some(vec![OwnerReference {
-                        api_version: "akri.sh/v0".to_string(),
+                        api_version: Instance::api_version(&()).to_string(),
                         block_owner_deletion: None,
                         controller: Some(true),
                         kind: "Configuration".to_string(),
@@ -563,7 +569,7 @@ mod tests {
                     namespace: Some("namespace-a".to_string()),
                     name: Some("instance-3".to_string()),
                     owner_references: Some(vec![OwnerReference {
-                        api_version: "akri.sh/v0".to_string(),
+                        api_version: Instance::api_version(&()).to_string(),
                         block_owner_deletion: None,
                         controller: Some(true),
                         kind: "Configuration".to_string(),

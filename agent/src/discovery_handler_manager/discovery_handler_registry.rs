@@ -403,14 +403,10 @@ impl DiscoveryHandlerRegistry for DHRegistryImpl {
                 let notifier_receiver = self.endpoint_notifier.subscribe();
                 let local_req = self.requests.clone();
                 tokio::spawn(async move {
-                    let mut signal =
-                        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                            .unwrap();
                     select! {
                         _ = dh_req_ref
                         .watch_devices(notifier_receiver) => {},
                         _ = terminated.notified() => {},
-                        _ = signal.recv() => {},
                     }
                     local_req.write().await.remove(&local_key);
                 });

@@ -4,12 +4,13 @@ use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use akri_shared::{akri::instance::Instance, k8s::api::IntoApi};
+use anyhow::Context;
 use async_trait::async_trait;
 use futures::StreamExt;
 use itertools::Itertools;
 use kube::api::{Patch, PatchParams};
 use kube::core::{NotUsed, Object, ObjectMeta, TypeMeta};
-use kube::ResourceExt;
+use kube::{Resource, ResourceExt};
 use kube_runtime::controller::Action;
 use kube_runtime::reflector::Store;
 use kube_runtime::Controller;
@@ -26,6 +27,8 @@ use super::device_plugin_runner::{
     serve_and_register_plugin, DeviceUsageStream, InternalDevicePlugin,
 };
 use super::v1beta1::{AllocateRequest, AllocateResponse, ListAndWatchResponse};
+
+pub const DP_SLOT_PREFIX: &str = "akri.sh/";
 
 #[derive(Error, Debug)]
 pub enum DevicePluginError {
@@ -223,8 +226,8 @@ impl InstanceDevicePlugin {
         let patch = Patch::Apply(
             serde_json::to_value(Object {
                 types: Some(TypeMeta {
-                    api_version: "akri.sh/v0".to_owned(),
-                    kind: "Instance".to_owned(),
+                    api_version: Instance::api_version(&()).to_string(),
+                    kind: Instance::kind(&()).to_string(),
                 }),
                 status: None::<NotUsed>,
                 spec: PartialInstanceSlotUsage { device_usage },
@@ -233,7 +236,7 @@ impl InstanceDevicePlugin {
                     ..Default::default()
                 },
             })
-            .unwrap(),
+            .context("Could not create instance patch")?,
         );
         api.raw_patch(
             &self.instance_name,
@@ -280,8 +283,8 @@ impl InstanceDevicePlugin {
         let patch = Patch::Apply(
             serde_json::to_value(Object {
                 types: Some(TypeMeta {
-                    api_version: "akri.sh/v0".to_owned(),
-                    kind: "Instance".to_owned(),
+                    api_version: Instance::api_version(&()).to_string(),
+                    kind: Instance::kind(&()).to_string(),
                 }),
                 status: None::<NotUsed>,
                 spec: PartialInstanceSlotUsage { device_usage },
@@ -290,7 +293,7 @@ impl InstanceDevicePlugin {
                     ..Default::default()
                 },
             })
-            .unwrap(),
+            .context("Could not create instance patch")?,
         );
         api.raw_patch(
             &self.instance_name,
@@ -487,8 +490,6 @@ impl ConfigurationDevicePlugin {
         let instance_name = plugin.instance_name.clone();
         let mut receiver = plugin.slots_status.lock().await.subscribe();
         tokio::spawn(async move {
-            let mut signal =
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
             loop {
                 {
                     let (has_free, used_config_slots) = {
@@ -568,7 +569,6 @@ impl ConfigurationDevicePlugin {
                             break;
                         }
                     },
-                    _ = signal.recv() => {break}
                 }
             }
             slots_ref.write().await.send_modify(|slots| {
@@ -779,7 +779,7 @@ impl DevicePluginManager {
                     .enumerate()
                     .filter_map(|(i, u)| match u {
                         DeviceUsage::Node(n) if *n == self.node_name => {
-                            Some(format!("akri.sh/{}-{}", instance, i))
+                            Some(format!("{}{}-{}", DP_SLOT_PREFIX, instance, i))
                         }
                         DeviceUsage::Configuration { vdev, node } if *node == self.node_name => {
                             Some(vdev.to_string())
@@ -798,12 +798,6 @@ pub fn start_dpm(dpm: Arc<DevicePluginManager>) -> (Store<Instance>, JoinHandle<
     let store = controller.store();
     let task = tokio::spawn(async {
         controller
-            .graceful_shutdown_on(async {
-                let mut signal =
-                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                        .unwrap();
-                signal.recv().await;
-            })
             .run(reconcile, error_policy, dpm)
             .for_each(|_| futures::future::ready(()))
             .await
