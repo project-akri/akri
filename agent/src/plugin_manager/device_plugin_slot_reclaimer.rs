@@ -75,9 +75,7 @@ pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
     loop {
         trace!("reclaiming unused slots - start");
         if let Ok(used_slots) = get_used_slots().await {
-            trace!("used slots: {:?}", used_slots);
             let theoretical_slots = dp_manager.get_used_slots().await;
-            trace!("theoretical slots: {:?}", theoretical_slots);
             let mut new_stalled_slots: HashMap<String, Instant> = HashMap::new();
             let reclaim_iteration_start = Instant::now();
             for slot_to_reclaim in theoretical_slots.difference(&used_slots) {
@@ -91,6 +89,12 @@ pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
                             .await
                             .is_err()
                         {
+                            warn!(
+                                "Failed to free slot {}, will try again in {}s",
+                                slot_to_reclaim,
+                                SLOT_RECLAIM_INTERVAL.as_secs()
+                            );
+                            // To try again we just keep the slot as stalled
                             new_stalled_slots.insert(slot_to_reclaim.to_string(), at.to_owned());
                         };
                     } else {

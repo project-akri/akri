@@ -858,6 +858,7 @@ pub async fn reconcile(
                     plugin
                 }
                 Some(plugin) => {
+                    // TODO: Add a way to handle a change in the instance's capacity.
                     plugin.update_slots(&instance.spec.device_usage).await?;
                     plugin.clone()
                 }
