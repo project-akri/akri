@@ -26,7 +26,7 @@ const SLOT_RECLAIM_INTERVAL: Duration = Duration::from_secs(10);
 /// This function connects to kubelet's resource monitoring interface and extracts
 /// the set of resources currently used by pods on the node.
 /// It uses this Kubelet interface:
-///  https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/#grpc-endpoint-list
+///  <https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/#grpc-endpoint-list>
 async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
     // We will ignore this dummy uri because UDS does not use it.
     // Some servers will check the uri content so the uri needs to
