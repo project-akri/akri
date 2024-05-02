@@ -145,3 +145,33 @@ where
         Box::new(kube::Api::default_namespaced(self.client.clone()))
     }
 }
+
+impl<T> IntoApi<T> for kube::Client
+where
+    T: Resource<DynamicType = ()>
+        + Clone
+        + DeserializeOwned
+        + Debug
+        + serde::Serialize
+        + Send
+        + Sync
+        + 'static,
+{
+    fn all(&self) -> Box<dyn Api<T>> {
+        Box::new(kube::Api::all(self.clone()))
+    }
+
+    fn namespaced(&self, namespace: &str) -> Box<dyn Api<T>>
+    where
+        T: Resource<Scope = k8s_openapi::NamespaceResourceScope>,
+    {
+        Box::new(kube::Api::namespaced(self.clone(), namespace))
+    }
+
+    fn default_namespaced(&self) -> Box<dyn Api<T>>
+    where
+        T: Resource<Scope = k8s_openapi::NamespaceResourceScope>,
+    {
+        Box::new(kube::Api::default_namespaced(self.clone()))
+    }
+}

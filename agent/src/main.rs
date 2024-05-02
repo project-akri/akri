@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let node_name = env::var("AGENT_NODE_NAME")?;
 
     {
-        let kube_client = Arc::new(akri_shared::k8s::KubeImpl::new().await?);
+        let kube_client = Arc::new(kube::Client::try_default().await?);
 
         // Start server for Prometheus metrics
         tasks.push(tokio::spawn(async move {
