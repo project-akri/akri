@@ -108,7 +108,7 @@ metadata:
     {{- include "akri.labels" . | nindent 4 }}
     app.kubernetes.io/component: admission-webhook
 spec:
-  ttlSecondsAfterFinished: 0
+  ttlSecondsAfterFinished: {{ .Values.webhookConfiguration.ttlSecondsAfterFinished }}
   template:
     metadata:
       name: {{ .Values.webhookConfiguration.name }}-create
@@ -149,7 +149,7 @@ metadata:
     {{- include "akri.labels" . | nindent 4 }}
     app.kubernetes.io/component: admission-webhook
 spec:
-  ttlSecondsAfterFinished: 0
+  ttlSecondsAfterFinished: {{ .Values.webhookConfiguration.ttlSecondsAfterFinished }}
   template:
     metadata:
       name: {{ .Values.webhookConfiguration.name }}-patch
