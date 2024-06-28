@@ -369,10 +369,10 @@ impl InternalDevicePlugin for InstanceDevicePlugin {
         let receiver_stream = tokio_stream::wrappers::WatchStream::new(receiver);
 
         Ok(tonic::Response::new(DeviceUsageStream {
-            f: instance_device_usage_to_device,
-            st: self.stopper.make_abortable(receiver_stream),
-            str_1: device_name,
-            str_2: node_name,
+            device_usage_to_device: instance_device_usage_to_device,
+            input_stream: self.stopper.make_abortable(receiver_stream),
+            device_name,
+            node_name,
         }))
     }
 
@@ -633,10 +633,10 @@ impl InternalDevicePlugin for ConfigurationDevicePlugin {
         let receiver_stream = tokio_stream::wrappers::WatchStream::new(receiver);
 
         Ok(tonic::Response::new(DeviceUsageStream {
-            f: config_device_usage_to_device,
-            st: self.stopper.make_abortable(receiver_stream),
-            str_1: device_name,
-            str_2: node_name,
+            device_usage_to_device: config_device_usage_to_device,
+            input_stream: self.stopper.make_abortable(receiver_stream),
+            device_name,
+            node_name,
         }))
     }
 

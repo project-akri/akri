@@ -6,6 +6,7 @@ use akri_shared::akri::configuration::{Configuration, DiscoveryProperty};
 use akri_shared::akri::instance::Instance;
 
 use akri_shared::akri::instance::InstanceSpec;
+use akri_shared::akri::AKRI_PREFIX;
 use async_trait::async_trait;
 use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
@@ -48,7 +49,7 @@ impl DiscoveredDevice {
         let mut id_to_digest = id_to_digest.to_string();
         // For local devices, include node hostname in id_to_digest so instances have unique names
         if !shared {
-            id_to_digest = format!("{}{}", &id_to_digest, node_name,);
+            id_to_digest = format!("{}{}", id_to_digest, node_name);
         }
         let mut digest = String::new();
         let mut hasher = VarBlake2b::new(3).unwrap();
@@ -109,16 +110,23 @@ pub trait DiscoveryHandlerEndpoint: Send + Sync {
     fn is_closed(&self) -> bool;
 }
 
-/// This trait is here to help with testing for code that interract with the discovery handler registry
+/// This trait is here to help with testing for code that interract with the discovery handler registry.
+/// This trait represent a request made to a DH (either locally or through gRPC call), it will aggregate the
+/// results across the different registered handlers of that type, and generate the Instance objects for discovered
+/// devices.
 #[cfg_attr(test, automock)]
 pub trait DiscoveryHandlerRequest: Sync + Send {
     fn get_instances(&self) -> Result<Vec<Instance>, DiscoveryError>;
 }
 
 /// This trait is here to help with testing for code that interract with the discovery handler registry
+/// In the context of this trait, a "request" is a DiscoveryHandlerRequest,
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait DiscoveryHandlerRegistry: Sync + Send {
+    /// Create a new request against a specific Discovery Handler type, the DH Registry will ensure it
+    /// gets sent to all registered handlers with this name, present and future, if no DH with that name
+    /// is registered, returns an error.
     async fn new_request(
         &self,
         key: &str,
@@ -189,10 +197,13 @@ impl DHRequestImpl {
     }
 
     fn get_device_cdi_fqdn(&self, dev: &DiscoveredDevice) -> String {
-        format!("akri.sh/{}={}", self.key, dev.device_hash())
+        format!("{}/{}={}", AKRI_PREFIX, self.key, dev.device_hash())
     }
 
-    async fn watch_devices(&self, mut rec: broadcast::Receiver<Arc<dyn DiscoveryHandlerEndpoint>>) {
+    async fn watch_devices(
+        &self,
+        mut new_dh_receiver: broadcast::Receiver<Arc<dyn DiscoveryHandlerEndpoint>>,
+    ) {
         loop {
             let mut local_endpoints = self.endpoints.write().await.clone();
             let futures = local_endpoints.iter_mut().map(|e| e.changed().boxed());
@@ -206,12 +217,12 @@ impl DHRequestImpl {
                         }
                     }
                 },
-                Ok(endpoint) = rec.recv() => {
-                    if endpoint.get_name() != self.handler_name {
+                Ok(new_dh_endpoint) = new_dh_receiver.recv() => {
+                    if new_dh_endpoint.get_name() != self.handler_name {
                         // We woke up for another kind of DH, let's get back to sleep
                         continue
                     }
-                    if let Ok(q) = self.query(endpoint).await {
+                    if let Ok(q) = self.query(new_dh_endpoint).await {
                         self.endpoints.write().await.push(q);
                     }
                 },
@@ -237,14 +248,14 @@ impl DHRequestImpl {
 
     async fn query(
         &self,
-        endpoint: Arc<dyn DiscoveryHandlerEndpoint>,
+        discovery_handler: Arc<dyn DiscoveryHandlerEndpoint>,
     ) -> Result<watch::Receiver<Vec<Arc<DiscoveredDevice>>>, DiscoveryError> {
         let (q_sender, q_receiver) = watch::channel(vec![]);
         let query_body = DiscoverRequest {
             discovery_details: self.details.clone(),
             discovery_properties: self.solve_discovery_properties().await?,
         };
-        endpoint.query(q_sender, query_body).await?;
+        discovery_handler.query(q_sender, query_body).await?;
         Ok(q_receiver)
     }
 
@@ -293,6 +304,64 @@ impl DHRegistryImpl {
     }
 }
 
+async fn handle_request(
+    mut req_notifier: watch::Receiver<Vec<Arc<DiscoveredDevice>>>,
+    key: String,
+    namespace: &String,
+    cdi_sender: Arc<Mutex<watch::Sender<HashMap<String, crate::device_manager::cdi::Kind>>>>,
+    local_config_sender: mpsc::Sender<ObjectRef<Configuration>>,
+    extra_device_properties: HashMap<String, String>,
+) {
+    let cdi_kind = format!("{}/{}", AKRI_PREFIX, key);
+    loop {
+        match req_notifier.changed().await {
+            Ok(_) => {
+                cdi_sender.lock().await.send_modify(|kind| {
+                    kind.insert(
+                        cdi_kind.clone(),
+                        crate::device_manager::cdi::Kind {
+                            kind: cdi_kind.clone(),
+                            annotations: Default::default(),
+                            devices: req_notifier
+                                .borrow_and_update()
+                                .iter()
+                                .map(|d| d.as_ref().clone().into())
+                                .collect(),
+                            container_edits: vec![ContainerEdit {
+                                env: extra_device_properties
+                                    .iter()
+                                    .map(|(k, v)| format!("{}={}", k, v))
+                                    .collect(),
+                                ..Default::default()
+                            }],
+                        },
+                    );
+                });
+                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                let res = local_config_sender
+                    .send(ObjectRef::<Configuration>::new(&key).within(namespace))
+                    .await;
+                if res.is_err() {
+                    cdi_sender.lock().await.send_modify(|kind| {
+                        kind.remove(&cdi_kind);
+                    });
+                    return;
+                }
+            }
+            Err(_) => {
+                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                let _ = local_config_sender
+                    .send(ObjectRef::<Configuration>::new(&key).within(namespace))
+                    .await;
+                cdi_sender.lock().await.send_modify(|kind| {
+                    kind.remove(&cdi_kind);
+                });
+                return;
+            }
+        }
+    }
+}
+
 #[async_trait]
 impl DiscoveryHandlerRegistry for DHRegistryImpl {
     async fn new_request(
@@ -330,7 +399,7 @@ impl DiscoveryHandlerRegistry for DHRegistryImpl {
                     req_w.insert(key.to_string(), Arc::new(dh_req));
                 }
                 let dh_req_ref = self.requests.read().await.get(key).unwrap().to_owned();
-                let mut local_req_notifier = self
+                let local_req_notifier = self
                     .requests
                     .read()
                     .await
@@ -343,60 +412,15 @@ impl DiscoveryHandlerRegistry for DHRegistryImpl {
                 let local_key = key.to_owned();
                 let namespace = namespace.to_owned();
                 tokio::spawn(async move {
-                    let cdi_kind = format!("akri.sh/{}", local_key);
-                    loop {
-                        match local_req_notifier.changed().await {
-                            Ok(_) => {
-                                local_cdi_sender.lock().await.send_modify(|kind| {
-                                    kind.insert(
-                                        cdi_kind.clone(),
-                                        crate::device_manager::cdi::Kind {
-                                            kind: cdi_kind.clone(),
-                                            annotations: Default::default(),
-                                            devices: local_req_notifier
-                                                .borrow_and_update()
-                                                .iter()
-                                                .map(|d| d.as_ref().clone().into())
-                                                .collect(),
-                                            container_edits: vec![ContainerEdit {
-                                                env: extra_device_properties
-                                                    .iter()
-                                                    .map(|(k, v)| format!("{}={}", k, v))
-                                                    .collect(),
-                                                ..Default::default()
-                                            }],
-                                        },
-                                    );
-                                });
-                                trace!("Ask for reconciliation of {}::{}", namespace, local_key);
-                                let res = local_config_sender
-                                    .send(
-                                        ObjectRef::<Configuration>::new(&local_key)
-                                            .within(&namespace),
-                                    )
-                                    .await;
-                                if res.is_err() {
-                                    local_cdi_sender.lock().await.send_modify(|kind| {
-                                        kind.remove(&cdi_kind);
-                                    });
-                                    return;
-                                }
-                            }
-                            Err(_) => {
-                                trace!("Ask for reconciliation of {}::{}", namespace, local_key);
-                                let _ = local_config_sender
-                                    .send(
-                                        ObjectRef::<Configuration>::new(&local_key)
-                                            .within(&namespace),
-                                    )
-                                    .await;
-                                local_cdi_sender.lock().await.send_modify(|kind| {
-                                    kind.remove(&cdi_kind);
-                                });
-                                return;
-                            }
-                        }
-                    }
+                    handle_request(
+                        local_req_notifier,
+                        local_key,
+                        &namespace,
+                        local_cdi_sender,
+                        local_config_sender,
+                        extra_device_properties,
+                    )
+                    .await
                 });
 
                 let local_key = key.to_owned();

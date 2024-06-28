@@ -18,6 +18,7 @@ impl DeviceManager for InMemoryManager {
     /// It returns None if the device is not registered to the device manager
     /// If the device is registered, it resolves its properties by merging the device specific properties
     /// with the configuration (kind) level properties
+    /// Also change the name of the device in the returned structure to match the name used by Device Plugin
     fn get(&self, fqdn: &str) -> Option<cdi::Device> {
         let (kind, id) = fqdn.split_once('=').unwrap();
         let state = self.state.borrow();

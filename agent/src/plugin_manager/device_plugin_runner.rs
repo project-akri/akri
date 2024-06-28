@@ -45,10 +45,10 @@ pub(super) trait InternalDevicePlugin: Sync + Send {
 }
 
 pub(super) struct DeviceUsageStream<T: Clone + 'static + Send + Sync> {
-    pub f: fn(&str, &str, T) -> Result<ListAndWatchResponse, tonic::Status>,
-    pub st: futures::stream::Abortable<WatchStream<T>>,
-    pub str_1: String,
-    pub str_2: String,
+    pub device_usage_to_device: fn(&str, &str, T) -> Result<ListAndWatchResponse, tonic::Status>,
+    pub input_stream: futures::stream::Abortable<WatchStream<T>>,
+    pub device_name: String,
+    pub node_name: String,
 }
 
 impl<T: Clone + 'static + Send + Sync> futures::Stream for DeviceUsageStream<T> {
@@ -58,10 +58,13 @@ impl<T: Clone + 'static + Send + Sync> futures::Stream for DeviceUsageStream<T> 
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        match self.st.poll_next_unpin(cx) {
-            std::task::Poll::Ready(Some(i)) => {
-                std::task::Poll::Ready(Some((self.f)(&self.str_1, &self.str_2, i)))
-            }
+        match self.input_stream.poll_next_unpin(cx) {
+            std::task::Poll::Ready(Some(i)) => std::task::Poll::Ready(Some((self
+                .device_usage_to_device)(
+                &self.device_name,
+                &self.node_name,
+                i,
+            ))),
             std::task::Poll::Ready(None) => {
                 trace!("Stream Stopped");
                 std::task::Poll::Ready(None)
