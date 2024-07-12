@@ -222,7 +222,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "agent"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -303,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -373,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -957,7 +957,7 @@ dependencies = [
 
 [[package]]
 name = "controller"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -1131,7 +1131,7 @@ checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -2416,7 +2416,7 @@ checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2465,7 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -3936,7 +3936,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -3947,7 +3947,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "akri-shared",
  "env_logger",
@@ -4210,7 +4210,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.12.20"
+version = "0.13.0"
 dependencies = [
  "actix-rt",
  "actix-web",

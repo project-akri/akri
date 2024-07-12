@@ -1,6 +1,6 @@
 [package]
 name = "controller"
-version = "0.12.20"
+version = "0.13.0"
 license = "Apache-2.0"
 authors = ["<bfjelds@microsoft.com>", "<kagold@microsoft.com>"]
 edition = "2021"
