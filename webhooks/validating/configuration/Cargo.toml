@@ -1,6 +1,6 @@
 [package]
 name = "webhook-configuration"
-version = "0.13.0"
+version = "0.13.1"
 license = "Apache-2.0"
 authors = ["DazWilkin <daz.wilkin@gmail.com>"]
 edition = "2021"
