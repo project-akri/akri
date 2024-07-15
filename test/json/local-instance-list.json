@@ -11,6 +11,8 @@
             }, 
             "spec": {
                 "configurationName": "config-b",
+                "capacity": 5,
+                "cdiName": "akri.sh/config-b=b494b6",
                 "nodes": [ "node-a" ],
                 "shared": false,
                 "deviceUsage": {
