@@ -846,6 +846,10 @@ webhookConfiguration:
   # base64-encoded CA certificate (PEM) used by Kubernetes to validate the Webhook's certificate, if
   # unset, will generate a self-signed certificate valid for 100y
   caBundle: null
+  # ttlSecondsAfterFinished is the number of seconds to wait after the webhook has finished its job
+  # before the job is cleaned up. Set this to a non-zero value if your CD pipeline (e.g. ArgoCD) hangs and requires a longer
+  # TTL.
+  ttlSecondsAfterFinished: 0
   image:
     # repository is the Akri Webhook for Configurations image reference
     repository: ghcr.io/project-akri/akri/webhook-configuration
