@@ -35,6 +35,7 @@ serde = "1.0.104"
 serde_derive = "1.0.104"
 serde_json = "1.0.45"
 serde_yaml = { version = "0.8.11", optional = true }
+simple-mermaid = { version = "0.1"} # used for docs
 thiserror = "1.0.50"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
 tokio-stream = { version =  "0.1", features = ["net", "sync"] }
