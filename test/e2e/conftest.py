@@ -19,35 +19,9 @@ def pytest_addoption(parser):
     parser.addoption("--release", action="store_true", help="use released helm chart")
 
 
-@dataclass
-class Distribution:
-    name: str
-    kubeconfig: Path
-    kubectl: str
-
-
-@pytest.fixture(scope="session")
-def distribution_config(pytestconfig):
-    distribution = pytestconfig.getoption("--distribution", None)
-    if distribution == "k3s":
-        yield Distribution("k3s", Path.home() / ".kube/config", "kubectl")
-    elif distribution == "k8s":
-        yield Distribution("k8s", Path.home() / ".kube/config", "kubectl")
-    elif distribution == "microk8s":
-        yield Distribution("microk8s", Path.home() / ".kube/config", "kubectl")
-    elif distribution is None:
-        pytest.exit(
-            "Please provide a kubernetes distribution via '--distribution' flag"
-        )
-    else:
-        pytest.exit(
-            "Wrong distribution provided, valid values are 'k3s', 'k8s' or 'microk8s'"
-        )
-
-
 @pytest.fixture(scope="session", autouse=True)
-def kube_client(distribution_config):
-    kubernetes.config.load_kube_config(str(distribution_config.kubeconfig))
+def kube_client():
+    kubernetes.config.load_kube_config(str(Path.home() / ".kube/config"))
     return kubernetes.client.ApiClient()
 
 
@@ -61,7 +35,7 @@ def akri_version(pytestconfig):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def install_akri(request, distribution_config, pytestconfig, akri_version):
+def install_akri(request, pytestconfig, akri_version):
     discovery_handlers = getattr(request.module, "discovery_handlers", [])
 
     release = pytestconfig.getoption("--release", False)
@@ -116,8 +90,6 @@ def install_akri(request, distribution_config, pytestconfig, akri_version):
         )
     helm_install_command.extend(
         [
-            "--set",
-            f"kubernetesDistro={distribution_config.name}",
             "--debug",
             "--atomic",
         ]
