@@ -252,6 +252,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml 0.8.26",
+ "simple-mermaid",
  "tempfile",
  "thiserror",
  "tokio",
@@ -3407,6 +3408,12 @@ checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "simple-mermaid"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "620a1d43d70e142b1d46a929af51d44f383db9c7a2ec122de2cd992ccfcf3c18"
 
 [[package]]
 name = "slab"

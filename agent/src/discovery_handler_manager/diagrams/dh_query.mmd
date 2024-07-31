@@ -1,0 +1,18 @@
+sequenceDiagram
+    Configuration Controller -) DiscoveryHandlerRegistry: new_request()
+    alt a Handler exists for the Request
+        DiscoveryHandlerRegistry ->> DiscoveryHandlerRequest: Creates with filtered list of endpoints
+        DiscoveryHandlerRegistry ->> DiscoveryHandlerRegistry: Add request to tracked request list
+        loop over DiscoveryHandlerEndpoints with this name
+            DiscoveryHandlerRequest ->>+ Kubernetes API: Solve discovery properties
+            Kubernetes API ->>- DiscoveryHandlerRequest: 
+            DiscoveryHandlerRequest ->>+ Discovery Handler: query discovery handler
+            loop 
+                Discovery Handler ->> DiscoveryHandlerRequest: send discovered devices
+                note over DiscoveryHandlerRequest,DiscoveryHandlerRegistry: See other diagram for what happens here
+            end
+            deactivate Discovery Handler
+        end
+    else
+        DiscoveryHandlerRegistry -x Configuration Controller: DiscoveryError::NoHandler
+    end

@@ -1,3 +1,23 @@
+//! This modules is the heart of the discovery process handled by the agent, it is based around the [DiscoveryHandlerRegistry]
+//! and uses several other structure to represent and help handling discovery related things.
+//!
+//! The [DiscoveryHandlerRegistry] keeps track of registered discovery handlers, multiple endpoints/instances of a given
+//! handler can be registered at the same time.
+//!
+//! The [DiscoveryHandlerRegistry] also keeps track of ongoing discovery requests against those discovery handlers, there will be up
+//! to one of those query (a [DiscoveryHandlerRequest] object) per Configuration.
+//!   
+//! Here are some simple diagrams showing how the components interact with each other in different situations:
+//!   
+//! A new DiscoverHandler gets registered (e.g. when it connects and register to the agent registration Unix socket):
+#![doc=simple_mermaid::mermaid!("diagrams/dh_registration.mmd")]
+//!
+//! A new query is made by the Configuration Controller:
+#![doc=simple_mermaid::mermaid!("diagrams/dh_query.mmd")]
+//!
+//! A Discovery Handler's instance/endpoint sends a new list of discovered devices for a Request:
+#![doc=simple_mermaid::mermaid!("diagrams/dh_device.mmd")]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

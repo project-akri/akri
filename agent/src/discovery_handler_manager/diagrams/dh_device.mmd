@@ -1,0 +1,14 @@
+sequenceDiagram
+    Discovery Handler ->> DiscoveryHandlerRequest: send discovered devices
+    DiscoveryHandlerRequest ->> DiscoveryHandlerRequest: Updates aggregated list of discovered devices
+    DiscoveryHandlerRequest -) Device Manager: Notifies and updates list of discovered devices
+    DiscoveryHandlerRequest -) Configuration Controller: Requests reconciliation of Configuration linked to Request
+    note over Configuration Controller: The following is Configuration Controller behavior
+    activate Configuration Controller
+    Configuration Controller ->> Configuration Controller: Reconcile Configuration
+    Configuration Controller ->> DiscoveryHandlerRegistry: get_request()
+    DiscoveryHandlerRegistry ->> Configuration Controller: 
+    Configuration Controller ->> DiscoveryHandlerRequest: get_instances()
+    DiscoveryHandlerRequest ->> Configuration Controller: Returns list of discovered devices as bare Instances
+    Configuration Controller ->> Kubernetes API: Apply Instances
+    deactivate Configuration Controller
