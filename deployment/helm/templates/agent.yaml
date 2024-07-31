@@ -67,12 +67,6 @@ spec:
           - name: DEBUG_ECHO_INSTANCES_SHARED
             value: {{ .Values.debugEcho.configuration.shared | quote }}
           {{- end }}
-          - name: HOST_CRICTL_PATH
-            value: /usr/local/bin/crictl
-          - name: HOST_RUNTIME_ENDPOINT
-            value: unix:///host/run/containerd/containerd.sock
-          - name: HOST_IMAGE_ENDPOINT
-            value: unix:///host/run/containerd/containerd.sock
           - name: AGENT_NODE_NAME
             valueFrom:
               fieldRef:
@@ -86,8 +80,6 @@ spec:
             mountPath: /var/lib/kubelet/device-plugins
           - name: pod-resources
             mountPath: /var/lib/kubelet/pod-resources
-          - name: var-run-dockershim
-            mountPath: /host/run/containerd/containerd.sock
           {{- if .Values.agent.host.udev }}
           - name: devices
             mountPath: /run/udev
@@ -111,23 +103,6 @@ spec:
       - name: pod-resources
         hostPath:
           path: "{{ .Values.agent.host.kubeletPodResources }}"
-      - name: var-run-dockershim
-        hostPath:
-          {{- if ne "" .Values.agent.host.containerRuntimeSocket }}
-          path: {{.Values.agent.host.containerRuntimeSocket }}
-          {{- else if eq .Values.kubernetesDistro "microk8s" }}
-          path: "/var/snap/microk8s/common/run/containerd.sock"
-          {{- else if eq .Values.kubernetesDistro "k3s" }}
-          path: "/run/k3s/containerd/containerd.sock"
-          {{- else if eq .Values.kubernetesDistro "k8s" }}
-          path: "/run/containerd/containerd.sock"
-          {{- else }}
-          # Please set container runtime socket by either selecting the appropriate K8s distro `kubernetesDistro=<k8s|k3s|microk8s>` 
-          # or setting `agent.host.containerRuntimeSocket=/container/runtime.sock`. 
-          # See https://docs.akri.sh/user-guide/cluster-setup for more information.
-          # Using K8s default "/run/containerd/containerd.sock" for now.
-          path: "/run/containerd/containerd.sock"
-          {{- end }}
       {{- if .Values.agent.host.udev }}
       - name: devices
         hostPath:

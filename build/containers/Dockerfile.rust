@@ -24,10 +24,7 @@ ARG AKRI_COMPONENT
 RUN PROFILE=$(echo "${EXTRA_CARGO_ARGS}" | grep -q -- --release && echo "release" || echo "debug"); \
     xx-verify ./target/$(xx-cargo --print-target-triple)/${PROFILE}/${AKRI_COMPONENT}\ 
     && cp ./target/$(xx-cargo --print-target-triple)/${PROFILE}/${AKRI_COMPONENT} /build/bin/akri
-# Prepare crictl for agent
-RUN VERSION=v1.25.0; if [ "x${AKRI_COMPONENT}" = "xagent" ]; then wget \ 
-    "https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-$(xx-info arch).tar.gz" -O crictl.tar.gz\ 
-    && tar zxvf crictl.tar.gz -C /build/bin; fi
+
 
 
 FROM scratch
