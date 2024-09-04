@@ -1,15 +1,14 @@
-//! This modules is the heart of the discovery process handled by the agent, it is based around the [DiscoveryHandlerRegistry]
-//! and uses several other structure to represent and help handling discovery related things.
+//! This module is the heart of the discovery process handled by the agent, it is based around the [DiscoveryHandlerRegistry]
+//! and uses several other structure to represent and help handle discovery related operations.
 //!
-//! The [DiscoveryHandlerRegistry] keeps track of registered discovery handlers, multiple endpoints/instances of a given
+//! The [DiscoveryHandlerRegistry] keeps track of registered discovery handlers. Note, multiple endpoints/instances of a given
 //! handler can be registered at the same time.
 //!
-//! The [DiscoveryHandlerRegistry] also keeps track of ongoing discovery requests against those discovery handlers, there will be up
-//! to one of those query (a [DiscoveryHandlerRequest] object) per Configuration.
+//! The [DiscoveryHandlerRegistry] also keeps track of ongoing discovery requests against those discovery handlers. There is one discovery request (a [DiscoveryHandlerRequest] object) per Configuration.
 //!   
 //! Here are some simple diagrams showing how the components interact with each other in different situations:
 //!   
-//! A new DiscoverHandler gets registered (e.g. when it connects and register to the agent registration Unix socket):
+//! A new DiscoverHandler gets registered (after it connects to and registers with the agent registration Unix socket):
 #![doc=simple_mermaid::mermaid!("diagrams/dh_registration.mmd")]
 //!
 //! A new query is made by the Configuration Controller:
