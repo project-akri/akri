@@ -145,7 +145,7 @@ if [ "$CHECK" == "1" ]; then
     if [ "$?" -eq "1" ]; then exit 1; fi
 
     CRD_FILES="$BASEDIR/deployment/helm/crds/akri-configuration-crd.yaml $BASEDIR/deployment/helm/crds/akri-instance-crd.yaml"
-    CRD_VERSION_PATTERN="^    - name: "
+    CRD_VERSION_PATTERN="^    [- ] name: "
     for CRD_FILE in $CRD_FILES
     do
         check_file_version "$CRD_FILE" "$CRD_VERSION_PATTERN" "$CRD_VERSION"
