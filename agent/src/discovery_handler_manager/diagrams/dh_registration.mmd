@@ -1,0 +1,20 @@
+sequenceDiagram
+    Discovery Handler ->> Registration endpoint: Registers
+    Registration endpoint->> DiscoveryHandlerRegistry: register_endpoint()
+    DiscoveryHandlerRegistry ->> DiscoveryHandlerRegistry: Add endpoint to registered handlers list
+    DiscoveryHandlerRegistry ->> DiscoveryHandlerRequest: notify all DiscoveryHandlerRequest
+    alt Discovery Handler name is the same as in Request
+        DiscoveryHandlerRequest ->>+ Kubernetes API: Solve discovery properties
+        Kubernetes API ->>- DiscoveryHandlerRequest: 
+        DiscoveryHandlerRequest ->>+ Discovery Handler: query discovery handler
+        loop 
+            Discovery Handler ->> DiscoveryHandlerRequest: send discovered devices
+            note over DiscoveryHandlerRequest,DiscoveryHandlerRegistry: See other diagram for what happens here
+        end
+        deactivate Discovery Handler
+    end
+    break on Discovery Handler connection error
+        Registration endpoint -x DiscoveryHandlerRegistry: close endpoint
+        DiscoveryHandlerRegistry ->> DiscoveryHandlerRegistry: Remove endpoint from registered handlers list
+        note over DiscoveryHandlerRequest,Discovery Handler: The DiscoveryHandlerRequest request will handle termination by itself
+    end
