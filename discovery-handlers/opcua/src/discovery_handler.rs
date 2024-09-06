@@ -52,6 +52,7 @@ fn lds_discovery_url() -> Vec<String> {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OpcuaDiscoveryDetails {
+    #[serde(with = "serde_yaml::with::singleton_map")]
     pub opcua_discovery_method: OpcuaDiscoveryMethod,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub application_names: Option<FilterList>,

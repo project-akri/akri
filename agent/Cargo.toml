@@ -36,7 +36,7 @@ prost = "0.12"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 serde_json = "1.0.45"
-serde_yaml = { version = "0.8.11", optional = true }
+serde_yaml = { version = "0.9", optional = true }
 simple-mermaid = "0.1" # used for docs
 thiserror = "1.0.50"
 tokio = { version = "1.0", features = ["rt-multi-thread", "time", "fs", "macros", "net"] }
@@ -57,7 +57,7 @@ akri-udev = { path = "../discovery-handlers/udev"}
 env_logger = "0.10.0"
 mock_instant = { version = "0.2", features = ["sync"] }
 mockall = "0.12"
-serde_yaml = "0.8.11"
+serde_yaml = "0.9"
 tempfile = "3.1.0"
 
 [features]
