@@ -1,6 +1,6 @@
 [package]
 name = "akri-shared"
-version = "0.13.2"
+version = "0.13.3"
 license = "Apache-2.0"
 authors = ["<bfjelds@microsoft.com>"]
 edition = "2021"
@@ -22,7 +22,7 @@ schemars = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-serde_yaml = "0.8"
+serde_yaml = "0.9"
 tokio = { version = "1.0.1", features = ["full"] }
 tonic = "0.10"
 tower = "0.4.8"

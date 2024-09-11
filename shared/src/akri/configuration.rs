@@ -119,7 +119,12 @@ pub struct ConfigurationSpec {
     /// This defines a workload that should be scheduled to any
     /// node that can access any capability described by this
     /// configuration
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "serde_yaml::with::singleton_map::deserialize",
+        serialize_with = "serde_yaml::with::singleton_map::serialize"
+    )]
     pub broker_spec: Option<BrokerSpec>,
 
     /// This defines a service that should be created to access

@@ -1,6 +1,6 @@
 [package]
 name = "akri-discovery-utils"
-version = "0.13.2"
+version = "0.13.3"
 license = "Apache-2.0"
 authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
 edition = "2021"
@@ -18,7 +18,7 @@ log = "0.4"
 prost = "0.12"
 serde = "1.0"
 serde_derive = "1.0"
-serde_yaml = "0.8.11"
+serde_yaml = "0.9"
 tempfile = { version = "3.1.0", optional = true }
 tokio = { version = "1.0.1", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
