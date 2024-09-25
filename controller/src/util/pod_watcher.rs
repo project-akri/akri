@@ -153,10 +153,8 @@ async fn reconcile_inner(event: Event<Pod>, ctx: Arc<ControllerContext>) -> Resu
 
 /// Gets Pods phase and returns "Unknown" if no phase exists
 fn get_pod_phase(pod: &Pod) -> String {
-    if pod.status.is_some() {
-        pod.status
-            .as_ref()
-            .unwrap()
+    if let Some(status) = &pod.status {
+        status
             .phase
             .as_ref()
             .unwrap_or(&"Unknown".to_string())
@@ -270,11 +268,7 @@ async fn handle_deleted_pod_if_needed(
 /// Get instance id and configuration name from Pod annotations, return
 /// error if the annotations are not found.
 fn get_instance_and_configuration_from_pod(pod: &Pod) -> anyhow::Result<(String, String)> {
-    let labels = pod
-        .metadata
-        .labels
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Pod doesn't have labels"))?;
+    let labels = pod.labels();
     let instance_id = labels
         .get(AKRI_INSTANCE_LABEL_NAME)
         .ok_or_else(|| anyhow::anyhow!("No configuration name found."))?;
@@ -340,12 +334,7 @@ async fn handle_non_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyho
     // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
     if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
         if let Ok(Some(instance)) = ctx.client.namespaced(namespace).get(&instance_id).await {
-            super::instance_action::handle_instance_change(
-                &instance,
-                &super::instance_action::InstanceAction::Update,
-                ctx,
-            )
-            .await?;
+            super::instance_action::handle_instance_change(&instance, ctx).await?;
         }
     }
     Ok(())

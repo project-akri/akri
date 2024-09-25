@@ -43,13 +43,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         Arc::new(kube::Client::try_default().await?),
         CONTROLLER_FIELD_MANAGER_ID,
     ));
-    let instance_water_ctx = controller_ctx.clone();
+    let instance_watcher_ctx = controller_ctx.clone();
     let node_watcher_ctx = controller_ctx.clone();
     let pod_watcher_ctx = controller_ctx.clone();
 
     // Handle instance changes
     tasks.push(tokio::spawn(async {
-        instance_action::run(instance_water_ctx).await;
+        instance_action::run(instance_watcher_ctx).await;
     }));
     // Watch for node disappearance
     tasks.push(tokio::spawn(async {

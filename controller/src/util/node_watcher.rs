@@ -12,14 +12,18 @@ use crate::util::{
 use akri_shared::k8s::api::Api;
 
 use akri_shared::akri::instance::{device_usage::NodeUsage, Instance};
+use anyhow::Context;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Node, NodeStatus};
 use kube::{
-    api::{ListParams, ObjectList, ResourceExt},
+    api::{
+        ListParams, NotUsed, Object, ObjectList, ObjectMeta, Patch, PatchParams, ResourceExt,
+        TypeMeta,
+    },
     runtime::{
         controller::{Action, Controller},
-        finalizer::finalizer,
-        finalizer::Event,
+        finalizer::{finalizer, Event},
+        reflector::Lookup,
         watcher::Config,
     },
 };
@@ -167,18 +171,10 @@ fn is_node_ready(k8s_node: &Node) -> bool {
         .conditions
         .as_ref()
         .unwrap_or(&Vec::new())
-        .iter()
-        .filter_map(|condition| {
-            if condition.type_ == "Ready" {
-                Some(condition.status == "True")
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<bool>>()
         .last()
-        .unwrap_or(&false)
-        == &true
+        .map_or(false, |condition| {
+            condition.type_ == "Ready" && condition.status == "True"
+        })
 }
 
 /// This handles when a node disappears by clearing nodes from
@@ -204,14 +200,8 @@ async fn handle_node_disappearance(
             "handle_node_disappearance - make sure node is not referenced here: {:?}",
             &instance_name
         );
-        try_remove_nodes_from_instance(
-            vanished_node_name,
-            &instance_name,
-            &instance,
-            api.as_ref(),
-            &ctx.identifier,
-        )
-        .await?;
+        try_remove_nodes_from_instance(vanished_node_name, &instance_name, &instance, api.as_ref())
+            .await?;
     }
 
     trace!("handle_node_disappearance - exit");
@@ -223,10 +213,9 @@ async fn handle_node_disappearance(
 /// the instance in etcd, any failure is returned.
 async fn try_remove_nodes_from_instance(
     vanished_node_name: &str,
-    _instance_name: &str,
+    instance_name: &str,
     instance: &Instance,
     api: &dyn Api<Instance>,
-    field_manager: &str,
 ) -> Result<(), anyhow::Error> {
     trace!(
         "try_remove_nodes_from_instance - vanished_node_name: {:?}",
@@ -252,10 +241,26 @@ async fn try_remove_nodes_from_instance(
             Err(_) => (slot.to_owned(), usage.into()),
         })
         .collect::<HashMap<String, String>>();
-    let mut patched = instance.clone();
-    patched.spec.device_usage = modified_device_usage;
-    patched.spec.nodes = modified_nodes;
-    api.apply(patched, field_manager).await?;
+    let mut modified_spec = instance.spec.clone();
+    modified_spec.nodes = modified_nodes;
+    modified_spec.device_usage = modified_device_usage;
+    let patch = Patch::Merge(
+        serde_json::to_value(Object {
+            types: Some(TypeMeta {
+                api_version: Instance::api_version(&()).to_string(),
+                kind: Instance::kind(&()).to_string(),
+            }),
+            status: None::<NotUsed>,
+            spec: modified_spec,
+            metadata: ObjectMeta {
+                name: Some(instance_name.to_string()),
+                ..Default::default()
+            },
+        })
+        .context("Could not create instance patch")?,
+    );
+    api.raw_patch(instance_name, &patch, &PatchParams::default())
+        .await?;
     Ok(())
 }
 
@@ -390,9 +395,15 @@ mod tests {
             .expect_list()
             .return_once(|_| instances_list(instance_name, "unused"));
         instance_api_mock
-            .expect_apply()
-            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
-            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+            .expect_raw_patch()
+            .return_once(|_, _, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|_, patch, _| match patch {
+                Patch::Merge(v) => {
+                    let instance: Instance = serde_json::from_value(v.clone()).unwrap();
+                    !instance.spec.nodes.contains(&"node-a".to_owned())
+                }
+                _ => false,
+            });
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
@@ -428,9 +439,15 @@ mod tests {
             .expect_list()
             .return_once(|_| instances_list(instance_name, "unused"));
         instance_api_mock
-            .expect_apply()
-            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
-            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+            .expect_raw_patch()
+            .return_once(|_, _, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|_, patch, _| match patch {
+                Patch::Merge(v) => {
+                    let instance: Instance = serde_json::from_value(v.clone()).unwrap();
+                    !instance.spec.nodes.contains(&"node-a".to_owned())
+                }
+                _ => false,
+            });
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
@@ -462,9 +479,15 @@ mod tests {
             .expect_list()
             .return_once(|_| instances_list(instance_name, "unused"));
         instance_api_mock
-            .expect_apply()
-            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
-            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+            .expect_raw_patch()
+            .return_once(|_, _, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|_, patch, _| match patch {
+                Patch::Merge(v) => {
+                    let instance: Instance = serde_json::from_value(v.clone()).unwrap();
+                    !instance.spec.nodes.contains(&"node-a".to_owned())
+                }
+                _ => false,
+            });
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
