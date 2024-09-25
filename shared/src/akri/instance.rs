@@ -16,7 +16,7 @@ pub type InstanceList = ObjectList<Instance>;
 /// a Configuration.  For example, a Configuration
 /// may describe many cameras, each camera will be represented by a
 /// Instance.
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema, PartialEq)]
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, Default, JsonSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 // group = API_NAMESPACE and version = API_VERSION
 #[kube(

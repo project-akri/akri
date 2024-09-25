@@ -1,679 +1,477 @@
-use akri_shared::{
-    akri::{
-        instance::device_usage::NodeUsage,
-        instance::{Instance, InstanceSpec},
-        retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-    },
-    k8s,
-    k8s::KubeInterface,
+//! This is used to handle Nodes disappearing.
+//!
+//! When a Node disapears, make sure that any Instance that
+//! references the Node is cleaned.  This means that the
+//! Instance.nodes property no longer contains the node and
+//! that the Instance.deviceUsage property no longer contains
+//! slots that are occupied by the node.
+use crate::util::{
+    controller_ctx::{ControllerContext, NodeState},
+    ControllerError, Result,
 };
-use futures::{StreamExt, TryStreamExt};
+use akri_shared::k8s::api::Api;
+
+use akri_shared::akri::instance::{device_usage::NodeUsage, Instance};
+use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Node, NodeStatus};
-use kube::api::Api;
-use kube_runtime::watcher::{watcher, Config, Event};
-use kube_runtime::WatchStreamExt;
+use kube::{
+    api::{ListParams, ObjectList, ResourceExt},
+    runtime::{
+        controller::{Action, Controller},
+        finalizer::finalizer,
+        finalizer::Event,
+        watcher::Config,
+    },
+};
 use log::{error, info, trace};
-use std::collections::HashMap;
 use std::str::FromStr;
+use std::{collections::HashMap, sync::Arc};
 
-/// Node states that NodeWatcher is interested in
-///
-/// NodeState describes the various states that the controller can
-/// react to for Nodes.
-#[derive(Clone, Debug, PartialEq)]
-enum NodeState {
-    /// Node has been seen, but not Running yet
-    Known,
-    /// Node has been seen Running
-    Running,
-    /// A previously Running Node has been seen as not Running
-    /// and the Instances have been cleaned of references to that
-    /// vanished Node
-    InstancesCleaned,
+pub static NODE_FINALIZER: &str = "nodes.kube.rs";
+
+/// Initialize the instance controller
+/// TODO: consider passing state that is shared among controllers such as a metrics exporter
+pub async fn run(ctx: Arc<ControllerContext>) {
+    let api = ctx.client.all().as_inner();
+    if let Err(e) = api.list(&ListParams::default().limit(1)).await {
+        error!("Nodes are not queryable; {e:?}");
+        std::process::exit(1);
+    }
+    Controller::new(api, Config::default().any_semantic())
+        .shutdown_on_signal()
+        .run(reconcile, error_policy, ctx)
+        // TODO: needs update for tokio?
+        .filter_map(|x| async move { std::result::Result::ok(x) })
+        .for_each(|_| futures::future::ready(()))
+        .await;
 }
 
-/// This is used to handle Nodes disappearing.
-///
-/// When a Node disapears, make sure that any Instance that
-/// references the Node is cleaned.  This means that the
-/// Instance.nodes property no longer contains the node and
-/// that the Instance.deviceUsage property no longer contains
-/// slots that are occupied by the node.
-pub struct NodeWatcher {
-    known_nodes: HashMap<String, NodeState>,
+fn error_policy(_node: Arc<Node>, error: &ControllerError, _ctx: Arc<ControllerContext>) -> Action {
+    log::warn!("reconcile failed: {:?}", error);
+    Action::requeue(std::time::Duration::from_secs(5 * 60))
 }
 
-impl NodeWatcher {
-    /// Create new instance of BrokerPodWatcher
-    pub fn new() -> Self {
-        NodeWatcher {
-            known_nodes: HashMap::new(),
-        }
-    }
+/// This function is the main Reconcile function for Node resources
+/// This will get called every time an Node is added, deleted, or changed, it will also be called for every existing Node on startup.
+///
+/// Nodes are constantly updated.  Cleanup  work for our services only
+/// needs to be called once.
+///
+/// To achieve this, store each Node's state as either Known (Node has
+/// been seen, but not Running), Running (Node has been seen as Running),
+/// and InstanceCleaned (previously Running Node has been seen as not
+/// Running).
+///
+/// When a Node is in the Known state, it is not Running.  If it has
+/// never been seen as Running, it is likely being created and there is
+/// no need to clean any Instance.
+///
+/// Once a Node moves through the Running state into a non Running
+/// state, it becomes important to clean Instances referencing the
+/// non-Running Node.
+pub async fn reconcile(node: Arc<Node>, ctx: Arc<ControllerContext>) -> Result<Action> {
+    trace!("Reconciling node {}", node.name_any());
+    finalizer(
+        &ctx.client.clone().all().as_inner(),
+        NODE_FINALIZER,
+        node,
+        |event| reconcile_inner(event, ctx.clone()),
+    )
+    .await
+    // .map_err(|_e| anyhow!("todo"))
+    .map_err(|e| ControllerError::FinalizerError(Box::new(e)))
+}
 
-    /// This watches for Node events
-    pub async fn watch(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        trace!("watch - enter");
-        let kube_interface = k8s::KubeImpl::new().await?;
-        let resource = Api::<Node>::all(kube_interface.get_kube_client());
-        let watcher = watcher(resource, Config::default()).default_backoff();
-        let mut informer = watcher.boxed();
-        let mut first_event = true;
-
-        // Currently, this does not handle None except to break the loop.
-        loop {
-            let event = match informer.try_next().await {
-                Err(e) => {
-                    error!("Error during watch: {}", e);
-                    continue;
-                }
-                Ok(None) => break,
-                Ok(Some(event)) => event,
-            };
-            self.handle_node(event, &kube_interface, &mut first_event)
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    /// This takes an event off the Node stream and if a Node is no longer
-    /// available, it calls handle_node_disappearance.
-    ///
-    /// Nodes are constantly updated.  Cleanup  work for our services only
-    /// needs to be called once.
-    ///
-    /// To achieve this, store each Node's state as either Known (Node has
-    /// been seen, but not Running), Running (Node has been seen as Running),
-    /// and InstanceCleaned (previously Running Node has been seen as not
-    /// Running).
-    ///
-    /// When a Node is in the Known state, it is not Running.  If it has
-    /// never been seen as Running, it is likely being created and there is
-    /// no need to clean any Instance.
-    ///
-    /// Once a Node moves through the Running state into a non Running
-    /// state, it becomes important to clean Instances referencing the
-    /// non-Running Node.
-    async fn handle_node(
-        &mut self,
-        event: Event<Node>,
-        kube_interface: &impl KubeInterface,
-        first_event: &mut bool,
-    ) -> anyhow::Result<()> {
-        trace!("handle_node - enter");
-        match event {
-            Event::Applied(node) => {
-                let node_name = node.metadata.name.clone().unwrap();
-                info!("handle_node - Added or modified: {}", node_name);
-                if self.is_node_ready(&node) {
-                    self.known_nodes.insert(node_name, NodeState::Running);
-                } else if let std::collections::hash_map::Entry::Vacant(e) =
-                    self.known_nodes.entry(node_name)
-                {
+async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Result<Action> {
+    match event {
+        Event::Apply(node) => {
+            let node_name = node.metadata.name.clone().unwrap();
+            info!("handle_node - Added or modified: {}", node_name);
+            if is_node_ready(&node) {
+                ctx.known_nodes
+                    .write()
+                    .await
+                    .insert(node_name, NodeState::Running);
+            } else {
+                let mut guard = ctx.known_nodes.write().await;
+                if let std::collections::hash_map::Entry::Vacant(e) = guard.entry(node_name) {
                     e.insert(NodeState::Known);
                 } else {
                     // Node Modified
-                    self.call_handle_node_disappearance_if_needed(&node, kube_interface)
-                        .await?;
+                    drop(guard);
+                    call_handle_node_disappearance_if_needed(&node, ctx.clone()).await?;
                 }
             }
-            Event::Deleted(node) => {
-                info!("handle_node - Deleted: {:?}", &node.metadata.name);
-                self.call_handle_node_disappearance_if_needed(&node, kube_interface)
-                    .await?;
-            }
-            Event::Restarted(_nodes) => {
-                if *first_event {
-                    info!("handle_node - watcher started");
-                } else {
-                    return Err(anyhow::anyhow!(
-                        "Node watcher restarted - throwing error to restart controller"
-                    ));
-                }
-            }
-        };
-        *first_event = false;
-        Ok(())
+            Ok(Action::await_change())
+        }
+        Event::Cleanup(node) => {
+            info!("handle_node - Deleted: {:?}", &node.metadata.name);
+            call_handle_node_disappearance_if_needed(&node, ctx.clone()).await?;
+            ctx.known_nodes
+                .write()
+                .await
+                .remove(&node.metadata.name.as_deref().unwrap().to_string());
+            Ok(Action::await_change())
+        }
     }
-
-    /// This should be called for Nodes that are either !Ready or Deleted.
-    /// This function ensures that handle_node_disappearance is called
-    /// only once for any Node as it disappears.
-    async fn call_handle_node_disappearance_if_needed(
-        &mut self,
-        node: &Node,
-        kube_interface: &impl KubeInterface,
-    ) -> anyhow::Result<()> {
-        let node_name = node.metadata.name.clone().unwrap();
+}
+/// This should be called for Nodes that are either !Ready or Deleted.
+/// This function ensures that handle_node_disappearance is called
+/// only once for any Node as it disappears.
+async fn call_handle_node_disappearance_if_needed(
+    node: &Node,
+    ctx: Arc<ControllerContext>,
+) -> anyhow::Result<()> {
+    let node_name = node.metadata.name.as_deref().unwrap();
+    trace!(
+        "call_handle_node_disappearance_if_needed - enter: {:?}",
+        &node.metadata.name
+    );
+    let last_known_state = ctx
+        .known_nodes
+        .read()
+        .await
+        .get(node_name)
+        .unwrap_or(&NodeState::Running)
+        .clone();
+    trace!(
+        "call_handle_node_disappearance_if_needed - last_known_state: {:?}",
+        &last_known_state
+    );
+    // Nodes are updated roughly once a minute ... try to only call
+    // handle_node_disappearance once for a node that disappears.
+    //
+    // Also, there is no need to call handle_node_disappearance if a
+    // Node has never been in the Running state.
+    if last_known_state == NodeState::Running {
         trace!(
-            "call_handle_node_disappearance_if_needed - enter: {:?}",
+            "call_handle_node_disappearance_if_needed - call handle_node_disappearance: {:?}",
             &node.metadata.name
         );
-        let last_known_state = self
-            .known_nodes
-            .get(&node_name)
-            .unwrap_or(&NodeState::Running);
-        trace!(
-            "call_handle_node_disappearance_if_needed - last_known_state: {:?}",
-            &last_known_state
-        );
-        // Nodes are updated roughly once a minute ... try to only call
-        // handle_node_disappearance once for a node that disappears.
-        //
-        // Also, there is no need to call handle_node_disappearance if a
-        // Node has never been in the Running state.
-        if last_known_state == &NodeState::Running {
-            trace!(
-                "call_handle_node_disappearance_if_needed - call handle_node_disappearance: {:?}",
-                &node.metadata.name
-            );
-            self.handle_node_disappearance(&node_name, kube_interface)
-                .await?;
-            self.known_nodes
-                .insert(node_name, NodeState::InstancesCleaned);
-        }
-        Ok(())
-    }
-
-    /// This determines if a node is in the Ready state.
-    fn is_node_ready(&self, k8s_node: &Node) -> bool {
-        trace!("is_node_ready - for node {:?}", k8s_node.metadata.name);
-        k8s_node
-            .status
-            .as_ref()
-            .unwrap_or(&NodeStatus::default())
-            .conditions
-            .as_ref()
-            .unwrap_or(&Vec::new())
-            .iter()
-            .filter_map(|condition| {
-                if condition.type_ == "Ready" {
-                    Some(condition.status == "True")
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<bool>>()
-            .last()
-            .unwrap_or(&false)
-            == &true
-    }
-
-    /// This handles when a node disappears by clearing nodes from
-    /// the nodes list and deviceUsage map and then trying 5 times to
-    /// update the Instance.
-    async fn handle_node_disappearance(
-        &self,
-        vanished_node_name: &str,
-        kube_interface: &impl KubeInterface,
-    ) -> anyhow::Result<()> {
-        trace!(
-            "handle_node_disappearance - enter vanished_node_name={:?}",
-            vanished_node_name,
-        );
-
-        let instances = kube_interface.get_instances().await?;
-        trace!(
-            "handle_node_disappearance - found {:?} instances",
-            instances.items.len()
-        );
-        for instance in instances.items {
-            let instance_name = instance.metadata.name.clone().unwrap();
-            let instance_namespace = instance.metadata.namespace.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("Namespace not found for instance: {}", instance_name)
-            })?;
-
-            trace!(
-                "handle_node_disappearance - make sure node is not referenced here: {:?}",
-                &instance_name
-            );
-
-            // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
-            for x in 0..MAX_INSTANCE_UPDATE_TRIES {
-                match if x == 0 {
-                    self.try_remove_nodes_from_instance(
-                        vanished_node_name,
-                        &instance_name,
-                        instance_namespace,
-                        &instance,
-                        kube_interface,
-                    )
-                    .await
-                } else {
-                    let retry_instance = kube_interface
-                        .find_instance(&instance_name, instance_namespace)
-                        .await?;
-                    self.try_remove_nodes_from_instance(
-                        vanished_node_name,
-                        &instance_name,
-                        instance_namespace,
-                        &retry_instance,
-                        kube_interface,
-                    )
-                    .await
-                } {
-                    Ok(_) => break,
-                    Err(e) => {
-                        if x == (MAX_INSTANCE_UPDATE_TRIES - 1) {
-                            return Err(e);
-                        }
-                        random_delay().await;
-                    }
-                }
-            }
-        }
-
-        trace!("handle_node_disappearance - exit");
-        Ok(())
-    }
-
-    /// This attempts to remove nodes from the nodes list and deviceUsage
-    /// map in an Instance.  An attempt is made to update
-    /// the instance in etcd, any failure is returned.
-    async fn try_remove_nodes_from_instance(
-        &self,
-        vanished_node_name: &str,
-        instance_name: &str,
-        instance_namespace: &str,
-        instance: &Instance,
-        kube_interface: &impl KubeInterface,
-    ) -> Result<(), anyhow::Error> {
-        trace!(
-            "try_remove_nodes_from_instance - vanished_node_name: {:?}",
-            &vanished_node_name
-        );
-        let modified_nodes = instance
-            .spec
-            .nodes
-            .iter()
-            .filter(|node| &vanished_node_name != node)
-            .map(|node| node.into())
-            .collect::<Vec<String>>();
-        // Remove nodes from instance.deviceusage
-        let modified_device_usage = instance
-            .spec
-            .device_usage
-            .iter()
-            .map(|(slot, usage)| {
-                let same_node_name = match NodeUsage::from_str(usage) {
-                    Ok(node_usage) => node_usage.is_same_node(vanished_node_name),
-                    Err(_) => false,
-                };
-
-                (
-                    slot.to_string(),
-                    if same_node_name {
-                        NodeUsage::default().to_string()
-                    } else {
-                        usage.into()
-                    },
-                )
-            })
-            .collect::<HashMap<String, String>>();
-
-        // Save the instance
-        let modified_instance = InstanceSpec {
-            cdi_name: instance.spec.cdi_name.clone(),
-            capacity: instance.spec.capacity,
-            configuration_name: instance.spec.configuration_name.clone(),
-            broker_properties: instance.spec.broker_properties.clone(),
-            shared: instance.spec.shared,
-            device_usage: modified_device_usage,
-            nodes: modified_nodes,
-        };
-
-        trace!(
-            "handle_node_disappearance - kube_interface.update_instance name: {}, namespace: {}, {:?}",
-            &instance_name,
-            &instance_namespace,
-            &modified_instance
-        );
-
-        kube_interface
-            .update_instance(&modified_instance, instance_name, instance_namespace)
+        handle_node_disappearance(node_name, ctx.clone()).await?;
+        ctx.known_nodes
+            .write()
             .await
+            .insert(node_name.to_string(), NodeState::InstancesCleaned);
     }
+    Ok(())
+}
+
+/// This determines if a node is in the Ready state.
+fn is_node_ready(k8s_node: &Node) -> bool {
+    trace!("is_node_ready - for node {:?}", k8s_node.metadata.name);
+    k8s_node
+        .status
+        .as_ref()
+        .unwrap_or(&NodeStatus::default())
+        .conditions
+        .as_ref()
+        .unwrap_or(&Vec::new())
+        .iter()
+        .filter_map(|condition| {
+            if condition.type_ == "Ready" {
+                Some(condition.status == "True")
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<bool>>()
+        .last()
+        .unwrap_or(&false)
+        == &true
+}
+
+/// This handles when a node disappears by clearing nodes from
+/// the nodes list and deviceUsage map.
+async fn handle_node_disappearance(
+    vanished_node_name: &str,
+    ctx: Arc<ControllerContext>,
+) -> anyhow::Result<()> {
+    trace!(
+        "handle_node_disappearance - enter vanished_node_name={:?}",
+        vanished_node_name,
+    );
+    let api = ctx.client.all();
+    let instances: ObjectList<Instance> = api.list(&ListParams::default()).await?;
+    trace!(
+        "handle_node_disappearance - found {:?} instances",
+        instances.items.len()
+    );
+    for instance in instances.items {
+        let instance_name = instance.metadata.name.clone().unwrap();
+
+        trace!(
+            "handle_node_disappearance - make sure node is not referenced here: {:?}",
+            &instance_name
+        );
+        try_remove_nodes_from_instance(
+            vanished_node_name,
+            &instance_name,
+            &instance,
+            api.as_ref(),
+            &ctx.identifier,
+        )
+        .await?;
+    }
+
+    trace!("handle_node_disappearance - exit");
+    Ok(())
+}
+
+/// This attempts to remove nodes from the nodes list and deviceUsage
+/// map in an Instance.  An attempt is made to update
+/// the instance in etcd, any failure is returned.
+async fn try_remove_nodes_from_instance(
+    vanished_node_name: &str,
+    _instance_name: &str,
+    instance: &Instance,
+    api: &dyn Api<Instance>,
+    field_manager: &str,
+) -> Result<(), anyhow::Error> {
+    trace!(
+        "try_remove_nodes_from_instance - vanished_node_name: {:?}",
+        &vanished_node_name
+    );
+    let modified_nodes = instance
+        .spec
+        .nodes
+        .iter()
+        .filter(|node| &vanished_node_name != node)
+        .map(|node| node.into())
+        .collect::<Vec<String>>();
+    // Remove nodes from instance.deviceusage
+    let modified_device_usage = instance
+        .spec
+        .device_usage
+        .iter()
+        .map(|(slot, usage)| match NodeUsage::from_str(usage) {
+            Ok(node_usage) if node_usage.is_same_node(vanished_node_name) => {
+                (slot.to_owned(), NodeUsage::default().to_string())
+            }
+            Ok(_) => (slot.to_owned(), usage.into()),
+            Err(_) => (slot.to_owned(), usage.into()),
+        })
+        .collect::<HashMap<String, String>>();
+    let mut patched = instance.clone();
+    patched.spec.device_usage = modified_device_usage;
+    patched.spec.nodes = modified_nodes;
+    api.apply(patched, field_manager).await?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::shared_test_utils::config_for_tests;
+    use super::super::shared_test_utils::mock_client::MockControllerKubeClient;
     use super::*;
-    use akri_shared::{akri::instance::InstanceList, k8s::MockKubeInterface, os::file};
+    use akri_shared::{akri::instance::InstanceSpec, k8s::api::MockApi, os::file};
 
-    #[derive(Clone)]
-    struct UpdateInstance {
-        instance_to_update: InstanceSpec,
-        instance_name: &'static str,
-        instance_namespace: &'static str,
+    fn instances_list(
+        instance_name: &str,
+        instance_namespace: &str,
+    ) -> kube::Result<ObjectList<Instance>> {
+        let list = serde_json::json!({
+            "apiVersion": "v1",
+            "kind": "List",
+            "metadata": {
+                "resourceVersion": "",
+                "selfLink": ""
+            },
+            "items": [
+                {
+                    "apiVersion": "akri.sh/v0",
+                    "kind": "Instance",
+                    "metadata": {
+                        "name": instance_name,
+                        "namespace": instance_namespace,
+                        "uid": "abcdegfh-ijkl-mnop-qrst-uvwxyz012345"
+                    },
+                    "spec": {
+                        "configurationName": "config-a",
+                        "capacity": 5,
+                        "cdiName": "akri.sh/config-a=359973",
+                        "deviceUsage": {
+                            format!("{instance_name}-0"): "node-b",
+                            format!("{instance_name}-1"): "node-a",
+                            format!("{instance_name}-2"): "node-b",
+                            format!("{instance_name}-3"): "node-a",
+                            format!("{instance_name}-4"): "node-c",
+                            format!("{instance_name}-5"): ""
+                        },
+                        "nodes": [ "node-a", "node-b", "node-c" ],
+                        "shared": true
+                    }
+                }
+            ]
+        });
+        Ok(serde_json::from_value(list).unwrap())
     }
 
-    #[derive(Clone)]
-    struct HandleNodeDisappearance {
-        get_instances_result_file: &'static str,
-        get_instances_result_listify: bool,
-        update_instance: Option<UpdateInstance>,
-    }
-
-    fn configure_for_handle_node_disappearance(
-        mock: &mut MockKubeInterface,
-        work: &HandleNodeDisappearance,
-    ) {
-        config_for_tests::configure_get_instances(
-            mock,
-            work.get_instances_result_file,
-            work.get_instances_result_listify,
-        );
-
-        if let Some(update_instance) = &work.update_instance {
-            config_for_tests::configure_update_instance(
-                mock,
-                update_instance.instance_to_update.clone(),
-                update_instance.instance_name,
-                update_instance.instance_namespace,
-                false,
-            );
-        }
-    }
-
-    // Test that watcher errors on restarts unless it is the first restart (aka initial startup)
     #[tokio::test]
-    async fn test_handle_watcher_restart() {
+    async fn test_reconcile_node_apply_ready() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let mut pod_watcher = NodeWatcher::new();
-        let mut first_event = true;
-        assert!(pod_watcher
-            .handle_node(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
+        let node_json = file::read_file_to_string("../test/json/node-a.json");
+        let node: Node = serde_json::from_str(&node_json).unwrap();
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
-            .is_ok());
-        first_event = false;
-        assert!(pod_watcher
-            .handle_node(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_err());
+            .unwrap();
+
+        assert_eq!(
+            &NodeState::Running,
+            ctx.known_nodes.read().await.get(&node_name).unwrap()
+        );
     }
 
     #[tokio::test]
-    async fn test_handle_node_added_unready() {
+    async fn test_reconcile_node_apply_unready_unknown() {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let mut node_watcher = NodeWatcher::new();
-        node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
-
-        assert_eq!(1, node_watcher.known_nodes.len());
 
         assert_eq!(
             &NodeState::Known,
-            node_watcher.known_nodes.get("node-a").unwrap()
-        )
+            ctx.known_nodes.read().await.get(&node_name).unwrap()
+        );
     }
-
+    // If a known node is modified and is still not ready, it should remain in the known state
     #[tokio::test]
-    async fn test_handle_node_added_ready() {
+    async fn test_reconcile_node_apply_unready_known() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        let node_json = file::read_file_to_string("../test/json/node-a.json");
+        let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let mut node_watcher = NodeWatcher::new();
-        node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        ctx.known_nodes
+            .write()
+            .await
+            .insert(node_name.clone(), NodeState::Known);
+        reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
-
-        assert_eq!(1, node_watcher.known_nodes.len());
 
         assert_eq!(
-            &NodeState::Running,
-            node_watcher.known_nodes.get("node-a").unwrap()
-        )
+            &NodeState::Known,
+            ctx.known_nodes.read().await.get(&node_name).unwrap()
+        );
     }
 
+    // If previously running node is modified and is not ready, it should remove the node from the instances' node lists
     #[tokio::test]
-    async fn test_handle_node_modified_unready_unknown() {
+    async fn test_reconcile_node_apply_unready_previously_running() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        let node_json = file::read_file_to_string("../test/json/node-b-not-ready.json");
+        let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let mut node_watcher = NodeWatcher::new();
-        let instance_file = "../test/json/shared-instance-update.json";
-        let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
-        let mut instance = kube_object_instance.spec;
-        instance.nodes.clear();
-        instance
-            .device_usage
-            .insert("config-a-359973-2".to_string(), "".to_string());
-
-        let mut mock = MockKubeInterface::new();
-        configure_for_handle_node_disappearance(
-            &mut mock,
-            &HandleNodeDisappearance {
-                get_instances_result_file: "../test/json/shared-instance-update.json",
-                get_instances_result_listify: true,
-                update_instance: Some(UpdateInstance {
-                    instance_to_update: instance,
-                    instance_name: "config-a-359973",
-                    instance_namespace: "config-a-namespace",
-                }),
-            },
-        );
-        // Insert node into list of known_nodes to mock being previously applied
-        node_watcher
-            .known_nodes
-            .insert(node.metadata.name.clone().unwrap(), NodeState::Running);
-        node_watcher
-            .handle_node(Event::Applied(node), &mock, &mut false)
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let mut instance_api_mock: MockApi<Instance> = MockApi::new();
+        let instance_name = "config-a-359973";
+        instance_api_mock
+            .expect_list()
+            .return_once(|_| instances_list(instance_name, "unused"));
+        instance_api_mock
+            .expect_apply()
+            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+        mock.instance
+            .expect_all()
+            .return_once(move || Box::new(instance_api_mock));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        ctx.known_nodes
+            .write()
+            .await
+            .insert(node_name.clone(), NodeState::Running);
+        reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
-
-        assert_eq!(1, node_watcher.known_nodes.len());
-
         assert_eq!(
             &NodeState::InstancesCleaned,
-            node_watcher.known_nodes.get("node-b").unwrap()
-        )
-    }
-
-    #[tokio::test]
-    async fn test_handle_node_modified_ready_unknown() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let node_json = file::read_file_to_string("../test/json/node-b.json");
-        let node: Node = serde_json::from_str(&node_json).unwrap();
-        let mut node_watcher = NodeWatcher::new();
-
-        let mock = MockKubeInterface::new();
-        node_watcher
-            .handle_node(Event::Applied(node), &mock, &mut false)
-            .await
-            .unwrap();
-
-        assert_eq!(1, node_watcher.known_nodes.len());
-
-        assert_eq!(
-            &NodeState::Running,
-            node_watcher.known_nodes.get("node-b").unwrap()
-        )
-    }
-
-    #[tokio::test]
-    async fn test_handle_node_deleted_unready_unknown() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let node_json = file::read_file_to_string("../test/json/node-b-not-ready.json");
-        let node: Node = serde_json::from_str(&node_json).unwrap();
-        let mut node_watcher = NodeWatcher::new();
-
-        let instance_file = "../test/json/shared-instance-update.json";
-        let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
-        let mut instance = kube_object_instance.spec;
-        instance.nodes.clear();
-        instance
-            .device_usage
-            .insert("config-a-359973-2".to_string(), "".to_string());
-
-        let mut mock = MockKubeInterface::new();
-        configure_for_handle_node_disappearance(
-            &mut mock,
-            &HandleNodeDisappearance {
-                get_instances_result_file: "../test/json/shared-instance-update.json",
-                get_instances_result_listify: true,
-                update_instance: Some(UpdateInstance {
-                    instance_to_update: instance,
-                    instance_name: "config-a-359973",
-                    instance_namespace: "config-a-namespace",
-                }),
-            },
+            ctx.known_nodes.read().await.get(&node_name).unwrap()
         );
+    }
 
-        node_watcher
-            .handle_node(Event::Deleted(node), &mock, &mut false)
+    // If previously running node enters the cleanup state, it should remove the node from the instances' node lists
+    // and ensure that the node is removed from the known_nodes
+    #[tokio::test]
+    async fn test_reconcile_node_cleanup() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
+        let node: Node = serde_json::from_str(&node_json).unwrap();
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let mut instance_api_mock: MockApi<Instance> = MockApi::new();
+        let instance_name = "config-a-359973";
+        instance_api_mock
+            .expect_list()
+            .return_once(|_| instances_list(instance_name, "unused"));
+        instance_api_mock
+            .expect_apply()
+            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+        mock.instance
+            .expect_all()
+            .return_once(move || Box::new(instance_api_mock));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        ctx.known_nodes
+            .write()
+            .await
+            .insert(node_name.clone(), NodeState::Running);
+        reconcile_inner(Event::Cleanup(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
-
-        assert_eq!(1, node_watcher.known_nodes.len());
-
-        assert_eq!(
-            &NodeState::InstancesCleaned,
-            node_watcher.known_nodes.get("node-b").unwrap()
-        )
+        assert!(ctx.known_nodes.read().await.get(&node_name).is_none());
     }
 
-    const LIST_PREFIX: &str = r#"
-{
-    "apiVersion": "v1",
-    "items": ["#;
-    const LIST_SUFFIX: &str = r#"
-    ],
-    "kind": "List",
-    "metadata": {
-        "resourceVersion": "",
-        "selfLink": ""
-    }
-}"#;
-    fn listify_node(node_json: &str) -> String {
-        format!("{}\n{}\n{}", LIST_PREFIX, node_json, LIST_SUFFIX)
-    }
-
+    // If unknown node is deleted, it should remove the node from the instances' node lists
     #[tokio::test]
-    async fn test_handle_node_disappearance_update_failure_retries() {
+    async fn test_reconcile_node_cleanup_unknown() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        let mut mock = MockKubeInterface::new();
-        mock.expect_get_instances().times(1).returning(move || {
-            let instance_file = "../test/json/shared-instance-update.json";
-            let instance_json = file::read_file_to_string(instance_file);
-            let instance_list_json = listify_node(&instance_json);
-            let list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
-            Ok(list)
-        });
-        mock.expect_update_instance()
-            .times(MAX_INSTANCE_UPDATE_TRIES as usize)
-            .withf(move |_instance, n, ns| n == "config-a-359973" && ns == "config-a-namespace")
-            .returning(move |_, _, _| Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?));
-        mock.expect_find_instance()
-            .times((MAX_INSTANCE_UPDATE_TRIES - 1) as usize)
-            .withf(move |n, ns| n == "config-a-359973" && ns == "config-a-namespace")
-            .returning(move |_, _| {
-                let instance_file = "../test/json/shared-instance-update.json";
-                let instance_json = file::read_file_to_string(instance_file);
-                let instance: Instance = serde_json::from_str(&instance_json).unwrap();
-                Ok(instance)
-            });
-
-        let node_watcher = NodeWatcher::new();
-        assert!(node_watcher
-            .handle_node_disappearance("foo-a", &mock)
+        let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
+        let node: Node = serde_json::from_str(&node_json).unwrap();
+        let node_name = node.metadata.name.clone().unwrap();
+        let mut mock = MockControllerKubeClient::default();
+        mock.node
+            .expect_all()
+            .return_once(|| Box::new(MockApi::new()));
+        let mut instance_api_mock: MockApi<Instance> = MockApi::new();
+        let instance_name = "config-a-359973";
+        instance_api_mock
+            .expect_list()
+            .return_once(|_| instances_list(instance_name, "unused"));
+        instance_api_mock
+            .expect_apply()
+            .return_once(|_, _| Ok(Instance::new("unused", InstanceSpec::default())))
+            .withf(|i, _| !i.spec.nodes.contains(&"node-a".to_owned()));
+        mock.instance
+            .expect_all()
+            .return_once(move || Box::new(instance_api_mock));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        reconcile_inner(Event::Cleanup(Arc::new(node)), ctx.clone())
             .await
-            .is_err());
-    }
-
-    #[tokio::test]
-    async fn test_try_remove_nodes_from_instance() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let instance_file = "../test/json/shared-instance-update.json";
-        let instance_json = file::read_file_to_string(instance_file);
-        let kube_object_instance: Instance = serde_json::from_str(&instance_json).unwrap();
-
-        let mut mock = MockKubeInterface::new();
-        mock.expect_update_instance()
-            .times(1)
-            .withf(move |ins, n, ns| {
-                n == "config-a"
-                    && ns == "config-a-namespace"
-                    && !ins.nodes.contains(&"node-b".to_string())
-                    && ins
-                        .device_usage
-                        .iter()
-                        .filter_map(|(_slot, value)| {
-                            if value == &"node-b".to_string() {
-                                Some(value.to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<String>>()
-                        .first()
-                        .is_none()
-            })
-            .returning(move |_, _, _| Ok(()));
-
-        let node_watcher = NodeWatcher::new();
-        assert!(node_watcher
-            .try_remove_nodes_from_instance(
-                "node-b",
-                "config-a",
-                "config-a-namespace",
-                &kube_object_instance,
-                &mock,
-            )
-            .await
-            .is_ok());
-    }
-
-    #[test]
-    fn test_is_node_ready_ready() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let tests = [
-            ("../test/json/node-a.json", true),
-            ("../test/json/node-a-not-ready.json", false),
-            ("../test/json/node-a-no-conditions.json", false),
-            ("../test/json/node-a-no-ready-condition.json", false),
-        ];
-
-        for (node_file, result) in tests.iter() {
-            trace!(
-                "Testing {} should reflect node is ready={}",
-                node_file,
-                result
-            );
-
-            let node_json = file::read_file_to_string(node_file);
-            let kube_object_node: Node = serde_json::from_str(&node_json).unwrap();
-
-            let node_watcher = NodeWatcher::new();
-            assert_eq!(
-                result.clone(),
-                node_watcher.is_node_ready(&kube_object_node)
-            );
-        }
+            .unwrap();
+        assert!(ctx.known_nodes.read().await.get(&node_name).is_none());
     }
 }

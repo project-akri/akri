@@ -19,7 +19,7 @@ use crate::discovery_handler_manager::{
 };
 
 use kube::{Resource, ResourceExt};
-use kube_runtime::{
+use kube::runtime::{
     controller::Action,
     reflector::{ObjectRef, Store},
     Controller,

@@ -11,9 +11,10 @@ rust-version.workspace = true
 [dependencies]
 anyhow = "1.0.38"
 async-trait = "0.1.0"
-either = '*'
-k8s-openapi = { version = "0.20.0", default-features = false, features = ["schemars", "v1_23"] }
-kube = { version = "0.87.1",  features = ["derive"] }
+either = "1.13"
+k8s-openapi = { version = "0.22.0", default-features = false, features = ["schemars", "v1_25"] }
+# k8s-openapi = { version = "0.22.0", features = ["schemars"]}
+kube = { version = "0.91.0",  features = ["derive" ] }
 log = "0.4"
 mockall = "0.12"
 prometheus = { version = "0.12.0", features = ["process"] }

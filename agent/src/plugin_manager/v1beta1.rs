@@ -96,7 +96,9 @@ pub struct PreStartContainerResponse {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PreferredAllocationRequest {
     #[prost(message, repeated, tag = "1")]
-    pub container_requests: ::prost::alloc::vec::Vec<ContainerPreferredAllocationRequest>,
+    pub container_requests: ::prost::alloc::vec::Vec<
+        ContainerPreferredAllocationRequest,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -106,7 +108,9 @@ pub struct ContainerPreferredAllocationRequest {
     pub available_device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// List of deviceIDs that must be included in the preferred allocation
     #[prost(string, repeated, tag = "2")]
-    pub must_include_device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub must_include_device_i_ds: ::prost::alloc::vec::Vec<
+        ::prost::alloc::string::String,
+    >,
     /// Number of devices to include in the preferred allocation
     #[prost(int32, tag = "3")]
     pub allocation_size: i32,
@@ -117,7 +121,9 @@ pub struct ContainerPreferredAllocationRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PreferredAllocationResponse {
     #[prost(message, repeated, tag = "1")]
-    pub container_responses: ::prost::alloc::vec::Vec<ContainerPreferredAllocationResponse>,
+    pub container_responses: ::prost::alloc::vec::Vec<
+        ContainerPreferredAllocationResponse,
+    >,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -162,8 +168,10 @@ pub struct AllocateResponse {
 pub struct ContainerAllocateResponse {
     /// List of environment variable to be set in the container to access one of more devices.
     #[prost(map = "string, string", tag = "1")]
-    pub envs:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub envs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
     /// Mounts for the container.
     #[prost(message, repeated, tag = "2")]
     pub mounts: ::prost::alloc::vec::Vec<Mount>,
@@ -172,8 +180,10 @@ pub struct ContainerAllocateResponse {
     pub devices: ::prost::alloc::vec::Vec<DeviceSpec>,
     /// Container annotations to pass to the container runtime
     #[prost(map = "string, string", tag = "4")]
-    pub annotations:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub annotations: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
 }
 /// Mount specifies a host volume to mount into a container.
 /// where device library or tools are installed on host and container
@@ -210,8 +220,8 @@ pub struct DeviceSpec {
 /// Generated client implementations.
 pub mod registration_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Registration is the service advertised by the Kubelet
     /// Only when Kubelet answers with a success code to a Register Request
     /// may Device Plugins start their service
@@ -261,8 +271,9 @@ pub mod registration_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             RegistrationClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -301,14 +312,19 @@ pub mod registration_client {
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v1beta1.Registration/Register");
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1beta1.Registration/Register",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1beta1.Registration", "Register"));
@@ -319,8 +335,8 @@ pub mod registration_client {
 /// Generated client implementations.
 pub mod device_plugin_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// DevicePlugin is the service advertised by Device Plugins
     #[derive(Debug, Clone)]
     pub struct DevicePluginClient<T> {
@@ -365,8 +381,9 @@ pub mod device_plugin_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             DevicePluginClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -406,23 +423,28 @@ pub mod device_plugin_client {
         pub async fn get_device_plugin_options(
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::DevicePluginOptions>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DevicePluginOptions>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/v1beta1.DevicePlugin/GetDevicePluginOptions",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "v1beta1.DevicePlugin",
-                "GetDevicePluginOptions",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("v1beta1.DevicePlugin", "GetDevicePluginOptions"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// ListAndWatch returns a stream of List of Devices
@@ -435,14 +457,19 @@ pub mod device_plugin_client {
             tonic::Response<tonic::codec::Streaming<super::ListAndWatchResponse>>,
             tonic::Status,
         > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/ListAndWatch");
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1beta1.DevicePlugin/ListAndWatch",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1beta1.DevicePlugin", "ListAndWatch"));
@@ -456,23 +483,28 @@ pub mod device_plugin_client {
         pub async fn get_preferred_allocation(
             &mut self,
             request: impl tonic::IntoRequest<super::PreferredAllocationRequest>,
-        ) -> std::result::Result<tonic::Response<super::PreferredAllocationResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PreferredAllocationResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/v1beta1.DevicePlugin/GetPreferredAllocation",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "v1beta1.DevicePlugin",
-                "GetPreferredAllocation",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("v1beta1.DevicePlugin", "GetPreferredAllocation"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Allocate is called during container creation so that the Device
@@ -481,15 +513,23 @@ pub mod device_plugin_client {
         pub async fn allocate(
             &mut self,
             request: impl tonic::IntoRequest<super::AllocateRequest>,
-        ) -> std::result::Result<tonic::Response<super::AllocateResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::AllocateResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/Allocate");
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1beta1.DevicePlugin/Allocate",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1beta1.DevicePlugin", "Allocate"));
@@ -501,17 +541,23 @@ pub mod device_plugin_client {
         pub async fn pre_start_container(
             &mut self,
             request: impl tonic::IntoRequest<super::PreStartContainerRequest>,
-        ) -> std::result::Result<tonic::Response<super::PreStartContainerResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PreStartContainerResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/PreStartContainer");
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1beta1.DevicePlugin/PreStartContainer",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1beta1.DevicePlugin", "PreStartContainer"));
@@ -560,7 +606,10 @@ pub mod registration_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -616,16 +665,23 @@ pub mod registration_server {
                 "/v1beta1.Registration/Register" => {
                     #[allow(non_camel_case_types)]
                     struct RegisterSvc<T: Registration>(pub Arc<T>);
-                    impl<T: Registration> tonic::server::UnaryService<super::RegisterRequest> for RegisterSvc<T> {
+                    impl<
+                        T: Registration,
+                    > tonic::server::UnaryService<super::RegisterRequest>
+                    for RegisterSvc<T> {
                         type Response = super::Empty;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RegisterRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as Registration>::register(&inner, request).await };
+                            let fut = async move {
+                                <T as Registration>::register(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -652,14 +708,18 @@ pub mod registration_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -701,11 +761,15 @@ pub mod device_plugin_server {
         async fn get_device_plugin_options(
             &self,
             request: tonic::Request<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::DevicePluginOptions>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DevicePluginOptions>,
+            tonic::Status,
+        >;
         /// Server streaming response type for the ListAndWatch method.
         type ListAndWatchStream: tonic::codegen::tokio_stream::Stream<
                 Item = std::result::Result<super::ListAndWatchResponse, tonic::Status>,
-            > + Send
+            >
+            + Send
             + 'static;
         /// ListAndWatch returns a stream of List of Devices
         /// Whenever a Device state change or a Device disappears, ListAndWatch
@@ -713,7 +777,10 @@ pub mod device_plugin_server {
         async fn list_and_watch(
             &self,
             request: tonic::Request<super::Empty>,
-        ) -> std::result::Result<tonic::Response<Self::ListAndWatchStream>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<Self::ListAndWatchStream>,
+            tonic::Status,
+        >;
         /// GetPreferredAllocation returns a preferred set of devices to allocate
         /// from a list of available ones. The resulting preferred allocation is not
         /// guaranteed to be the allocation ultimately performed by the
@@ -722,21 +789,30 @@ pub mod device_plugin_server {
         async fn get_preferred_allocation(
             &self,
             request: tonic::Request<super::PreferredAllocationRequest>,
-        ) -> std::result::Result<tonic::Response<super::PreferredAllocationResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PreferredAllocationResponse>,
+            tonic::Status,
+        >;
         /// Allocate is called during container creation so that the Device
         /// Plugin can run device specific operations and instruct Kubelet
         /// of the steps to make the Device available in the container
         async fn allocate(
             &self,
             request: tonic::Request<super::AllocateRequest>,
-        ) -> std::result::Result<tonic::Response<super::AllocateResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::AllocateResponse>,
+            tonic::Status,
+        >;
         /// PreStartContainer is called, if indicated by Device Plugin during registeration phase,
         /// before each container start. Device plugin can run device specific operations
         /// such as resetting the device before making devices available to the container
         async fn pre_start_container(
             &self,
             request: tonic::Request<super::PreStartContainerRequest>,
-        ) -> std::result::Result<tonic::Response<super::PreStartContainerResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PreStartContainerResponse>,
+            tonic::Status,
+        >;
     }
     /// DevicePlugin is the service advertised by Device Plugins
     #[derive(Debug)]
@@ -762,7 +838,10 @@ pub mod device_plugin_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -818,13 +897,23 @@ pub mod device_plugin_server {
                 "/v1beta1.DevicePlugin/GetDevicePluginOptions" => {
                     #[allow(non_camel_case_types)]
                     struct GetDevicePluginOptionsSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin> tonic::server::UnaryService<super::Empty> for GetDevicePluginOptionsSvc<T> {
+                    impl<T: DevicePlugin> tonic::server::UnaryService<super::Empty>
+                    for GetDevicePluginOptionsSvc<T> {
                         type Response = super::DevicePluginOptions;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DevicePlugin>::get_device_plugin_options(&inner, request)
+                                <T as DevicePlugin>::get_device_plugin_options(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -856,12 +945,20 @@ pub mod device_plugin_server {
                 "/v1beta1.DevicePlugin/ListAndWatch" => {
                     #[allow(non_camel_case_types)]
                     struct ListAndWatchSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin> tonic::server::ServerStreamingService<super::Empty> for ListAndWatchSvc<T> {
+                    impl<
+                        T: DevicePlugin,
+                    > tonic::server::ServerStreamingService<super::Empty>
+                    for ListAndWatchSvc<T> {
                         type Response = super::ListAndWatchResponse;
                         type ResponseStream = T::ListAndWatchStream;
-                        type Future =
-                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
-                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as DevicePlugin>::list_and_watch(&inner, request).await
@@ -895,19 +992,26 @@ pub mod device_plugin_server {
                 "/v1beta1.DevicePlugin/GetPreferredAllocation" => {
                     #[allow(non_camel_case_types)]
                     struct GetPreferredAllocationSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin>
-                        tonic::server::UnaryService<super::PreferredAllocationRequest>
-                        for GetPreferredAllocationSvc<T>
-                    {
+                    impl<
+                        T: DevicePlugin,
+                    > tonic::server::UnaryService<super::PreferredAllocationRequest>
+                    for GetPreferredAllocationSvc<T> {
                         type Response = super::PreferredAllocationResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PreferredAllocationRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DevicePlugin>::get_preferred_allocation(&inner, request).await
+                                <T as DevicePlugin>::get_preferred_allocation(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -938,16 +1042,23 @@ pub mod device_plugin_server {
                 "/v1beta1.DevicePlugin/Allocate" => {
                     #[allow(non_camel_case_types)]
                     struct AllocateSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin> tonic::server::UnaryService<super::AllocateRequest> for AllocateSvc<T> {
+                    impl<
+                        T: DevicePlugin,
+                    > tonic::server::UnaryService<super::AllocateRequest>
+                    for AllocateSvc<T> {
                         type Response = super::AllocateResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AllocateRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as DevicePlugin>::allocate(&inner, request).await };
+                            let fut = async move {
+                                <T as DevicePlugin>::allocate(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -977,19 +1088,23 @@ pub mod device_plugin_server {
                 "/v1beta1.DevicePlugin/PreStartContainer" => {
                     #[allow(non_camel_case_types)]
                     struct PreStartContainerSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin>
-                        tonic::server::UnaryService<super::PreStartContainerRequest>
-                        for PreStartContainerSvc<T>
-                    {
+                    impl<
+                        T: DevicePlugin,
+                    > tonic::server::UnaryService<super::PreStartContainerRequest>
+                    for PreStartContainerSvc<T> {
                         type Response = super::PreStartContainerResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PreStartContainerRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DevicePlugin>::pre_start_container(&inner, request).await
+                                <T as DevicePlugin>::pre_start_container(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -1017,14 +1132,18 @@ pub mod device_plugin_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
