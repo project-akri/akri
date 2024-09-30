@@ -4,7 +4,7 @@ pub mod config_for_tests {
     use akri_shared::{akri::configuration::Configuration, k8s::api::MockApi, os::file};
     use chrono::DateTime;
     use k8s_openapi::api::core::v1::Pod;
-    use kube::api::ObjectList;
+    use kube::{api::ObjectList, ResourceExt};
     use log::trace;
 
     pub type PodList = ObjectList<Pod>;
@@ -172,15 +172,8 @@ pub mod config_for_tests {
         mock_api
             .expect_apply()
             .withf(move |pod_to_create, _| {
-                pod_to_create.metadata.name.as_ref().unwrap() == pod_name
-                    && pod_to_create
-                        .metadata
-                        .labels
-                        .as_ref()
-                        .unwrap()
-                        .get(label_id)
-                        .unwrap()
-                        == label_value
+                pod_to_create.name_unchecked() == pod_name
+                    && pod_to_create.labels().get(label_id).unwrap() == label_value
             })
             .returning(move |pod, _| match error {
                 false => Ok(pod),

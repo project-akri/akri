@@ -8,7 +8,6 @@ use akri_shared::{
     },
 };
 
-use anyhow::Context;
 use futures::StreamExt;
 
 use k8s_openapi::api::core::v1::Pod;
@@ -52,23 +51,19 @@ enum BrokerPodOwnerKind {
 fn get_broker_pod_owner_kind(pod: &Pod) -> BrokerPodOwnerKind {
     let instance_kind = "Instance".to_string();
     let job_kind = "Job".to_string();
-    match &pod.metadata.owner_references {
-        Some(or) => {
-            if or
-                .iter()
-                .any(|r| r.kind == instance_kind && r.controller.unwrap_or(false))
-            {
-                BrokerPodOwnerKind::Instance
-            } else if or
-                .iter()
-                .any(|r| r.kind == job_kind && r.controller.unwrap_or(false))
-            {
-                BrokerPodOwnerKind::Job
-            } else {
-                BrokerPodOwnerKind::Other
-            }
-        }
-        None => BrokerPodOwnerKind::Other,
+    let or = &pod.owner_references();
+    if or
+        .iter()
+        .any(|r| r.kind == instance_kind && r.controller.unwrap_or(false))
+    {
+        BrokerPodOwnerKind::Instance
+    } else if or
+        .iter()
+        .any(|r| r.kind == job_kind && r.controller.unwrap_or(false))
+    {
+        BrokerPodOwnerKind::Job
+    } else {
+        BrokerPodOwnerKind::Other
     }
 }
 
@@ -126,10 +121,10 @@ async fn reconcile_inner(event: Event<Pod>, ctx: Arc<ControllerContext>) -> Resu
             );
             match phase.as_str() {
                 "Unknown" | "Pending" => {
-                    ctx.known_pods.write().await.insert(
-                        pod.metadata.name.clone().context("Pod name is None")?,
-                        PodState::Pending,
-                    );
+                    ctx.known_pods
+                        .write()
+                        .await
+                        .insert(pod.name_unchecked(), PodState::Pending);
                 }
                 "Running" => {
                     handle_running_pod_if_needed(&pod, ctx).await?;
@@ -171,12 +166,12 @@ async fn handle_running_pod_if_needed(
     ctx: Arc<ControllerContext>,
 ) -> anyhow::Result<()> {
     trace!("handle_running_pod_if_needed - enter");
-    let pod_name = pod.metadata.name.as_deref().context("Pod name is None")?;
+    let pod_name = pod.name_unchecked();
     let last_known_state = ctx
         .known_pods
         .read()
         .await
-        .get(pod_name)
+        .get(&pod_name)
         .unwrap_or(&PodState::Pending)
         .clone();
     trace!(
@@ -202,11 +197,7 @@ async fn handle_running_pod_if_needed(
 /// expected and accepted.
 async fn handle_ended_pod_if_needed(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     trace!("handle_ended_pod_if_needed - enter");
-    let pod_name = pod
-        .metadata
-        .name
-        .clone()
-        .context("Pod does not have name")?;
+    let pod_name = pod.name_unchecked();
     let last_known_state = ctx
         .known_pods
         .read()
@@ -240,11 +231,7 @@ async fn handle_deleted_pod_if_needed(
     ctx: Arc<ControllerContext>,
 ) -> anyhow::Result<()> {
     trace!("handle_deleted_pod_if_needed - enter");
-    let pod_name = pod
-        .metadata
-        .name
-        .clone()
-        .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
+    let pod_name = pod.name_unchecked();
     // Ensure that, for each pod, handle_non_running_pod is called once
     // per transition into the Deleted state
     if ctx
@@ -283,11 +270,7 @@ fn get_instance_and_configuration_from_pod(pod: &Pod) -> anyhow::Result<(String,
 /// supported by Running broker Pods.
 async fn handle_non_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     trace!("handle_non_running_pod - enter");
-    let namespace = pod
-        .metadata
-        .namespace
-        .as_ref()
-        .context("Pod has no namespace")?;
+    let namespace = pod.namespace().unwrap();
     let (instance_id, config_name) = get_instance_and_configuration_from_pod(pod)?;
     let selector = format!("{}={}", AKRI_CONFIGURATION_LABEL_NAME, config_name);
     let broker_pods: ObjectList<Pod> = ctx
@@ -299,41 +282,33 @@ async fn handle_non_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyho
         })
         .await?;
     // Clean up instance services so long as all pods are terminated or terminating
-    let svc_api = ctx.client.namespaced(namespace);
+    let svc_api = ctx.client.namespaced(&namespace);
     cleanup_svc_if_unsupported(
         &broker_pods.items,
         &create_service_app_name(&config_name),
-        namespace,
+        &namespace,
         svc_api.as_ref(),
     )
     .await?;
     let instance_pods: Vec<Pod> = broker_pods
         .items
         .into_iter()
-        .filter(|x| {
-            match x
-                .metadata
-                .labels
-                .as_ref()
-                .unwrap_or(&BTreeMap::new())
-                .get(AKRI_INSTANCE_LABEL_NAME)
-            {
-                Some(name) => name == &instance_id,
-                None => false,
-            }
+        .filter(|x| match x.labels().get(AKRI_INSTANCE_LABEL_NAME) {
+            Some(name) => name == &instance_id,
+            None => false,
         })
         .collect();
     cleanup_svc_if_unsupported(
         &instance_pods,
         &create_service_app_name(&instance_id),
-        namespace,
+        &namespace,
         svc_api.as_ref(),
     )
     .await?;
 
     // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
     if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
-        if let Ok(Some(instance)) = ctx.client.namespaced(namespace).get(&instance_id).await {
+        if let Ok(Some(instance)) = ctx.client.namespaced(&namespace).get(&instance_id).await {
             super::instance_action::handle_instance_change(&instance, ctx).await?;
         }
     }
@@ -378,15 +353,11 @@ async fn cleanup_svc_if_unsupported(
 /// by the configuration.
 async fn handle_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     trace!("handle_running_pod - enter");
-    let namespace = pod
-        .metadata
-        .namespace
-        .as_ref()
-        .context("Namespace not found for pod")?;
+    let namespace = pod.namespace().unwrap();
     let (instance_name, configuration_name) = get_instance_and_configuration_from_pod(pod)?;
     let Some(configuration) = ctx
         .client
-        .namespaced(namespace)
+        .namespaced(&namespace)
         .get(&configuration_name)
         .await?
     else {
@@ -398,8 +369,11 @@ async fn handle_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::R
         );
         return Ok(());
     };
-    let Some(instance): Option<Instance> =
-        ctx.client.namespaced(namespace).get(&instance_name).await?
+    let Some(instance): Option<Instance> = ctx
+        .client
+        .namespaced(&namespace)
+        .get(&instance_name)
+        .await?
     else {
         // In this scenario, a instance has likely been deleted in the middle of handle_running_pod.
         trace!(
@@ -408,15 +382,11 @@ async fn handle_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::R
         );
         return Ok(());
     };
-    let instance_uid = instance
-        .metadata
-        .uid
-        .as_ref()
-        .context("UID not found for instance")?;
+    let instance_uid = instance.uid().unwrap();
     add_instance_and_configuration_services(
         &instance_name,
-        instance_uid,
-        namespace,
+        &instance_uid,
+        &namespace,
         &configuration_name,
         &configuration,
         ctx,
@@ -462,11 +432,7 @@ async fn add_instance_and_configuration_services(
         api.apply(instance_svc, &ctx.identifier).await?;
     }
     if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
-        let configuration_uid = configuration
-            .metadata
-            .uid
-            .as_ref()
-            .context("UID not found for configuration")?;
+        let configuration_uid = configuration.uid().unwrap();
         let ownership = OwnershipInfo::new(
             OwnershipType::Configuration,
             configuration_name.to_string(),
@@ -775,38 +741,22 @@ mod tests {
     }
 
     fn valid_instance_svc(instance_svc: &Service, instance_name: &str, namespace: &str) -> bool {
-        instance_svc.metadata.name.as_ref().unwrap() == &format!("{}-svc", instance_name)
-            && instance_svc.metadata.namespace.as_ref().unwrap() == namespace
-            && instance_svc
-                .metadata
-                .owner_references
-                .as_ref()
-                .unwrap()
-                .len()
-                == 1
-            && instance_svc.metadata.owner_references.as_ref().unwrap()[0].kind == "Instance"
-            && instance_svc.metadata.owner_references.as_ref().unwrap()[0].name == instance_name
-            && instance_svc
-                .metadata
-                .labels
-                .as_ref()
-                .unwrap()
-                .get(AKRI_INSTANCE_LABEL_NAME)
-                .unwrap()
-                == instance_name
+        instance_svc.name_unchecked() == format!("{}-svc", instance_name)
+            && instance_svc.namespace().unwrap() == namespace
+            && instance_svc.owner_references().len() == 1
+            && instance_svc.owner_references()[0].kind == "Instance"
+            && instance_svc.owner_references()[0].name == instance_name
+            && instance_svc.labels().get(AKRI_INSTANCE_LABEL_NAME).unwrap() == instance_name
     }
 
     fn valid_config_svc(config_svc: &Service, config_name: &str, namespace: &str) -> bool {
-        config_svc.metadata.name.as_ref().unwrap() == &format!("{}-svc", config_name)
-            && config_svc.metadata.namespace.as_ref().unwrap() == namespace
-            && config_svc.metadata.owner_references.as_ref().unwrap().len() == 1
-            && config_svc.metadata.owner_references.as_ref().unwrap()[0].kind == "Configuration"
-            && config_svc.metadata.owner_references.as_ref().unwrap()[0].name == config_name
+        config_svc.name_unchecked() == format!("{}-svc", config_name)
+            && config_svc.namespace().unwrap() == namespace
+            && config_svc.owner_references().len() == 1
+            && config_svc.owner_references()[0].kind == "Configuration"
+            && config_svc.owner_references()[0].name == config_name
             && config_svc
-                .metadata
-                .labels
-                .as_ref()
-                .unwrap()
+                .labels()
                 .get(AKRI_CONFIGURATION_LABEL_NAME)
                 .unwrap()
                 == config_name
@@ -817,7 +767,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod =
             make_pod_with_owners_and_phase("instance_name", "copnfig_name", "Unknown", "Instance");
-        let pod_name = pod.metadata.name.clone().unwrap();
+        let pod_name = pod.name_unchecked();
         let ctx = Arc::new(ControllerContext::new(
             Arc::new(MockControllerKubeClient::default()),
             "test",
@@ -836,7 +786,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Pending", "Instance");
-        let pod_name = pod.metadata.name.clone().unwrap();
+        let pod_name = pod.name_unchecked();
         let ctx = Arc::new(ControllerContext::new(
             Arc::new(MockControllerKubeClient::default()),
             "test",
@@ -856,7 +806,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Running", "Instance");
-        let pod_name = pod.metadata.name.clone().unwrap();
+        let pod_name = pod.name_unchecked();
         let ctx = Arc::new(ControllerContext::new(
             Arc::new(MockControllerKubeClient::default()),
             "test",
@@ -881,7 +831,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Running", "Instance");
-        let pod_name = pod.metadata.name.clone().unwrap();
+        let pod_name = pod.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         let mut mock_config_api: MockApi<Configuration> = MockApi::new();
         mock_config_api.expect_get().return_once(|_| {
@@ -895,7 +845,7 @@ mod tests {
         mock.config
             .expect_namespaced()
             .return_once(|_| Box::new(mock_config_api))
-            .with(mockall::predicate::eq("test-ns"));
+            .withf(|x| x == "test-ns");
         let mut mock_instance_api: MockApi<Instance> = MockApi::new();
         mock_instance_api.expect_get().return_once(|_| {
             Ok(Some(make_instance(
@@ -907,7 +857,7 @@ mod tests {
         mock.instance
             .expect_namespaced()
             .return_once(|_| Box::new(mock_instance_api))
-            .with(mockall::predicate::eq("test-ns"));
+            .withf(|x| x == "test-ns");
 
         let mut mock_svc_api: MockApi<Service> = MockApi::new();
         let mut seq = Sequence::new();
@@ -1000,7 +950,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         // NOTE: setting Job kind for the Pod owner to ensure `handle_instance_change` is not called
         let pod1 = make_pod_with_owners_and_phase("instance_name", "config_name", phase, "Job");
-        let pod_name = pod1.metadata.name.clone().unwrap();
+        let pod_name = pod1.name_unchecked();
         // Unrelated pod that should be filtered out
         let pod2 = make_pod_with_owners_and_phase("foo", "config_name", phase, "Job");
         let pod_list = make_obj_list(vec![pod1.clone(), pod2]);
@@ -1040,7 +990,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         // NOTE: setting Job kind for the Pod owner to ensure `handle_instance_change` is not called
         let pod1 = make_pod_with_owners_and_phase("instance_name", "config_name", "Failed", "Job");
-        let pod_name = pod1.metadata.name.clone().unwrap();
+        let pod_name = pod1.name_unchecked();
         // Have one pod of the config still running to ensure that the config service is not deleted
         let pod2 = make_pod_with_owners_and_phase("foo", "config_name", "Running", "Job");
         let pod_list = make_obj_list(vec![pod1.clone(), pod2]);
@@ -1067,7 +1017,7 @@ mod tests {
         let phase = "Succeeded";
         // NOTE: setting Job kind for the Pod owner to ensure `handle_instance_change` is not called
         let pod1 = make_pod_with_owners_and_phase("instance_name", "config_name", phase, "Job");
-        let pod_name = pod1.metadata.name.clone().unwrap();
+        let pod_name = pod1.name_unchecked();
         // Unrelated pod that should be filtered out
         let pod2 = make_pod_with_owners_and_phase("foo", "config_name", phase, "Job");
         let pod_list = make_obj_list(vec![pod1.clone(), pod2]);

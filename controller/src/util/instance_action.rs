@@ -118,7 +118,7 @@ pub(crate) struct PodContext {
 }
 
 pub(crate) fn create_pod_context(k8s_pod: &Pod, action: PodAction) -> anyhow::Result<PodContext> {
-    let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
+    let pod_name = k8s_pod.name_unchecked();
     let labels = &k8s_pod.labels();
     // Early exits above ensure unwrap will not panic
     let node_to_run_pod_on = labels.get(AKRI_TARGET_NODE_LABEL_NAME).ok_or_else(|| {
@@ -131,7 +131,7 @@ pub(crate) fn create_pod_context(k8s_pod: &Pod, action: PodAction) -> anyhow::Re
 
     Ok(PodContext {
         node_name: Some(node_to_run_pod_on.to_string()),
-        namespace: k8s_pod.metadata.namespace.clone(),
+        namespace: k8s_pod.namespace(),
         action,
     })
 }
@@ -143,7 +143,7 @@ fn determine_action_for_pod(
     k8s_pod: &Pod,
     nodes_to_act_on: &mut HashMap<String, PodContext>,
 ) -> anyhow::Result<()> {
-    let pod_name = k8s_pod.metadata.name.as_ref().unwrap();
+    let pod_name = k8s_pod.name_unchecked();
     let pod_phase = k8s_pod
         .status
         .as_ref()
@@ -164,7 +164,7 @@ fn determine_action_for_pod(
         phase: pod_phase.to_string(),
         status_start_time: pod_start_time,
         unknown_node: !nodes_to_act_on.contains_key(node_to_run_pod_on),
-        trace_node_name: k8s_pod.metadata.name.clone().unwrap(),
+        trace_node_name: k8s_pod.name_unchecked(),
     };
     update_pod_context.action = pod_action_info.select_pod_action()?;
     nodes_to_act_on.insert(node_to_run_pod_on.to_string(), update_pod_context);
@@ -305,19 +305,15 @@ pub async fn handle_instance_change(
     ctx: Arc<ControllerContext>,
 ) -> Result<Action> {
     trace!("handle_instance_change - enter");
-    let instance_namespace = instance
-        .metadata
-        .namespace
-        .as_ref()
-        .context("no namespace")?;
-    let api: Box<dyn Api<Configuration>> = ctx.client.namespaced(instance_namespace);
+    let instance_namespace = instance.namespace().unwrap();
+    let api: Box<dyn Api<Configuration>> = ctx.client.namespaced(&instance_namespace);
     let Ok(Some(configuration)) = api.get(&instance.spec.configuration_name).await else {
         // In this scenario, a configuration has been deleted without the Akri Agent deleting the associated Instances.
         // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
         // is designed to shutdown when it's Configuration watcher fails.
         error!(
                         "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
-                        &instance.spec.configuration_name, &instance.metadata.name
+                        &instance.spec.configuration_name, &instance.name_unchecked()
                     );
 
         return Ok(default_requeue_action());
@@ -352,41 +348,35 @@ pub async fn handle_instance_change_job(
     client: Arc<dyn ControllerKubeClient>,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_job - enter");
-    let api: Box<dyn Api<Job>> = client.namespaced(instance.metadata.namespace.as_ref().unwrap());
-    if api
-        .get(instance.metadata.name.as_ref().unwrap())
-        .await?
-        .is_some()
-    {
+    let api: Box<dyn Api<Job>> = client.namespaced(&instance.namespace().unwrap());
+    if api.get(&instance.name_unchecked()).await?.is_some() {
         // Job already exists, do nothing
         return Ok(());
     }
+    let instance_name = instance.name_unchecked();
     // Create name for Job. Includes Configuration generation in the suffix
     // to track what version of the Configuration the Job is associated with.
     let job_name = pod::create_broker_app_name(
-        instance.metadata.name.as_ref().unwrap(),
+        &instance_name,
         None,
         instance.spec.shared,
         &format!("{}-job", config_generation),
     );
 
-    let instance_name = instance.metadata.name.as_ref().unwrap();
-    let instance_namespace = instance.metadata.namespace.as_ref().unwrap();
-    let instance_uid = instance.metadata.uid.as_ref().unwrap();
     trace!("handle_instance_change_job - instance added");
     let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
     let new_job = job::create_new_job_from_spec(
         instance,
         OwnershipInfo::new(
             OwnershipType::Instance,
-            instance_name.to_string(),
-            instance_uid.to_string(),
+            instance_name,
+            instance.uid().unwrap(),
         ),
         &capability_id,
         job_spec,
         &job_name,
     )?;
-    let api: Box<dyn Api<Job>> = client.namespaced(instance_namespace);
+    let api: Box<dyn Api<Job>> = client.namespaced(&instance.namespace().unwrap());
     // TODO: Consider using server side apply instead of create
     api.create(&new_job).await?;
     Ok(())
@@ -404,8 +394,6 @@ pub async fn handle_instance_change_pod(
     ctx: Arc<ControllerContext>,
 ) -> anyhow::Result<()> {
     trace!("handle_instance_change_pod - enter");
-
-    let instance_name = instance.metadata.name.clone().unwrap();
 
     // If InstanceAction::Remove, assume all nodes require PodAction::NoAction (reflect that there is no running Pod unless we find one)
     // Otherwise, assume all nodes require PodAction::Add (reflect that there is no running Pod, unless we find one)
@@ -430,8 +418,11 @@ pub async fn handle_instance_change_pod(
         nodes_to_act_on
     );
 
-    let lp =
-        ListParams::default().labels(&format!("{}={}", AKRI_INSTANCE_LABEL_NAME, instance_name));
+    let lp = ListParams::default().labels(&format!(
+        "{}={}",
+        AKRI_INSTANCE_LABEL_NAME,
+        instance.name_unchecked()
+    ));
     let api = ctx
         .client
         .namespaced(&instance.namespace().context("no namespace")?);
@@ -473,7 +464,7 @@ pub(crate) async fn do_pod_action_for_nodes(
         ((v.action) == PodAction::Remove) | ((v.action) == PodAction::RemoveAndAdd)
     }) {
         handle_deletion_work(
-            instance.metadata.name.as_ref().unwrap(),
+            &instance.name_unchecked(),
             &instance.spec.configuration_name,
             instance.spec.shared,
             node_to_delete_pod,
@@ -496,17 +487,17 @@ pub(crate) async fn do_pod_action_for_nodes(
         .collect::<Vec<String>>();
 
     // Iterate over nodes_to_act_on where value == (PodAction::Add | PodAction::RemoveAndAdd)
-    let instance_name = instance.metadata.name.clone().unwrap();
+    let instance_name = instance.name_unchecked();
     let capability_id = format!("{}/{}", AKRI_PREFIX, instance_name);
     for new_node in nodes_to_add {
         let new_pod = pod::create_new_pod_from_spec(
-            instance.metadata.namespace.as_ref().unwrap(),
+            &instance.namespace().unwrap(),
             &instance_name,
             &instance.spec.configuration_name,
             OwnershipInfo::new(
                 OwnershipType::Instance,
                 instance_name.clone(),
-                instance.metadata.uid.clone().unwrap(),
+                instance.uid().unwrap(),
             ),
             &capability_id,
             &new_node,

@@ -1,5 +1,6 @@
 [package]
 name = "controller"
+<<<<<<< HEAD
 authors.workspace = true
 version.workspace = true
 edition.workspace = true
@@ -7,6 +8,15 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+=======
+version = "0.13.1"
+license = "Apache-2.0"
+authors = ["<bfjelds@microsoft.com>", "<kagold@microsoft.com>"]
+edition = "2021"
+rust-version = "1.75.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+>>>>>>> 1aada19 (Use ResourceExt methods for resource property access and update rust version to 1.75.0)
 
 [dependencies]
 akri-shared = { path = "../shared" }

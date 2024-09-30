@@ -89,7 +89,7 @@ pub async fn reconcile(node: Arc<Node>, ctx: Arc<ControllerContext>) -> Result<A
 async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Result<Action> {
     match event {
         Event::Apply(node) => {
-            let node_name = node.metadata.name.clone().unwrap();
+            let node_name = node.name_unchecked();
             info!("handle_node - Added or modified: {}", node_name);
             if is_node_ready(&node) {
                 ctx.known_nodes
@@ -109,12 +109,9 @@ async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Res
             Ok(Action::await_change())
         }
         Event::Cleanup(node) => {
-            info!("handle_node - Deleted: {:?}", &node.metadata.name);
+            info!("handle_node - Deleted: {:?}", &node.name_unchecked());
             call_handle_node_disappearance_if_needed(&node, ctx.clone()).await?;
-            ctx.known_nodes
-                .write()
-                .await
-                .remove(&node.metadata.name.as_deref().unwrap().to_string());
+            ctx.known_nodes.write().await.remove(&node.name_unchecked());
             Ok(Action::await_change())
         }
     }
@@ -126,7 +123,7 @@ async fn call_handle_node_disappearance_if_needed(
     node: &Node,
     ctx: Arc<ControllerContext>,
 ) -> anyhow::Result<()> {
-    let node_name = node.metadata.name.as_deref().unwrap();
+    let node_name = node.name_unchecked();
     trace!(
         "call_handle_node_disappearance_if_needed - enter: {:?}",
         &node.metadata.name
@@ -135,7 +132,7 @@ async fn call_handle_node_disappearance_if_needed(
         .known_nodes
         .read()
         .await
-        .get(node_name)
+        .get(&node_name)
         .unwrap_or(&NodeState::Running)
         .clone();
     trace!(
@@ -152,7 +149,7 @@ async fn call_handle_node_disappearance_if_needed(
             "call_handle_node_disappearance_if_needed - call handle_node_disappearance: {:?}",
             &node.metadata.name
         );
-        handle_node_disappearance(node_name, ctx.clone()).await?;
+        handle_node_disappearance(&node_name, ctx.clone()).await?;
         ctx.known_nodes
             .write()
             .await
@@ -194,7 +191,7 @@ async fn handle_node_disappearance(
         instances.items.len()
     );
     for instance in instances.items {
-        let instance_name = instance.metadata.name.clone().unwrap();
+        let instance_name = instance.name_unchecked();
 
         trace!(
             "handle_node_disappearance - make sure node is not referenced here: {:?}",
@@ -316,7 +313,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
@@ -337,7 +334,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
@@ -358,7 +355,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
@@ -384,7 +381,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
@@ -428,7 +425,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
@@ -468,7 +465,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let node_json = file::read_file_to_string("../test/json/node-a-not-ready.json");
         let node: Node = serde_json::from_str(&node_json).unwrap();
-        let node_name = node.metadata.name.clone().unwrap();
+        let node_name = node.name_unchecked();
         let mut mock = MockControllerKubeClient::default();
         mock.node
             .expect_all()
