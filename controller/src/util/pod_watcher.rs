@@ -26,6 +26,7 @@ use kube::{
     },
 };
 use log::{error, info, trace};
+use std::future::Future;
 use std::{collections::BTreeMap, sync::Arc};
 
 pub static POD_FINALIZER: &str = "pods.kube.rs";
@@ -48,7 +49,7 @@ enum BrokerPodOwnerKind {
 /// Determines whether a Pod is owned by an Instance (has an ownerReference of Kind = "Instance")
 /// Pods deployed directly by the Controller will have this ownership, while Pods
 /// created by Jobs will not.
-fn get_broker_pod_owner_kind(pod: &Pod) -> BrokerPodOwnerKind {
+fn get_broker_pod_owner_kind(pod: Arc<Pod>) -> BrokerPodOwnerKind {
     let instance_kind = "Instance".to_string();
     let job_kind = "Job".to_string();
     let or = &pod.owner_references();
@@ -127,10 +128,10 @@ async fn reconcile_inner(event: Event<Pod>, ctx: Arc<ControllerContext>) -> Resu
                         .insert(pod.name_unchecked(), PodState::Pending);
                 }
                 "Running" => {
-                    handle_running_pod_if_needed(&pod, ctx).await?;
+                    handle_pod(pod, ctx, PodState::Running, handle_running_pod).await?;
                 }
                 "Succeeded" | "Failed" => {
-                    handle_ended_pod_if_needed(&pod, ctx).await?;
+                    handle_pod(pod, ctx, PodState::Ended, handle_non_running_pod).await?;
                 }
                 _ => {
                     trace!("handle_pod - Unknown phase: {:?}", &phase);
@@ -140,7 +141,7 @@ async fn reconcile_inner(event: Event<Pod>, ctx: Arc<ControllerContext>) -> Resu
         }
         Event::Cleanup(pod) => {
             info!("handle_pod - Deleted: {:?}", &pod.metadata.name);
-            handle_deleted_pod_if_needed(&pod, ctx).await?;
+            handle_pod(pod, ctx, PodState::Deleted, handle_non_running_pod).await?;
             Ok(Action::await_change())
         }
     }
@@ -159,13 +160,17 @@ fn get_pod_phase(pod: &Pod) -> String {
     }
 }
 
-/// This ensures that handle_running_pod is called only once for
-/// any Pod as it exits the Running phase.
-async fn handle_running_pod_if_needed(
-    pod: &Pod,
+async fn handle_pod<F, Fut>(
+    pod: Arc<Pod>,
     ctx: Arc<ControllerContext>,
-) -> anyhow::Result<()> {
-    trace!("handle_running_pod_if_needed - enter");
+    desired_state: PodState,
+    handler: F,
+) -> anyhow::Result<()>
+where
+    F: FnOnce(Arc<Pod>, Arc<ControllerContext>) -> Fut,
+    Fut: Future<Output = anyhow::Result<()>>,
+{
+    trace!("handle_pod_if_needed - enter");
     let pod_name = pod.name_unchecked();
     let last_known_state = ctx
         .known_pods
@@ -175,86 +180,24 @@ async fn handle_running_pod_if_needed(
         .unwrap_or(&PodState::Pending)
         .clone();
     trace!(
-        "handle_running_pod_if_needed - last_known_state: {:?}",
+        "handle_pod_if_needed - last_known_state: {:?}",
         &last_known_state
     );
     // Ensure that, for each pod, handle_running_pod is called once
     // per transition into the Running state
-    if last_known_state != PodState::Running {
-        trace!("handle_running_pod_if_needed - call handle_running_pod");
-        handle_running_pod(pod, ctx.clone()).await?;
+    if last_known_state != desired_state {
+        handler(pod, ctx.clone()).await?;
         ctx.known_pods
             .write()
             .await
-            .insert(pod_name.to_string(), PodState::Running);
-    }
-    Ok(())
-}
-
-/// This ensures that handle_non_running_pod is called only once for
-/// any Pod as it enters the Ended phase.  Note that handle_non_running_pod
-/// will likely be called twice as a Pod leaves the Running phase, that is
-/// expected and accepted.
-async fn handle_ended_pod_if_needed(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
-    trace!("handle_ended_pod_if_needed - enter");
-    let pod_name = pod.name_unchecked();
-    let last_known_state = ctx
-        .known_pods
-        .read()
-        .await
-        .get(&pod_name)
-        .unwrap_or(&PodState::Pending)
-        .clone();
-    trace!(
-        "handle_ended_pod_if_needed - last_known_state: {:?}",
-        &last_known_state
-    );
-    // Ensure that, for each pod, handle_non_running_pod is called once
-    // per transition into the Ended state
-    if last_known_state != PodState::Ended {
-        trace!("handle_ended_pod_if_needed - call handle_non_running_pod");
-        handle_non_running_pod(pod, ctx.clone()).await?;
-        ctx.known_pods
-            .write()
-            .await
-            .insert(pod_name, PodState::Ended);
-    }
-    Ok(())
-}
-
-/// This ensures that handle_non_running_pod is called only once for
-/// any Pod as it enters the Ended phase.  Note that handle_non_running_pod
-/// will likely be called twice as a Pod leaves the Running phase, that is
-/// expected and accepted.
-async fn handle_deleted_pod_if_needed(
-    pod: &Pod,
-    ctx: Arc<ControllerContext>,
-) -> anyhow::Result<()> {
-    trace!("handle_deleted_pod_if_needed - enter");
-    let pod_name = pod.name_unchecked();
-    // Ensure that, for each pod, handle_non_running_pod is called once
-    // per transition into the Deleted state
-    if ctx
-        .known_pods
-        .read()
-        .await
-        .get(&pod_name)
-        .unwrap_or(&PodState::Pending)
-        != &PodState::Deleted
-    {
-        trace!("handle_deleted_pod_if_needed - call handle_non_running_pod");
-        handle_non_running_pod(pod, ctx.clone()).await?;
-        ctx.known_pods
-            .write()
-            .await
-            .insert(pod_name, PodState::Deleted);
+            .insert(pod_name.to_string(), desired_state);
     }
     Ok(())
 }
 
 /// Get instance id and configuration name from Pod annotations, return
 /// error if the annotations are not found.
-fn get_instance_and_configuration_from_pod(pod: &Pod) -> anyhow::Result<(String, String)> {
+fn get_instance_and_configuration_from_pod(pod: Arc<Pod>) -> anyhow::Result<(String, String)> {
     let labels = pod.labels();
     let instance_id = labels
         .get(AKRI_INSTANCE_LABEL_NAME)
@@ -268,10 +211,10 @@ fn get_instance_and_configuration_from_pod(pod: &Pod) -> anyhow::Result<(String,
 /// This is called when a broker Pod exits the Running phase and ensures
 /// that instance and configuration services are only running when
 /// supported by Running broker Pods.
-async fn handle_non_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
+async fn handle_non_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     trace!("handle_non_running_pod - enter");
     let namespace = pod.namespace().unwrap();
-    let (instance_id, config_name) = get_instance_and_configuration_from_pod(pod)?;
+    let (instance_id, config_name) = get_instance_and_configuration_from_pod(pod.clone())?;
     let selector = format!("{}={}", AKRI_CONFIGURATION_LABEL_NAME, config_name);
     let broker_pods: ObjectList<Pod> = ctx
         .client
@@ -351,7 +294,7 @@ async fn cleanup_svc_if_unsupported(
 /// This is called when a Pod enters the Running phase and ensures
 /// that instance and configuration services are running as specified
 /// by the configuration.
-async fn handle_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
+async fn handle_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     trace!("handle_running_pod - enter");
     let namespace = pod.namespace().unwrap();
     let (instance_name, configuration_name) = get_instance_and_configuration_from_pod(pod)?;
@@ -392,7 +335,6 @@ async fn handle_running_pod(pod: &Pod, ctx: Arc<ControllerContext>) -> anyhow::R
         ctx,
     )
     .await?;
-
     Ok(())
 }
 
@@ -626,15 +568,15 @@ mod tests {
         make_pod_with_owner_references_and_phase(owner_references, instance, config, phase)
     }
 
-    fn make_pod_with_owner_references(owner_references: Vec<OwnerReference>) -> Pod {
-        Pod {
+    fn make_pod_with_owner_references(owner_references: Vec<OwnerReference>) -> Arc<Pod> {
+        Arc::new(Pod {
             spec: Some(PodSpec::default()),
             metadata: ObjectMeta {
                 owner_references: Some(owner_references),
                 ..Default::default()
             },
             ..Default::default()
-        }
+        })
     }
 
     fn make_pod_with_owner_references_and_phase(
@@ -674,7 +616,7 @@ mod tests {
             ..Default::default()
         }];
         assert_eq!(
-            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            get_broker_pod_owner_kind(make_pod_with_owner_references(owner_references)),
             BrokerPodOwnerKind::Instance
         );
     }
@@ -687,7 +629,7 @@ mod tests {
             ..Default::default()
         }];
         assert_eq!(
-            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            get_broker_pod_owner_kind(make_pod_with_owner_references(owner_references)),
             BrokerPodOwnerKind::Job
         );
     }
@@ -700,7 +642,7 @@ mod tests {
             ..Default::default()
         }];
         assert_eq!(
-            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            get_broker_pod_owner_kind(make_pod_with_owner_references(owner_references)),
             BrokerPodOwnerKind::Other
         );
     }
@@ -714,7 +656,7 @@ mod tests {
             ..Default::default()
         }];
         assert_eq!(
-            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            get_broker_pod_owner_kind(make_pod_with_owner_references(owner_references)),
             BrokerPodOwnerKind::Other
         );
     }
@@ -735,7 +677,7 @@ mod tests {
             },
         ];
         assert_eq!(
-            get_broker_pod_owner_kind(&make_pod_with_owner_references(owner_references)),
+            get_broker_pod_owner_kind(make_pod_with_owner_references(owner_references)),
             BrokerPodOwnerKind::Job
         );
     }

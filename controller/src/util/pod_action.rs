@@ -32,7 +32,7 @@ pub struct PodActionInfo {
     pub phase: String,
     pub status_start_time: Option<Time>,
     pub unknown_node: bool,
-    pub trace_node_name: String,
+    pub trace_pod_name: String,
 }
 
 impl PodActionInfo {
@@ -58,7 +58,22 @@ impl PodActionInfo {
             &self.phase,
             self.unknown_node
         );
-        self.choice_for_pod_action()
+        if self.unknown_node {
+            //
+            // For pods (with our controller's selector) that are not described by the Instance, we
+            // will REMOVE the pods.
+            //
+            log::trace!(
+                "choice_for_pod_action - Running Pod (untracked) ... PodAction::Remove ({:?})",
+                &self.trace_pod_name
+            );
+            Ok(PodAction::Remove)
+        } else {
+            //
+            // For pods (with our controller's selector) that are described by the Instance ...
+            //
+            self.choice_for_pods_on_known_nodes()
+        }
     }
 
     /// This will determine what to do with a non-Running Pod based on how long the Pod has existed
@@ -96,10 +111,6 @@ impl PodActionInfo {
             );
         } else {
             // If the pod has no start_time, give it more time
-            log::trace!(
-                "time_choice_for_non_running_pods - no start time found ... give it more time? ({:?})",
-                &self.trace_node_name
-            );
             give_it_more_time = true;
             log::trace!(
                 "time_choice_for_non_running_pods - give_it_more_time: ({:?})",
@@ -110,13 +121,13 @@ impl PodActionInfo {
         if give_it_more_time {
             log::trace!(
                 "time_choice_for_non_running_pods - Pending Pod (tracked) ... PodAction::NoAction ({:?})",
-                &self.trace_node_name
+                &self.trace_pod_name
             );
             Ok(PodAction::NoAction)
         } else {
             log::trace!(
                 "time_choice_for_non_running_pods - Pending Pod (tracked) ... PodAction::RemoveAndAdd ({:?})",
-                &self.trace_node_name
+                &self.trace_pod_name
             );
             Ok(PodAction::RemoveAndAdd)
         }
@@ -127,7 +138,7 @@ impl PodActionInfo {
         log::trace!(
             "choice_for_pods_on_known_nodes phase={:?} trace_node_name={:?}",
             &self.phase,
-            &self.trace_node_name
+            &self.trace_pod_name
         );
         match self.phase.as_str() {
             "Running" | "ContainerCreating" | "PodInitializing" => {
@@ -175,32 +186,6 @@ impl PodActionInfo {
             }
         }
     }
-
-    /// This will determine what to do with a Pod
-    fn choice_for_pod_action(&self) -> anyhow::Result<PodAction> {
-        log::trace!(
-            "choice_for_pod_action phase={:?} unknown_node={:?} trace_node_name={:?}",
-            &self.phase,
-            self.unknown_node,
-            &self.trace_node_name
-        );
-        if self.unknown_node {
-            //
-            // For pods (with our controller's selector) that are not described by the Instance, we
-            // will REMOVE the pods.
-            //
-            log::trace!(
-                "choice_for_pod_action - Running Pod (untracked) ... PodAction::Remove ({:?})",
-                &self.trace_node_name
-            );
-            Ok(PodAction::Remove)
-        } else {
-            //
-            // For pods (with our controller's selector) that are described by the Instance ...
-            //
-            self.choice_for_pods_on_known_nodes()
-        }
-    }
 }
 
 #[cfg(test)]
@@ -243,7 +228,7 @@ mod controller_tests {
                         phase: map_tuple.0.to_string(),
                         status_start_time: start_time.clone(),
                         unknown_node: true,
-                        trace_node_name: "foo".to_string(),
+                        trace_pod_name: "foo".to_string(),
                     };
                     assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
                 });
@@ -276,7 +261,7 @@ mod controller_tests {
                 phase: map_tuple.0.to_string(),
                 status_start_time: start_time.clone(),
                 unknown_node: false,
-                trace_node_name: "foo".to_string(),
+                trace_pod_name: "foo".to_string(),
             };
             assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
         });
@@ -314,7 +299,7 @@ mod controller_tests {
                 phase: map_tuple.0.to_string(),
                 status_start_time: start_time.clone(),
                 unknown_node: false,
-                trace_node_name: "foo".to_string(),
+                trace_pod_name: "foo".to_string(),
             };
             assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
         });
@@ -347,7 +332,7 @@ mod controller_tests {
                 phase: map_tuple.0.to_string(),
                 status_start_time: start_time.clone(),
                 unknown_node: false,
-                trace_node_name: "foo".to_string(),
+                trace_pod_name: "foo".to_string(),
             };
             assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
         });
@@ -386,7 +371,7 @@ mod controller_tests {
                 phase: map_tuple.0.to_string(),
                 status_start_time: start_time.clone(),
                 unknown_node: false,
-                trace_node_name: "foo".to_string(),
+                trace_pod_name: "foo".to_string(),
             };
             assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
         });
