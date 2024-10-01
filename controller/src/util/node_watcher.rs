@@ -103,29 +103,27 @@ async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Res
                 } else {
                     // Node Modified
                     drop(guard);
-                    call_handle_node_disappearance_if_needed(&node, ctx.clone()).await?;
+                    handle_node_disappearance(&node, ctx.clone()).await?;
                 }
             }
             Ok(Action::await_change())
         }
         Event::Cleanup(node) => {
             info!("handle_node - Deleted: {:?}", &node.name_unchecked());
-            call_handle_node_disappearance_if_needed(&node, ctx.clone()).await?;
+            handle_node_disappearance(&node, ctx.clone()).await?;
             ctx.known_nodes.write().await.remove(&node.name_unchecked());
             Ok(Action::await_change())
         }
     }
 }
+
 /// This should be called for Nodes that are either !Ready or Deleted.
-/// This function ensures that handle_node_disappearance is called
-/// only once for any Node as it disappears.
-async fn call_handle_node_disappearance_if_needed(
-    node: &Node,
-    ctx: Arc<ControllerContext>,
-) -> anyhow::Result<()> {
+/// This function will clean up any Instances that reference a Node that
+/// was previously Running.
+async fn handle_node_disappearance(node: &Node, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
     let node_name = node.name_unchecked();
     trace!(
-        "call_handle_node_disappearance_if_needed - enter: {:?}",
+        "handle_node_disappearance - enter: {:?}",
         &node.metadata.name
     );
     let last_known_state = ctx
@@ -136,20 +134,25 @@ async fn call_handle_node_disappearance_if_needed(
         .unwrap_or(&NodeState::Running)
         .clone();
     trace!(
-        "call_handle_node_disappearance_if_needed - last_known_state: {:?}",
+        "handle_node_disappearance - last_known_state: {:?}",
         &last_known_state
     );
-    // Nodes are updated roughly once a minute ... try to only call
-    // handle_node_disappearance once for a node that disappears.
-    //
-    // Also, there is no need to call handle_node_disappearance if a
-    // Node has never been in the Running state.
+
+    // If the node was running and no longer is, clear the node from
+    // each instance's nodes list and deviceUsage map.
     if last_known_state == NodeState::Running {
+        let api = ctx.client.all();
+        let instances: ObjectList<Instance> = api.list(&ListParams::default()).await?;
         trace!(
-            "call_handle_node_disappearance_if_needed - call handle_node_disappearance: {:?}",
-            &node.metadata.name
+            "handle_node_disappearance - found {:?} instances",
+            instances.items.len()
         );
-        handle_node_disappearance(&node_name, ctx.clone()).await?;
+        for instance in instances.items {
+            let instance_name = instance.name_unchecked();
+            try_remove_nodes_from_instance(&node_name, &instance_name, &instance, api.as_ref())
+                .await?;
+            api.remove_finalizer(&instance, &node_name).await?;
+        }
         ctx.known_nodes
             .write()
             .await
@@ -172,37 +175,6 @@ fn is_node_ready(k8s_node: &Node) -> bool {
         .map_or(false, |condition| {
             condition.type_ == "Ready" && condition.status == "True"
         })
-}
-
-/// This handles when a node disappears by clearing nodes from
-/// the nodes list and deviceUsage map.
-async fn handle_node_disappearance(
-    vanished_node_name: &str,
-    ctx: Arc<ControllerContext>,
-) -> anyhow::Result<()> {
-    trace!(
-        "handle_node_disappearance - enter vanished_node_name={:?}",
-        vanished_node_name,
-    );
-    let api = ctx.client.all();
-    let instances: ObjectList<Instance> = api.list(&ListParams::default()).await?;
-    trace!(
-        "handle_node_disappearance - found {:?} instances",
-        instances.items.len()
-    );
-    for instance in instances.items {
-        let instance_name = instance.name_unchecked();
-
-        trace!(
-            "handle_node_disappearance - make sure node is not referenced here: {:?}",
-            &instance_name
-        );
-        try_remove_nodes_from_instance(vanished_node_name, &instance_name, &instance, api.as_ref())
-            .await?;
-    }
-
-    trace!("handle_node_disappearance - exit");
-    Ok(())
 }
 
 /// This attempts to remove nodes from the nodes list and deviceUsage
@@ -401,6 +373,9 @@ mod tests {
                 }
                 _ => false,
             });
+        instance_api_mock
+            .expect_remove_finalizer()
+            .returning(|_, _| Ok(()));
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
@@ -445,6 +420,9 @@ mod tests {
                 }
                 _ => false,
             });
+        instance_api_mock
+            .expect_remove_finalizer()
+            .returning(|_, _| Ok(()));
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
@@ -485,6 +463,9 @@ mod tests {
                 }
                 _ => false,
             });
+        instance_api_mock
+            .expect_remove_finalizer()
+            .returning(|_, _| Ok(()));
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
