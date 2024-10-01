@@ -2,13 +2,15 @@
 extern crate lazy_static;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use akri_shared::{
+    akri::{metrics::run_metrics_server, API_NAMESPACE},
+    k8s::AKRI_CONFIGURATION_LABEL_NAME,
+};
+use futures::StreamExt;
+use kube::runtime::{watcher::Config, Controller};
 use prometheus::IntGaugeVec;
 use std::sync::Arc;
-use util::{
-    controller_ctx::{ControllerContext, CONTROLLER_FIELD_MANAGER_ID},
-    instance_action, node_watcher, pod_watcher,
-};
+use util::{controller_ctx::ControllerContext, instance_action, node_watcher, pod_watcher};
 
 /// Length of time to sleep between controller system validation checks
 pub const SYSTEM_CHECK_DELAY_SECS: u64 = 30;
@@ -34,33 +36,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     );
 
     log::info!("{} Controller logging started", API_NAMESPACE);
-    let mut tasks = Vec::new();
 
     // Start server for prometheus metrics
     tokio::spawn(run_metrics_server());
-
-    let controller_ctx = Arc::new(ControllerContext::new(
-        Arc::new(kube::Client::try_default().await?),
-        CONTROLLER_FIELD_MANAGER_ID,
-    ));
-    let instance_watcher_ctx = controller_ctx.clone();
+    let client = Arc::new(kube::Client::try_default().await?);
+    let controller_ctx = Arc::new(ControllerContext::new(client.clone()));
     let node_watcher_ctx = controller_ctx.clone();
     let pod_watcher_ctx = controller_ctx.clone();
 
-    // Handle instance changes
-    tasks.push(tokio::spawn(async {
-        instance_action::run(instance_watcher_ctx).await;
-    }));
-    // Watch for node disappearance
-    tasks.push(tokio::spawn(async {
-        node_watcher::run(node_watcher_ctx).await;
-    }));
-    // Watch for broker Pod state changes
-    tasks.push(tokio::spawn(async {
-        pod_watcher::run(pod_watcher_ctx).await;
-    }));
+    node_watcher::check(client.clone()).await?;
+    let node_controller = Controller::new(
+        node_watcher_ctx.client.all().as_inner(),
+        Config::default().any_semantic(),
+    )
+    .shutdown_on_signal()
+    .run(
+        node_watcher::reconcile,
+        node_watcher::error_policy,
+        node_watcher_ctx,
+    )
+    .filter_map(|x| async move { std::result::Result::ok(x) })
+    .for_each(|_| futures::future::ready(()));
 
-    futures::future::try_join_all(tasks).await?;
+    pod_watcher::check(client.clone()).await?;
+    let pod_controller = Controller::new(
+        pod_watcher_ctx.client.all().as_inner(),
+        Config::default().labels(AKRI_CONFIGURATION_LABEL_NAME),
+    )
+    .shutdown_on_signal()
+    .run(
+        pod_watcher::reconcile,
+        pod_watcher::error_policy,
+        pod_watcher_ctx,
+    )
+    .filter_map(|x| async move { std::result::Result::ok(x) })
+    .for_each(|_| futures::future::ready(()));
+
+    tokio::select! {
+        _ = futures::future::join(node_controller, pod_controller) => {},
+        _ = instance_action::run(client) => {}
+    }
 
     log::info!("{} Controller end", API_NAMESPACE);
     Ok(())

@@ -8,8 +8,6 @@ use akri_shared::{
     },
 };
 
-use futures::StreamExt;
-
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::{
     api::core::v1::{Service, ServiceSpec},
@@ -20,16 +18,15 @@ use kube::api::ObjectList;
 use kube::{
     api::{ListParams, ObjectMeta, ResourceExt},
     runtime::{
-        controller::{Action, Controller},
+        controller::Action,
         finalizer::{finalizer, Event},
-        watcher::Config,
     },
 };
-use log::{error, info, trace};
+use log::{info, trace};
 use std::future::Future;
 use std::{collections::BTreeMap, sync::Arc};
 
-pub static POD_FINALIZER: &str = "pods.kube.rs";
+pub static POD_FINALIZER: &str = "akri-pod-watcher.kube.rs";
 
 /// The `kind` of a broker Pod's controlling OwnerReference
 ///
@@ -68,22 +65,21 @@ fn get_broker_pod_owner_kind(pod: Arc<Pod>) -> BrokerPodOwnerKind {
     }
 }
 
-/// Run the Pod reconciler
-pub async fn run(ctx: Arc<ControllerContext>) {
-    let api = ctx.client.all().as_inner();
+pub async fn check(
+    client: Arc<dyn super::controller_ctx::ControllerKubeClient>,
+) -> anyhow::Result<()> {
+    let api: Box<dyn Api<Pod>> = client.all();
     if let Err(e) = api.list(&ListParams::default().limit(1)).await {
-        error!("Pods are not queryable; {e:?}");
-        std::process::exit(1);
+        anyhow::bail!("Pods are not queryable; {e:?}")
     }
-    Controller::new(api, Config::default().labels(AKRI_CONFIGURATION_LABEL_NAME))
-        .shutdown_on_signal()
-        .run(reconcile, error_policy, ctx)
-        .filter_map(|x| async move { std::result::Result::ok(x) })
-        .for_each(|_| futures::future::ready(()))
-        .await;
+    Ok(())
 }
 
-fn error_policy(_node: Arc<Pod>, error: &ControllerError, _ctx: Arc<ControllerContext>) -> Action {
+pub fn error_policy(
+    _pod: Arc<Pod>,
+    error: &ControllerError,
+    _ctx: Arc<ControllerContext>,
+) -> Action {
     log::warn!("reconcile failed: {:?}", error);
     Action::requeue(std::time::Duration::from_secs(5 * 60))
 }
@@ -252,7 +248,7 @@ async fn handle_non_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> a
     // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
     if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
         if let Ok(Some(instance)) = ctx.client.namespaced(&namespace).get(&instance_id).await {
-            super::instance_action::handle_instance_change(&instance, ctx).await?;
+            super::instance_action::handle_instance_change(instance, ctx.client.clone()).await?;
         }
     }
     Ok(())
@@ -371,7 +367,7 @@ async fn add_instance_and_configuration_services(
             instance_service_spec,
             labels,
         )?;
-        api.apply(instance_svc, &ctx.identifier).await?;
+        api.apply(instance_svc, POD_FINALIZER).await?;
     }
     if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
         let configuration_uid = configuration.uid().unwrap();
@@ -393,8 +389,8 @@ async fn add_instance_and_configuration_services(
             configuration_service_spec,
             labels,
         )?;
-        // TODO: handle already exists error
-        api.apply(config_svc, &ctx.identifier).await?;
+        // TODO: use patch instead of apply
+        api.apply(config_svc, POD_FINALIZER).await?;
     }
     Ok(())
 }
@@ -710,10 +706,9 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "copnfig_name", "Unknown", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(
-            Arc::new(MockControllerKubeClient::default()),
-            "test",
-        ));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(
+            MockControllerKubeClient::default(),
+        )));
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
             .await
             .unwrap();
@@ -729,10 +724,9 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Pending", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(
-            Arc::new(MockControllerKubeClient::default()),
-            "test",
-        ));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(
+            MockControllerKubeClient::default(),
+        )));
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
             .await
             .unwrap();
@@ -749,10 +743,9 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Running", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(
-            Arc::new(MockControllerKubeClient::default()),
-            "test",
-        ));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(
+            MockControllerKubeClient::default(),
+        )));
         ctx.known_pods
             .write()
             .await
@@ -820,7 +813,7 @@ mod tests {
             .return_once(|_| Box::new(mock_svc_api))
             .with(mockall::predicate::eq("test-ns"));
 
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
 
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
             .await
@@ -885,7 +878,7 @@ mod tests {
             .expect_namespaced()
             .return_once(|_| Box::new(mock_svc_api))
             .with(mockall::predicate::eq("test-ns"));
-        ControllerContext::new(Arc::new(mock), "test")
+        ControllerContext::new(Arc::new(mock))
     }
 
     async fn test_reconcile_applied_terminated_phases(phase: &str) {

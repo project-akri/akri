@@ -9,11 +9,9 @@ use crate::util::{
     controller_ctx::{ControllerContext, NodeState},
     ControllerError, Result,
 };
-use akri_shared::k8s::api::Api;
-
 use akri_shared::akri::instance::{device_usage::NodeUsage, Instance};
+use akri_shared::k8s::api::Api;
 use anyhow::Context;
-use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Node, NodeStatus};
 use kube::{
     api::{
@@ -21,36 +19,32 @@ use kube::{
         TypeMeta,
     },
     runtime::{
-        controller::{Action, Controller},
+        controller::Action,
         finalizer::{finalizer, Event},
         reflector::Lookup,
-        watcher::Config,
     },
 };
-use log::{error, info, trace};
+use log::{info, trace};
 use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc};
 
-pub static NODE_FINALIZER: &str = "nodes.kube.rs";
+use super::controller_ctx::ControllerKubeClient;
 
-/// Initialize the instance controller
-/// TODO: consider passing state that is shared among controllers such as a metrics exporter
-pub async fn run(ctx: Arc<ControllerContext>) {
-    let api = ctx.client.all().as_inner();
+pub static NODE_FINALIZER: &str = "akri-node-watcher.kube.rs";
+
+pub async fn check(client: Arc<dyn ControllerKubeClient>) -> anyhow::Result<()> {
+    let api: Box<dyn Api<Instance>> = client.all();
     if let Err(e) = api.list(&ListParams::default().limit(1)).await {
-        error!("Nodes are not queryable; {e:?}");
-        std::process::exit(1);
+        anyhow::bail!("Nodes are not queryable; {e:?}")
     }
-    Controller::new(api, Config::default().any_semantic())
-        .shutdown_on_signal()
-        .run(reconcile, error_policy, ctx)
-        // TODO: needs update for tokio?
-        .filter_map(|x| async move { std::result::Result::ok(x) })
-        .for_each(|_| futures::future::ready(()))
-        .await;
+    Ok(())
 }
 
-fn error_policy(_node: Arc<Node>, error: &ControllerError, _ctx: Arc<ControllerContext>) -> Action {
+pub fn error_policy(
+    _node: Arc<Node>,
+    error: &ControllerError,
+    _ctx: Arc<ControllerContext>,
+) -> Action {
     log::warn!("reconcile failed: {:?}", error);
     Action::requeue(std::time::Duration::from_secs(5 * 60))
 }
@@ -290,7 +284,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
@@ -311,7 +305,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
@@ -332,7 +326,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -379,7 +373,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -426,7 +420,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -469,7 +463,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock), "test"));
+        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
         reconcile_inner(Event::Cleanup(Arc::new(node)), ctx.clone())
             .await
             .unwrap();

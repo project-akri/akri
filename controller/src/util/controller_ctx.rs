@@ -10,9 +10,6 @@ use k8s_openapi::api::core::v1::{Node, Pod, Service};
 
 use tokio::sync::RwLock;
 
-// Identifier for the controller to be set as the field manager for server-side apply
-pub const CONTROLLER_FIELD_MANAGER_ID: &str = "akri.sh/controller";
-
 /// Pod states that BrokerPodWatcher is interested in
 ///
 /// PodState describes the various states that the controller can
@@ -91,16 +88,14 @@ pub struct ControllerContext {
     pub client: Arc<dyn ControllerKubeClient>,
     pub known_pods: Arc<RwLock<HashMap<String, PodState>>>,
     pub known_nodes: Arc<RwLock<HashMap<String, NodeState>>>,
-    pub identifier: String,
 }
 
 impl ControllerContext {
-    pub fn new(client: Arc<dyn ControllerKubeClient>, identifier: &str) -> Self {
+    pub fn new(client: Arc<dyn ControllerKubeClient>) -> Self {
         ControllerContext {
             client,
             known_pods: Arc::new(RwLock::new(HashMap::new())),
             known_nodes: Arc::new(RwLock::new(HashMap::new())),
-            identifier: identifier.to_string(),
         }
     }
 }

@@ -17,6 +17,9 @@ pub enum ControllerError {
     // so boxing this error to break cycles
     FinalizerError(#[source] Box<kube::runtime::finalizer::Error<ControllerError>>),
 
+    #[error("Watcher Error: {0}")]
+    WatcherError(#[from] kube::runtime::watcher::Error),
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
