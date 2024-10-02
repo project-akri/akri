@@ -106,6 +106,7 @@ where
 }
 
 #[automock]
+#[allow(clippy::multiple_bound_locations)]
 pub trait IntoApi<T: Resource + 'static + Send + Sync>: Send + Sync {
     fn all(&self) -> Box<dyn Api<T>>;
     fn namespaced(&self, namespace: &str) -> Box<dyn Api<T>>

@@ -242,6 +242,177 @@ pub fn update_ownership(
     Ok(())
 }
 
+/// Create Kubernetes Service
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::service;
+/// use kube::client::Client;
+/// use kube::config;
+/// use k8s_openapi::api::core::v1::Service;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// service::create_service(&Service::default(), "svc_namespace", api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn create_service(
+    svc_to_create: &Service,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!("create_service enter");
+    let services: Api<Service> = Api::namespaced(kube_client, namespace);
+    info!("create_service svcs.create(...).await?:");
+    match services.create(&PostParams::default(), svc_to_create).await {
+        Ok(created_svc) => {
+            info!(
+                "create_service services.create return: {:?}",
+                created_svc.metadata.name
+            );
+            Ok(())
+        }
+        Err(kube::Error::Api(ae)) => {
+            error!(
+                "create_service services.create [{:?}] returned kube error: {:?}",
+                serde_json::to_string(&svc_to_create),
+                ae
+            );
+            Ok(())
+        }
+        Err(e) => {
+            error!(
+                "create_service services.create [{:?}] error: {:?}",
+                serde_json::to_string(&svc_to_create),
+                e
+            );
+            Err(anyhow::anyhow!(e))
+        }
+    }
+}
+
+/// Remove Kubernetes Service
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::service;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// service::remove_service("svc_to_remove", "svc_namespace", api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn remove_service(
+    svc_to_remove: &str,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!("remove_service enter");
+    let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
+    info!("remove_service svcs.create(...).await?:");
+    match svcs.delete(svc_to_remove, &DeleteParams::default()).await {
+        Ok(deleted_svc) => match deleted_svc {
+            Either::Left(spec) => {
+                info!(
+                    "remove_service svcs.delete return: {:?}",
+                    &spec.metadata.name
+                );
+                Ok(())
+            }
+            Either::Right(status) => {
+                info!("remove_service svcs.delete return: {:?}", &status.status);
+                Ok(())
+            }
+        },
+        Err(kube::Error::Api(ae)) => {
+            if ae.code == ERROR_NOT_FOUND {
+                trace!("remove_service - service already deleted");
+                Ok(())
+            } else {
+                error!(
+                    "remove_service svcs.delete [{:?}] returned kube error: {:?}",
+                    &svc_to_remove, ae
+                );
+                Err(anyhow::anyhow!(ae))
+            }
+        }
+        Err(e) => {
+            error!(
+                "remove_service svcs.delete [{:?}] error: {:?}",
+                &svc_to_remove, e
+            );
+            Err(anyhow::anyhow!(e))
+        }
+    }
+}
+
+/// Update Kubernetes Service
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::service;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let selector = "environment=production,app=nginx";
+/// let api_client = Client::try_default().await.unwrap();
+/// for svc in service::find_services_with_selector(&selector, api_client).await.unwrap() {
+///     let svc_name = &svc.metadata.name.clone().unwrap();
+///     let svc_namespace = &svc.metadata.namespace.as_ref().unwrap().clone();
+///     let loop_api_client = Client::try_default().await.unwrap();
+///     let updated_svc = service::update_service(
+///         &svc,
+///         &svc_name,
+///         &svc_namespace,
+///         loop_api_client).await.unwrap();
+/// }
+/// # }
+/// ```
+pub async fn update_service(
+    svc_to_update: &Service,
+    name: &str,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!(
+        "update_service enter name:{} namespace: {}",
+        &name,
+        &namespace
+    );
+    let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
+
+    info!("remove_service svcs.patch(...).await?:");
+    match svcs
+        .patch(name, &PatchParams::default(), &Patch::Merge(&svc_to_update))
+        .await
+    {
+        Ok(_service_modified) => {
+            log::trace!("update_service return");
+            Ok(())
+        }
+        Err(kube::Error::Api(ae)) => {
+            log::trace!(
+                "update_service kube_client.request returned kube error: {:?}",
+                ae
+            );
+            Err(anyhow::anyhow!(ae))
+        }
+        Err(e) => {
+            log::trace!("update_service kube_client.request error: {:?}", e);
+            Err(anyhow::anyhow!(e))
+        }
+    }
+}
+
 #[cfg(test)]
 mod svcspec_tests {
     use super::super::OwnershipType;
@@ -509,7 +680,7 @@ mod svcspec_tests {
                     .owner_references
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .name
             );
@@ -520,7 +691,7 @@ mod svcspec_tests {
                     .owner_references
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .uid
             );
@@ -531,7 +702,7 @@ mod svcspec_tests {
                     .owner_references
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .kind
             );
@@ -541,7 +712,7 @@ mod svcspec_tests {
                     .clone()
                     .owner_references
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .api_version
             );
@@ -550,7 +721,7 @@ mod svcspec_tests {
                 .clone()
                 .owner_references
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .controller
                 .unwrap());
@@ -559,7 +730,7 @@ mod svcspec_tests {
                 .clone()
                 .owner_references
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .block_owner_deletion
                 .unwrap());
@@ -613,177 +784,6 @@ mod svcspec_tests {
                         .unwrap()
                 );
             }
-        }
-    }
-}
-
-/// Create Kubernetes Service
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::service;
-/// use kube::client::Client;
-/// use kube::config;
-/// use k8s_openapi::api::core::v1::Service;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// service::create_service(&Service::default(), "svc_namespace", api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn create_service(
-    svc_to_create: &Service,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!("create_service enter");
-    let services: Api<Service> = Api::namespaced(kube_client, namespace);
-    info!("create_service svcs.create(...).await?:");
-    match services.create(&PostParams::default(), svc_to_create).await {
-        Ok(created_svc) => {
-            info!(
-                "create_service services.create return: {:?}",
-                created_svc.metadata.name
-            );
-            Ok(())
-        }
-        Err(kube::Error::Api(ae)) => {
-            error!(
-                "create_service services.create [{:?}] returned kube error: {:?}",
-                serde_json::to_string(&svc_to_create),
-                ae
-            );
-            Ok(())
-        }
-        Err(e) => {
-            error!(
-                "create_service services.create [{:?}] error: {:?}",
-                serde_json::to_string(&svc_to_create),
-                e
-            );
-            Err(anyhow::anyhow!(e))
-        }
-    }
-}
-
-/// Remove Kubernetes Service
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::service;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// service::remove_service("svc_to_remove", "svc_namespace", api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn remove_service(
-    svc_to_remove: &str,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!("remove_service enter");
-    let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
-    info!("remove_service svcs.create(...).await?:");
-    match svcs.delete(svc_to_remove, &DeleteParams::default()).await {
-        Ok(deleted_svc) => match deleted_svc {
-            Either::Left(spec) => {
-                info!(
-                    "remove_service svcs.delete return: {:?}",
-                    &spec.metadata.name
-                );
-                Ok(())
-            }
-            Either::Right(status) => {
-                info!("remove_service svcs.delete return: {:?}", &status.status);
-                Ok(())
-            }
-        },
-        Err(kube::Error::Api(ae)) => {
-            if ae.code == ERROR_NOT_FOUND {
-                trace!("remove_service - service already deleted");
-                Ok(())
-            } else {
-                error!(
-                    "remove_service svcs.delete [{:?}] returned kube error: {:?}",
-                    &svc_to_remove, ae
-                );
-                Err(anyhow::anyhow!(ae))
-            }
-        }
-        Err(e) => {
-            error!(
-                "remove_service svcs.delete [{:?}] error: {:?}",
-                &svc_to_remove, e
-            );
-            Err(anyhow::anyhow!(e))
-        }
-    }
-}
-
-/// Update Kubernetes Service
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::service;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let selector = "environment=production,app=nginx";
-/// let api_client = Client::try_default().await.unwrap();
-/// for svc in service::find_services_with_selector(&selector, api_client).await.unwrap() {
-///     let svc_name = &svc.metadata.name.clone().unwrap();
-///     let svc_namespace = &svc.metadata.namespace.as_ref().unwrap().clone();
-///     let loop_api_client = Client::try_default().await.unwrap();
-///     let updated_svc = service::update_service(
-///         &svc,
-///         &svc_name,
-///         &svc_namespace,
-///         loop_api_client).await.unwrap();
-/// }
-/// # }
-/// ```
-pub async fn update_service(
-    svc_to_update: &Service,
-    name: &str,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!(
-        "update_service enter name:{} namespace: {}",
-        &name,
-        &namespace
-    );
-    let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
-
-    info!("remove_service svcs.patch(...).await?:");
-    match svcs
-        .patch(name, &PatchParams::default(), &Patch::Merge(&svc_to_update))
-        .await
-    {
-        Ok(_service_modified) => {
-            log::trace!("update_service return");
-            Ok(())
-        }
-        Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_service kube_client.request returned kube error: {:?}",
-                ae
-            );
-            Err(anyhow::anyhow!(ae))
-        }
-        Err(e) => {
-            log::trace!("update_service kube_client.request error: {:?}", e);
-            Err(anyhow::anyhow!(e))
         }
     }
 }

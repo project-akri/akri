@@ -174,7 +174,7 @@ impl InstanceDevicePlugin {
             let mut modified = false;
             for (k, v) in new_slots.iter() {
                 if current[*k] != *v {
-                    current[*k] = v.to_owned();
+                    v.clone_into(&mut current[*k]);
                     modified = true;
                 }
             }

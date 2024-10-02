@@ -455,7 +455,7 @@ mod broker_jobspec_tests {
                 .owner_references
                 .as_ref()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .name
         );
@@ -465,7 +465,7 @@ mod broker_jobspec_tests {
                 .owner_references
                 .as_ref()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .uid
         );
@@ -475,7 +475,7 @@ mod broker_jobspec_tests {
                 .owner_references
                 .as_ref()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .kind
         );
@@ -485,7 +485,7 @@ mod broker_jobspec_tests {
                 .owner_references
                 .as_ref()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .api_version
         );
@@ -494,7 +494,7 @@ mod broker_jobspec_tests {
             .owner_references
             .as_ref()
             .unwrap()
-            .get(0)
+            .first()
             .unwrap()
             .controller
             .unwrap());
@@ -503,7 +503,7 @@ mod broker_jobspec_tests {
             .owner_references
             .as_ref()
             .unwrap()
-            .get(0)
+            .first()
             .unwrap()
             .block_owner_deletion
             .unwrap());

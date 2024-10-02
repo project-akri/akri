@@ -135,7 +135,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     || matching_device_count != previously_discovered_devices.len()
                 {
                     info!("discover - sending updated device list");
-                    previously_discovered_devices = discovered_devices.clone();
+                    previously_discovered_devices.clone_from(&discovered_devices);
                     if let Err(e) = discovered_devices_sender
                         .send(Ok(DiscoverResponse {
                             devices: discovered_devices,

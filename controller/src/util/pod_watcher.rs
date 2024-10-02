@@ -834,10 +834,7 @@ mod tests {
             assert_eq!(1, pod_watcher.known_pods.len());
             assert_eq!(
                 &PodState::Pending,
-                pod_watcher
-                    .known_pods
-                    .get(&"config-a-b494b6-pod".to_string())
-                    .unwrap()
+                pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
             )
         }
     }
@@ -868,10 +865,7 @@ mod tests {
             assert_eq!(1, pod_watcher.known_pods.len());
             assert_eq!(
                 &PodState::Pending,
-                pod_watcher
-                    .known_pods
-                    .get(&"config-a-b494b6-pod".to_string())
-                    .unwrap()
+                pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
             )
         }
     }
@@ -927,10 +921,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -985,10 +976,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1047,10 +1035,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Ended,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1109,10 +1094,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Deleted,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1171,10 +1153,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Ended,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1247,10 +1226,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1274,10 +1250,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Ended,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
@@ -1301,10 +1274,7 @@ mod tests {
         assert_eq!(1, pod_watcher.known_pods.len());
         assert_eq!(
             &PodState::Deleted,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
+            pod_watcher.known_pods.get("config-a-b494b6-pod").unwrap()
         )
     }
 
