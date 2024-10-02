@@ -28,12 +28,15 @@ pub trait OnvifQuery {
         service_url: &str,
         device_uuid: &str,
     ) -> Result<(String, String), anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_service_uri(
         &self,
         url: &str,
         service: &str,
     ) -> Result<String, anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_profile_streaming_uri(
         &self,
         url: &str,
