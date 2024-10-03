@@ -9,7 +9,10 @@ pub struct RegisterDiscoveryHandlerRequest {
     /// Endpoint for the registering `DiscoveryHandler`
     #[prost(string, tag = "2")]
     pub endpoint: ::prost::alloc::string::String,
-    #[prost(enumeration = "register_discovery_handler_request::EndpointType", tag = "3")]
+    #[prost(
+        enumeration = "register_discovery_handler_request::EndpointType",
+        tag = "3"
+    )]
     pub endpoint_type: i32,
     /// Specifies whether this device could be used by multiple nodes (e.g. an IP camera)
     /// or can only be ever be discovered by a single node (e.g. a local USB device)
@@ -19,17 +22,7 @@ pub struct RegisterDiscoveryHandlerRequest {
 /// Nested message and enum types in `RegisterDiscoveryHandlerRequest`.
 pub mod register_discovery_handler_request {
     /// Specifies the type of endpoint.
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum EndpointType {
         Uds = 0,
@@ -75,10 +68,7 @@ pub struct DiscoverRequest {
     /// list of Key-value pairs containing additional information
     /// for the 'DiscoveryHandler' to discover devices
     #[prost(map = "string, message", tag = "2")]
-    pub discovery_properties: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ByteData,
-    >,
+    pub discovery_properties: ::std::collections::HashMap<::prost::alloc::string::String, ByteData>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -97,10 +87,8 @@ pub struct Device {
     /// and set as environment variables in the device's broker Pods. May be information
     /// about where to find the device such as an RTSP URL or a device node (e.g. `/dev/video1`)
     #[prost(map = "string, string", tag = "2")]
-    pub properties: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub properties:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Optionally specify mounts for Pods that request this device as a resource
     #[prost(message, repeated, tag = "3")]
     pub mounts: ::prost::alloc::vec::Vec<Mount>,
@@ -145,8 +133,8 @@ pub struct DeviceSpec {
 /// Generated client implementations.
 pub mod registration_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Registration is the service advertised by the Akri Agent.
     /// Any `DiscoveryHandler` can register with the Akri Agent.
     #[derive(Debug, Clone)]
@@ -192,9 +180,8 @@ pub mod registration_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             RegistrationClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -233,22 +220,20 @@ pub mod registration_client {
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterDiscoveryHandlerRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/v0.Registration/RegisterDiscoveryHandler",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/v0.Registration/RegisterDiscoveryHandler");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("v0.Registration", "RegisterDiscoveryHandler"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "v0.Registration",
+                "RegisterDiscoveryHandler",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -256,8 +241,8 @@ pub mod registration_client {
 /// Generated client implementations.
 pub mod discovery_handler_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct DiscoveryHandlerClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -301,9 +286,8 @@ pub mod discovery_handler_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             DiscoveryHandlerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -345,19 +329,14 @@ pub mod discovery_handler_client {
             tonic::Response<tonic::codec::Streaming<super::DiscoverResponse>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/v0.DiscoveryHandler/Discover",
-            );
+            let path = http::uri::PathAndQuery::from_static("/v0.DiscoveryHandler/Discover");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v0.DiscoveryHandler", "Discover"));
@@ -402,10 +381,7 @@ pub mod registration_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -461,27 +437,19 @@ pub mod registration_server {
                 "/v0.Registration/RegisterDiscoveryHandler" => {
                     #[allow(non_camel_case_types)]
                     struct RegisterDiscoveryHandlerSvc<T: Registration>(pub Arc<T>);
-                    impl<
-                        T: Registration,
-                    > tonic::server::UnaryService<super::RegisterDiscoveryHandlerRequest>
-                    for RegisterDiscoveryHandlerSvc<T> {
+                    impl<T: Registration>
+                        tonic::server::UnaryService<super::RegisterDiscoveryHandlerRequest>
+                        for RegisterDiscoveryHandlerSvc<T>
+                    {
                         type Response = super::Empty;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                super::RegisterDiscoveryHandlerRequest,
-                            >,
+                            request: tonic::Request<super::RegisterDiscoveryHandlerRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as Registration>::register_discovery_handler(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as Registration>::register_discovery_handler(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -510,18 +478,14 @@ pub mod registration_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }
@@ -561,8 +525,7 @@ pub mod discovery_handler_server {
         /// Server streaming response type for the Discover method.
         type DiscoverStream: tonic::codegen::tokio_stream::Stream<
                 Item = std::result::Result<super::DiscoverResponse, tonic::Status>,
-            >
-            + Send
+            > + Send
             + 'static;
         async fn discover(
             &self,
@@ -592,10 +555,7 @@ pub mod discovery_handler_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -651,16 +611,14 @@ pub mod discovery_handler_server {
                 "/v0.DiscoveryHandler/Discover" => {
                     #[allow(non_camel_case_types)]
                     struct DiscoverSvc<T: DiscoveryHandler>(pub Arc<T>);
-                    impl<
-                        T: DiscoveryHandler,
-                    > tonic::server::ServerStreamingService<super::DiscoverRequest>
-                    for DiscoverSvc<T> {
+                    impl<T: DiscoveryHandler>
+                        tonic::server::ServerStreamingService<super::DiscoverRequest>
+                        for DiscoverSvc<T>
+                    {
                         type Response = super::DiscoverResponse;
                         type ResponseStream = T::DiscoverStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DiscoverRequest>,
@@ -695,18 +653,14 @@ pub mod discovery_handler_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }
