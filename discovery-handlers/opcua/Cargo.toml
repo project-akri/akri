@@ -1,6 +1,6 @@
 [package]
 name = "akri-opcua"
-authors = ["Kate Goldenring <kate.goldenring@microsoft.com>"]
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true

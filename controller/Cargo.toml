@@ -1,6 +1,6 @@
 [package]
 name = "controller"
-authors = ["<bfjelds@microsoft.com>", "<kagold@microsoft.com>"]
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true

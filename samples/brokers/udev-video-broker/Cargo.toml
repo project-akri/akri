@@ -1,6 +1,6 @@
 [package]
 name = "udev-video-broker"
-authors = ["Kate Goldenring <kate.goldenring@microsoft.com>", "<bfjelds@microsoft.com>"]
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true

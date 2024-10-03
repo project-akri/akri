@@ -1,6 +1,6 @@
 [package]
 name = "webhook-configuration"
-authors = ["DazWilkin <daz.wilkin@gmail.com>"]
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true
