@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn test_credential_store_non_utf8_username() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let test_data = vec![("deviceid-1", vec![200u8, 200u8, 200u8], "password_1")];
+        let test_data = [("deviceid-1", vec![200u8, 200u8, 200u8], "password_1")];
         let test_entries = test_data
             .iter()
             .map(|(id, uname, pwd)| DeviceCredentialData {
@@ -323,7 +323,7 @@ mod tests {
     #[test]
     fn test_credential_store_non_utf8_password() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let test_data = vec![("deviceid-1", "username_1", vec![200u8, 200u8, 200u8])];
+        let test_data = [("deviceid-1", "username_1", vec![200u8, 200u8, 200u8])];
         let expected_result = test_data
             .iter()
             .map(|(id, uname, pwd)| {

@@ -1331,11 +1331,11 @@ mod discovery_tests {
             "/devices/pci0/usb0/0-1/0-1.1/0-1.1:1.0/video4linux/video1".to_string(),
             "/devices/pci0/usb0/0-1/0-1.1/0-1.1:1.1".to_string(),
         ];
-        let unrelated_paths = vec![
+        let unrelated_paths = [
             "/devices/pci0/usb0/0-1/0-1.2/0-1.2:1.1".to_string(),
             "/devices/pci0/usb1/0-1/0-1.2/0-1.2:1.1".to_string(),
         ];
-        let parent_path = vec!["/devices/pci0/usb0".to_string()];
+        let parent_path = ["/devices/pci0/usb0".to_string()];
         let empty: Vec<String> = Vec::new();
 
         // Test with children devices
@@ -1366,7 +1366,7 @@ mod discovery_tests {
     #[test]
     fn test_insert_device_with_relatives() {
         let mut devpaths: HashMap<String, HashSet<DeviceProperties>> = HashMap::default();
-        let related_devices = vec![
+        let related_devices = [
             ("/sys/device/parent".to_string(), None),
             (
                 "/sys/device/parent/child1".to_string(),

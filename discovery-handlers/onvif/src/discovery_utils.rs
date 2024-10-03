@@ -28,12 +28,15 @@ pub trait OnvifQuery {
         service_url: &str,
         device_uuid: &str,
     ) -> Result<(String, String), anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_service_uri(
         &self,
         url: &str,
         service: &str,
     ) -> Result<String, anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, anyhow::Error>;
+    #[allow(dead_code)]
     async fn get_device_profile_streaming_uri(
         &self,
         url: &str,
@@ -605,11 +608,9 @@ mod tests {
     async fn test_inner_get_device_profile_streaming_uri() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let expected_result = vec![
-            "rtsp://192.168.0.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
+        let expected_result = ["rtsp://192.168.0.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
             "rtsp://192.168.1.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
-            "rtsp://192.168.2.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string()
-        ];
+            "rtsp://192.168.2.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string()];
 
         for (i, expected_uri) in expected_result.iter().enumerate().take(3) {
             let mut mock = MockHttp::new();

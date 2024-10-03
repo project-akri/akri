@@ -280,6 +280,118 @@ pub fn modify_pod_spec(
     }
 }
 
+/// Create Kubernetes Pod
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::pod;
+/// use kube::client::Client;
+/// use kube::config;
+/// use k8s_openapi::api::core::v1::Pod;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// pod::create_pod(&Pod::default(), "pod_namespace", api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn create_pod(
+    pod_to_create: &Pod,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!("create_pod enter");
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
+    info!("create_pod pods.create(...).await?:");
+    match pods.create(&PostParams::default(), pod_to_create).await {
+        Ok(created_pod) => {
+            info!(
+                "create_pod pods.create return: {:?}",
+                created_pod.metadata.name
+            );
+            Ok(())
+        }
+        Err(kube::Error::Api(ae)) => {
+            if ae.code == ERROR_CONFLICT {
+                trace!("create_pod - pod already exists");
+                Ok(())
+            } else {
+                error!(
+                    "create_pod pods.create [{:?}] returned kube error: {:?}",
+                    serde_json::to_string(&pod_to_create),
+                    ae
+                );
+                Err(anyhow::anyhow!(ae))
+            }
+        }
+        Err(e) => {
+            error!(
+                "create_pod pods.create [{:?}] error: {:?}",
+                serde_json::to_string(&pod_to_create),
+                e
+            );
+            Err(anyhow::anyhow!(e))
+        }
+    }
+}
+
+/// Remove Kubernetes Pod
+///
+/// Example:
+///
+/// ```no_run
+/// use akri_shared::k8s::pod;
+/// use kube::client::Client;
+/// use kube::config;
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// let api_client = Client::try_default().await.unwrap();
+/// pod::remove_pod("pod_to_remove", "pod_namespace", api_client).await.unwrap();
+/// # }
+/// ```
+pub async fn remove_pod(
+    pod_to_remove: &str,
+    namespace: &str,
+    kube_client: Client,
+) -> Result<(), anyhow::Error> {
+    trace!("remove_pod enter");
+    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
+    info!("remove_pod pods.delete(...).await?:");
+    match pods.delete(pod_to_remove, &DeleteParams::default()).await {
+        Ok(deleted_pod) => match deleted_pod {
+            Either::Left(spec) => {
+                info!("remove_pod pods.delete return: {:?}", &spec.metadata.name);
+                Ok(())
+            }
+            Either::Right(status) => {
+                info!("remove_pod pods.delete return: {:?}", &status.status);
+                Ok(())
+            }
+        },
+        Err(kube::Error::Api(ae)) => {
+            if ae.code == ERROR_NOT_FOUND {
+                trace!("remove_pod - pod already removed");
+                Ok(())
+            } else {
+                error!(
+                    "remove_pod pods.delete [{:?}] returned kube error: {:?}",
+                    &pod_to_remove, ae
+                );
+                Err(anyhow::anyhow!(ae))
+            }
+        }
+        Err(e) => {
+            error!(
+                "remove_pod pods.delete [{:?}] error: {:?}",
+                &pod_to_remove, e
+            );
+            Err(anyhow::anyhow!(e))
+        }
+    }
+}
+
 #[cfg(test)]
 mod broker_podspec_tests {
     use super::super::super::akri::API_VERSION;
@@ -548,7 +660,7 @@ mod broker_podspec_tests {
                     .clone()
                     .owner_references
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .name
             );
@@ -558,7 +670,7 @@ mod broker_podspec_tests {
                     .clone()
                     .owner_references
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .uid
             );
@@ -568,7 +680,7 @@ mod broker_podspec_tests {
                     .clone()
                     .owner_references
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .kind
             );
@@ -578,7 +690,7 @@ mod broker_podspec_tests {
                     .clone()
                     .owner_references
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .api_version
             );
@@ -587,7 +699,7 @@ mod broker_podspec_tests {
                 .clone()
                 .owner_references
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .controller
                 .unwrap());
@@ -596,7 +708,7 @@ mod broker_podspec_tests {
                 .clone()
                 .owner_references
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .block_owner_deletion
                 .unwrap());
@@ -630,12 +742,12 @@ mod broker_podspec_tests {
                     .required_during_scheduling_ignored_during_execution
                     .unwrap()
                     .node_selector_terms
-                    .get(0)
+                    .first()
                     .unwrap()
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .key
             );
@@ -651,12 +763,12 @@ mod broker_podspec_tests {
                     .required_during_scheduling_ignored_during_execution
                     .unwrap()
                     .node_selector_terms
-                    .get(0)
+                    .first()
                     .unwrap()
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .operator
             );
@@ -672,12 +784,12 @@ mod broker_podspec_tests {
                     .required_during_scheduling_ignored_during_execution
                     .unwrap()
                     .node_selector_terms
-                    .get(0)
+                    .first()
                     .unwrap()
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .values
                     .as_ref()
@@ -702,7 +814,7 @@ mod broker_podspec_tests {
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .key
             );
@@ -723,7 +835,7 @@ mod broker_podspec_tests {
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .operator
             );
@@ -744,7 +856,7 @@ mod broker_podspec_tests {
                     .match_fields
                     .as_ref()
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .values
                     .as_ref()
@@ -986,118 +1098,6 @@ mod broker_podspec_tests {
                         .contains_key(&resource_limit_name.clone())
                 );
             }
-        }
-    }
-}
-
-/// Create Kubernetes Pod
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::pod;
-/// use kube::client::Client;
-/// use kube::config;
-/// use k8s_openapi::api::core::v1::Pod;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// pod::create_pod(&Pod::default(), "pod_namespace", api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn create_pod(
-    pod_to_create: &Pod,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!("create_pod enter");
-    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
-    info!("create_pod pods.create(...).await?:");
-    match pods.create(&PostParams::default(), pod_to_create).await {
-        Ok(created_pod) => {
-            info!(
-                "create_pod pods.create return: {:?}",
-                created_pod.metadata.name
-            );
-            Ok(())
-        }
-        Err(kube::Error::Api(ae)) => {
-            if ae.code == ERROR_CONFLICT {
-                trace!("create_pod - pod already exists");
-                Ok(())
-            } else {
-                error!(
-                    "create_pod pods.create [{:?}] returned kube error: {:?}",
-                    serde_json::to_string(&pod_to_create),
-                    ae
-                );
-                Err(anyhow::anyhow!(ae))
-            }
-        }
-        Err(e) => {
-            error!(
-                "create_pod pods.create [{:?}] error: {:?}",
-                serde_json::to_string(&pod_to_create),
-                e
-            );
-            Err(anyhow::anyhow!(e))
-        }
-    }
-}
-
-/// Remove Kubernetes Pod
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::pod;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let api_client = Client::try_default().await.unwrap();
-/// pod::remove_pod("pod_to_remove", "pod_namespace", api_client).await.unwrap();
-/// # }
-/// ```
-pub async fn remove_pod(
-    pod_to_remove: &str,
-    namespace: &str,
-    kube_client: Client,
-) -> Result<(), anyhow::Error> {
-    trace!("remove_pod enter");
-    let pods: Api<Pod> = Api::namespaced(kube_client, namespace);
-    info!("remove_pod pods.delete(...).await?:");
-    match pods.delete(pod_to_remove, &DeleteParams::default()).await {
-        Ok(deleted_pod) => match deleted_pod {
-            Either::Left(spec) => {
-                info!("remove_pod pods.delete return: {:?}", &spec.metadata.name);
-                Ok(())
-            }
-            Either::Right(status) => {
-                info!("remove_pod pods.delete return: {:?}", &status.status);
-                Ok(())
-            }
-        },
-        Err(kube::Error::Api(ae)) => {
-            if ae.code == ERROR_NOT_FOUND {
-                trace!("remove_pod - pod already removed");
-                Ok(())
-            } else {
-                error!(
-                    "remove_pod pods.delete [{:?}] returned kube error: {:?}",
-                    &pod_to_remove, ae
-                );
-                Err(anyhow::anyhow!(ae))
-            }
-        }
-        Err(e) => {
-            error!(
-                "remove_pod pods.delete [{:?}] error: {:?}",
-                &pod_to_remove, e
-            );
-            Err(anyhow::anyhow!(e))
         }
     }
 }

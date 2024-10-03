@@ -4,12 +4,3 @@ passthrough = [
     "RUST_LOG",
     "CARGO_INCREMENTAL",
 ]
-
-[target.x86_64-unknown-linux-gnu]
-image = "ghcr.io/project-akri/akri/rust-crossbuild:x86_64-unknown-linux-gnu-0.1.16-0.0.7"
-
-[target.armv7-unknown-linux-gnueabihf]
-image = "ghcr.io/project-akri/akri/rust-crossbuild:armv7-unknown-linux-gnueabihf-0.1.16-0.0.7"
-
-[target.aarch64-unknown-linux-gnu]
-image = "ghcr.io/project-akri/akri/rust-crossbuild:aarch64-unknown-linux-gnu-0.1.16-0.0.7"

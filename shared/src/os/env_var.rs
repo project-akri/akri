@@ -27,8 +27,6 @@ impl EnvVarQuery for ActualEnvVarQuery {
     }
 
     fn get_env_vars(&self) -> Vec<(String, String)> {
-        env::vars()
-            .map(|(n, v)| (n, v))
-            .collect::<Vec<(String, String)>>()
+        env::vars().collect::<Vec<(String, String)>>()
     }
 }

@@ -419,7 +419,7 @@ mod tests {
 
         assert_eq!(
             &NodeState::Known,
-            node_watcher.known_nodes.get(&"node-a".to_string()).unwrap()
+            node_watcher.known_nodes.get("node-a").unwrap()
         )
     }
 
@@ -439,7 +439,7 @@ mod tests {
 
         assert_eq!(
             &NodeState::Running,
-            node_watcher.known_nodes.get(&"node-a".to_string()).unwrap()
+            node_watcher.known_nodes.get("node-a").unwrap()
         )
     }
 
@@ -485,7 +485,7 @@ mod tests {
 
         assert_eq!(
             &NodeState::InstancesCleaned,
-            node_watcher.known_nodes.get(&"node-b".to_string()).unwrap()
+            node_watcher.known_nodes.get("node-b").unwrap()
         )
     }
 
@@ -507,7 +507,7 @@ mod tests {
 
         assert_eq!(
             &NodeState::Running,
-            node_watcher.known_nodes.get(&"node-b".to_string()).unwrap()
+            node_watcher.known_nodes.get("node-b").unwrap()
         )
     }
 
@@ -551,7 +551,7 @@ mod tests {
 
         assert_eq!(
             &NodeState::InstancesCleaned,
-            node_watcher.known_nodes.get(&"node-b".to_string()).unwrap()
+            node_watcher.known_nodes.get("node-b").unwrap()
         )
     }
 
