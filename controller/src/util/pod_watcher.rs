@@ -1,5 +1,7 @@
-use crate::util::controller_ctx::{ControllerContext, PodState};
+use crate::util::context::{PodState, PodWatcherContext};
 use crate::util::{ControllerError, Result};
+use crate::BROKER_POD_COUNT_METRIC;
+use akri_shared::k8s::AKRI_TARGET_NODE_LABEL_NAME;
 use akri_shared::{
     akri::{configuration::Configuration, instance::Instance, API_NAMESPACE},
     k8s::{
@@ -65,9 +67,7 @@ fn get_broker_pod_owner_kind(pod: Arc<Pod>) -> BrokerPodOwnerKind {
     }
 }
 
-pub async fn check(
-    client: Arc<dyn super::controller_ctx::ControllerKubeClient>,
-) -> anyhow::Result<()> {
+pub async fn check(client: Arc<dyn super::context::ControllerKubeClient>) -> anyhow::Result<()> {
     let api: Box<dyn Api<Pod>> = client.all();
     if let Err(e) = api.list(&ListParams::default().limit(1)).await {
         anyhow::bail!("Pods are not queryable; {e:?}")
@@ -78,7 +78,7 @@ pub async fn check(
 pub fn error_policy(
     _pod: Arc<Pod>,
     error: &ControllerError,
-    _ctx: Arc<ControllerContext>,
+    _ctx: Arc<PodWatcherContext>,
 ) -> Action {
     log::warn!("reconcile failed: {:?}", error);
     Action::requeue(std::time::Duration::from_secs(5 * 60))
@@ -96,7 +96,7 @@ pub fn error_policy(
 /// still have other broker Pods supporting them.  If there
 /// are no other supporting broker Pods, delete one or both
 /// of the services.
-pub async fn reconcile(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> Result<Action> {
+pub async fn reconcile(pod: Arc<Pod>, ctx: Arc<PodWatcherContext>) -> Result<Action> {
     trace!("Reconciling broker pod {}", pod.name_any());
     finalizer(
         &ctx.client.clone().all().as_inner(),
@@ -108,7 +108,7 @@ pub async fn reconcile(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> Result<Act
     .map_err(|e| ControllerError::FinalizerError(Box::new(e)))
 }
 
-async fn reconcile_inner(event: Event<Pod>, ctx: Arc<ControllerContext>) -> Result<Action> {
+async fn reconcile_inner(event: Event<Pod>, ctx: Arc<PodWatcherContext>) -> Result<Action> {
     match event {
         Event::Apply(pod) => {
             let phase = get_pod_phase(&pod);
@@ -158,12 +158,12 @@ fn get_pod_phase(pod: &Pod) -> String {
 
 async fn handle_pod<F, Fut>(
     pod: Arc<Pod>,
-    ctx: Arc<ControllerContext>,
+    ctx: Arc<PodWatcherContext>,
     desired_state: PodState,
     handler: F,
 ) -> anyhow::Result<()>
 where
-    F: FnOnce(Arc<Pod>, Arc<ControllerContext>) -> Fut,
+    F: FnOnce(Arc<Pod>, Arc<PodWatcherContext>) -> Fut,
     Fut: Future<Output = anyhow::Result<()>>,
 {
     trace!("handle_pod_if_needed - enter");
@@ -207,7 +207,7 @@ fn get_instance_and_configuration_from_pod(pod: Arc<Pod>) -> anyhow::Result<(Str
 /// This is called when a broker Pod exits the Running phase and ensures
 /// that instance and configuration services are only running when
 /// supported by Running broker Pods.
-async fn handle_non_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
+async fn handle_non_running_pod(pod: Arc<Pod>, ctx: Arc<PodWatcherContext>) -> anyhow::Result<()> {
     trace!("handle_non_running_pod - enter");
     let namespace = pod.namespace().unwrap();
     let (instance_id, config_name) = get_instance_and_configuration_from_pod(pod.clone())?;
@@ -244,11 +244,21 @@ async fn handle_non_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> a
         svc_api.as_ref(),
     )
     .await?;
+    let fallback_node = "unknown".to_string();
+    let node = pod
+        .labels()
+        .get(AKRI_TARGET_NODE_LABEL_NAME)
+        .unwrap_or(&fallback_node);
+
+    BROKER_POD_COUNT_METRIC
+        .with_label_values(&[&config_name, node])
+        .dec();
 
     // Only redeploy Pods that are managed by the Akri Controller (controlled by an Instance OwnerReference)
     if get_broker_pod_owner_kind(pod) == BrokerPodOwnerKind::Instance {
-        if let Ok(Some(instance)) = ctx.client.namespaced(&namespace).get(&instance_id).await {
-            super::instance_action::handle_instance_change(instance, ctx.client.clone()).await?;
+        let client: Box<dyn Api<Instance>> = ctx.client.namespaced(&namespace);
+        if let Ok(Some(instance)) = client.get(&instance_id).await {
+            super::instance_action::handle_instance_change(&instance, ctx.client.clone()).await?;
         }
     }
     Ok(())
@@ -290,7 +300,7 @@ async fn cleanup_svc_if_unsupported(
 /// This is called when a Pod enters the Running phase and ensures
 /// that instance and configuration services are running as specified
 /// by the configuration.
-async fn handle_running_pod(pod: Arc<Pod>, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
+async fn handle_running_pod(pod: Arc<Pod>, ctx: Arc<PodWatcherContext>) -> anyhow::Result<()> {
     trace!("handle_running_pod - enter");
     let namespace = pod.namespace().unwrap();
     let (instance_name, configuration_name) = get_instance_and_configuration_from_pod(pod)?;
@@ -341,7 +351,7 @@ async fn add_instance_and_configuration_services(
     namespace: &str,
     configuration_name: &str,
     configuration: &Configuration,
-    ctx: Arc<ControllerContext>,
+    ctx: Arc<PodWatcherContext>,
 ) -> anyhow::Result<()> {
     trace!(
         "add_instance_and_configuration_services - instance={:?}",
@@ -706,7 +716,7 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "copnfig_name", "Unknown", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(Arc::new(
+        let ctx = Arc::new(PodWatcherContext::new(Arc::new(
             MockControllerKubeClient::default(),
         )));
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
@@ -724,7 +734,7 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Pending", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(Arc::new(
+        let ctx = Arc::new(PodWatcherContext::new(Arc::new(
             MockControllerKubeClient::default(),
         )));
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
@@ -743,7 +753,7 @@ mod tests {
         let pod =
             make_pod_with_owners_and_phase("instance_name", "config_name", "Running", "Instance");
         let pod_name = pod.name_unchecked();
-        let ctx = Arc::new(ControllerContext::new(Arc::new(
+        let ctx = Arc::new(PodWatcherContext::new(Arc::new(
             MockControllerKubeClient::default(),
         )));
         ctx.known_pods
@@ -813,7 +823,7 @@ mod tests {
             .return_once(|_| Box::new(mock_svc_api))
             .with(mockall::predicate::eq("test-ns"));
 
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(PodWatcherContext::new(Arc::new(mock)));
 
         reconcile_inner(Event::Apply(Arc::new(pod)), ctx.clone())
             .await
@@ -827,7 +837,7 @@ mod tests {
     fn controller_ctx_for_handle_ended_pod_if_needed(
         pod_list: ObjectList<Pod>,
         delete_config_svc: bool,
-    ) -> ControllerContext {
+    ) -> PodWatcherContext {
         let mut mock = MockControllerKubeClient::default();
         let mut mock_config_api: MockApi<Configuration> = MockApi::new();
         mock_config_api.expect_get().return_once(|_| {
@@ -878,7 +888,7 @@ mod tests {
             .expect_namespaced()
             .return_once(|_| Box::new(mock_svc_api))
             .with(mockall::predicate::eq("test-ns"));
-        ControllerContext::new(Arc::new(mock))
+        PodWatcherContext::new(Arc::new(mock))
     }
 
     async fn test_reconcile_applied_terminated_phases(phase: &str) {

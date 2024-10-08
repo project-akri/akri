@@ -6,7 +6,7 @@
 //! that the Instance.deviceUsage property no longer contains
 //! slots that are occupied by the node.
 use crate::util::{
-    controller_ctx::{ControllerContext, NodeState},
+    context::{NodeState, NodeWatcherContext},
     ControllerError, Result,
 };
 use akri_shared::akri::instance::{device_usage::NodeUsage, Instance};
@@ -28,7 +28,7 @@ use log::{info, trace};
 use std::str::FromStr;
 use std::{collections::HashMap, sync::Arc};
 
-use super::controller_ctx::ControllerKubeClient;
+use super::context::ControllerKubeClient;
 
 pub static NODE_FINALIZER: &str = "akri-node-watcher.kube.rs";
 
@@ -43,7 +43,7 @@ pub async fn check(client: Arc<dyn ControllerKubeClient>) -> anyhow::Result<()> 
 pub fn error_policy(
     _node: Arc<Node>,
     error: &ControllerError,
-    _ctx: Arc<ControllerContext>,
+    _ctx: Arc<NodeWatcherContext>,
 ) -> Action {
     log::warn!("reconcile failed: {:?}", error);
     Action::requeue(std::time::Duration::from_secs(5 * 60))
@@ -67,7 +67,7 @@ pub fn error_policy(
 /// Once a Node moves through the Running state into a non Running
 /// state, it becomes important to clean Instances referencing the
 /// non-Running Node.
-pub async fn reconcile(node: Arc<Node>, ctx: Arc<ControllerContext>) -> Result<Action> {
+pub async fn reconcile(node: Arc<Node>, ctx: Arc<NodeWatcherContext>) -> Result<Action> {
     trace!("Reconciling node {}", node.name_any());
     finalizer(
         &ctx.client.clone().all().as_inner(),
@@ -80,7 +80,7 @@ pub async fn reconcile(node: Arc<Node>, ctx: Arc<ControllerContext>) -> Result<A
     .map_err(|e| ControllerError::FinalizerError(Box::new(e)))
 }
 
-async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Result<Action> {
+async fn reconcile_inner(event: Event<Node>, ctx: Arc<NodeWatcherContext>) -> Result<Action> {
     match event {
         Event::Apply(node) => {
             let node_name = node.name_unchecked();
@@ -114,7 +114,10 @@ async fn reconcile_inner(event: Event<Node>, ctx: Arc<ControllerContext>) -> Res
 /// This should be called for Nodes that are either !Ready or Deleted.
 /// This function will clean up any Instances that reference a Node that
 /// was previously Running.
-async fn handle_node_disappearance(node: &Node, ctx: Arc<ControllerContext>) -> anyhow::Result<()> {
+async fn handle_node_disappearance(
+    node: &Node,
+    ctx: Arc<NodeWatcherContext>,
+) -> anyhow::Result<()> {
     let node_name = node.name_unchecked();
     trace!(
         "handle_node_disappearance - enter: {:?}",
@@ -284,7 +287,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
@@ -305,7 +308,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         reconcile_inner(Event::Apply(Arc::new(node)), ctx.clone())
             .await
             .unwrap();
@@ -326,7 +329,7 @@ mod tests {
         mock.node
             .expect_all()
             .return_once(|| Box::new(MockApi::new()));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -373,7 +376,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -420,7 +423,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         ctx.known_nodes
             .write()
             .await
@@ -463,7 +466,7 @@ mod tests {
         mock.instance
             .expect_all()
             .return_once(move || Box::new(instance_api_mock));
-        let ctx = Arc::new(ControllerContext::new(Arc::new(mock)));
+        let ctx = Arc::new(NodeWatcherContext::new(Arc::new(mock)));
         reconcile_inner(Event::Cleanup(Arc::new(node)), ctx.clone())
             .await
             .unwrap();

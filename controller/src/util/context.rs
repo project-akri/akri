@@ -83,19 +83,42 @@ impl<
 {
 }
 
-pub struct ControllerContext {
+pub struct NodeWatcherContext {
     /// Kubernetes client
     pub client: Arc<dyn ControllerKubeClient>,
-    pub known_pods: Arc<RwLock<HashMap<String, PodState>>>,
     pub known_nodes: Arc<RwLock<HashMap<String, NodeState>>>,
 }
 
-impl ControllerContext {
+impl NodeWatcherContext {
     pub fn new(client: Arc<dyn ControllerKubeClient>) -> Self {
-        ControllerContext {
+        NodeWatcherContext {
             client,
-            known_pods: Arc::new(RwLock::new(HashMap::new())),
             known_nodes: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+}
+
+pub struct PodWatcherContext {
+    /// Kubernetes client
+    pub client: Arc<dyn ControllerKubeClient>,
+    pub known_pods: Arc<RwLock<HashMap<String, PodState>>>,
+}
+
+impl PodWatcherContext {
+    pub fn new(client: Arc<dyn ControllerKubeClient>) -> Self {
+        PodWatcherContext {
+            client,
+            known_pods: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+pub struct InstanceControllerContext(Arc<dyn ControllerKubeClient>);
+impl InstanceControllerContext {
+    pub fn new(client: Arc<dyn ControllerKubeClient>) -> Self {
+        InstanceControllerContext(client)
+    }
+    pub fn client(&self) -> Arc<dyn ControllerKubeClient> {
+        Arc::clone(&self.0)
     }
 }

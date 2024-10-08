@@ -1,6 +1,7 @@
-use crate::util::controller_ctx::ControllerKubeClient;
-use crate::util::{pod_action::PodAction, pod_action::PodActionInfo};
-use crate::BROKER_POD_COUNT_METRIC;
+use super::super::BROKER_POD_COUNT_METRIC;
+use super::{pod_action::PodAction, pod_action::PodActionInfo};
+use crate::util::context::{ControllerKubeClient, InstanceControllerContext};
+use crate::util::{ControllerError, Result};
 use akri_shared::akri::configuration::Configuration;
 use akri_shared::k8s::api::Api;
 use akri_shared::{
@@ -11,13 +12,17 @@ use akri_shared::{
     },
 };
 use anyhow::Context;
-use futures::TryStreamExt;
+use futures::StreamExt;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
 
 use kube::{
     api::{ListParams, ResourceExt},
-    runtime::{controller::Action, watcher::watcher, watcher::Config, WatchStreamExt},
+    runtime::{
+        controller::{Action, Controller},
+        finalizer::{finalizer, Event},
+        watcher::Config,
+    },
 };
 use log::{error, trace};
 use std::collections::HashMap;
@@ -27,37 +32,76 @@ use std::sync::Arc;
 pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
 /// Length of time a Pod can be in an error state before we retry
 pub const FAILED_POD_GRACE_PERIOD_MINUTES: i64 = 0;
-// Identifier for the controller to be set as the field manager for server-side apply
-pub const CONTROLLER_FIELD_MANAGER_ID: &str = "akri.sh/controller";
 
-/// This function is the main Reconcile function for Instance resources
-/// This will get called every time an Instance gets added or is changed.
-pub async fn run(client: Arc<dyn ControllerKubeClient>) -> anyhow::Result<()> {
-    let api: Box<dyn Api<Instance>> = client.all();
+pub static INSTANCE_FINALIZER: &str = "instances.kube.rs";
+
+/// Initialize the instance controller
+/// TODO: consider passing state that is shared among controllers such as a metrics exporter
+pub async fn run(ctx: Arc<InstanceControllerContext>) {
+    let api = ctx.client().all().as_inner();
     if let Err(e) = api.list(&ListParams::default().limit(1)).await {
         error!("Instance CRD is not queryable; {e:?}. Is the CRD installed?");
         std::process::exit(1);
     }
+    Controller::new(api, Config::default().any_semantic())
+        .shutdown_on_signal()
+        .run(reconcile, error_policy, ctx.clone())
+        .filter_map(|x| async move { std::result::Result::ok(x) })
+        .for_each(|_| futures::future::ready(()))
+        .await;
+}
 
-    // First handle existing instances
-    let instances = api.list(&ListParams::default()).await?;
-    for instance in instances {
-        handle_instance_change(instance, client.clone()).await?;
+fn error_policy(
+    _instance: Arc<Instance>,
+    error: &ControllerError,
+    _ctx: Arc<InstanceControllerContext>,
+) -> Action {
+    log::warn!("reconcile failed: {:?}", error);
+    Action::requeue(std::time::Duration::from_secs(5 * 60))
+}
+
+/// Instance event types
+///
+/// Instance actions describe the types of actions the Controller can
+/// react to for Instances.
+///
+/// This will determine what broker management actions to take (if any)
+///
+///   | --> Instance Applied
+///                 | --> No broker => Do nothing
+///                 | --> <BrokerSpec::BrokerJobSpec> => Deploy a Job if one does not exist
+///                 | --> <BrokerSpec::BrokerPodSpec> => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod.
+///                                                      Deploy Pods as necessary
+
+/// This function is the main Reconcile function for Instance resources
+/// This will get called every time an Instance gets added or is changed, it will also be called for every existing instance on startup.
+pub async fn reconcile(
+    instance: Arc<Instance>,
+    ctx: Arc<InstanceControllerContext>,
+) -> Result<Action> {
+    let ns = instance.namespace().unwrap(); // instance has namespace scope
+    trace!("Reconciling {} in {}", instance.name_any(), ns);
+    finalizer(
+        &ctx.client().all().as_inner(),
+        INSTANCE_FINALIZER,
+        instance,
+        |event| reconcile_inner(event, ctx.client()),
+    )
+    .await
+    .map_err(|e| ControllerError::FinalizerError(Box::new(e)))
+}
+
+async fn reconcile_inner(
+    event: Event<Instance>,
+    client: Arc<dyn ControllerKubeClient>,
+) -> Result<Action> {
+    match event {
+        Event::Apply(instance) => handle_instance_change(&instance, client).await,
+        Event::Cleanup(_) => {
+            // Do nothing. OwnerReferences are attached to Jobs and Pods to automate cleanup
+            Ok(default_requeue_action())
+        }
     }
-
-    watcher(api.as_inner(), Config::default())
-        .applied_objects()
-        .try_for_each(move |instance| {
-            let client = client.clone();
-            async move {
-                handle_instance_change(instance, client)
-                    .await
-                    .map_err(kube::runtime::watcher::Error::WatchFailed)?;
-                Ok(())
-            }
-        })
-        .await?;
-    Ok(())
 }
 
 /// PodContext stores a set of details required to track/create/delete broker
@@ -171,7 +215,7 @@ async fn handle_deletion_work(
     api.delete(&pod_app_name).await?;
     trace!("handle_deletion_work - pod::remove_pod succeeded");
     BROKER_POD_COUNT_METRIC
-        .with_label_values(&[configuration_name, &context_node_name])
+        .with_label_values(&[configuration_name, context_node_name])
         .dec();
     Ok(())
 }
@@ -190,7 +234,7 @@ async fn handle_addition_work(
     );
 
     trace!("handle_addition_work - New pod spec={:?}", pod);
-    api.apply(pod, CONTROLLER_FIELD_MANAGER_ID).await?;
+    api.apply(pod, INSTANCE_FINALIZER).await?;
     trace!("handle_addition_work - pod::create_pod succeeded",);
     BROKER_POD_COUNT_METRIC
         .with_label_values(&[configuration_name, new_node])
@@ -201,15 +245,11 @@ async fn handle_addition_work(
 
 /// Handle Instance change by
 /// 1) checking to make sure the Instance's Configuration exists
-/// 2) taking the appropriate action depending on the broker type (Pod or Job) if any:
-/// | --> No broker => Do nothing
-/// | --> <BrokerSpec::BrokerJobSpec> => Deploy a Job if one does not exist
-/// | --> <BrokerSpec::BrokerPodSpec> => Ensure that each Node on Instance's `nodes` list (up to `capacity` total) have a Pod.
-///                                     Deploy Pods as necessary
+/// 2) calling the appropriate handler depending on the broker type (Pod or Job) if any
 pub async fn handle_instance_change(
-    instance: Instance,
+    instance: &Instance,
     client: Arc<dyn ControllerKubeClient>,
-) -> kube::Result<Action> {
+) -> Result<Action> {
     trace!("handle_instance_change - enter");
     let instance_namespace = instance.namespace().unwrap();
     let api: Box<dyn Api<Configuration>> = client.namespaced(&instance_namespace);
@@ -227,10 +267,10 @@ pub async fn handle_instance_change(
         return Ok(default_requeue_action());
     };
     let res = match broker_spec {
-        BrokerSpec::BrokerPodSpec(p) => handle_instance_change_pod(&instance, p, client).await,
+        BrokerSpec::BrokerPodSpec(p) => handle_instance_change_pod(instance, p, client).await,
         BrokerSpec::BrokerJobSpec(j) => {
             handle_instance_change_job(
-                &instance,
+                instance,
                 *configuration.metadata.generation.as_ref().unwrap(),
                 j,
                 client.clone(),
@@ -577,9 +617,11 @@ mod handle_instance_tests {
         instance_file: &'static str,
     ) {
         trace!("run_handle_instance_change_test enter");
-        let instance_json: String = file::read_file_to_string(instance_file);
+        let instance_json = file::read_file_to_string(instance_file);
         let instance: Instance = serde_json::from_str(&instance_json).unwrap();
-        handle_instance_change(instance, client).await.unwrap();
+        reconcile_inner(Event::Apply(Arc::new(instance)), client)
+            .await
+            .unwrap();
         trace!("run_handle_instance_change_test exit");
     }
 
@@ -724,7 +766,7 @@ mod handle_instance_tests {
     }
 
     /// Checks that the BROKER_POD_COUNT_METRIC is appropriately incremented
-    /// when an instance is added. Cannot be run in parallel with other tests
+    /// instance is added and pods are created. Cannot be run in parallel with other tests
     /// due to the metric being a global variable and modified unpredictably by
     /// other tests.
     /// Run with: cargo test -- test_broker_pod_count_metric --ignored
@@ -751,5 +793,13 @@ mod handle_instance_tests {
             },
         );
         run_handle_instance_change_test(Arc::new(mock), "../test/json/local-instance.json").await;
+
+        // Check that broker pod count metric has been incremented to include new pod for this instance
+        assert_eq!(
+            BROKER_POD_COUNT_METRIC
+                .with_label_values(&["config-a", "node-a"])
+                .get(),
+            1
+        );
     }
 }

@@ -10,7 +10,10 @@ use futures::StreamExt;
 use kube::runtime::{watcher::Config, Controller};
 use prometheus::IntGaugeVec;
 use std::sync::Arc;
-use util::{controller_ctx::ControllerContext, instance_action, node_watcher, pod_watcher};
+use util::{
+    context::{InstanceControllerContext, NodeWatcherContext, PodWatcherContext},
+    instance_action, node_watcher, pod_watcher,
+};
 
 /// Length of time to sleep between controller system validation checks
 pub const SYSTEM_CHECK_DELAY_SECS: u64 = 30;
@@ -40,9 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // Start server for prometheus metrics
     tokio::spawn(run_metrics_server());
     let client = Arc::new(kube::Client::try_default().await?);
-    let controller_ctx = Arc::new(ControllerContext::new(client.clone()));
-    let node_watcher_ctx = controller_ctx.clone();
-    let pod_watcher_ctx = controller_ctx.clone();
+    let node_watcher_ctx = Arc::new(NodeWatcherContext::new(client.clone()));
+    let pod_watcher_ctx = Arc::new(PodWatcherContext::new(client.clone()));
 
     node_watcher::check(client.clone()).await?;
     let node_controller = Controller::new(
@@ -74,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     tokio::select! {
         _ = futures::future::join(node_controller, pod_controller) => {},
-        _ = instance_action::run(client) => {}
+        _ = instance_action::run(Arc::new(InstanceControllerContext::new(client))) => {}
     }
 
     log::info!("{} Controller end", API_NAMESPACE);

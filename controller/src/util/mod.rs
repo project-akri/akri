@@ -1,4 +1,4 @@
-pub(crate) mod controller_ctx;
+pub(crate) mod context;
 pub mod instance_action;
 pub mod node_watcher;
 mod pod_action;
