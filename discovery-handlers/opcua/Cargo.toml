@@ -18,6 +18,7 @@ log = "0.4"
 opcua = { version = "0.12.0", features = ["client"] }
 serde = "1.0.104"
 serde_derive = "1.0.1"
+serde_yaml = "0.9"
 tokio = { version = "1.0.2", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
 tonic = { version = "0.10", features = ["tls"] }
