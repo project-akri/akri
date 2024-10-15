@@ -87,8 +87,8 @@ pub struct NumaNode {
 /// Generated client implementations.
 pub mod pod_resources_lister_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// PodResourcesLister is a service provided by the kubelet that provides information about the
     /// node resources consumed by pods and containers on the node
     #[derive(Debug, Clone)]
@@ -134,8 +134,9 @@ pub mod pod_resources_lister_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             PodResourcesListerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -173,16 +174,23 @@ pub mod pod_resources_lister_client {
         pub async fn list(
             &mut self,
             request: impl tonic::IntoRequest<super::ListPodResourcesRequest>,
-        ) -> std::result::Result<tonic::Response<super::ListPodResourcesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ListPodResourcesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/v1.PodResourcesLister/List");
+            let path = http::uri::PathAndQuery::from_static(
+                "/v1.PodResourcesLister/List",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("v1.PodResourcesLister", "List"));
@@ -191,23 +199,28 @@ pub mod pod_resources_lister_client {
         pub async fn get_allocatable_resources(
             &mut self,
             request: impl tonic::IntoRequest<super::AllocatableResourcesRequest>,
-        ) -> std::result::Result<tonic::Response<super::AllocatableResourcesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::AllocatableResourcesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/v1.PodResourcesLister/GetAllocatableResources",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "v1.PodResourcesLister",
-                "GetAllocatableResources",
-            ));
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("v1.PodResourcesLister", "GetAllocatableResources"),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
@@ -222,11 +235,17 @@ pub mod pod_resources_lister_server {
         async fn list(
             &self,
             request: tonic::Request<super::ListPodResourcesRequest>,
-        ) -> std::result::Result<tonic::Response<super::ListPodResourcesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ListPodResourcesResponse>,
+            tonic::Status,
+        >;
         async fn get_allocatable_resources(
             &self,
             request: tonic::Request<super::AllocatableResourcesRequest>,
-        ) -> std::result::Result<tonic::Response<super::AllocatableResourcesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::AllocatableResourcesResponse>,
+            tonic::Status,
+        >;
     }
     /// PodResourcesLister is a service provided by the kubelet that provides information about the
     /// node resources consumed by pods and containers on the node
@@ -253,7 +272,10 @@ pub mod pod_resources_lister_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -309,11 +331,15 @@ pub mod pod_resources_lister_server {
                 "/v1.PodResourcesLister/List" => {
                     #[allow(non_camel_case_types)]
                     struct ListSvc<T: PodResourcesLister>(pub Arc<T>);
-                    impl<T: PodResourcesLister>
-                        tonic::server::UnaryService<super::ListPodResourcesRequest> for ListSvc<T>
-                    {
+                    impl<
+                        T: PodResourcesLister,
+                    > tonic::server::UnaryService<super::ListPodResourcesRequest>
+                    for ListSvc<T> {
                         type Response = super::ListPodResourcesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListPodResourcesRequest>,
@@ -351,12 +377,15 @@ pub mod pod_resources_lister_server {
                 "/v1.PodResourcesLister/GetAllocatableResources" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllocatableResourcesSvc<T: PodResourcesLister>(pub Arc<T>);
-                    impl<T: PodResourcesLister>
-                        tonic::server::UnaryService<super::AllocatableResourcesRequest>
-                        for GetAllocatableResourcesSvc<T>
-                    {
+                    impl<
+                        T: PodResourcesLister,
+                    > tonic::server::UnaryService<super::AllocatableResourcesRequest>
+                    for GetAllocatableResourcesSvc<T> {
                         type Response = super::AllocatableResourcesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AllocatableResourcesRequest>,
@@ -364,9 +393,10 @@ pub mod pod_resources_lister_server {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as PodResourcesLister>::get_allocatable_resources(
-                                    &inner, request,
-                                )
-                                .await
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -394,14 +424,18 @@ pub mod pod_resources_lister_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -427,7 +461,8 @@ pub mod pod_resources_lister_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: PodResourcesLister> tonic::server::NamedService for PodResourcesListerServer<T> {
+    impl<T: PodResourcesLister> tonic::server::NamedService
+    for PodResourcesListerServer<T> {
         const NAME: &'static str = "v1.PodResourcesLister";
     }
 }
