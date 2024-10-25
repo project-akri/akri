@@ -405,7 +405,7 @@ impl InternalDevicePlugin for InstanceDevicePlugin {
                         tonic::Status::unknown("Unable to claim slot")
                     })?;
             }
-            container_responses.push(cdi_device_to_car(&self.instance_name, &self.device));
+            container_responses.push(cdi_device_to_car(&self.device));
         }
         Ok(tonic::Response::new(AllocateResponse {
             container_responses,
@@ -413,21 +413,23 @@ impl InternalDevicePlugin for InstanceDevicePlugin {
     }
 }
 
-fn cdi_device_to_car(instance_name: &str, device: &cdi::Device) -> ContainerAllocateResponse {
+fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
+    // Device name is in the format akri.sh/c<config_name>-<instance-hash>
+    // Append deterministic instance hash to broker envs to avoid conflicts
+    let instance_hash = device
+        .name
+        .split('-')
+        .last()
+        .unwrap_or_default()
+        .to_uppercase();
     ContainerAllocateResponse {
         envs: device
             .container_edits
             .env
             .iter()
             .map(|e| match e.split_once('=') {
-                Some((k, v)) => (
-                    format!("{}_{}", k, instance_name.to_uppercase()),
-                    v.to_string(),
-                ),
-                None => (
-                    format!("{}_{}", e, instance_name.to_uppercase()),
-                    "".to_string(),
-                ),
+                Some((k, v)) => (format!("{}_{}", k, instance_hash), v.to_string()),
+                None => (format!("{}_{}", e, instance_hash), "".to_string()),
             })
             .collect(),
         mounts: device
@@ -672,7 +674,7 @@ impl InternalDevicePlugin for ConfigurationDevicePlugin {
                         .get(&dev)
                         .ok_or(tonic::Status::unknown("Invalid slot"))?
                         .clone();
-                    container_responses.push(cdi_device_to_car(&dp.instance_name, &dp.device));
+                    container_responses.push(cdi_device_to_car(&dp.device));
                     dp.claim_slot(
                         None,
                         DeviceUsage::Configuration {

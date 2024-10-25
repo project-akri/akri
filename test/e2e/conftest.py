@@ -71,7 +71,7 @@ def install_akri(request, pytestconfig, akri_version):
             helm_install_command.extend(
                 [
                     "--set",
-                    "agent.allowDebugEcho=true,debugEcho.configuration.shared=false",
+                    "agent.allowDebugEcho=true",
                 ]
             )
         if pytestconfig.getoption("--use-local"):

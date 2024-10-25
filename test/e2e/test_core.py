@@ -52,7 +52,6 @@ def test_all_scheduled(akri_version, basic_config):
     assert_svc_present(basic_config, True, 2)
     assert_svc_present(basic_config, False, 1)
 
-
 def test_device_offline(akri_version, basic_config):
     # Check we are in sane setup
     assert_akri_instances_present(akri_version, basic_config, 2)
@@ -61,15 +60,35 @@ def test_device_offline(akri_version, basic_config):
     assert_svc_present(basic_config, False, 1)
 
     v1_core = kubernetes.client.CoreV1Api()
-    pods = v1_core.list_namespaced_pod(
+    broker_pods = v1_core.list_namespaced_pod(
+        "default",
+        label_selector="akri.sh/configuration=akri-debug-echo-foo",
+        field_selector="status.phase=Running",
+    ).items
+    base_command = ["/bin/sh", "-c"]
+    for pod in broker_pods:
+        envs = kubernetes.stream.stream(
+            v1_core.connect_get_namespaced_pod_exec,
+            pod.metadata.name,
+            "default",
+            command="printenv",
+            stdout=True,
+            stdin=False,
+            stderr=False,
+            tty=False,
+        )
+        # TODO: Check env var suffix is as expected
+        if "DEBUG_ECHO_DESCRIPTION" not in envs:
+            raise AssertionError(f"DEBUG_ECHO_DESCRIPTION env var not found in broker")
+
+    dh_pods = v1_core.list_namespaced_pod(
         "default",
         label_selector=f"app.kubernetes.io/name=akri-debug-echo-discovery",
         field_selector="status.phase=Running",
     ).items
-    base_command = ["/bin/sh", "-c"]
     command = "echo {} > /tmp/debug-echo-availability.txt"
     # Unplug the devices
-    for pod in pods:
+    for pod in dh_pods:
         kubernetes.stream.stream(
             v1_core.connect_get_namespaced_pod_exec,
             pod.metadata.name,
@@ -85,7 +104,7 @@ def test_device_offline(akri_version, basic_config):
     assert_svc_present(basic_config, True, 0)
     assert_svc_present(basic_config, False, 0)
     # Plug them back
-    for pod in pods:
+    for pod in dh_pods:
         kubernetes.stream.stream(
             v1_core.connect_get_namespaced_pod_exec,
             pod.metadata.name,
@@ -100,7 +119,6 @@ def test_device_offline(akri_version, basic_config):
     assert_broker_pods_running(basic_config, 2)
     assert_svc_present(basic_config, True, 2)
     assert_svc_present(basic_config, False, 1)
-
 
 def test_cleanup(akri_version, faker):
     with open(Path(__file__).parent / "yaml/debugEchoConfiguration.yaml") as f:
