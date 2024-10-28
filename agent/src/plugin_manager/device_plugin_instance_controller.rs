@@ -422,16 +422,28 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
         .last()
         .unwrap_or_default()
         .to_uppercase();
+
+    // Mount all device environment variables with and without a suffix of the
+    // instance hash. Envs without a suffix could be undeterministically
+    // overridden by other allocated instances discovered by the same Discovery
+    // Handler. Unsuffixed envs should only be referrenced if they are
+    // additional Configuration.broker_properties or if only one instance of a
+    // DH is allocated to the broker.
+    let envs = device
+        .container_edits
+        .env
+        .iter()
+        .map(|e| match e.split_once('=') {
+            Some((k, v)) => (k.to_string(), v.to_string()),
+            None => (e.to_string(), "".to_string()),
+        });
+
+    let suffixed_envs = envs
+        .clone()
+        .map(|(k, v)| (format!("{}_{}", k, instance_hash), v));
+
     ContainerAllocateResponse {
-        envs: device
-            .container_edits
-            .env
-            .iter()
-            .map(|e| match e.split_once('=') {
-                Some((k, v)) => (format!("{}_{}", k, instance_hash), v.to_string()),
-                None => (format!("{}_{}", e, instance_hash), "".to_string()),
-            })
-            .collect(),
+        envs: envs.chain(suffixed_envs).collect(),
         mounts: device
             .container_edits
             .mounts
