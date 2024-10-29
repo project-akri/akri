@@ -115,17 +115,21 @@ pub async fn reconcile(
 
     let discovered_instances: Vec<Instance> =
         match ctx.dh_registry.get_request(&dc.name_any()).await {
-            Some(req) => req
-                .get_instances()?
-                .into_iter()
-                .map(|mut instance| {
-                    // Add
-                    instance.spec.nodes = vec![ctx.agent_identifier.to_owned()];
-                    instance.owner_references_mut().push(owner_ref.clone());
-                    instance.spec.capacity = dc.spec.capacity;
-                    instance
-                })
-                .collect(),
+            Some(req) => {
+                req.set_extra_device_properties(dc.spec.broker_properties.clone())
+                    .await;
+                req.get_instances()
+                    .await?
+                    .into_iter()
+                    .map(|mut instance| {
+                        // Add
+                        instance.spec.nodes = vec![ctx.agent_identifier.to_owned()];
+                        instance.owner_references_mut().push(owner_ref.clone());
+                        instance.spec.capacity = dc.spec.capacity;
+                        instance
+                    })
+                    .collect()
+            }
             None => {
                 ctx.dh_registry
                     .new_request(
@@ -474,6 +478,9 @@ mod tests {
 
         let mut registry = MockDiscoveryHandlerRegistry::new();
         let mut request = MockDiscoveryHandlerRequest::new();
+        request
+            .expect_set_extra_device_properties()
+            .returning(|_| {});
         request.expect_get_instances().returning(|| Ok(vec![]));
         registry
             .expect_get_request()
