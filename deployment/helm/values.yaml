@@ -16,6 +16,13 @@ useDevelopmentContainers: true
 # This can be set from the helm command line using `--set imagePullSecrets[0].name="mysecret"`
 imagePullSecrets: []
 
+cleanupHook:
+  # enabled defines whether to enable the Helm pre-delete hook to cleanup
+  # Configurations during chart deletion. Also applies associated RBAC for the
+  # hook. More information on Helm hooks:
+  # https://helm.sh/docs/topics/charts_hooks/
+  enabled: true
+
 # generalize references to `apiGroups` and `apiVersion` values for Akri CRDs
 crds:
   group: akri.sh
