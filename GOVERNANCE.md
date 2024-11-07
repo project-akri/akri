@@ -47,15 +47,18 @@ Beyond maintaining Akri's code, maintainers also:
   enforce Akri's [Code of Conduct](CODE_OF_CONDUCT.md).
 - Triage issues (add labels, promote discussions, close issues)
 
-If a **maintainer is no longer interested** or cannot perform the maintainer duties
-listed above, they should volunteer to be moved to emeritus status.
-
 Regular contributors can **become a maintainer of Akri**. If you frequently find
 yourself doing any combination of commenting on issues, adding thoughts to PRs,
 contributing PRs, writing proposals, attending community meetings, promoting
 discussion on Slack, and so on, you may be a great candidate to become a
 maintainer! Please reach out to one or more [maintainers](./CODEOWNERS) -- we
 may even ask you first!
+
+#### Emeritus Maintainers
+Akri has a list of emeritus maintainers for maintainers that have contributed to Akri in the past but are no longer actively maintaining the project. 
+- If a **maintainer is no longer interested** or cannot perform the maintainer duties
+listed above, they can volunteer to be moved to emeritus status. 
+- If a **maintainer has not been involved in their maintainer duties for 3 months or longer**, they will automatically be moved to emeritus status. However, should they choose to become involved again, they can be moved back into the active maintainer status. 
 
 ### Admin
 Admins are maintainers with the added ability manage and create new repositories
