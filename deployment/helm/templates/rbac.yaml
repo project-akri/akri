@@ -106,9 +106,9 @@ metadata:
   labels:
     app.kubernetes.io/component: helm-hook
 rules:
-- apiGroups: ["akri.sh"]
+- apiGroups: [{{ .Values.crds.group | quote }}]
   resources: ["configurations"]
-  verbs: ["deletecollection"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
 ---
 apiVersion: 'rbac.authorization.k8s.io/v1'
 kind: 'ClusterRoleBinding'

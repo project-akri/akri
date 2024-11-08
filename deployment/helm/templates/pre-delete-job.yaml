@@ -28,9 +28,9 @@ spec:
       serviceAccountName: akri-helm-cleanup-hook-sa
       containers:
       - name: delete-configurations
-        image: curlimages/curl:latest
+        image: bitnami/kubectl:latest
         command: ["/bin/sh", "-c"]
         args: [
-          "curl -ik -X DELETE -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" https://kubernetes.default.svc.cluster.local/apis/akri.sh/v0/namespaces/{{ .Release.Namespace }}/configurations"
+          "kubectl delete configurations.akri.sh --all --all-namespaces --wait"
         ]
 {{- end }}
