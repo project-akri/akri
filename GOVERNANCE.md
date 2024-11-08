@@ -58,7 +58,7 @@ may even ask you first!
 Akri has a list of emeritus maintainers for maintainers that have contributed to Akri in the past but are no longer actively maintaining the project. 
 - If a **maintainer is no longer interested** or cannot perform the maintainer duties
 listed above, they can volunteer to be moved to emeritus status. 
-- If a **maintainer has not been involved in their maintainer duties for 3 months or longer**, they will automatically be moved to emeritus status. However, should they choose to become involved again, they can be moved back into the active maintainer status. 
+- If a **maintainer has not been involved in their maintainer duties for 6 months or longer**, they will automatically be moved to emeritus status. However, should they choose to become involved again, they can be moved back into the active maintainer status. 
 
 ### Admin
 Admins are maintainers with the added ability manage and create new repositories
