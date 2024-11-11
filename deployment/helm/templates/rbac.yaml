@@ -90,4 +90,39 @@ subjects:
   - kind: 'ServiceAccount'
     name: 'akri-agent-sa'
     namespace: {{ .Release.Namespace }}
+{{- if .Values.cleanupHook.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: akri-helm-cleanup-hook-sa
+  labels:
+    app.kubernetes.io/component: helm-hook
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "akri-helm-cleanup-hook-role"
+  labels:
+    app.kubernetes.io/component: helm-hook
+rules:
+- apiGroups: [{{ .Values.crds.group | quote }}]
+  resources: ["configurations"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+---
+apiVersion: 'rbac.authorization.k8s.io/v1'
+kind: 'ClusterRoleBinding'
+metadata:
+  name: "akri-helm-cleanup-hook-binding"
+  labels:
+    app.kubernetes.io/component: helm-hook
+roleRef:
+  apiGroup: ''
+  kind: 'ClusterRole'
+  name: 'akri-helm-cleanup-hook-role'
+subjects:
+  - kind: 'ServiceAccount'
+    name: 'akri-helm-cleanup-hook-sa'
+    namespace: {{ .Release.Namespace }}
+{{- end }}
 {{- end }}
