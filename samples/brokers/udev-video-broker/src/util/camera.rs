@@ -13,8 +13,8 @@ pub struct NotifyResponse {
 /// Generated client implementations.
 pub mod camera_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
     pub struct CameraClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -58,8 +58,9 @@ pub mod camera_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
             CameraClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -98,17 +99,19 @@ pub mod camera_client {
             &mut self,
             request: impl tonic::IntoRequest<super::NotifyRequest>,
         ) -> std::result::Result<tonic::Response<super::NotifyResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/camera.Camera/GetFrame");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("camera.Camera", "GetFrame"));
+            req.extensions_mut().insert(GrpcMethod::new("camera.Camera", "GetFrame"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -148,7 +151,10 @@ pub mod camera_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -204,16 +210,21 @@ pub mod camera_server {
                 "/camera.Camera/GetFrame" => {
                     #[allow(non_camel_case_types)]
                     struct GetFrameSvc<T: Camera>(pub Arc<T>);
-                    impl<T: Camera> tonic::server::UnaryService<super::NotifyRequest> for GetFrameSvc<T> {
+                    impl<T: Camera> tonic::server::UnaryService<super::NotifyRequest>
+                    for GetFrameSvc<T> {
                         type Response = super::NotifyResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NotifyRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as Camera>::get_frame(&inner, request).await };
+                            let fut = async move {
+                                <T as Camera>::get_frame(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -240,14 +251,18 @@ pub mod camera_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
