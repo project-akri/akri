@@ -1,231 +1,53 @@
 #[cfg(test)]
 pub mod config_for_tests {
-    use akri_shared::{
-        akri::{
-            configuration::Configuration,
-            instance::{Instance, InstanceList, InstanceSpec},
-        },
-        k8s::MockKubeInterface,
-        os::file,
-    };
-    use k8s_openapi::api::core::v1::{Pod, Service};
-    use kube::api::ObjectList;
+    use super::mock_client::MockControllerKubeClient;
+    use akri_shared::{akri::configuration::Configuration, k8s::api::MockApi, os::file};
+    use chrono::DateTime;
+    use k8s_openapi::api::core::v1::Pod;
+    use kube::{api::ObjectList, ResourceExt};
     use log::trace;
 
     pub type PodList = ObjectList<Pod>;
-    pub type ServiceList = ObjectList<Service>;
-
-    pub fn configure_find_instance(
-        mock: &mut MockKubeInterface,
-        instance_name: &'static str,
-        instance_namespace: &'static str,
-        result_file: &'static str,
-        result_error: bool,
-    ) {
-        trace!("mock.expect_find_instance instance_name:{}", instance_name);
-        mock.expect_find_instance()
-            .times(1)
-            .withf(move |name, namespace| name == instance_name && namespace == instance_namespace)
-            .returning(move |_, _| {
-                if result_error {
-                    // Return error that instance could not be found
-                    Err(anyhow::anyhow!(kube::Error::Api(
-                        kube::error::ErrorResponse {
-                            status: "Failure".to_string(),
-                            message: "instances.akri.sh \"akri-blah-901a7b\" not found".to_string(),
-                            reason: "NotFound".to_string(),
-                            code: akri_shared::k8s::ERROR_NOT_FOUND,
-                        }
-                    )))
-                } else {
-                    let instance_json = file::read_file_to_string(result_file);
-                    let instance: Instance = serde_json::from_str(&instance_json).unwrap();
-                    Ok(instance)
-                }
-            });
-    }
-
-    const LIST_PREFIX: &str = r#"
-{
-    "apiVersion": "v1",
-    "items": ["#;
-    const LIST_SUFFIX: &str = r#"
-    ],
-    "kind": "List",
-    "metadata": {
-        "resourceVersion": "",
-        "selfLink": ""
-    }
-}"#;
-    fn listify_kube_object(node_json: &str) -> String {
-        format!("{}\n{}\n{}", LIST_PREFIX, node_json, LIST_SUFFIX)
-    }
-
-    pub fn configure_get_instances(
-        mock: &mut MockKubeInterface,
-        result_file: &'static str,
-        listify_result: bool,
-    ) {
-        trace!("mock.expect_get_instances namespace:None");
-        mock.expect_get_instances().times(1).returning(move || {
-            let json = file::read_file_to_string(result_file);
-            let instance_list_json = if listify_result {
-                listify_kube_object(&json)
-            } else {
-                json
-            };
-            let list: InstanceList = serde_json::from_str(&instance_list_json).unwrap();
-            Ok(list)
-        });
-    }
-
-    pub fn configure_update_instance(
-        mock: &mut MockKubeInterface,
-        instance_to_update: InstanceSpec,
-        instance_name: &'static str,
-        instance_namespace: &'static str,
-        result_error: bool,
-    ) {
-        trace!(
-            "mock.expect_update_instance name:{} namespace:{} error:{}",
-            instance_name,
-            instance_namespace,
-            result_error
-        );
-        mock.expect_update_instance()
-            .times(1)
-            .withf(move |instance, name, namespace| {
-                name == instance_name
-                    && namespace == instance_namespace
-                    && instance.nodes == instance_to_update.nodes
-                    && instance.device_usage == instance_to_update.device_usage
-            })
-            .returning(move |_, _, _| {
-                if result_error {
-                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
-                } else {
-                    Ok(())
-                }
-            });
-    }
 
     pub fn configure_find_config(
-        mock: &mut MockKubeInterface,
+        mock: &mut MockControllerKubeClient,
         config_name: &'static str,
         config_namespace: &'static str,
         result_file: &'static str,
         result_error: bool,
     ) {
         trace!("mock.expect_find_configuration config_name:{}", config_name);
-        mock.expect_find_configuration()
-            .times(1)
-            .withf(move |name, namespace| name == config_name && namespace == config_namespace)
-            .returning(move |_, _| {
-                if result_error {
-                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
-                } else {
-                    let config_json = file::read_file_to_string(result_file);
-                    let config: Configuration = serde_json::from_str(&config_json).unwrap();
-                    Ok(config)
-                }
-            });
-    }
-
-    pub fn configure_find_services(
-        mock: &mut MockKubeInterface,
-        svc_selector: &'static str,
-        result_file: &'static str,
-        result_error: bool,
-    ) {
-        trace!("mock.expect_find_services svc_selector:{}", svc_selector);
-        mock.expect_find_services()
-            .times(1)
-            .withf(move |selector| selector == svc_selector)
-            .returning(move |_| {
-                if result_error {
-                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
-                } else {
-                    let svcs_json = file::read_file_to_string(result_file);
-                    let svcs: ServiceList = serde_json::from_str(&svcs_json).unwrap();
-                    Ok(svcs)
-                }
-            });
-    }
-    pub fn configure_add_service(
-        mock: &mut MockKubeInterface,
-        svc_name: &'static str,
-        namespace: &'static str,
-        label_id: &'static str,
-        label_value: &'static str,
-    ) {
-        trace!(
-            "mock.expect_create_service name:{}, namespace:{}, [{}={}]",
-            &svc_name,
-            &namespace,
-            &label_id,
-            &label_value
-        );
-        mock.expect_create_service()
-            .withf(move |svc_to_create, ns| {
-                svc_to_create.metadata.name.as_ref().unwrap() == svc_name
-                    && svc_to_create
-                        .metadata
-                        .labels
-                        .as_ref()
-                        .unwrap()
-                        .get(label_id)
-                        .unwrap()
-                        == label_value
-                    && ns == namespace
+        mock.config
+            .expect_namespaced()
+            .return_once(move |_| {
+                let mut mock_api: MockApi<Configuration> = MockApi::new();
+                mock_api
+                    .expect_get()
+                    .times(1)
+                    .withf(move |name| name == config_name)
+                    .returning(move |_| {
+                        if result_error {
+                            Err(kube::Error::Api(kube::error::ErrorResponse {
+                                status: "Failure".to_string(),
+                                message: format!("configurations.akri.sh {config_name} not found"),
+                                reason: "NotFound".to_string(),
+                                code: akri_shared::k8s::ERROR_NOT_FOUND,
+                            }))
+                        } else {
+                            let config_json = file::read_file_to_string(result_file);
+                            let config: Configuration = serde_json::from_str(&config_json).unwrap();
+                            Ok(Some(config))
+                        }
+                    });
+                Box::new(mock_api)
             })
-            .returning(move |_, _| Ok(()));
-    }
-
-    pub fn configure_remove_service(
-        mock: &mut MockKubeInterface,
-        svc_name: &'static str,
-        svc_namespace: &'static str,
-    ) {
-        trace!(
-            "mock.expect_remove_service svc_name:{}, svc_namespace={}",
-            svc_name,
-            svc_namespace
-        );
-        mock.expect_remove_service()
-            .times(1)
-            .withf(move |svc_to_remove, namespace| {
-                svc_to_remove == svc_name && namespace == svc_namespace
-            })
-            .returning(move |_, _| Ok(()));
-    }
-
-    pub fn configure_update_service(
-        mock: &mut MockKubeInterface,
-        svc_name: &'static str,
-        svc_namespace: &'static str,
-        result_error: bool,
-    ) {
-        trace!(
-            "mock.expect_update_service name:{} namespace:{} error:{}",
-            svc_name,
-            svc_namespace,
-            result_error,
-        );
-        mock.expect_update_service()
-            .times(1)
-            .withf(move |_svc, name, namespace| name == svc_name && namespace == svc_namespace)
-            .returning(move |_, _, _| {
-                if result_error {
-                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
-                } else {
-                    Ok(())
-                }
-            });
+            .withf(move |namespace| namespace == config_namespace);
     }
 
     pub fn configure_find_pods(
-        mock: &mut MockKubeInterface,
+        mock_api: &mut MockApi<Pod>,
         pod_selector: &'static str,
+        _namespace: &'static str,
         result_file: &'static str,
         result_error: bool,
     ) {
@@ -233,12 +55,18 @@ pub mod config_for_tests {
             "mock.expect_find_pods_with_label pod_selector:{}",
             pod_selector
         );
-        mock.expect_find_pods_with_label()
+        mock_api
+            .expect_list()
             .times(1)
-            .withf(move |selector| selector == pod_selector)
+            .withf(move |lp| lp.label_selector.as_ref().unwrap_or(&String::new()) == pod_selector)
             .returning(move |_| {
                 if result_error {
-                    Err(None.ok_or_else(|| anyhow::anyhow!("failure"))?)
+                    Err(kube::Error::Api(kube::error::ErrorResponse {
+                        status: "Failure".to_string(),
+                        message: format!("pods {pod_selector} not found"),
+                        reason: "NotFound".to_string(),
+                        code: akri_shared::k8s::ERROR_NOT_FOUND,
+                    }))
                 } else {
                     let pods_json = file::read_file_to_string(result_file);
                     let pods: PodList = serde_json::from_str(&pods_json).unwrap();
@@ -247,37 +75,119 @@ pub mod config_for_tests {
             });
     }
 
+    pub fn configure_find_pods_with_phase(
+        mock_api: &mut MockApi<Pod>,
+        pod_selector: &'static str,
+        result_file: &'static str,
+        specified_phase: &'static str,
+    ) {
+        trace!(
+            "mock.expect_find_pods_with_label pod_selector:{}",
+            pod_selector
+        );
+        mock_api
+            .expect_list()
+            .times(1)
+            .withf(move |lp| lp.label_selector.as_ref().unwrap_or(&String::new()) == pod_selector)
+            .returning(move |_| {
+                let pods_json = file::read_file_to_string(result_file);
+                let phase_adjusted_json = pods_json.replace(
+                    "\"phase\": \"Running\"",
+                    &format!("\"phase\": \"{}\"", specified_phase),
+                );
+                let pods: PodList = serde_json::from_str(&phase_adjusted_json).unwrap();
+                Ok(pods)
+            });
+    }
+
+    pub fn configure_find_pods_with_phase_and_start_time(
+        mock_api: &mut MockApi<Pod>,
+        pod_selector: &'static str,
+        result_file: &'static str,
+        specified_phase: &'static str,
+        start_time: DateTime<chrono::Utc>,
+    ) {
+        trace!(
+            "mock.expect_find_pods_with_label pod_selector:{}",
+            pod_selector
+        );
+        mock_api
+            .expect_list()
+            .times(1)
+            .withf(move |lp| lp.label_selector.as_ref().unwrap_or(&String::new()) == pod_selector)
+            .returning(move |_| {
+                let pods_json = file::read_file_to_string(result_file);
+                let phase_adjusted_json = pods_json.replace(
+                    "\"phase\": \"Running\"",
+                    &format!("\"phase\": \"{}\"", specified_phase),
+                );
+                let start_time_adjusted_json = phase_adjusted_json.replace(
+                    "\"startTime\": \"2020-02-25T20:48:03Z\"",
+                    &format!(
+                        "\"startTime\": \"{}\"",
+                        start_time.format("%Y-%m-%dT%H:%M:%SZ")
+                    ),
+                );
+                let pods: PodList = serde_json::from_str(&start_time_adjusted_json).unwrap();
+                Ok(pods)
+            });
+    }
+
+    pub fn configure_find_pods_with_phase_and_no_start_time(
+        mock_api: &mut MockApi<Pod>,
+        pod_selector: &'static str,
+        result_file: &'static str,
+        specified_phase: &'static str,
+    ) {
+        trace!(
+            "mock.expect_find_pods_with_label pod_selector:{}",
+            pod_selector
+        );
+        mock_api
+            .expect_list()
+            .times(1)
+            .withf(move |lp| lp.label_selector.as_ref().unwrap_or(&String::new()) == pod_selector)
+            .returning(move |_| {
+                let pods_json = file::read_file_to_string(result_file);
+                let phase_adjusted_json = pods_json.replace(
+                    "\"phase\": \"Running\"",
+                    &format!("\"phase\": \"{}\"", specified_phase),
+                );
+                let start_time_adjusted_json =
+                    phase_adjusted_json.replace("\"startTime\": \"2020-02-25T20:48:03Z\",", "");
+                let pods: PodList = serde_json::from_str(&start_time_adjusted_json).unwrap();
+                Ok(pods)
+            });
+    }
+
     pub fn configure_add_pod(
-        mock: &mut MockKubeInterface,
+        mock_api: &mut MockApi<Pod>,
         pod_name: &'static str,
-        pod_namespace: &'static str,
+        _pod_namespace: &'static str,
         label_id: &'static str,
         label_value: &'static str,
         error: bool,
     ) {
         trace!("mock.expect_create_pod pod_name:{}", pod_name);
-        mock.expect_create_pod()
-            .times(1)
-            .withf(move |pod_to_create, namespace| {
-                pod_to_create.metadata.name.as_ref().unwrap() == pod_name
-                    && pod_to_create
-                        .metadata
-                        .labels
-                        .as_ref()
-                        .unwrap()
-                        .get(label_id)
-                        .unwrap()
-                        == label_value
-                    && namespace == pod_namespace
+        mock_api
+            .expect_apply()
+            .withf(move |pod_to_create, _| {
+                pod_to_create.name_unchecked() == pod_name
+                    && pod_to_create.labels().get(label_id).unwrap() == label_value
             })
-            .returning(move |_, _| match error {
-                false => Ok(()),
-                true => Err(anyhow::format_err!("create pod error")),
+            .returning(move |pod, _| match error {
+                false => Ok(pod),
+                true => Err(kube::Error::Api(kube::error::ErrorResponse {
+                    status: "Failure".to_string(),
+                    message: format!("pods {pod_name} not created"),
+                    reason: "NotFound".to_string(),
+                    code: akri_shared::k8s::ERROR_NOT_FOUND,
+                })),
             });
     }
 
     pub fn configure_remove_pod(
-        mock: &mut MockKubeInterface,
+        mock_api: &mut MockApi<Pod>,
         pod_name: &'static str,
         pod_namespace: &'static str,
     ) {
@@ -286,11 +196,114 @@ pub mod config_for_tests {
             pod_name,
             pod_namespace
         );
-        mock.expect_remove_pod()
+        mock_api
+            .expect_delete()
             .times(1)
-            .withf(move |pod_to_remove, namespace| {
-                pod_to_remove == pod_name && namespace == pod_namespace
-            })
-            .returning(move |_, _| Ok(()));
+            .withf(move |pod_to_remove| pod_to_remove == pod_name)
+            .returning(move |_| Ok(either::Left(Pod::default())));
+    }
+}
+
+#[cfg(test)]
+pub mod mock_client {
+    use akri_shared::akri::{configuration::Configuration, instance::Instance};
+    use akri_shared::k8s::api::{Api, IntoApi, MockIntoApi};
+    use k8s_openapi::api::batch::v1::Job;
+    use k8s_openapi::api::core::v1::{Node, Pod, Service};
+
+    #[derive(Default)]
+    pub struct MockControllerKubeClient {
+        pub instance: MockIntoApi<Instance>,
+        pub config: MockIntoApi<Configuration>,
+        pub job: MockIntoApi<Job>,
+        pub pod: MockIntoApi<Pod>,
+        pub service: MockIntoApi<Service>,
+        pub node: MockIntoApi<Node>,
+    }
+
+    impl IntoApi<Instance> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Instance>> {
+            self.instance.all()
+        }
+
+        fn namespaced(&self, namespace: &str) -> Box<dyn Api<Instance>> {
+            self.instance.namespaced(namespace)
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Instance>> {
+            self.instance.default_namespaced()
+        }
+    }
+
+    impl IntoApi<Configuration> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Configuration>> {
+            self.config.all()
+        }
+
+        fn namespaced(&self, namespace: &str) -> Box<dyn Api<Configuration>> {
+            self.config.namespaced(namespace)
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Configuration>> {
+            self.config.default_namespaced()
+        }
+    }
+
+    impl IntoApi<Job> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Job>> {
+            self.job.all()
+        }
+
+        fn namespaced(&self, namespace: &str) -> Box<dyn Api<Job>> {
+            self.job.namespaced(namespace)
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Job>> {
+            self.job.default_namespaced()
+        }
+    }
+
+    impl IntoApi<Pod> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Pod>> {
+            self.pod.all()
+        }
+
+        fn namespaced(&self, namespace: &str) -> Box<dyn Api<Pod>> {
+            self.pod.namespaced(namespace)
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Pod>> {
+            self.pod.default_namespaced()
+        }
+    }
+
+    impl IntoApi<Service> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Service>> {
+            self.service.all()
+        }
+
+        fn namespaced(&self, namespace: &str) -> Box<dyn Api<Service>> {
+            self.service.namespaced(namespace)
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Service>> {
+            self.service.default_namespaced()
+        }
+    }
+
+    impl IntoApi<Node> for MockControllerKubeClient {
+        fn all(&self) -> Box<dyn Api<Node>> {
+            self.node.all()
+        }
+
+        fn namespaced(&self, _namespace: &str) -> Box<dyn Api<Node>> {
+            // TODO: handle error here -- no namespaced scope for Node
+            self.node.all()
+        }
+
+        fn default_namespaced(&self) -> Box<dyn Api<Node>> {
+            // TODO: handle error here -- no namespaced scope for Node
+            self.node.all()
+        }
     }
 }
