@@ -170,6 +170,38 @@ impl InstanceDevicePlugin {
     async fn update_slots(&self, slots: &HashMap<String, String>) -> Result<(), DevicePluginError> {
         let my_slots = self.slots_status.lock().await;
         let new_slots = construct_slots_map(slots)?;
+        
+        // Track which specific slots have changed
+        let mut changed_slots = HashSet::new();
+        for (k, v) in new_slots.iter() {
+            if let Some(current_slot) = my_slots.borrow().get(*k) {
+                if current_slot != v {
+                    changed_slots.insert(*k);
+                }
+            }
+        }
+
+        // If any slots changed, mark only those specific ones as unhealthy
+        if !changed_slots.is_empty() {
+            my_slots.send_if_modified(|current| {
+                for slot_id in &changed_slots {
+                    if let Some(slot) = current.get_mut(*slot_id) {
+                        if let DeviceUsage::Node(node) = slot {
+                            if node == &self.node_name {
+                                // Temporarily mark only this specific device as unhealthy
+                                *node = "temporary-unhealthy".to_string();
+                            }
+                        }
+                    }
+                }
+                true
+            });
+
+            // Give kubelet time to notice the unhealthy state
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+
+        // Now update to the new state
         my_slots.send_if_modified(|current| {
             let mut modified = false;
             for (k, v) in new_slots.iter() {
