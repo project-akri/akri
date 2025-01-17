@@ -31,7 +31,7 @@ pub struct UdevDiscoveryDetails {
     #[serde(default)]
     pub group_recursive: bool,
 
-    #[serde(default = "rwm")]
+    #[serde(default)]
     pub permissions: String,
 }
 
