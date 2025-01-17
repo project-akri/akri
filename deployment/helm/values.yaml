@@ -714,6 +714,9 @@ udev:
       # udevRules is the list of udev rules used to find instances created as a result of
       # applying this udev configuration
       udevRules:
+      # permissions is the list of Cgroups permissions of the device
+      # combination of r (read), w (write), m (modify)
+      permissions: rwm
     # capacity is the capacity for any instances created as a result of
     # applying this udev configuration
     capacity: 1
