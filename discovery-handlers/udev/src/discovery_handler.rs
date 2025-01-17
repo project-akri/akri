@@ -31,8 +31,13 @@ pub struct UdevDiscoveryDetails {
     #[serde(default)]
     pub group_recursive: bool,
 
-    #[serde(default)]
+    #[serde(default = "default_permissions")]
     pub permissions: String,
+}
+
+/// Default permissions for devices
+fn default_permissions() -> String {
+    "rwm".to_string()
 }
 
 /// `DiscoveryHandlerImpl` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
