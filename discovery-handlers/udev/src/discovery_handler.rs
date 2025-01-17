@@ -181,7 +181,8 @@ mod tests {
         let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
-        let expected_deserialized = r#"{"udevRules":[],"groupRecursive":false,"permissions":"rwm"}"#;
+        let expected_deserialized =
+            r#"{"udevRules":[],"groupRecursive":false,"permissions":"rwm"}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
