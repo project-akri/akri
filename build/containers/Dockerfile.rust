@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:master AS xx
 
-FROM  --platform=$BUILDPLATFORM rust:1.84-slim-bookworm AS build
+FROM  --platform=$BUILDPLATFORM rust:1.81-slim-bookworm AS build
 RUN rustup component add rustfmt
 RUN apt-get update && apt-get install -y clang lld protobuf-compiler pkg-config mmdebstrap wget
 COPY --from=xx / /
