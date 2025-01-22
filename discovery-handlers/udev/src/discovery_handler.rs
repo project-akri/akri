@@ -12,6 +12,7 @@ use akri_discovery_utils::discovery::{
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
+use serde::{de, Deserialize, Deserializer};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -30,6 +31,34 @@ pub struct UdevDiscoveryDetails {
 
     #[serde(default)]
     pub group_recursive: bool,
+
+    #[serde(default = "default_permissions")]
+    #[serde(deserialize_with = "validate_permissions")]
+    pub permissions: String,
+}
+
+// Validate the permissible set of cgroups `permissions`
+fn validate_permissions<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: String = Deserialize::deserialize(deserializer)?;
+
+    // Validating that the string only contains allowed combinations of 'r', 'w', 'm'
+    let valid_permissions = ["r", "w", "m", "rw", "rm", "rwm", "wm"];
+    if valid_permissions.contains(&value.as_str()) {
+        Ok(value)
+    } else {
+        Err(de::Error::invalid_value(
+            de::Unexpected::Str(&value),
+            &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
+        ))
+    }
+}
+
+/// Default permissions for devices
+fn default_permissions() -> String {
+    "rwm".to_string()
 }
 
 /// `DiscoveryHandlerImpl` discovers udev instances by parsing the udev rules in `discovery_handler_config.udev_rules`.
@@ -105,7 +134,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                                 device_specs.push(DeviceSpec {
                                     container_path: devnode.clone(),
                                     host_path: devnode,
-                                    permissions: "rwm".to_string(),
+                                    permissions: discovery_handler_config.permissions.clone(),
                                 })
                             }
                         }
@@ -178,7 +207,8 @@ mod tests {
         let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
-        let expected_deserialized = r#"{"udevRules":[],"groupRecursive":false}"#;
+        let expected_deserialized =
+            r#"{"udevRules":[],"groupRecursive":false,"permissions":"rwm"}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -187,9 +217,24 @@ mod tests {
         let yaml = r#"
           udevRules:
           - 'KERNEL=="video[0-9]*"'
+          permissions: rwm
         "#;
         let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
         assert_eq!(udev_dh_config.udev_rules.len(), 1);
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
+        assert_eq!(&udev_dh_config.permissions, "rwm");
+    }
+
+    #[test]
+    fn test_deserialize_discovery_details_permissions_invalid() {
+        let yaml = r#"
+          udevRules:
+          - 'KERNEL=="video[0-9]*"'
+          permissions: xyz
+        "#;
+        match deserialize_discovery_details::<UdevDiscoveryDetails>(yaml) {
+            Ok(_) => panic!("Expected error parsing invalid permissions"),
+            Err(e) => assert!(e.to_string().contains("a valid permission combination")),
+        }
     }
 }

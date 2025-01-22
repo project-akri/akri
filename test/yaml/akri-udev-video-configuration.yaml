@@ -8,6 +8,7 @@ spec:
     discoveryDetails: |+
         udevRules:
         -  'KERNEL=="video[0-9]*"'
+        permissions: "rwm"
   brokerSpec:
     brokerPodSpec:
       containers:

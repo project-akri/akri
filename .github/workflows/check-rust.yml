@@ -33,7 +33,7 @@ jobs:
     - name: Rust install
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: 1.79.0
+        toolchain: 1.81.0
         components: clippy, rustfmt
     - name: Install Linux requirements
       # TODO: When ubuntu-latest gets updated to >= 23.04 replace the wget+unzip with just protobuf-compiler in apt

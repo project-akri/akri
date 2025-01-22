@@ -10,6 +10,7 @@ spec:
       groupRecursive: {{ .Values.udev.configuration.discoveryDetails.groupRecursive }}
       udevRules:
       {{- required "Please set at least one udev rule with `--set udev.configuration.discoveryDetails.udevRules[0]==\"<udev rule>\"' to specify what you want discovered. See the udev Configuration document at https://docs.akri.sh/discovery-handlers/udev for more information." .Values.udev.configuration.discoveryDetails.udevRules | toYaml | nindent 6 }}
+      permissions: {{ .Values.udev.configuration.discoveryDetails.permissions }}
   {{- if or .Values.udev.configuration.brokerPod.image.repository .Values.udev.configuration.brokerJob.image.repository }}
   {{- /* Only add brokerSpec if a broker image is provided */}}
   brokerSpec:
