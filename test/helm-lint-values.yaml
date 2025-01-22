@@ -22,6 +22,7 @@ udev:
       groupRecursive: true
       udevRules:
         - 'KERNEL=="video[0-9]*"'
+      permissions: "rwm"
     brokerPod:
       image:
         repository: "nginx"
