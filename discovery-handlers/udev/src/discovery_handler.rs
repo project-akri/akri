@@ -17,6 +17,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tonic::{Response, Status};
+use serde::{Deserialize, Deserializer, de};
 
 // TODO: make this configurable
 pub const DISCOVERY_INTERVAL_SECS: u64 = 10;
@@ -31,7 +32,7 @@ pub struct UdevDiscoveryDetails {
     #[serde(default)]
     pub group_recursive: bool,
 
-    #[serde(default = "default_permissions", )]
+    #[serde(default = "default_permissions")]
     #[serde(deserialize_with = "validate_permissions")]
     pub permissions: String,
 }
@@ -44,13 +45,13 @@ where
     let value: String = Deserialize::deserialize(deserializer)?;
 
     // Validating that the string only contains allowed combinations of 'r', 'w', 'm'
-    let valid_permissions = ["r", "w", "m", "rw", "rm", "rwm", "mw"];
+    let valid_permissions = ["r", "w", "m", "rw", "rm", "rwm", "wm"];
     if valid_permissions.contains(&value.as_str()) {
         Ok(value)
     } else {
         Err(de::Error::invalid_value(
             de::Unexpected::Str(&value),
-            &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'mw')",
+            &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
         ))
     }
 }
@@ -209,6 +210,7 @@ mod tests {
         let expected_deserialized =
             r#"{"udevRules":[],"groupRecursive":false,"permissions":"rwm"}"#;
         assert_eq!(expected_deserialized, serialized);
+        
     }
 
     #[test]
@@ -223,4 +225,16 @@ mod tests {
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
         assert_eq!(&udev_dh_config.permissions, "rwm");
     }
+
+    #[test]
+    fn test_deserialize_discovery_details_permissions_invalid() {
+        let yaml = r#"
+          udevRules:
+          - 'KERNEL=="video[0-9]*"'
+          permissions: xyz
+        "#;
+        assert_eq!(deserialize_discovery_details(yaml).unwrap(), Err(de::Error::invalid_value(
+            de::Unexpected::Str(&value),
+            &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
+        )));}
 }
