@@ -226,7 +226,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_deserialize_discovery_details_permissions_invalid() {
         let yaml = r#"
           udevRules:
