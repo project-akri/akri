@@ -31,8 +31,28 @@ pub struct UdevDiscoveryDetails {
     #[serde(default)]
     pub group_recursive: bool,
 
-    #[serde(default = "default_permissions")]
+    #[serde(default = "default_permissions", )]
+    #[serde(deserialize_with = "validate_permissions")]
     pub permissions: String,
+}
+
+// Validate the permissible set of cgroups `permissions`
+fn validate_permissions<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: String = Deserialize::deserialize(deserializer)?;
+
+    // Validating that the string only contains allowed combinations of 'r', 'w', 'm'
+    let valid_permissions = ["r", "w", "m", "rw", "rm", "rwm", "mw"];
+    if valid_permissions.contains(&value.as_str()) {
+        Ok(value)
+    } else {
+        Err(de::Error::invalid_value(
+            de::Unexpected::Str(&value),
+            &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'mw')",
+        ))
+    }
 }
 
 /// Default permissions for devices
