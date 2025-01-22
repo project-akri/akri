@@ -233,7 +233,9 @@ mod tests {
           - 'KERNEL=="video[0-9]*"'
           permissions: xyz
         "#;
-        let config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
-        assert_eq!(&config.permissions, "xyz")
+        match deserialize_discovery_details::<UdevDiscoveryDetails>(yaml) {
+            Ok(_) => panic!("Expected error parsing invalid permissions"),
+            Err(e) => assert!(e.to_string().contains("a valid permission combination")),
+        }
     }
 }
