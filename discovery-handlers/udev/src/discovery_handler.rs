@@ -233,13 +233,13 @@ mod tests {
           - 'KERNEL=="video[0-9]*"'
           permissions: xyz
         "#;
-        deserialize_discovery_details(yaml).unwrap();
-        // assert_eq!(
-        //     deserialize_discovery_details(yaml).unwrap(),
-        //     Err(de::Error::invalid_value(
-        //         de::Unexpected::Str(&value),
-        //         &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
-        //     ))
-        // );
+        let config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
+        assert_eq!(
+            config,
+            Err(de::Error::invalid_value(
+                de::Unexpected::Str(&value),
+                &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
+            ))
+        );
     }
 }
