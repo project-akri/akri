@@ -233,7 +233,7 @@ mod tests {
           - 'KERNEL=="video[0-9]*"'
           permissions: xyz
         "#;
-        let config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
+        deserialize_discovery_details(yaml).unwrap();
         // assert_eq!(
         //     deserialize_discovery_details(yaml).unwrap(),
         //     Err(de::Error::invalid_value(
