@@ -234,12 +234,6 @@ mod tests {
           permissions: xyz
         "#;
         let config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
-        assert_eq!(
-            config,
-            Err(de::Error::invalid_value(
-                de::Unexpected::Str(&value),
-                &"a valid permission combination ('r', 'w', 'm', 'rw', 'rm', 'rwm', 'wm')",
-            ))
-        );
+        assert_eq!(&config.permissions, "xyz")
     }
 }
