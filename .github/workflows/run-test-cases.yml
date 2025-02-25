@@ -64,43 +64,43 @@ jobs:
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: agent.tar
           path: agent.tar
       - name: Upload Controller container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: controller.tar
           path: controller.tar
       - name: Upload Webhook-Configuration container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: webhook-configuration.tar
           path: webhook-configuration.tar
       - name: Upload DebugEcho discovery container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: debug-echo-discovery.tar
           path: debug-echo-discovery.tar
       - name: Upload UDEV discovery container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: udev-discovery.tar
           path: udev-discovery.tar
       - name: Upload ONVIF discovery container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: onvif-discovery.tar
           path: onvif-discovery.tar
       - name: Upload OPCUA discovery container as artifact
         if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: opcua-discovery.tar
           path: opcua-discovery.tar
@@ -289,7 +289,7 @@ jobs:
 
       - name: Upload logs as artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.sanitize-artifact-name.outputs.name }}
           path: /tmp/logs/
