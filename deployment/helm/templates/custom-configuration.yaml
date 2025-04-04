@@ -16,7 +16,7 @@ spec:
       - name: {{ .Values.custom.configuration.name }}-broker
         image: {{ printf "%s:%s" .Values.custom.configuration.brokerPod.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
         {{- with .Values.custom.configuration.pullPolicy }}
-        imagePullPolicy: {{ . }}
+        imagePullPolicy: {{ .Values.custom.configuration.brokerPod.image.pullPolicy }}
         {{- end }}
         {{- if .Values.custom.configuration.brokerPod.env }}
         env:
