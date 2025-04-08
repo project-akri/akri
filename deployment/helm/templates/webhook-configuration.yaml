@@ -101,11 +101,16 @@ items:
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.webhookConfiguration.allowOnControlPlane }}
+          {{- if or .Values.webhookConfiguration.allowOnControlPlane .Values.webhookConfiguration.tolerations }}
           tolerations:
+            {{- if .Values.webhookConfiguration.allowOnControlPlane }}
             {{- /* Allow this pod to run on the master. */}}
             - key: node-role.kubernetes.io/master
               effect: NoSchedule
+            {{- end }}
+            {{- if .Values.webhookConfiguration.tolerations }}
+            {{- toYaml .Values.controller.tolerations | nindent 2 }}
+            {{- end }}
           {{- end }}
           nodeSelector:
             {{- if .Values.webhookConfiguration.nodeSelectors }}
