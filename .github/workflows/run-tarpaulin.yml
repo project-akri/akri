@@ -32,7 +32,7 @@ jobs:
 
     steps:
     - name: Checkout the head commit of the branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         persist-credentials: false
 
@@ -53,14 +53,14 @@ jobs:
 
     - name: Upload report to codecov for push
       if: (!(startsWith(github.event_name, 'pull_request')))
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         fail_ci_if_error: true
         verbose: true
 
     - name: Archive code coverage results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: code-coverage-report
         path: cobertura.xml
