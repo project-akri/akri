@@ -9,7 +9,7 @@ jobs:
   security_audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run security audit check
         id: cargo-audit
         if: github.repository == 'project-akri/akri' # only run on main repo and not forks
