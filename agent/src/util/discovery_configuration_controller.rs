@@ -18,12 +18,12 @@ use crate::discovery_handler_manager::{
     discovery_handler_registry::DiscoveryHandlerRegistry, DiscoveryError,
 };
 
-use kube::{Resource, ResourceExt};
-use kube_runtime::{
+use kube::runtime::{
     controller::Action,
     reflector::{ObjectRef, Store},
     Controller,
 };
+use kube::{Resource, ResourceExt};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
