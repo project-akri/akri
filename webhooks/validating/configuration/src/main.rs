@@ -199,23 +199,21 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
 }
 
 fn validate_udev_discovery_details(config: &Configuration) -> Result<(), ()> {
-    let details = Some(&config.spec.discovery_handler.discovery_details);
-    match details {
-        Some(details) => {
-            if details.is_empty() {
-                println!("Discovery details are empty");
-                panic!("Discovery details are empty");
-            } else {
-                let udev_discovery_details: UdevDiscoveryDetails = serde_json::from_str(details)
-                    .expect("Could not parse as Udev DiscoveryDetails");
-                match udev_discovery_details.permissions {
-                    Ok(v) => Ok(()),
-                    Err(e) => Err(()),
+    match &config.spec.discovery_handler.discovery_details {
+        details if details.is_empty() => {
+            println!("Discovery details are empty");
+            Err(())
+        }
+        details => {
+            // Try to parse the discovery details as UdevDiscoveryDetails
+            match serde_json::from_str::<UdevDiscoveryDetails>(details) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    println!("Could not parse as Udev DiscoveryDetails: {}", e);
+                    Err(())
                 }
-                Ok(())
             }
         }
-        None => Err(()),
     }
 }
 
