@@ -120,26 +120,28 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             match validate_udev_discovery_details(&config) {
                 Ok(_) => {}
-                Err(_) => return AdmissionResponse {
-                    allowed: false,
-                    audit_annotations: None,
-                    patch: None,
-                    patch_type: None,
-                    status: Some(Status {
-                        api_version: None,
-                        code: None,
-                        details: None,
-                        kind: None,
-                        message: Some(
-                            "Invalid udev discovery details device permissions".to_owned(),
-                        ),
-                        metadata: None,
-                        reason: None,
-                        status: None,
-                    }),
-                    uid: rqst.uid.to_owned(),
-                    warnings: None,
-                },
+                Err(_) => {
+                    return AdmissionResponse {
+                        allowed: false,
+                        audit_annotations: None,
+                        patch: None,
+                        patch_type: None,
+                        status: Some(Status {
+                            api_version: None,
+                            code: None,
+                            details: None,
+                            kind: None,
+                            message: Some(
+                                "Invalid udev discovery details device permissions".to_owned(),
+                            ),
+                            metadata: None,
+                            reason: None,
+                            status: None,
+                        }),
+                        uid: rqst.uid.to_owned(),
+                        warnings: None,
+                    }
+                }
             }
 
             let reserialized = serde_json::to_string(&config).unwrap();
