@@ -120,7 +120,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             match validate_udev_discovery_details(&config) {
                 Ok(_) => {}
-                Err(_) => AdmissionResponse {
+                Err(_) => return AdmissionResponse {
                     allowed: false,
                     audit_annotations: None,
                     patch: None,
