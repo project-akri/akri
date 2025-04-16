@@ -2,7 +2,7 @@ use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use akri_shared::akri::configuration::Configuration;
 use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use clap::Arg;
-use k8s_openapi::{apimachinery::pkg::runtime::RawExtension, serde::de};
+use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use openapi::models::{
     V1AdmissionRequest as AdmissionRequest, V1AdmissionResponse as AdmissionResponse,
     V1AdmissionReview as AdmissionReview, V1Status as Status,
