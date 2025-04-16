@@ -204,7 +204,7 @@ fn validate_udev_discovery_details(config: &Configuration) -> Result<(), ()> {
     match &config.spec.discovery_handler.discovery_details {
         details if details.is_empty() => {
             println!("Discovery details are empty");
-            Err(())
+            Ok(())
         }
         details => {
             // Try to parse the discovery details as UdevDiscoveryDetails
