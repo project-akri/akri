@@ -198,7 +198,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
     }
 }
 
-fn validate_udev_discovery_details(config: &Configuration) -> Result<()> {
+fn validate_udev_discovery_details(config: &Configuration) -> Result<(), ()> {
     let details = Some(&config.spec.discovery_handler.discovery_details);
     match details {
         Some(details) => {
