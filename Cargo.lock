@@ -4336,6 +4336,7 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "akri-shared",
+ "akri-udev",
  "clap",
  "k8s-openapi 0.17.0",
  "kube 0.80.0",

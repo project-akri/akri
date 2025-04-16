@@ -1,7 +1,8 @@
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use akri_shared::akri::configuration::Configuration;
+use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use clap::Arg;
-use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
+use k8s_openapi::{apimachinery::pkg::runtime::RawExtension, serde::de};
 use openapi::models::{
     V1AdmissionRequest as AdmissionRequest, V1AdmissionResponse as AdmissionResponse,
     V1AdmissionReview as AdmissionReview, V1Status as Status,
@@ -117,6 +118,30 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let y = serde_json::to_string(&x).unwrap();
             let config: Configuration =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
+            match validate_udev_discovery_details(&config) {
+                Ok(_) => {}
+                Err(_) => AdmissionResponse {
+                    allowed: false,
+                    audit_annotations: None,
+                    patch: None,
+                    patch_type: None,
+                    status: Some(Status {
+                        api_version: None,
+                        code: None,
+                        details: None,
+                        kind: None,
+                        message: Some(
+                            "Invalid udev discovery details device permissions".to_owned(),
+                        ),
+                        metadata: None,
+                        reason: None,
+                        status: None,
+                    }),
+                    uid: rqst.uid.to_owned(),
+                    warnings: None,
+                },
+            }
+
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
             println!(
@@ -170,6 +195,27 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             uid: rqst.uid.to_owned(),
             warnings: None,
         },
+    }
+}
+
+fn validate_udev_discovery_details(config: &Configuration) -> Result<()> {
+    let details = Some(&config.spec.discovery_handler.discovery_details);
+    match details {
+        Some(details) => {
+            if details.is_empty() {
+                println!("Discovery details are empty");
+                panic!("Discovery details are empty");
+            } else {
+                let udev_discovery_details: UdevDiscoveryDetails = serde_json::from_str(details)
+                    .expect("Could not parse as Udev DiscoveryDetails");
+                match udev_discovery_details.permissions {
+                    Ok(v) => Ok(()),
+                    Err(e) => Err(()),
+                }
+                Ok(())
+            }
+        }
+        None => Err(()),
     }
 }
 
