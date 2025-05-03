@@ -32,6 +32,6 @@ yaserde = "0.7.1"
 yaserde_derive = "0.7.1"
 
 [dev-dependencies]
-env_logger = "0.10.0"
+env_logger = "0.11.8"
 mockall = "0.12"
 
