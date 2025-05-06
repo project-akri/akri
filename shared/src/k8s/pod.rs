@@ -10,7 +10,7 @@ use k8s_openapi::api::core::v1::{
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use kube::{
-    api::{Api, DeleteParams, ListParams, ObjectList, PostParams},
+    api::{Api, DeleteParams, PostParams},
     client::Client,
 };
 use log::{error, info, trace};
@@ -21,61 +21,6 @@ pub const CONTROLLER_LABEL_ID: &str = "controller";
 pub const AKRI_CONFIGURATION_LABEL_NAME: &str = "akri.sh/configuration";
 pub const AKRI_INSTANCE_LABEL_NAME: &str = "akri.sh/instance";
 pub const AKRI_TARGET_NODE_LABEL_NAME: &str = "akri.sh/target-node";
-
-/// Get Kubernetes Pods with a given label or field selector
-///
-/// Example:
-///
-/// ```no_run
-/// use akri_shared::k8s::pod;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let label_selector = Some("environment=production,app=nginx".to_string());
-/// let api_client = Client::try_default().await.unwrap();
-/// for pod in pod::find_pods_with_selector(label_selector, None, api_client).await.unwrap() {
-///     println!("found pod: {}", pod.metadata.name.unwrap())
-/// }
-/// # }
-/// ```
-///
-/// ```no_run
-/// use akri_shared::k8s::pod;
-/// use kube::client::Client;
-/// use kube::config;
-///
-/// # #[tokio::main]
-/// # async fn main() {
-/// let field_selector = Some("spec.nodeName=node-a".to_string());
-/// let api_client = Client::try_default().await.unwrap();
-/// for pod in pod::find_pods_with_selector(None, field_selector, api_client).await.unwrap() {
-///     println!("found pod: {}", pod.metadata.name.unwrap())
-/// }
-/// # }
-/// ```
-pub async fn find_pods_with_selector(
-    label_selector: Option<String>,
-    field_selector: Option<String>,
-    kube_client: Client,
-) -> Result<ObjectList<Pod>, anyhow::Error> {
-    trace!(
-        "find_pods_with_selector with label_selector={:?} field_selector={:?}",
-        &label_selector,
-        &field_selector
-    );
-    let pods: Api<Pod> = Api::all(kube_client);
-    let pod_list_params = ListParams {
-        label_selector,
-        field_selector,
-        ..Default::default()
-    };
-    trace!("find_pods_with_selector PRE pods.list(...).await?");
-    let result = pods.list(&pod_list_params).await;
-    trace!("find_pods_with_selector return");
-    Ok(result?)
-}
 
 /// Create name for Kubernetes Pod.
 ///
