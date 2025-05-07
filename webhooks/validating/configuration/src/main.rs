@@ -1,5 +1,6 @@
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use akri_shared::akri::configuration::Configuration;
+use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use clap::Arg;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use openapi::models::{
@@ -117,6 +118,32 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let y = serde_json::to_string(&x).unwrap();
             let config: Configuration =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
+            match validate_udev_discovery_details(&config) {
+                Ok(_) => {}
+                Err(_) => {
+                    return AdmissionResponse {
+                        allowed: false,
+                        audit_annotations: None,
+                        patch: None,
+                        patch_type: None,
+                        status: Some(Status {
+                            api_version: None,
+                            code: None,
+                            details: None,
+                            kind: None,
+                            message: Some(
+                                "Invalid udev discovery details device permissions".to_owned(),
+                            ),
+                            metadata: None,
+                            reason: None,
+                            status: None,
+                        }),
+                        uid: rqst.uid.to_owned(),
+                        warnings: None,
+                    }
+                }
+            }
+
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
             println!(
@@ -170,6 +197,25 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             uid: rqst.uid.to_owned(),
             warnings: None,
         },
+    }
+}
+
+fn validate_udev_discovery_details(config: &Configuration) -> Result<(), ()> {
+    match &config.spec.discovery_handler.discovery_details {
+        details if details.is_empty() => {
+            println!("Discovery details are empty");
+            Ok(())
+        }
+        details => {
+            // Try to parse the discovery details as UdevDiscoveryDetails
+            match serde_json::from_str::<UdevDiscoveryDetails>(details) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    println!("Could not parse as Udev DiscoveryDetails: {}", e);
+                    Err(())
+                }
+            }
+        }
     }
 }
 
