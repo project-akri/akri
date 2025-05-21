@@ -8,5 +8,5 @@ spec:
     discoveryDetails: |+
       groupRecursive: true
       udevRules:
-        - ENV{{ID_PATH}}=="{}"
-      permissions: "rwm"
+        - 'ENV{{ID_PATH}}=="{}"'
+      permissions: rwm
