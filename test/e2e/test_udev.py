@@ -67,10 +67,10 @@ def grouped_config(akri_version):
 
     with open(Path(__file__).parent / "yaml/udevGroupedConfiguration.yaml") as f:
         body = yaml.safe_load(f)
-    # body["spec"]["discoveryHandler"]["discoveryDetails"] = body["spec"][
-    #     "discoveryHandler"
-    # ]["discoveryDetails"].format(path)
     print(f"Using path {body['spec']['discoveryHandler']['discoveryDetails']}")
+    body["spec"]["discoveryHandler"]["discoveryDetails"] = body["spec"][
+        "discoveryHandler"
+    ]["discoveryDetails"].format(path)
     client = kubernetes.client.CustomObjectsApi()
     version = f'v{akri_version.split(".")[0]}'
     client.create_namespaced_custom_object(
