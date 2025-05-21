@@ -32,78 +32,78 @@ on:
       - published
 
 jobs:
-  build-containers:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+  # build-containers:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 60
 
-    steps:
-      - name: Checkout the head commit of the branch
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+  #   steps:
+  #     - name: Checkout the head commit of the branch
+  #       uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: false
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
 
-      - name: Build local containers for PR tests
-        if: startsWith(github.event_name, 'pull_request')
-        env:
-          PREFIX: ghcr.io/project-akri/akri
-          LABEL_PREFIX: pr
-        run: |
-          make akri LOAD=1
-          docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
-          docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
-          docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
-          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
-          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
-          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
-          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
+  #     - name: Build local containers for PR tests
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       env:
+  #         PREFIX: ghcr.io/project-akri/akri
+  #         LABEL_PREFIX: pr
+  #       run: |
+  #         make akri LOAD=1
+  #         docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
+  #         docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
+  #         docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
+  #         docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
+  #         docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
+  #         docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
+  #         docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
 
-      - name: Upload Agent container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent.tar
-          path: agent.tar
-      - name: Upload Controller container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: controller.tar
-          path: controller.tar
-      - name: Upload Webhook-Configuration container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: webhook-configuration.tar
-          path: webhook-configuration.tar
-      - name: Upload DebugEcho discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-echo-discovery.tar
-          path: debug-echo-discovery.tar
-      - name: Upload UDEV discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: udev-discovery.tar
-          path: udev-discovery.tar
-      - name: Upload ONVIF discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: onvif-discovery.tar
-          path: onvif-discovery.tar
-      - name: Upload OPCUA discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: opcua-discovery.tar
-          path: opcua-discovery.tar
+  #     - name: Upload Agent container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: agent.tar
+  #         path: agent.tar
+  #     - name: Upload Controller container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: controller.tar
+  #         path: controller.tar
+  #     - name: Upload Webhook-Configuration container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: webhook-configuration.tar
+  #         path: webhook-configuration.tar
+  #     - name: Upload DebugEcho discovery container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: debug-echo-discovery.tar
+  #         path: debug-echo-discovery.tar
+  #     - name: Upload UDEV discovery container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: udev-discovery.tar
+  #         path: udev-discovery.tar
+  #     - name: Upload ONVIF discovery container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: onvif-discovery.tar
+  #         path: onvif-discovery.tar
+  #     - name: Upload OPCUA discovery container as artifact
+  #       if: startsWith(github.event_name, 'pull_request')
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: opcua-discovery.tar
+  #         path: opcua-discovery.tar
 
   test-cases:
     needs: build-containers

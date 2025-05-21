@@ -7,5 +7,5 @@ spec:
     name: udev
     discoveryDetails: |+
       udevRules:
-        - 'KERNEL=="null"''
+        - 'KERNEL=="null"'
       permissions: rwm
