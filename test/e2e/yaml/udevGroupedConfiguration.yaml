@@ -5,8 +5,4 @@ metadata:
 spec:
   discoveryHandler: 
     name: udev
-    discoveryDetails: |+
-      'groupRecursive': true
-      'udevRules':
-        ['KERNEL=="null"']
-      'permissions': 'rwm'
+    discoveryDetails: '{"groupRecursive":true,"udevRules":["KERNEL==\"null\""],"permissions":"rwm"}'

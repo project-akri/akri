@@ -5,7 +5,4 @@ metadata:
 spec:
   discoveryHandler: 
     name: udev
-    discoveryDetails: |+
-      'udevRules':
-        ['KERNEL=="null"']
-      'permissions': 'rwm'
+    discoveryDetails: '{"udevRules":["KERNEL==\"null\""],"permissions":"rwm"}'
