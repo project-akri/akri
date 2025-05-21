@@ -106,7 +106,7 @@ jobs:
   #         path: opcua-discovery.tar
 
   test-cases:
-    needs: build-containers
+    # needs: build-containers
     runs-on: ubuntu-latest
     timeout-minutes: 95
 
