@@ -8,3 +8,4 @@ spec:
     discoveryDetails: |+
       udevRules:
         - KERNEL=="null"
+      permissions: "rwm"

@@ -9,3 +9,4 @@ spec:
       groupRecursive: true
       udevRules:
         - ENV{{ID_PATH}}=="{}"
+      permissions: "rwm"
