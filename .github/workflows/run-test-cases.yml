@@ -57,10 +57,10 @@ jobs:
           docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
-          # docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
-          # docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
-          # docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
-          # docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
+          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
+          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
+          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
+          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
