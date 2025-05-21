@@ -8,7 +8,7 @@ use openapi::models::{
     V1AdmissionReview as AdmissionReview, V1Status as Status,
 };
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
-use serde_json::{de, json, Deserializer, Value};
+use serde_json::{json, Value};
 
 fn get_builder(key: &str, crt: &str) -> SslAcceptorBuilder {
     let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -216,7 +216,7 @@ fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_j
             }
 
             // Try to parse the discovery details as UdevDiscoveryDetails
-            match serde_json::from_str::<UdevDiscoveryDetails>(&details) {
+            match serde_json::from_str::<UdevDiscoveryDetails>(details) {
                 Ok(_) => {
                     // The UdevDiscoveryDetails struct already has a custom deserializer for permissions
                     // If we got here, that means the JSON was parsed successfully and permissions were validated
