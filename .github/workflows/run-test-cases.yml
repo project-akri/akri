@@ -54,8 +54,8 @@ jobs:
           LABEL_PREFIX: pr
         run: |
           make akri LOAD=1
-          # docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
-          # docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
+          docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
+          docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
           # docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
           # docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
