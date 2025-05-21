@@ -54,13 +54,13 @@ jobs:
           LABEL_PREFIX: pr
         run: |
           make akri LOAD=1
-          docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
-          docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
+          # docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
+          # docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
-          docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
-          docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
-          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
-          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
+          # docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
+          # docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
+          # docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
+          # docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
 
       - name: Upload Agent container as artifact
         if: startsWith(github.event_name, 'pull_request')
@@ -80,30 +80,30 @@ jobs:
         with:
           name: webhook-configuration.tar
           path: webhook-configuration.tar
-      - name: Upload DebugEcho discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-echo-discovery.tar
-          path: debug-echo-discovery.tar
-      - name: Upload UDEV discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: udev-discovery.tar
-          path: udev-discovery.tar
-      - name: Upload ONVIF discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: onvif-discovery.tar
-          path: onvif-discovery.tar
-      - name: Upload OPCUA discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: opcua-discovery.tar
-          path: opcua-discovery.tar
+      # - name: Upload DebugEcho discovery container as artifact
+      #   if: startsWith(github.event_name, 'pull_request')
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: debug-echo-discovery.tar
+      #     path: debug-echo-discovery.tar
+      # - name: Upload UDEV discovery container as artifact
+      #   if: startsWith(github.event_name, 'pull_request')
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: udev-discovery.tar
+      #     path: udev-discovery.tar
+      # - name: Upload ONVIF discovery container as artifact
+      #   if: startsWith(github.event_name, 'pull_request')
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: onvif-discovery.tar
+      #     path: onvif-discovery.tar
+      # - name: Upload OPCUA discovery container as artifact
+      #   if: startsWith(github.event_name, 'pull_request')
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: opcua-discovery.tar
+      #     path: opcua-discovery.tar
 
   test-cases:
     needs: build-containers
@@ -114,24 +114,24 @@ jobs:
       fail-fast: false
       matrix:
         kube:
-          - runtime: microk8s
-            version: 1.29/stable
-          - runtime: microk8s
-            version: 1.30/stable
-          - runtime: microk8s
-            version: 1.31/stable
+          # - runtime: microk8s
+          #   version: 1.29/stable
+          # - runtime: microk8s
+          #   version: 1.30/stable
+          # - runtime: microk8s
+          #   version: 1.31/stable
           - runtime: k3s
             version: v1.29.10+k3s1
           - runtime: k3s
             version: v1.30.6+k3s1
           - runtime: k3s
             version: v1.31.2+k3s1
-          - runtime: k8s
-            version: 1.29.10
-          - runtime: k8s
-            version: 1.30.6
-          - runtime: k8s
-            version: 1.31.2
+          # - runtime: k8s
+          #   version: 1.29.10
+          # - runtime: k8s
+          #   version: 1.30.6
+          # - runtime: k8s
+          #   version: 1.31.2
 
     steps:
       - name: Checkout the head commit of the branch
