@@ -6,6 +6,6 @@ spec:
   discoveryHandler: 
     name: udev
     discoveryDetails: |+
-      udevRules:
-        - 'KERNEL=="null"'
-      permissions: rwm
+      'udevRules':
+        ['KERNEL=="null"']
+      'permissions': 'rwm'

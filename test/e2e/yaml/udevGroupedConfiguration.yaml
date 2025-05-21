@@ -6,7 +6,7 @@ spec:
   discoveryHandler: 
     name: udev
     discoveryDetails: |+
-      groupRecursive: true
-      udevRules:
-        - 'ENV{{ID_PATH}}=="{}"'
-      permissions: rwm
+      'groupRecursive': true
+      'udevRules':
+        ['KERNEL=="null"']
+      'permissions': 'rwm'
