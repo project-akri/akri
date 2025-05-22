@@ -5,5 +5,5 @@ metadata:
 spec:
   discoveryHandler: 
     name: udev
-    discoveryDetails: '{{"udevRules":["ENV{{ID_PATH}}==\"{}\""],"permissions":"rwm"}}'
+    discoveryDetails: '{{"groupRecursive":true,"udevRules":["ENV{{ID_PATH}}==\"{}\""],"permissions":"rwm"}}'
     # discoveryDetails: '{"udevRules":["ENV{{ID_PATH}}==\"{}\""],"permissions":"rwm"}'
