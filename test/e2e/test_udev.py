@@ -70,6 +70,7 @@ def grouped_config(akri_version):
     body["spec"]["discoveryHandler"]["discoveryDetails"] = body["spec"][
         "discoveryHandler"
     ]["discoveryDetails"].format(path)
+
     client = kubernetes.client.CustomObjectsApi()
     version = f'v{akri_version.split(".")[0]}'
     client.create_namespaced_custom_object(
