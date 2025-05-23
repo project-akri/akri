@@ -1238,7 +1238,7 @@ mod tests {
 
     #[test]
     fn test_validate_udev_valid_permission_rwm() {
-        let config = create_test_config(r#"{"udevRules": [], "permissions": "rwm"}"#);
+        let config = create_test_config(r#"{"groupRecursive": false, "udevRules": ["KERNEL=='video[0-9]*'"], "permissions": "rwm"}"#);
         assert!(validate_udev_discovery_details(&config).is_ok());
     }
 
