@@ -109,7 +109,7 @@ items:
           {{- end }}
           nodeSelector:
             {{- if .Values.webhookConfiguration.nodeSelectors }}
-              {{- toYaml .Values.webhookConfiguration.nodeSelectors | nindent 8 }}
+              {{- toYaml .Values.webhookConfiguration.nodeSelectors | nindent 12 }}
             {{- end }}
             "kubernetes.io/os": linux
             {{- if .Values.webhookConfiguration.onlyOnControlPlane }}
