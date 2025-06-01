@@ -204,14 +204,17 @@ async fn delete_instance(
                 .map_err(|e| Error::Other(e.into()))?;
             return Ok(());
         }
-        // Apply a fresh instance, keeping the spec only,
-        // emptying the nodes.
+        // Apply a clean copy of the instance, cleaning the nodes
+        // and keeping the necessary metadata fields.
         let mut new_instance = Instance {
-            metadata: ObjectMeta::default(),
+            metadata: ObjectMeta {
+                name: instance.metadata.name.clone(),
+                namespace: instance.metadata.namespace.clone(),
+                ..Default::default()
+            },
             spec: instance.spec.clone(),
         };
         new_instance.spec.nodes = vec![];
-
         api.apply(new_instance, agent_instance_name)
             .await
             .map_err(|e| Error::Other(e.into()))?;
