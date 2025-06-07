@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:master AS xx
 
-FROM  --platform=$BUILDPLATFORM rust:1.81-slim-bookworm AS build
+FROM  --platform=$BUILDPLATFORM rust:1.82-slim-bookworm AS build
 RUN rustup component add rustfmt
 RUN apt-get update && apt-get install -y clang lld protobuf-compiler pkg-config mmdebstrap wget
 COPY --from=xx / /
@@ -31,7 +31,7 @@ FROM scratch
 COPY --from=build /installroot /
 COPY --from=build /build/bin /usr/local/bin
 ENV RUST_LOG agent,akri_debug_echo,akri_discovery_utils,akri_onvif,akri_opcua,akri_shared,akri_udev\ 
-,controller,debug_echo_discovery_handler,onvif_discovery_handler,opcua_discovery_handler,udev_discovery_handler
+    ,controller,debug_echo_discovery_handler,onvif_discovery_handler,opcua_discovery_handler,udev_discovery_handler
 # Using a fixed value here as we can't use any variable in entrypoint
 ENTRYPOINT [ "/usr/local/bin/akri" ]
 
