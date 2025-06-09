@@ -224,7 +224,7 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
 name = "agent"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -937,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "controller"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -1105,7 +1105,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -1562,9 +1562,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.15.3"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84b26c544d002229e640969970a2e74021aadf6e2f96372b9c58eff97de08eb3"
+checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 
 [[package]]
 name = "headers"
@@ -1918,7 +1918,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea70ddb795996207ad57735b50c5982d8844f38ba9ee5f1aedcfb708a2aa11e"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.3",
+ "hashbrown 0.15.4",
 ]
 
 [[package]]
@@ -2523,7 +2523,7 @@ checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2572,7 +2572,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -4097,7 +4097,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -4108,7 +4108,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "akri-shared",
  "env_logger",
@@ -4388,7 +4388,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.13.12"
+version = "0.13.13"
 dependencies = [
  "actix-rt",
  "actix-web",
