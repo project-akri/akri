@@ -165,6 +165,8 @@ pub mod mock_discovery_handler {
         return_error: bool,
         devices: Vec<Device>,
     ) -> tokio::task::JoinHandle<()> {
+        use anyhow::Context;
+
         let discovery_handler = MockDiscoveryHandler {
             return_error,
             devices,
@@ -184,6 +186,7 @@ pub mod mock_discovery_handler {
         // Try to connect in loop until first thread has served Discovery Handler
         unix_stream::try_connect(discovery_handler_endpoint)
             .await
+            .with_context(|| format!("while trying to connect to {discovery_handler_endpoint}"))
             .unwrap();
         handle
     }
