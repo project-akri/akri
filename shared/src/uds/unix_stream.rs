@@ -57,49 +57,36 @@ impl AsyncWrite for UnixStream {
     }
 }
 
-pub async fn try_connect(socket_path: &str) -> Result<(), anyhow::Error> {
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+pub async fn try_connect(socket_path: &str) -> anyhow::Result<()> {
+    use anyhow::Context;
+    use std::time::{Duration, SystemTime};
+
+    // We will ignore this dummy uri because UDS does not use it.
+    // Some servers will check the uri content so the uri needs to
+    // be in valid format even it's not used, the scheme part is used
+    // to specific what scheme to use, such as http or https
+    let endpoint = tonic::transport::Endpoint::from_static("http://[::1]:50051");
 
     // Test that server is running, trying for at most 10 seconds
     // Similar to grpc.timeout, which is yet to be implemented for tonic
     // See issue: https://github.com/hyperium/tonic/issues/75
-    let mut connected = false;
-    let start = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs();
-    let start_plus_10 = start + 10;
+    let start = SystemTime::now();
 
-    while (SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
-        < start_plus_10)
-        && !connected
-    {
-        let path = socket_path.to_string();
-        // We will ignore this dummy uri because UDS does not use it.
-        // Some servers will check the uri content so the uri needs to
-        // be in valid format even it's not used, the scheme part is used
-        // to specific what scheme to use, such as http or https
-        if let Ok(_v) = tonic::transport::Endpoint::try_from("http://[::1]:50051")
-            .map_err(|e| anyhow::format_err!("{}", e))?
-            .connect_with_connector(tower::service_fn(move |_: tonic::transport::Uri| {
-                tokio::net::UnixStream::connect(path.clone())
-            }))
-            .await
-        {
-            connected = true
-        } else {
-            tokio::time::sleep(Duration::from_secs(1)).await
+    loop {
+        let path_connector = tower::service_fn({
+            let socket_path = socket_path.to_string();
+            move |_: tonic::transport::Uri| tokio::net::UnixStream::connect(socket_path.clone())
+        });
+
+        if let Err(e) = endpoint.connect_with_connector(path_connector).await {
+            let elapsed = start.elapsed().expect("System time should be monotonic");
+            if elapsed.as_secs() < 10 {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
+            return Err(e).context("After trying for at least 10 seconds");
         }
-    }
-    if connected {
-        Ok(())
-    } else {
-        Err(anyhow::format_err!(
-            "Could not connect to server on socket {}",
-            socket_path
-        ))
+
+        return Ok(());
     }
 }

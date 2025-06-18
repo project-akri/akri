@@ -224,7 +224,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "agent"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "akri-debug-echo"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "akri-shared",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "akri-discovery-utils"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "akri-onvif"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "akri-opcua"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "akri-shared"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "akri-udev"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "anyhow",
@@ -937,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "controller"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-shared",
  "anyhow",
@@ -1105,7 +1105,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "debug-echo-discovery-handler"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-debug-echo",
  "akri-discovery-utils",
@@ -1234,16 +1234,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.10.2"
+name = "env_filter"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
+checksum = "186e05a59d4c50738528153b83b0b0194d3a29507dfec16eccd4b342903397d0"
 dependencies = [
- "humantime",
- "is-terminal",
  "log",
  "regex",
- "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "jiff",
+ "log",
 ]
 
 [[package]]
@@ -1965,6 +1975,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "jiff"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be1f93b8b1eb69c77f24bbb0afdf66f54b632ee39af40ca21c4365a1d7347e49"
+dependencies = [
+ "jiff-static",
+ "log",
+ "portable-atomic",
+ "portable-atomic-util",
+ "serde",
+]
+
+[[package]]
+name = "jiff-static"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03343451ff899767262ec32146f6d559dd759fdadf42ff0e227c7c48f72594b4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
+]
+
+[[package]]
 name = "jobserver"
 version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2506,7 +2540,7 @@ checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
 name = "onvif-discovery-handler"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "akri-onvif",
@@ -2555,7 +2589,7 @@ dependencies = [
 
 [[package]]
 name = "opcua-discovery-handler"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "akri-opcua",
@@ -2836,6 +2870,21 @@ dependencies = [
  "rustix",
  "tracing",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "portable-atomic"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+
+[[package]]
+name = "portable-atomic-util"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8a2f0d8d040d7848a709caf78912debcc3f33ee4b3cac47d73d1e1069e83507"
+dependencies = [
+ "portable-atomic",
 ]
 
 [[package]]
@@ -3659,15 +3708,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termcolor"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
-dependencies = [
- "winapi-util",
-]
-
-[[package]]
 name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4070,7 +4110,7 @@ dependencies = [
 
 [[package]]
 name = "udev-discovery-handler"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-discovery-utils",
  "akri-udev",
@@ -4081,7 +4121,7 @@ dependencies = [
 
 [[package]]
 name = "udev-video-broker"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "akri-shared",
  "env_logger",
@@ -4361,7 +4401,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-configuration"
-version = "0.13.13"
+version = "0.13.15"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -4392,19 +4432,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 
 [[package]]
-name = "winapi-util"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
-dependencies = [
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows-core"
+version = "0.61.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0fdd3ddb90610c7638aa2b3a3ab2904fb9e5cdbecc643ddb3647212781c4ae3"
+dependencies = [
+ "windows-implement",
+ "windows-interface",
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
+
+[[package]]
+name = "windows-implement"
+version = "0.60.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a47fddd13af08290e67f4acabf4b459f647552718f683a7b415d290ac744a836"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
+]
 
 [[package]]
 name = "windows-core"

@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, path::Path, sync::Arc, time::SystemTime};
+use std::{path::Path, sync::Arc, time::SystemTime};
 
 use akri_shared::uds::unix_stream;
 use async_trait::async_trait;
@@ -134,7 +134,7 @@ pub enum RunnerError {
     TimeError,
 
     #[error("Unable to register plugin to kubelet")]
-    RegistrationError,
+    RegistrationError(#[from] anyhow::Error),
 }
 
 pub(super) async fn serve_and_register_plugin<T: Clone + 'static + Send + Sync>(
@@ -192,7 +192,7 @@ pub(super) async fn serve_and_register_plugin<T: Clone + 'static + Send + Sync>(
 
     if let Err(e) = register_plugin(device_plugin_name, device_endpoint, socket_path).await {
         plugin.stop();
-        return Err(e);
+        return Err(RunnerError::RegistrationError(e));
     }
     Ok(())
 }
@@ -201,12 +201,14 @@ async fn register_plugin(
     device_plugin_name: String,
     device_endpoint: String,
     socket_path: String,
-) -> Result<(), RunnerError> {
+) -> anyhow::Result<()> {
+    use anyhow::Context;
+
     let capability_id: String = format!("akri.sh/{}", device_plugin_name);
 
     akri_shared::uds::unix_stream::try_connect(&socket_path)
         .await
-        .map_err(|_| RunnerError::RegistrationError)?;
+        .with_context(|| format!("while trying to connect to {socket_path}"))?;
 
     info!(
         "register - entered for Instance {} and socket_name: {}",
@@ -228,7 +230,7 @@ async fn register_plugin(
             UnixStream::connect(kubelet_socket_closure.clone())
         }))
         .await
-        .map_err(|_| RunnerError::RegistrationError)?;
+        .with_context(|| format!("while trying to connect to {KUBELET_SOCKET}"))?;
     let mut registration_client = registration_client::RegistrationClient::new(channel);
 
     let register_request = tonic::Request::new(RegisterRequest {
@@ -243,9 +245,6 @@ async fn register_plugin(
     );
 
     // If fail to register with the kubelet, terminate device plugin
-    registration_client
-        .register(register_request)
-        .await
-        .map_err(|_| RunnerError::RegistrationError)?;
+    registration_client.register(register_request).await?;
     Ok(())
 }
