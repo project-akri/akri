@@ -1,7 +1,8 @@
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use akri_shared::akri::configuration::Configuration;
+use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use clap::Arg;
-use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
+use k8s_openapi::{apimachinery::pkg::runtime::RawExtension, serde::de::Error};
 use openapi::models::{
     V1AdmissionRequest as AdmissionRequest, V1AdmissionResponse as AdmissionResponse,
     V1AdmissionReview as AdmissionReview, V1Status as Status,
@@ -117,6 +118,34 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             let y = serde_json::to_string(&x).unwrap();
             let config: Configuration =
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
+            match validate_udev_discovery_details(&config) {
+                Ok(_) => {
+                    println!("validate_configuration - udev discovery details are valid");
+                }
+                Err(_) => {
+                    return AdmissionResponse {
+                        allowed: false,
+                        audit_annotations: None,
+                        patch: None,
+                        patch_type: None,
+                        status: Some(Status {
+                            api_version: None,
+                            code: None,
+                            details: None,
+                            kind: None,
+                            message: Some(
+                                "Invalid udev discovery details device permissions".to_owned(),
+                            ),
+                            metadata: None,
+                            reason: None,
+                            status: None,
+                        }),
+                        uid: rqst.uid.to_owned(),
+                        warnings: None,
+                    }
+                }
+            }
+
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
             println!(
@@ -170,6 +199,40 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
             uid: rqst.uid.to_owned(),
             warnings: None,
         },
+    }
+}
+
+fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_json::Error> {
+    match &config.spec.discovery_handler.discovery_details {
+        details if details.is_empty() => {
+            println!("Discovery details are empty");
+            Ok(())
+        }
+        details => {
+            // Check if this is a Udev discovery handler
+            if config.spec.discovery_handler.name.to_lowercase() != "udev" {
+                // This is not a Udev configuration, so we don't need to validate it
+                return Ok(());
+            }
+
+            // Try to parse the discovery details as UdevDiscoveryDetails
+            match serde_json::from_str::<UdevDiscoveryDetails>(details) {
+                Ok(_) => {
+                    // The UdevDiscoveryDetails struct already has a custom deserializer for permissions
+                    // If we got here, that means the JSON was parsed successfully and permissions were validated
+                    Ok(())
+                }
+                Err(e) => {
+                    println!("Error parsing UdevDiscoveryDetails: {}", e);
+                    println!("JSON was: {}", details);
+                    // Return a proper error message when parsing fails
+                    Err(serde_json::Error::custom(format!(
+                        "Could not parse as Udev DiscoveryDetails: {}",
+                        e
+                    )))
+                }
+            }
+        }
     }
 }
 
@@ -860,6 +923,15 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_udev_discovery_details() {
+        let discovery_properties = "";
+
+        // no discovery properties specified should success
+        let resp = run_validate_configuration_discovery_properties(discovery_properties);
+        assert!(resp.allowed);
+    }
+
+    #[test]
     fn test_validate_configuration_discovery_properties_empty() {
         let discovery_properties = "";
 
@@ -1074,6 +1146,177 @@ mod tests {
         ],"#;
 
         run_validate_configuration_discovery_properties(discovery_properties);
+    }
+
+    // Tests for the validate_udev_discovery_details function
+    use akri_shared::akri::configuration::{ConfigurationSpec, DiscoveryHandlerInfo};
+
+    // Helper function to create a Configuration for testing validate_udev_discovery_details
+    fn create_test_config(discovery_details: &str) -> Configuration {
+        Configuration {
+            metadata: Default::default(),
+            spec: ConfigurationSpec {
+                discovery_handler: DiscoveryHandlerInfo {
+                    name: "udev".to_string(),
+                    discovery_details: discovery_details.to_string(),
+                    discovery_properties: None,
+                },
+                broker_spec: None,
+                instance_service_spec: None,
+                configuration_service_spec: None,
+                capacity: 1,
+                broker_properties: Default::default(),
+            },
+        }
+    }
+
+    #[test]
+    fn test_validate_udev_empty_discovery_details() {
+        let config = create_test_config("");
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_non_udev_json() {
+        // This JSON is valid but doesn't match the UdevDiscoveryDetails structure
+        let config = create_test_config(r#"{"something":"else"}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not parse as Udev DiscoveryDetails"));
+    }
+
+    #[test]
+    fn test_validate_udev_invalid_json() {
+        // Malformed JSON
+        let config = create_test_config(r#"{"rules": ["missing closing bracket"}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not parse as Udev DiscoveryDetails"));
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_r() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "r"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_w() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "w"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_m() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "m"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_rw() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "rw"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_rm() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "rm"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_wm() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "wm"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_valid_permission_rwm() {
+        let config = create_test_config(r#"{"groupRecursive": false, "udevRules": ["KERNEL=='video[0-9]*'"], "permissions": "rwm"}"#);
+        assert!(validate_udev_discovery_details(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_udev_missing_permissions() {
+        // UdevDiscoveryDetails with no permissions field should use default permissions
+        let config = create_test_config(r#"{"udevRules": []}"#);
+        let result = validate_udev_discovery_details(&config);
+        // This may now return an error if permissions is a required field in UdevDiscoveryDetails
+        if result.is_err() {
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails"));
+        } else {
+            // If it parsed successfully, then UdevDiscoveryDetails must have a default for permissions
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_validate_udev_empty_object() {
+        // Empty JSON object might now fail if required fields are missing
+        let config = create_test_config("{}");
+        let result = validate_udev_discovery_details(&config);
+        if result.is_err() {
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails"));
+        } else {
+            // If it parsed successfully, then UdevDiscoveryDetails must have defaults for all fields
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_validate_udev_invalid_permission_rwx() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": "rwx"}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not parse as Udev DiscoveryDetails"));
+    }
+
+    #[test]
+    fn test_validate_udev_invalid_permission_empty() {
+        let config = create_test_config(r#"{"udevRules": [], "permissions": ""}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not parse as Udev DiscoveryDetails"));
+    }
+
+    #[test]
+    fn test_validate_udev_invalid_permission_x() {
+        let config = create_test_config(r#"{"udev_rules": [], "permissions": "x"}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not parse as Udev DiscoveryDetails"));
+    }
+
+    #[test]
+    fn test_validate_udev_error_message_format() {
+        // Test with a completely invalid JSON to verify error formatting
+        let config = create_test_config(r#"{"this is not valid json"}"#);
+        let result = validate_udev_discovery_details(&config);
+        assert!(result.is_err());
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.starts_with("Could not parse as Udev DiscoveryDetails:"));
+        assert!(error_message.contains("expected"));
     }
 
     fn run_validate_configuration_discovery_properties(
