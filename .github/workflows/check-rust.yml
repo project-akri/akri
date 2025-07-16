@@ -26,14 +26,14 @@ jobs:
 
     steps:
     - name: Checkout the head commit of the branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         persist-credentials: false
 
     - name: Rust install
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: 1.81.0
+        toolchain: 1.82.0
         components: clippy, rustfmt
     - name: Install Linux requirements
       # TODO: When ubuntu-latest gets updated to >= 23.04 replace the wget+unzip with just protobuf-compiler in apt

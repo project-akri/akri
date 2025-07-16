@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/add-same-version-label')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Add same version label
       uses: actions/github-script@v6
       if: success()
