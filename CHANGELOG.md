@@ -1,3 +1,76 @@
+# v0.13.15
+
+## Announcing Akri v0.13.15!
+Akri v0.13.15 is a pre-release of Akri.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+The v0.13.15 release contains the following changes:
+
+**Fixes, features, and optimizations**
+- fix: imagePullPolicy reference for brokerPods (https://github.com/project-akri/akri/pull/752)
+- opt: Optimize Dockerfile for Python demo app to reduce image size (https://github.com/project-akri/akri/pull/748)
+- fix: corrected webhook nodeSelector indentation in Helm chart (https://github.com/project-akri/akri/pull/749)
+- fix: Improve device plugin registration error messages (https://github.com/project-akri/akri/pull/754)
+- fix: Keep name & namespace fields (https://github.com/project-akri/akri/pull/754)
+- feat: Update Rust to v1.82 (https://github.com/project-akri/akri/pull/763)
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.13.8...v.0.13.15).
+
+## Validated With
+
+| Distribution | Version |
+|---|---|
+| Kubernetes | 1.33.3 |
+| Kubernetes | 1.32.7 |
+| Kubernetes | 1.31.11 |
+| K3s | v1.33.3+k3s1 |
+| K3s | v1.32.7+k3s1 |
+| K3s | v1.31.11+k3s1 |
+| MicroK8s | 1.33/stable |
+| MicroK8s | 1.32/stable |
+| MicroK8s | 1.31/stable |
+
+## What's next?
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper.
+
+**⭐ Contributors to v0.13.15 ⭐**
+- @gauravgahlot 
+- @bindsi 
+- @dineshbodala 
+- @ananos 
+- @revanthkoganti 
+- @diconico07 
+- @kate-goldenring 
+- @twz123 
+- @yujinkim-msft 
+
+
+(Please send us (`@Yu Jin Kim`) a direct message on
+  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+
+## Installation
+Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
+how to install Akri.
+
+```
+helm repo add akri-helm-charts https://project-akri.github.io/akri/
+helm install akri akri-helm-charts/akri --version 0.13.15 \
+    # additional configuration
+```
+
+## Release history
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.13.15/CHANGELOG.md) for more information on what changed
+in this and previous releases.
+
+# Previous Releases:
+
 # v0.13.8
 
 ## Announcing Akri v0.13.8!
@@ -78,8 +151,6 @@ helm install akri akri-helm-charts/akri --version 0.13.8 \
 ## Release history
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.13.8/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
-# Previous Releases:
 
 # v0.12.20
 
