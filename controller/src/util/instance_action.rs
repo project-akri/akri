@@ -106,11 +106,11 @@ async fn internal_do_instance_watch(
             Ok(None) => break,
             Ok(Some(event)) => event,
         };
-        // Aquire lock to ensure cleanup_instance_and_configuration_svcs and the
+        // Acquire lock to ensure cleanup_instance_and_configuration_svcs and the
         // inner loop handle_instance call in internal_do_instance_watch
         // cannot execute at the same time.
         let _lock = synchronization.lock().await;
-        trace!("internal_do_instance_watch - aquired sync lock");
+        trace!("internal_do_instance_watch - acquired sync lock");
         handle_instance(event, kube_interface, &mut first_event).await?;
     }
     Ok(())
@@ -408,7 +408,7 @@ pub async fn handle_instance_change(
         _ => {
             if action != &InstanceAction::Remove {
                 // In this scenario, a configuration has been deleted without the Akri Agent deleting the associated Instances.
-                // Furthermore, Akri Agent is still modifying the Instances. This should not happen beacuse Agent
+                // Furthermore, Akri Agent is still modifying the Instances. This should not happen because Agent
                 // is designed to shutdown when it's Configuration watcher fails.
                 error!(
                         "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
