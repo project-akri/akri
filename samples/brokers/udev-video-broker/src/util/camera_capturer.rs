@@ -17,7 +17,7 @@ const DEFAULT_FRAMES_PER_SECOND: u32 = 10;
 const DEFAULT_RESOLUTION_WIDTH: u32 = 640;
 /// Default resolution height, which is also the default for rscam.
 const DEFAULT_RESOLUTION_HEIGHT: u32 = 480;
-/// Defailt format, which is also the default for rscam.
+/// Default format, which is also the default for rscam.
 const DEFAULT_FORMAT: &str = "MJPG";
 
 pub type Resolution = (u32, u32);
@@ -223,7 +223,7 @@ mod tests {
         let mut mock_query = MockEnvVarQuery::new();
         const MOCK_FORMAT: &str = "YUYV";
         let mut format_options: Vec<String> =
-            vec!["OTHR".to_string(), "YUYV".to_string(), "MJPG".to_string()];
+            vec!["OTHER".to_string(), "YUYV".to_string(), "MJPG".to_string()];
 
         // Test when env var set and camera supports that format
         mock_query
@@ -255,10 +255,10 @@ mod tests {
             .times(1)
             .withf(move |name: &str| name == FORMAT)
             .returning(move |_| Err(VarError::NotPresent));
-        assert_eq!("OTHR".to_string(), get_format(&mock_query, format_options));
+        assert_eq!("OTHER".to_string(), get_format(&mock_query, format_options));
 
         // Test when env var set and camera does not support format nor the default one
-        let minimal_format_options: Vec<String> = vec!["OTHR".to_string(), "BLAH".to_string()];
+        let minimal_format_options: Vec<String> = vec!["OTHER".to_string(), "BLAH".to_string()];
         mock_query
             .expect_get_env_var()
             .times(1)
@@ -266,7 +266,7 @@ mod tests {
             .returning(move |_| Ok(MOCK_FORMAT.to_string()));
         // Should choose first one
         assert_eq!(
-            "OTHR".to_string(),
+            "OTHER".to_string(),
             get_format(&mock_query, minimal_format_options)
         );
     }

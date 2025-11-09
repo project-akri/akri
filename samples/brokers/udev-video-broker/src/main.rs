@@ -71,7 +71,7 @@ fn get_video_devnode(env_var_query: &impl EnvVarQuery) -> String {
         .collect::<Vec<String>>();
     let device_devnode = device_devnodes
         .first()
-        .expect("devnode not set in envrionment variable");
+        .expect("devnode not set in environment variable");
 
     trace!("get_video_devnode - found devnode {}", device_devnode);
     device_devnode.to_string()
