@@ -34,7 +34,7 @@ enum NodeState {
 
 /// This is used to handle Nodes disappearing.
 ///
-/// When a Node disapears, make sure that any Instance that
+/// When a Node disappears, make sure that any Instance that
 /// references the Node is cleaned.  This means that the
 /// Instance.nodes property no longer contains the node and
 /// that the Instance.deviceUsage property no longer contains

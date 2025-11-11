@@ -426,7 +426,7 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
     // Mount all device environment variables with and without a suffix of the
     // instance hash. Envs without a suffix could be undeterministically
     // overridden by other allocated instances discovered by the same Discovery
-    // Handler. Unsuffixed envs should only be referrenced if they are
+    // Handler. Unsuffixed envs should only be referenced if they are
     // additional Configuration.broker_properties or if only one instance of a
     // DH is allocated to the broker.
     let envs = device

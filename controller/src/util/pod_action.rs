@@ -137,7 +137,7 @@ impl PodActionInfo {
             InstanceAction::Remove => {
                 //
                 // For all pods (with our controller's selector) that are RUNNING on a node that is described in the
-                // Instance (unknown_node=false), when that Instance is removed, we will REMVOE the pods.
+                // Instance (unknown_node=false), when that Instance is removed, we will REMOVE the pods.
                 //
                 log::trace!(
                     "choice_for_running_pods - Running Pod (tracked) ... PodAction::Remove ({:?})",

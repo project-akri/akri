@@ -95,7 +95,7 @@ impl OnvifQuery for OnvifQueryImpl {
         inner_get_device_profile_streaming_uri(url, profile_token, &http).await
     }
 
-    /// Calls the publically accessible GetSystemDateAndTime endpoint to determine
+    /// Calls the publicly accessible GetSystemDateAndTime endpoint to determine
     /// that the camera is responsive. If responsive, returns the responding url.
     async fn is_device_responding(&self, url: &str) -> Result<String, anyhow::Error> {
         let http = HttpRequest {};

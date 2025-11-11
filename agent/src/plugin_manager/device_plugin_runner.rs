@@ -121,7 +121,7 @@ impl<T: Clone + 'static + Send + Sync> DevicePlugin for DevicePluginImpl<T> {
         &self,
         _request: tonic::Request<super::v1beta1::PreferredAllocationRequest>,
     ) -> Result<tonic::Response<super::v1beta1::PreferredAllocationResponse>, tonic::Status> {
-        error!("get_preferred_allocation - kubelet called get_prefered_allocation",);
+        error!("get_preferred_allocation - kubelet called get_preferred_allocation",);
         Err(tonic::Status::unimplemented(
             "Get preferred allocation is not implemented for this plugin",
         ))
