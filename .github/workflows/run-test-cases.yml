@@ -115,23 +115,23 @@ jobs:
       matrix:
         kube:
           - runtime: microk8s
-            version: 1.29/stable
-          - runtime: microk8s
-            version: 1.30/stable
-          - runtime: microk8s
             version: 1.31/stable
+          - runtime: microk8s
+            version: 1.32/stable
+          - runtime: microk8s
+            version: 1.33/stable
           - runtime: k3s
-            version: v1.29.10+k3s1
+            version: v1.31.11+k3s1
           - runtime: k3s
-            version: v1.30.6+k3s1
+            version: v1.32.7+k3s1
           - runtime: k3s
-            version: v1.31.2+k3s1
+            version: v1.33.3+k3s1
           - runtime: k8s
-            version: 1.29.10
+            version: 1.31.11
           - runtime: k8s
-            version: 1.30.6
+            version: 1.32.7
           - runtime: k8s
-            version: 1.31.2
+            version: 1.33.3
 
     steps:
       - name: Checkout the head commit of the branch
