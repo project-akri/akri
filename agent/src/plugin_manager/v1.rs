@@ -2,7 +2,7 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllocatableResourcesRequest {}
-/// AllocatableResourcesResponses contains informations about all the devices known by the kubelet
+/// AllocatableResourcesResponses contains information about all the devices known by the kubelet
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllocatableResourcesResponse {

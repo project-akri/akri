@@ -465,7 +465,7 @@ impl BrokerPodWatcher {
     }
 
     /// This is called when a Pod enters the Running phase and ensures
-    /// that isntance and configuration services are running as specified
+    /// that instance and configuration services are running as specified
     /// by the configuration.
     async fn handle_running_pod(
         &self,
@@ -485,7 +485,7 @@ impl BrokerPodWatcher {
             Ok(config) => config,
             _ => {
                 // In this scenario, a configuration has likely been deleted in the middle of handle_running_pod.
-                // There is no need to propogate the error and bring down the Controller.
+                // There is no need to propagate the error and bring down the Controller.
                 trace!(
                     "handle_running_pod - no configuration found for {}",
                     &configuration_name
@@ -500,7 +500,7 @@ impl BrokerPodWatcher {
             Ok(instance) => instance,
             _ => {
                 // In this scenario, a instance has likely been deleted in the middle of handle_running_pod.
-                // There is no need to propogate the error and bring down the Controller.
+                // There is no need to propagate the error and bring down the Controller.
                 trace!(
                     "handle_running_pod - no instance found for {}",
                     &instance_name
