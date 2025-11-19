@@ -170,7 +170,7 @@ impl KubeInterface for KubeImpl {
         self.client.clone()
     }
 
-    /// Get Kuberenetes node for specified name
+    /// Get Kubernetes node for specified name
     ///
     /// Example:
     ///
@@ -188,7 +188,7 @@ impl KubeInterface for KubeImpl {
         node::find_node(name, self.get_kube_client()).await
     }
 
-    /// Get Kuberenetes pods with specified label selector
+    /// Get Kubernetes pods with specified label selector
     ///
     /// Example:
     ///
@@ -205,7 +205,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
-    /// Get Kuberenetes pods with specified field selector
+    /// Get Kubernetes pods with specified field selector
     ///
     /// Example:
     ///
@@ -222,7 +222,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
-    /// Create Kuberenetes pod
+    /// Create Kubernetes pod
     ///
     /// Example:
     ///
@@ -258,7 +258,7 @@ impl KubeInterface for KubeImpl {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Find Kuberenetes Jobs with specified label selector
+    /// Find Kubernetes Jobs with specified label selector
     ///
     /// Example:
     ///
@@ -275,7 +275,7 @@ impl KubeInterface for KubeImpl {
     async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
         job::find_jobs_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
-    /// Find Kuberenetes Jobs with specified field selector
+    /// Find Kubernetes Jobs with specified field selector
     ///
     /// Example:
     ///
@@ -293,7 +293,7 @@ impl KubeInterface for KubeImpl {
         job::find_jobs_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
 
-    /// Create Kuberenetes job
+    /// Create Kubernetes job
     ///
     /// Example:
     ///
@@ -329,7 +329,7 @@ impl KubeInterface for KubeImpl {
         job::remove_job(job_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Get Kuberenetes services with specified label selector
+    /// Get Kubernetes services with specified label selector
     ///
     /// Example:
     ///

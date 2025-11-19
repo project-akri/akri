@@ -107,7 +107,7 @@ pub fn create_broker_app_name(
         }
     } else {
         // If the device capability is NOT shared, the instance name will contain
-        // node-specific content, which guarntees uniqueness.
+        // node-specific content, which guarantees uniqueness.
         format!("{}-{}", normalized_instance_name, app_name_suffix)
     }
 }
@@ -863,7 +863,7 @@ mod broker_podspec_tests {
                     .unwrap()
             );
 
-            // Validate image name remanes unchanged
+            // Validate image name remains unchanged
             for i in 0..num_containers {
                 assert_eq!(
                     &image_names.get(i).unwrap(),

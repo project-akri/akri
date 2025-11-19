@@ -129,7 +129,7 @@ pub trait DiscoveryHandlerEndpoint: Send + Sync {
     fn is_closed(&self) -> bool;
 }
 
-/// This trait is here to help with testing for code that interract with the discovery handler registry.
+/// This trait is here to help with testing for code that interact with the discovery handler registry.
 /// This trait represent a request made to a DH (either locally or through gRPC call), it will aggregate the
 /// results across the different registered handlers of that type, and generate the Instance objects for discovered
 /// devices.
@@ -140,7 +140,7 @@ pub trait DiscoveryHandlerRequest: Sync + Send {
     async fn set_extra_device_properties(&self, extra_device_properties: HashMap<String, String>);
 }
 
-/// This trait is here to help with testing for code that interract with the discovery handler registry
+/// This trait is here to help with testing for code that interact with the discovery handler registry
 /// In the context of this trait, a "request" is a DiscoveryHandlerRequest,
 #[cfg_attr(test, automock)]
 #[async_trait]
