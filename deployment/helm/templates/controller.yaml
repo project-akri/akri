@@ -58,11 +58,16 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.controller.allowOnControlPlane }}
+      {{- if or .Values.controller.allowOnControlPlane .Values.controller.tolerations }}
       tolerations:
+        {{- if .Values.controller.allowOnControlPlane }}
         {{- /* Allow this pod to run on the master. */}}
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
+        {{- end }}
+        {{- if .Values.controller.tolerations }}
+        {{- toYaml .Values.controller.tolerations | nindent 2 }}
+        {{- end }}
       {{- end }}
       nodeSelector:
         {{- if .Values.controller.onlyOnControlPlane }}
