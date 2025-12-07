@@ -63,7 +63,7 @@ spec:
         spec:
           containers:
           - name: {{ .Values.custom.configuration.name }}-broker
-            image: {{ printf "%s:%s" .Values.custom.configuration.brokerJob.image.repository .Values.custom.configuration.brokerPod.image.tag | quote }}
+            image: {{ printf "%s:%s" .Values.custom.configuration.brokerJob.image.repository .Values.custom.configuration.brokerJob.image.tag | quote }}
             {{- if .Values.custom.configuration.brokerJob.command }}
             command: 
               {{- toYaml .Values.custom.configuration.brokerJob.command | nindent 14 }}
