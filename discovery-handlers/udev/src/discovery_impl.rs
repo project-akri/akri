@@ -2,14 +2,14 @@ use std::collections::HashSet;
 
 use super::wrappers::{
     udev_device::{
-        get_attribute_value, get_devnode, get_devpath, get_driver, get_parent, get_property_value,
-        get_subsystem, get_sysname, DeviceExt,
+        DeviceExt, get_attribute_value, get_devnode, get_devpath, get_driver, get_parent,
+        get_property_value, get_subsystem, get_sysname,
     },
     udev_enumerator::Enumerator,
 };
 use log::{error, info, trace};
-use pest::iterators::Pair;
 use pest::Parser;
+use pest::iterators::Pair;
 use regex::Regex;
 
 const TAGS: &str = "TAGS";
@@ -97,8 +97,12 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Er
                 value: value.to_string(),
             });
         } else {
-            return Err(anyhow::format_err!("parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
-            inner_field.into_inner().as_str(), operation_rule, value));
+            return Err(anyhow::format_err!(
+                "parse_udev_rule - unsupported action operation for rule with field [{}], operation [{:?}], and value[{}]",
+                inner_field.into_inner().as_str(),
+                operation_rule,
+                value
+            ));
         }
     }
     Ok(udev_filters)
@@ -524,7 +528,7 @@ fn get_device_relatives<'a>(
     for relative in possible_relatives {
         match relative {
             parent if device_path.starts_with(relative.as_str()) => {
-                return (Some(parent.clone()), vec![])
+                return (Some(parent.clone()), vec![]);
             }
             child if relative.starts_with(device_path) => childrens.push(child.clone()),
             _ => (),
@@ -555,13 +559,13 @@ pub fn insert_device_with_relatives(
 
 #[cfg(test)]
 mod discovery_tests {
-    use super::super::wrappers::udev_enumerator::{create_enumerator, MockEnumerator};
+    use super::super::wrappers::udev_enumerator::{MockEnumerator, create_enumerator};
     use super::*;
     use std::{
         collections::HashMap,
         ffi::OsStr,
         fs::File,
-        io::{prelude::*, BufReader},
+        io::{BufReader, prelude::*},
         path::Path,
     };
     #[derive(Clone)]

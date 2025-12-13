@@ -1,18 +1,18 @@
 use super::{
-    discovery_impl::{do_parse_and_find, insert_device_with_relatives, DeviceProperties},
+    discovery_impl::{DeviceProperties, do_parse_and_find, insert_device_with_relatives},
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
-    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-    v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DeviceSpec, DiscoverRequest,
-        DiscoverResponse,
-    },
     DiscoverStream,
+    discovery_handler::{DISCOVERED_DEVICES_CHANNEL_CAPACITY, deserialize_discovery_details},
+    v0::{
+        Device, DeviceSpec, DiscoverRequest, DiscoverResponse,
+        discovery_handler_server::DiscoveryHandler,
+    },
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::sync::mpsc;

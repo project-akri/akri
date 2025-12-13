@@ -1,17 +1,16 @@
 use super::credential_store::CredentialStore;
 use super::discovery_impl::util;
 use super::discovery_utils::{
-    OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
-    ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
-    ONVIF_DEVICE_UUID_LABEL_ID,
+    ONVIF_DEVICE_IP_ADDRESS_LABEL_ID, ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID,
+    ONVIF_DEVICE_SERVICE_URL_LABEL_ID, ONVIF_DEVICE_UUID_LABEL_ID, OnvifQuery, OnvifQueryImpl,
 };
 use akri_discovery_utils::{
     discovery::{
-        discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-        v0::{
-            discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
-        },
         DiscoverStream,
+        discovery_handler::{DISCOVERED_DEVICES_CHANNEL_CAPACITY, deserialize_discovery_details},
+        v0::{
+            Device, DiscoverRequest, DiscoverResponse, discovery_handler_server::DiscoveryHandler,
+        },
     },
     filtering::FilterList,
 };
@@ -383,9 +382,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -447,9 +448,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -476,9 +479,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -540,9 +545,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -604,9 +611,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -668,9 +677,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -732,9 +743,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -797,9 +810,11 @@ mod tests {
             uuids: None,
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -854,9 +869,11 @@ mod tests {
             }),
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -877,9 +894,11 @@ mod tests {
             }),
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -900,9 +919,11 @@ mod tests {
             }),
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -1025,8 +1046,10 @@ mod tests {
             }),
             discovery_timeout_seconds: 1,
         };
-        assert!(apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
-            .await
-            .is_none());
+        assert!(
+            apply_filters(&onvif_config, mock_uri, mock_uuid, &mock)
+                .await
+                .is_none()
+        );
     }
 }

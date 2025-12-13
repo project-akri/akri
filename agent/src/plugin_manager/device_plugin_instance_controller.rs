@@ -11,20 +11,20 @@ use itertools::Itertools;
 use kube::api::{Patch, PatchParams};
 use kube::core::{NotUsed, Object, ObjectMeta, TypeMeta};
 use kube::{Resource, ResourceExt};
+use kube_runtime::Controller;
 use kube_runtime::controller::Action;
 use kube_runtime::reflector::Store;
-use kube_runtime::Controller;
 use thiserror::Error;
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, watch};
 use tokio::task::JoinHandle;
 use tonic::Request;
 
-use crate::device_manager::{cdi, DeviceManager};
+use crate::device_manager::{DeviceManager, cdi};
 use crate::plugin_manager::v1beta1::ContainerAllocateResponse;
 use crate::util::stopper::Stopper;
 
 use super::device_plugin_runner::{
-    serve_and_register_plugin, DeviceUsageStream, InternalDevicePlugin,
+    DeviceUsageStream, InternalDevicePlugin, serve_and_register_plugin,
 };
 use super::v1beta1::{AllocateRequest, AllocateResponse, ListAndWatchResponse};
 
@@ -1033,10 +1033,12 @@ mod tests {
         )
         .unwrap();
 
-        assert!(plugin
-            .update_slots(&HashMap::from([("slot-1".to_owned(), "node-a".to_owned())]))
-            .await
-            .is_ok(),);
+        assert!(
+            plugin
+                .update_slots(&HashMap::from([("slot-1".to_owned(), "node-a".to_owned())]))
+                .await
+                .is_ok(),
+        );
 
         assert_eq!(
             plugin.slots_status.lock().await.borrow()[1],
@@ -1413,22 +1415,26 @@ mod tests {
             stopper: stopper.clone(),
         });
 
-        assert!(instance_plugin
-            .allocate(Request::new(AllocateRequest {
-                container_requests: vec![ContainerAllocateRequest {
-                    devices_i_ds: vec!["instance-a-0".to_owned()],
-                }]
-            }))
-            .await
-            .is_err());
-        assert!(instance_plugin
-            .allocate(Request::new(AllocateRequest {
-                container_requests: vec![ContainerAllocateRequest {
-                    devices_i_ds: vec!["instance-a-3".to_owned()],
-                }]
-            }))
-            .await
-            .is_ok());
+        assert!(
+            instance_plugin
+                .allocate(Request::new(AllocateRequest {
+                    container_requests: vec![ContainerAllocateRequest {
+                        devices_i_ds: vec!["instance-a-0".to_owned()],
+                    }]
+                }))
+                .await
+                .is_err()
+        );
+        assert!(
+            instance_plugin
+                .allocate(Request::new(AllocateRequest {
+                    container_requests: vec![ContainerAllocateRequest {
+                        devices_i_ds: vec!["instance-a-3".to_owned()],
+                    }]
+                }))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]

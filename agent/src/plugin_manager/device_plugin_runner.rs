@@ -7,8 +7,8 @@ use thiserror::Error;
 use tokio::net::{UnixListener, UnixStream};
 use tokio_stream::wrappers::WatchStream;
 use tonic::{
-    transport::{Endpoint, Server, Uri},
     Request,
+    transport::{Endpoint, Server, Uri},
 };
 use tower::service_fn;
 
@@ -22,9 +22,10 @@ pub const DEVICE_PLUGIN_PATH: &str = "/var/lib/kubelet/device-plugins";
 pub const KUBELET_SOCKET: &str = "/var/lib/kubelet/device-plugins/kubelet.sock";
 
 use super::v1beta1::{
+    AllocateRequest, AllocateResponse, DevicePluginOptions, Empty, ListAndWatchResponse,
+    RegisterRequest,
     device_plugin_server::{DevicePlugin, DevicePluginServer},
-    registration_client, AllocateRequest, AllocateResponse, DevicePluginOptions, Empty,
-    ListAndWatchResponse, RegisterRequest,
+    registration_client,
 };
 
 #[async_trait]

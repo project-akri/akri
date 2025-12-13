@@ -1,4 +1,4 @@
-use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, post, web};
 use akri_shared::akri::configuration::Configuration;
 use clap::Arg;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
@@ -7,7 +7,7 @@ use openapi::models::{
     V1AdmissionReview as AdmissionReview, V1Status as Status,
 };
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn get_builder(key: &str, crt: &str) -> SslAcceptorBuilder {
     let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();

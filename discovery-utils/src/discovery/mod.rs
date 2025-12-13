@@ -12,8 +12,8 @@ pub mod discovery_handler {
     use super::{
         server::run_discovery_server,
         v0::{
-            discovery_handler_server::DiscoveryHandler,
-            register_discovery_handler_request::EndpointType, RegisterDiscoveryHandlerRequest,
+            RegisterDiscoveryHandlerRequest, discovery_handler_server::DiscoveryHandler,
+            register_discovery_handler_request::EndpointType,
         },
     };
     use log::trace;
@@ -97,7 +97,7 @@ pub mod discovery_handler {
 #[cfg(any(feature = "mock-discovery-handler", test))]
 pub mod mock_discovery_handler {
     use super::v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
+        Device, DiscoverRequest, DiscoverResponse, discovery_handler_server::DiscoveryHandler,
     };
     use akri_shared::uds::unix_stream;
     use async_trait::async_trait;
@@ -257,10 +257,10 @@ pub mod server {
     pub mod tests {
         use super::super::{
             mock_discovery_handler::{
-                get_mock_discovery_handler_dir_and_endpoint, run_mock_discovery_handler,
-                MockDiscoveryHandler,
+                MockDiscoveryHandler, get_mock_discovery_handler_dir_and_endpoint,
+                run_mock_discovery_handler,
             },
-            v0::{discovery_handler_client::DiscoveryHandlerClient, DiscoverRequest},
+            v0::{DiscoverRequest, discovery_handler_client::DiscoveryHandlerClient},
         };
         use super::*;
         use std::collections::HashMap;
@@ -268,8 +268,8 @@ pub mod server {
         use tempfile::Builder;
         use tokio::net::UnixStream;
         use tonic::{
-            transport::{Endpoint, Uri},
             Request,
+            transport::{Endpoint, Uri},
         };
 
         #[tokio::test]

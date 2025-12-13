@@ -1,10 +1,9 @@
 use super::akri::{
-    configuration,
+    API_NAMESPACE, API_VERSION, configuration,
     configuration::{Configuration, ConfigurationList},
     instance,
     instance::{Instance, InstanceList, InstanceSpec},
-    retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-    API_NAMESPACE, API_VERSION,
+    retry::{MAX_INSTANCE_UPDATE_TRIES, random_delay},
 };
 use async_trait::async_trait;
 use k8s_openapi::api::batch::v1::Job;
@@ -628,7 +627,8 @@ pub async fn try_delete_instance(
                 }
                 log::error!(
                     "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
-                    instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                    instance_name,
+                    MAX_INSTANCE_UPDATE_TRIES - x - 1
                 );
                 if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                     return Err(e);

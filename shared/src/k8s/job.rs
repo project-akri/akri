@@ -1,10 +1,10 @@
-use super::super::akri::{instance::Instance, API_NAMESPACE};
+use super::super::akri::{API_NAMESPACE, instance::Instance};
 use super::{
+    ERROR_CONFLICT, ERROR_NOT_FOUND, OwnershipInfo,
     pod::modify_pod_spec,
     pod::{
         AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID,
     },
-    OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND,
 };
 use either::Either;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
@@ -56,8 +56,7 @@ pub async fn find_jobs_with_selector(
 ) -> Result<ObjectList<Job>, anyhow::Error> {
     trace!(
         "find_jobs_with_selector with label_selector={:?} field_selector={:?}",
-        &label_selector,
-        &field_selector
+        &label_selector, &field_selector
     );
     let jobs: Api<Job> = Api::all(kube_client);
     let job_list_params = ListParams {
@@ -489,23 +488,25 @@ mod broker_jobspec_tests {
                 .unwrap()
                 .api_version
         );
-        assert!(job
-            .metadata
-            .owner_references
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .controller
-            .unwrap());
-        assert!(job
-            .metadata
-            .owner_references
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .block_owner_deletion
-            .unwrap());
+        assert!(
+            job.metadata
+                .owner_references
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .controller
+                .unwrap()
+        );
+        assert!(
+            job.metadata
+                .owner_references
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .block_owner_deletion
+                .unwrap()
+        );
     }
 }

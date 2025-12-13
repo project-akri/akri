@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{cdi, DeviceManager};
+use super::{DeviceManager, cdi};
 use tokio::sync::watch;
 
 pub struct InMemoryManager {

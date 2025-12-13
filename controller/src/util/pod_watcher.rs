@@ -1,20 +1,21 @@
 use akri_shared::{
     akri::{
         configuration::Configuration,
-        retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
+        retry::{MAX_INSTANCE_UPDATE_TRIES, random_delay},
     },
     k8s,
     k8s::{
+        KubeInterface, OwnershipInfo, OwnershipType,
         pod::{AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME},
-        service, KubeInterface, OwnershipInfo, OwnershipType,
+        service,
     },
 };
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
 use kube::api::Api;
-use kube::runtime::watcher::{watcher, Config, Event};
 use kube::runtime::WatchStreamExt;
+use kube::runtime::watcher::{Config, Event, watcher};
 use log::{error, info, trace};
 use std::{collections::HashMap, sync::Arc};
 
@@ -542,8 +543,7 @@ impl BrokerPodWatcher {
     ) -> anyhow::Result<()> {
         trace!(
             "create_or_update_service - instance={:?} with ownership:{:?}",
-            instance_name,
-            &ownership
+            instance_name, &ownership
         );
 
         let mut create_new_service = true;
@@ -562,7 +562,10 @@ impl BrokerPodWatcher {
                     &svc_name
                 );
                 service::update_ownership(&mut existing_svc, ownership.clone(), true)?;
-                trace!("create_or_update_service - calling service::update_service name:{} namespace: {}", &svc_name, &svc_namespace);
+                trace!(
+                    "create_or_update_service - calling service::update_service name:{} namespace: {}",
+                    &svc_name, &svc_namespace
+                );
                 kube_interface
                     .update_service(&existing_svc, &svc_name, &svc_namespace)
                     .await?;
@@ -789,23 +792,27 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = BrokerPodWatcher::new();
         let mut first_event = true;
-        assert!(pod_watcher
-            .handle_pod(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_ok());
+        assert!(
+            pod_watcher
+                .handle_pod(
+                    Event::Restarted(Vec::new()),
+                    &MockKubeInterface::new(),
+                    &mut first_event
+                )
+                .await
+                .is_ok()
+        );
         first_event = false;
-        assert!(pod_watcher
-            .handle_pod(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .handle_pod(
+                    Event::Restarted(Vec::new()),
+                    &MockKubeInterface::new(),
+                    &mut first_event
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1348,9 +1355,11 @@ mod tests {
         let orig_pod = pod_list.items.first().unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(orig_pod)
-            .is_ok());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(orig_pod)
+                .is_ok()
+        );
 
         let mut instanceless_pod = orig_pod.clone();
         instanceless_pod
@@ -1359,9 +1368,11 @@ mod tests {
             .as_mut()
             .unwrap()
             .remove(AKRI_INSTANCE_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&instanceless_pod)
-            .is_err());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(&instanceless_pod)
+                .is_err()
+        );
 
         let mut configurationless_pod = orig_pod.clone();
         configurationless_pod
@@ -1370,9 +1381,11 @@ mod tests {
             .as_mut()
             .unwrap()
             .remove(AKRI_CONFIGURATION_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&configurationless_pod)
-            .is_err());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(&configurationless_pod)
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1444,20 +1457,22 @@ mod tests {
             "object_uid".to_string(),
         );
 
-        assert!(pod_watcher
-            .create_or_update_service(
-                "config-a-b494b6",
-                "config-a",
-                "config-a-namespace",
-                AKRI_INSTANCE_LABEL_NAME,
-                "config-a-b494b6",
-                ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
-                true,
-                &mock
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .create_or_update_service(
+                    "config-a-b494b6",
+                    "config-a",
+                    "config-a-namespace",
+                    AKRI_INSTANCE_LABEL_NAME,
+                    "config-a-b494b6",
+                    ownership,
+                    &config.spec.instance_service_spec.unwrap().clone(),
+                    true,
+                    &mock
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1528,20 +1543,22 @@ mod tests {
             "object_uid".to_string(),
         );
 
-        assert!(pod_watcher
-            .create_or_update_service(
-                "config-a-b494b6",
-                "config-a",
-                "config-a-namespace",
-                AKRI_INSTANCE_LABEL_NAME,
-                "config-a-b494b6",
-                ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
-                true,
-                &mock
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .create_or_update_service(
+                    "config-a-b494b6",
+                    "config-a",
+                    "config-a-namespace",
+                    AKRI_INSTANCE_LABEL_NAME,
+                    "config-a-b494b6",
+                    ownership,
+                    &config.spec.instance_service_spec.unwrap().clone(),
+                    true,
+                    &mock
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[derive(Clone)]

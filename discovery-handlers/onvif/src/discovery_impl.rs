@@ -179,8 +179,9 @@ pub mod util {
         /// Get SOAP probe message with a specific message id
         fn get_expected_probe_message(message_id: &str) -> String {
             format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Header xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\"><w:MessageID>{}</w:MessageID><w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To><w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action></s:Header><s:Body xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"><d:Probe><d:Types>netwsdl:NetworkVideoTransmitter</d:Types></d:Probe></s:Body></s:Envelope>",
-            &message_id)
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Header xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\"><w:MessageID>{}</w:MessageID><w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To><w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action></s:Header><s:Body xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"><d:Probe><d:Types>netwsdl:NetworkVideoTransmitter</d:Types></d:Probe></s:Body></s:Envelope>",
+                &message_id
+            )
         }
 
         #[test]
@@ -428,11 +429,13 @@ pub mod util {
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
             let device_uuid = "device_uuid";
             let response = get_expected_probe_match_message(device_uuid, &uris);
-            assert!(get_scope_filtered_uris_from_discovery_response(
-                &response,
-                Some(filter_list).as_ref()
-            )
-            .is_empty());
+            assert!(
+                get_scope_filtered_uris_from_discovery_response(
+                    &response,
+                    Some(filter_list).as_ref()
+                )
+                .is_empty()
+            );
         }
 
         #[test]
@@ -446,11 +449,13 @@ pub mod util {
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
             let device_uuid = "device_uuid";
             let response = get_expected_probe_match_message(device_uuid, &uris);
-            assert!(get_scope_filtered_uris_from_discovery_response(
-                &response,
-                Some(filter_list).as_ref()
-            )
-            .is_empty());
+            assert!(
+                get_scope_filtered_uris_from_discovery_response(
+                    &response,
+                    Some(filter_list).as_ref()
+                )
+                .is_empty()
+            );
         }
 
         #[test]
@@ -488,11 +493,13 @@ pub mod util {
             let uris = vec!["uri_one".to_string(), "uri_two".to_string()];
             let device_uuid = "device_uuid";
             let response = get_expected_probe_match_message(device_uuid, &uris);
-            assert!(get_scope_filtered_uris_from_discovery_response(
-                &response,
-                Some(filter_list).as_ref()
-            )
-            .is_empty());
+            assert!(
+                get_scope_filtered_uris_from_discovery_response(
+                    &response,
+                    Some(filter_list).as_ref()
+                )
+                .is_empty()
+            );
         }
 
         #[test]
@@ -698,8 +705,7 @@ pub mod util {
         let socket = UdpSocket::bind(local_socket_addr).await?;
         trace!(
             "get_discovery_response_socket - joining multicast: {:?} {:?}",
-            &MULTI_IPV4_ADDR,
-            &LOCAL_IPV4_ADDR
+            &MULTI_IPV4_ADDR, &LOCAL_IPV4_ADDR
         );
         socket
             .join_multicast_v4(MULTI_IPV4_ADDR, LOCAL_IPV4_ADDR)
@@ -734,7 +740,10 @@ pub mod util {
                 }
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {
-                        trace!("simple_onvif_discover - recv_from error ... continue collecting responses {:?}", e);
+                        trace!(
+                            "simple_onvif_discover - recv_from error ... continue collecting responses {:?}",
+                            e
+                        );
                     }
                     _ => {
                         error!("simple_onvif_discover - recv_from error: {:?}", e);

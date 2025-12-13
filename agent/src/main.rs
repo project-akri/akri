@@ -8,7 +8,7 @@ mod discovery_handler_manager;
 mod plugin_manager;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use akri_shared::akri::{API_NAMESPACE, metrics::run_metrics_server};
 use log::{info, trace};
 use std::{
     collections::HashMap,

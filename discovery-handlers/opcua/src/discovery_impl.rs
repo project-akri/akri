@@ -1,9 +1,9 @@
 use super::wrappers::{
-    opcua_client_wrapper::{create_opcua_discovery_client, OpcuaClient},
+    opcua_client_wrapper::{OpcuaClient, create_opcua_discovery_client},
     tcp_stream_wrapper::{TcpStream, TcpStreamImpl},
 };
 use ::url::Url;
-use akri_discovery_utils::filtering::{should_include, FilterList};
+use akri_discovery_utils::filtering::{FilterList, should_include};
 use anyhow::Context;
 use log::{error, info, trace};
 use opcua::client::prelude::*;
@@ -429,13 +429,15 @@ mod tests {
     fn test_get_server_endpoints_invalid_url() {
         let mut mock_client = MockOpcuaClient::new();
         let mock_tcp_stream = MockTcpStream::new();
-        assert!(get_discovery_urls(
-            &mut mock_client,
-            vec!["tcp://127.0.0.1:4855/".to_string()],
-            None,
-            mock_tcp_stream
+        assert!(
+            get_discovery_urls(
+                &mut mock_client,
+                vec!["tcp://127.0.0.1:4855/".to_string()],
+                None,
+                mock_tcp_stream
+            )
+            .is_empty()
         )
-        .is_empty())
     }
 
     #[test]

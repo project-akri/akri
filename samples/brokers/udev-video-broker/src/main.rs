@@ -2,7 +2,7 @@ mod util;
 #[macro_use]
 extern crate lazy_static;
 use akri_shared::{
-    akri::{metrics::run_metrics_server, API_NAMESPACE},
+    akri::{API_NAMESPACE, metrics::run_metrics_server},
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
 use log::{info, trace};

@@ -1,24 +1,24 @@
 use std::{convert::TryFrom, pin::Pin, sync::Arc};
 
 use akri_discovery_utils::discovery::v0::{
+    DiscoverRequest, DiscoverResponse, Empty, RegisterDiscoveryHandlerRequest,
     discovery_handler_client::DiscoveryHandlerClient,
     register_discovery_handler_request::EndpointType, registration_server::Registration,
-    DiscoverRequest, DiscoverResponse, Empty, RegisterDiscoveryHandlerRequest,
 };
 use akri_shared::uds::unix_stream;
 use async_trait::async_trait;
 use futures::{Stream, StreamExt, TryFutureExt};
 use tokio::{select, sync::watch};
 use tokio_stream::StreamExt as _;
-use tonic::{transport::Channel, Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Channel};
 
 use crate::util::stopper::Stopper;
 
 use super::{
+    DiscoveryError,
     discovery_handler_registry::{
         DiscoveredDevice, DiscoveryHandlerEndpoint, DiscoveryHandlerRegistry,
     },
-    DiscoveryError,
 };
 
 struct NetworkEndpoint {
@@ -122,11 +122,17 @@ impl DiscoveryHandlerEndpoint for NetworkEndpoint {
                     Err(e) => {
                         match e.code() {
                             tonic::Code::InvalidArgument => {
-                                warn!("NetworkEndpoint::query - invalid arguments provided to DiscoveryHandler");
+                                warn!(
+                                    "NetworkEndpoint::query - invalid arguments provided to DiscoveryHandler"
+                                );
                                 return Err(DiscoveryError::InvalidDiscoveryDetails);
                             }
                             _ => {
-                                error!("NetworkEndpoint::query - could not connect to DiscoveryHandler at endpoint {} with error {}", self.get_uid(), e);
+                                error!(
+                                    "NetworkEndpoint::query - could not connect to DiscoveryHandler at endpoint {} with error {}",
+                                    self.get_uid(),
+                                    e
+                                );
                                 // We do not consider the DH as unavailable here, as this can be a temporary error
                                 return Err(DiscoveryError::UnavailableDiscoveryHandler(
                                     self.get_uid(),
@@ -137,7 +143,10 @@ impl DiscoveryHandlerEndpoint for NetworkEndpoint {
                 }
             }
             Err(e) => {
-                error!("NetworkEndpoint::query - failed to connect to {} discovery handler over network with error {}", self.name, e);
+                error!(
+                    "NetworkEndpoint::query - failed to connect to {} discovery handler over network with error {}",
+                    self.name, e
+                );
                 // We failed to connect to Discovery Handler, consider it offline now
                 self.stopped.stop();
                 return Err(DiscoveryError::UnavailableDiscoveryHandler(self.get_uid()));
@@ -259,15 +268,17 @@ mod tests {
             sender,
             stream.boxed(),
         ));
-        assert!(st_sender
-            .send(Ok(DiscoverResponse {
-                devices: vec![Device {
-                    id: "bar".to_string(),
-                    ..Default::default()
-                }]
-            }))
-            .await
-            .is_ok());
+        assert!(
+            st_sender
+                .send(Ok(DiscoverResponse {
+                    devices: vec![Device {
+                        id: "bar".to_string(),
+                        ..Default::default()
+                    }]
+                }))
+                .await
+                .is_ok()
+        );
         assert!(
             tokio::time::timeout(Duration::from_millis(500), receiver.changed())
                 .await
@@ -286,9 +297,11 @@ mod tests {
         );
 
         drop(receiver);
-        assert!(tokio::time::timeout(Duration::from_millis(500), task)
-            .await
-            .is_ok());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(500), task)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -309,15 +322,17 @@ mod tests {
             sender,
             stream.boxed(),
         ));
-        assert!(st_sender
-            .send(Ok(DiscoverResponse {
-                devices: vec![Device {
-                    id: "bar".to_string(),
-                    ..Default::default()
-                }]
-            }))
-            .await
-            .is_ok());
+        assert!(
+            st_sender
+                .send(Ok(DiscoverResponse {
+                    devices: vec![Device {
+                        id: "bar".to_string(),
+                        ..Default::default()
+                    }]
+                }))
+                .await
+                .is_ok()
+        );
         assert!(
             tokio::time::timeout(Duration::from_millis(500), receiver.changed())
                 .await
@@ -333,8 +348,10 @@ mod tests {
         );
 
         stopper.stop();
-        assert!(tokio::time::timeout(Duration::from_millis(500), task)
-            .await
-            .is_ok());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(500), task)
+                .await
+                .is_ok()
+        );
     }
 }

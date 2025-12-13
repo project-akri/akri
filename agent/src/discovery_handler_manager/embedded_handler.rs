@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use akri_discovery_utils::discovery::{
-    v0::{discovery_handler_server::DiscoveryHandler, DiscoverRequest, DiscoverResponse},
     DiscoverStream,
+    v0::{DiscoverRequest, DiscoverResponse, discovery_handler_server::DiscoveryHandler},
 };
 use akri_shared::os::env_var::{ActualEnvVarQuery, EnvVarQuery};
 use async_trait::async_trait;
 use tokio::{select, sync::watch};
-use tokio_stream::{wrappers::ReceiverStream, StreamExt};
+use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 use tonic::IntoRequest;
 
 /// Label of environment variable that, when set, enables the embedded debug echo discovery handler
@@ -15,10 +15,10 @@ use tonic::IntoRequest;
 pub const ENABLE_DEBUG_ECHO_LABEL: &str = "ENABLE_DEBUG_ECHO";
 
 use super::{
+    DiscoveryError,
     discovery_handler_registry::{
         DiscoveredDevice, DiscoveryHandlerEndpoint, DiscoveryHandlerRegistry,
     },
-    DiscoveryError,
 };
 
 struct EmbeddedHandlerEndpoint {
@@ -78,11 +78,17 @@ impl DiscoveryHandlerEndpoint for EmbeddedHandlerEndpoint {
             Err(e) => {
                 match e.code() {
                     tonic::Code::InvalidArgument => {
-                        warn!("NetworkEndpoint::query - invalid arguments provided to DiscoveryHandler");
+                        warn!(
+                            "NetworkEndpoint::query - invalid arguments provided to DiscoveryHandler"
+                        );
                         return Err(DiscoveryError::InvalidDiscoveryDetails);
                     }
                     _ => {
-                        error!("NetworkEndpoint::query - could not connect to DiscoveryHandler at endpoint {} with error {}", self.get_uid(), e);
+                        error!(
+                            "NetworkEndpoint::query - could not connect to DiscoveryHandler at endpoint {} with error {}",
+                            self.get_uid(),
+                            e
+                        );
                         // We do not consider the DH as unavailable here, as this can be a temporary error
                         return Err(DiscoveryError::UnavailableDiscoveryHandler(self.get_uid()));
                     }

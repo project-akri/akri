@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use either::Either;
 use kube::{
+    Error, Resource, ResourceExt,
     api::{Patch, PatchParams},
     core::{ObjectList, ObjectMeta, PartialObjectMetaExt, Status},
-    Error, Resource, ResourceExt,
 };
 use mockall::automock;
 use serde::de::DeserializeOwned;

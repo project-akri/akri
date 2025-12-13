@@ -75,8 +75,7 @@ fn get_format(env_var_query: &impl EnvVarQuery, format_options: Vec<String>) -> 
         if !format_options.contains(&DEFAULT_FORMAT.to_string()) {
             trace!(
                 "get_format - camera does not support {:?} format, using {:?} format",
-                DEFAULT_FORMAT,
-                format_options[0]
+                DEFAULT_FORMAT, format_options[0]
             );
             format_options[0].clone()
         } else {
@@ -106,8 +105,7 @@ fn get_interval(env_var_query: &impl EnvVarQuery, interval_info: rscam::Interval
     if !interval_options.contains(&interval_to_validate) {
         trace!(
             "get_interval - camera does not support {:?} interval, using {:?} interval",
-            interval_to_validate,
-            interval_options[0]
+            interval_to_validate, interval_options[0]
         );
         interval_options[0]
     } else {
@@ -156,8 +154,7 @@ fn get_resolution(
     if !resolution_options.contains(&resolution_to_validate) {
         trace!(
             "get_resolution - camera does not support {:?} resolution, using {:?} resolution",
-            resolution_to_validate,
-            resolution_options[0]
+            resolution_to_validate, resolution_options[0]
         );
         resolution_options[0]
     } else {

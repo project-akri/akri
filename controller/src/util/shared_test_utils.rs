@@ -88,9 +88,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_update_instance name:{} namespace:{} error:{}",
-            instance_name,
-            instance_namespace,
-            result_error
+            instance_name, instance_namespace, result_error
         );
         mock.expect_update_instance()
             .times(1)
@@ -160,10 +158,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_create_service name:{}, namespace:{}, [{}={}]",
-            &svc_name,
-            &namespace,
-            &label_id,
-            &label_value
+            &svc_name, &namespace, &label_id, &label_value
         );
         mock.expect_create_service()
             .withf(move |svc_to_create, ns| {
@@ -188,8 +183,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_remove_service svc_name:{}, svc_namespace={}",
-            svc_name,
-            svc_namespace
+            svc_name, svc_namespace
         );
         mock.expect_remove_service()
             .times(1)
@@ -207,9 +201,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_update_service name:{} namespace:{} error:{}",
-            svc_name,
-            svc_namespace,
-            result_error,
+            svc_name, svc_namespace, result_error,
         );
         mock.expect_update_service()
             .times(1)
@@ -283,8 +275,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_remove_pod pod_name:{} pod_namespace:{}",
-            pod_name,
-            pod_namespace
+            pod_name, pod_namespace
         );
         mock.expect_remove_pod()
             .times(1)

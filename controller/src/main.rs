@@ -2,7 +2,7 @@
 extern crate lazy_static;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use akri_shared::akri::{API_NAMESPACE, metrics::run_metrics_server};
 use async_std::sync::Mutex;
 use prometheus::IntGaugeVec;
 use std::sync::Arc;

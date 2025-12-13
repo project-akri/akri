@@ -1,7 +1,7 @@
 use super::{API_NAMESPACE, API_VERSION};
 use kube::{
-    api::{Api, DeleteParams, ListParams, ObjectList, ObjectMeta, Patch, PatchParams, PostParams},
     Client, CustomResource,
+    api::{Api, DeleteParams, ListParams, ObjectList, ObjectMeta, Patch, PatchParams, PostParams},
 };
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;

@@ -1,11 +1,10 @@
 use super::super::BROKER_POD_COUNT_METRIC;
 use super::{pod_action::PodAction, pod_action::PodActionInfo};
 use akri_shared::{
-    akri::{configuration::BrokerSpec, instance::Instance, AKRI_PREFIX},
+    akri::{AKRI_PREFIX, configuration::BrokerSpec, instance::Instance},
     k8s::{
-        self, job, pod,
+        self, KubeInterface, OwnershipInfo, OwnershipType, job, pod,
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
-        KubeInterface, OwnershipInfo, OwnershipType,
     },
 };
 use async_std::sync::Mutex;
@@ -13,8 +12,8 @@ use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
 use kube::api::Api;
-use kube::runtime::watcher::{watcher, Config, Event};
 use kube::runtime::WatchStreamExt;
+use kube::runtime::watcher::{Config, Event, watcher};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -54,8 +53,8 @@ pub enum InstanceAction {
 }
 
 /// This invokes an internal method that watches for Instance events
-pub async fn handle_existing_instances(
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+pub async fn handle_existing_instances()
+-> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     internal_handle_existing_instances(&k8s::KubeImpl::new().await?).await
 }
 
@@ -262,10 +261,7 @@ async fn handle_deletion_work(
 
     trace!(
         "handle_deletion_work - pod::create_broker_app_name({:?}, {:?}, {:?}, {:?})",
-        &instance_name,
-        context_node_name,
-        instance_shared,
-        "pod"
+        &instance_name, context_node_name, instance_shared, "pod"
     );
     let pod_app_name = pod::create_broker_app_name(
         instance_name,
@@ -275,8 +271,7 @@ async fn handle_deletion_work(
     );
     trace!(
         "handle_deletion_work - pod::remove_pod name={:?}, namespace={:?}",
-        &pod_app_name,
-        &context_namespace
+        &pod_app_name, &context_namespace
     );
     kube_interface
         .remove_pod(&pod_app_name, context_namespace)
@@ -303,16 +298,18 @@ mod handle_deletion_work_tests {
             action: PodAction::NoAction,
         };
 
-        assert!(handle_deletion_work(
-            "instance_name",
-            "configuration_name",
-            true,
-            "node_to_delete_pod",
-            &context,
-            &MockKubeInterface::new(),
-        )
-        .await
-        .is_err());
+        assert!(
+            handle_deletion_work(
+                "instance_name",
+                "configuration_name",
+                true,
+                "node_to_delete_pod",
+                &context,
+                &MockKubeInterface::new(),
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]
@@ -325,16 +322,18 @@ mod handle_deletion_work_tests {
             action: PodAction::NoAction,
         };
 
-        assert!(handle_deletion_work(
-            "instance_name",
-            "configuration_name",
-            true,
-            "node_to_delete_pod",
-            &context,
-            &MockKubeInterface::new(),
-        )
-        .await
-        .is_err());
+        assert!(
+            handle_deletion_work(
+                "instance_name",
+                "configuration_name",
+                true,
+                "node_to_delete_pod",
+                &context,
+                &MockKubeInterface::new(),
+            )
+            .await
+            .is_err()
+        );
     }
 }
 
@@ -411,9 +410,9 @@ pub async fn handle_instance_change(
                 // Furthermore, Akri Agent is still modifying the Instances. This should not happen because Agent
                 // is designed to shutdown when it's Configuration watcher fails.
                 error!(
-                        "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
-                        &instance.spec.configuration_name, &instance.metadata.name
-                    );
+                    "handle_instance_change - no configuration found for {:?} yet instance {:?} exists - check that device plugin is running properly",
+                    &instance.spec.configuration_name, &instance.metadata.name
+                );
             }
             return Ok(());
         }
@@ -557,8 +556,7 @@ pub async fn handle_instance_change_pod(
 
     trace!(
         "handle_instance_change - find all pods that have {}={}",
-        AKRI_INSTANCE_LABEL_NAME,
-        instance_name
+        AKRI_INSTANCE_LABEL_NAME, instance_name
     );
     let instance_pods = kube_interface
         .find_pods_with_label(&format!("{}={}", AKRI_INSTANCE_LABEL_NAME, instance_name))
@@ -645,11 +643,11 @@ mod handle_instance_tests {
     use super::*;
     use akri_shared::{
         akri::instance::Instance,
-        k8s::{pod::AKRI_INSTANCE_LABEL_NAME, MockKubeInterface},
+        k8s::{MockKubeInterface, pod::AKRI_INSTANCE_LABEL_NAME},
         os::file,
     };
-    use chrono::prelude::*;
     use chrono::Utc;
+    use chrono::prelude::*;
     use mockall::predicate::*;
 
     fn configure_find_pods_with_phase(
@@ -909,21 +907,25 @@ mod handle_instance_tests {
     async fn test_handle_watcher_restart() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut first_event = true;
-        assert!(handle_instance(
-            Event::Restarted(Vec::new()),
-            &MockKubeInterface::new(),
-            &mut first_event
-        )
-        .await
-        .is_ok());
+        assert!(
+            handle_instance(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_event
+            )
+            .await
+            .is_ok()
+        );
         first_event = false;
-        assert!(handle_instance(
-            Event::Restarted(Vec::new()),
-            &MockKubeInterface::new(),
-            &mut first_event
-        )
-        .await
-        .is_err());
+        assert!(
+            handle_instance(
+                Event::Restarted(Vec::new()),
+                &MockKubeInterface::new(),
+                &mut first_event
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]

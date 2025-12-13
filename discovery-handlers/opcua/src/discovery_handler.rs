@@ -1,11 +1,11 @@
-use super::{discovery_impl::do_standard_discovery, OPCUA_DISCOVERY_URL_LABEL};
+use super::{OPCUA_DISCOVERY_URL_LABEL, discovery_impl::do_standard_discovery};
 use akri_discovery_utils::{
     discovery::{
-        discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-        v0::{
-            discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
-        },
         DiscoverStream,
+        discovery_handler::{DISCOVERED_DEVICES_CHANNEL_CAPACITY, deserialize_discovery_details},
+        v0::{
+            Device, DiscoverRequest, DiscoverResponse, discovery_handler_server::DiscoveryHandler,
+        },
     },
     filtering::FilterList,
 };

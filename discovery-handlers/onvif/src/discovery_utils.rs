@@ -7,7 +7,7 @@ use log::trace;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 use std::io::{Error, ErrorKind};
-use sxd_document::{parser, Package};
+use sxd_document::{Package, parser};
 use sxd_xpath::Value;
 
 pub const ONVIF_DEVICE_SERVICE_URL_LABEL_ID: &str = "ONVIF_DEVICE_SERVICE_URL";
@@ -110,7 +110,7 @@ impl OnvifQuery for OnvifQueryImpl {
 #[async_trait]
 trait Http {
     async fn post(&self, url: &str, mime_action: &str, msg: &str)
-        -> Result<Package, anyhow::Error>;
+    -> Result<Package, anyhow::Error>;
 }
 
 struct HttpRequest {}
@@ -141,9 +141,7 @@ impl Http for HttpRequest {
     ) -> Result<Package, anyhow::Error> {
         trace!(
             "post - url:{}, mime_action:{}, msg:{}",
-            &url,
-            &mime_action,
-            &msg
+            &url, &mime_action, &msg
         );
 
         let full_mime = format!(
@@ -210,40 +208,69 @@ async fn inner_get_device_ip_and_mac_address(
             return Err(anyhow::format_err!(
                 "failed to get network interfaces from device: {:?}",
                 e
-            ))
+            ));
         }
     };
     let network_interfaces_doc = network_interfaces_xml.as_document();
     let ip_address = match sxd_xpath::evaluate_xpath(
-            &network_interfaces_doc,
-            "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='IPv4']/*[local-name()='Config']/*/*[local-name()='Address']/text()"
-        ) {
-            Ok(Value::String(ip)) => ip,
-            Ok(Value::Nodeset(ns)) => match ns.into_iter().map(|x| x.string_value()).collect::<Vec<String>>().first() {
-                Some(first) => first.to_string(),
-                None => return Err(anyhow::format_err!("Failed to get ONVIF ip address: none specified in response"))
-            },
-            Ok(Value::Boolean(_)) |
-            Ok(Value::Number(_)) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: unexpected type")),
-            Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: {}", e))
-        };
+        &network_interfaces_doc,
+        "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='IPv4']/*[local-name()='Config']/*/*[local-name()='Address']/text()",
+    ) {
+        Ok(Value::String(ip)) => ip,
+        Ok(Value::Nodeset(ns)) => match ns
+            .into_iter()
+            .map(|x| x.string_value())
+            .collect::<Vec<String>>()
+            .first()
+        {
+            Some(first) => first.to_string(),
+            None => {
+                return Err(anyhow::format_err!(
+                    "Failed to get ONVIF ip address: none specified in response"
+                ));
+            }
+        },
+        Ok(Value::Boolean(_)) | Ok(Value::Number(_)) => {
+            return Err(anyhow::format_err!(
+                "Failed to get ONVIF ip address: unexpected type"
+            ));
+        }
+        Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: {}", e)),
+    };
     trace!(
         "inner_get_device_ip_and_mac_address - network interfaces (ip address): {:?}",
         ip_address
     );
     let mac_address = match sxd_xpath::evaluate_xpath(
-            &network_interfaces_doc,
-            "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='Info']/*[local-name()='HwAddress']/text()"
-        ) {
-            Ok(Value::String(mac)) => mac,
-            Ok(Value::Nodeset(ns)) => match ns.iter().map(|x| x.string_value()).collect::<Vec<String>>().first() {
-                Some(first) => first.to_string(),
-                None => return Err(anyhow::format_err!("Failed to get ONVIF mac address: none specified in response"))
-            },
-            Ok(Value::Boolean(_)) |
-            Ok(Value::Number(_)) => return Err(anyhow::format_err!("Failed to get ONVIF mac address: unexpected type")),
-            Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF mac address: {}", e))
-        };
+        &network_interfaces_doc,
+        "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='Info']/*[local-name()='HwAddress']/text()",
+    ) {
+        Ok(Value::String(mac)) => mac,
+        Ok(Value::Nodeset(ns)) => match ns
+            .iter()
+            .map(|x| x.string_value())
+            .collect::<Vec<String>>()
+            .first()
+        {
+            Some(first) => first.to_string(),
+            None => {
+                return Err(anyhow::format_err!(
+                    "Failed to get ONVIF mac address: none specified in response"
+                ));
+            }
+        },
+        Ok(Value::Boolean(_)) | Ok(Value::Number(_)) => {
+            return Err(anyhow::format_err!(
+                "Failed to get ONVIF mac address: unexpected type"
+            ));
+        }
+        Err(e) => {
+            return Err(anyhow::format_err!(
+                "Failed to get ONVIF mac address: {}",
+                e
+            ));
+        }
+    };
     trace!(
         "inner_get_device_ip_and_mac_address - network interfaces (mac address): {:?}",
         mac_address
@@ -314,7 +341,7 @@ async fn inner_get_device_service_uri(
             return Err(anyhow::format_err!(
                 "failed to get services from device: {:?}",
                 e
-            ))
+            ));
         }
     };
     let services_doc = services_xml.as_document();
@@ -329,13 +356,12 @@ async fn inner_get_device_service_uri(
                 return Err(anyhow::format_err!(
                     "failed to get servuce uri from resoinse: {:?}",
                     e
-                ))
+                ));
             }
         };
     trace!(
         "inner_get_device_service_uri - service ({}) uris: {:?}",
-        service,
-        requested_device_service_uri
+        service, requested_device_service_uri
     );
     Ok(requested_device_service_uri)
 }
@@ -361,7 +387,7 @@ async fn inner_get_device_profiles(
             return Err(anyhow::format_err!(
                 "failed to get profiles from device: {:?}",
                 e
-            ))
+            ));
         }
     };
     let profiles_doc = profiles_xml.as_document();
@@ -377,7 +403,7 @@ async fn inner_get_device_profiles(
         Ok(Value::Boolean(_)) | Ok(Value::Number(_)) | Ok(Value::String(_)) => {
             return Err(anyhow::format_err!(
                 "Failed to get ONVIF profiles: unexpected type"
-            ))
+            ));
         }
         Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF profiles: {}", e)),
     };
@@ -401,22 +427,22 @@ async fn inner_get_device_profile_streaming_uri(
             return Err(anyhow::format_err!(
                 "failed to get streaming uri from device: {:?}",
                 e
-            ))
+            ));
         }
     };
     let stream_uri_doc = stream_uri_xml.as_document();
     let stream_uri = match sxd_xpath::evaluate_xpath(
         &stream_uri_doc,
-        "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()"
-        ) {
-            Ok(stream) => stream.string(),
-            Err(e) => {
-                return Err(anyhow::format_err!(
-                    "failed to get service uri from response: {:?}",
-                    e
-                ))
-            }
-        };
+        "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()",
+    ) {
+        Ok(stream) => stream.string(),
+        Err(e) => {
+            return Err(anyhow::format_err!(
+                "failed to get service uri from response: {:?}",
+                e
+            ));
+        }
+    };
     Ok(stream_uri)
 }
 
@@ -648,7 +674,9 @@ mod tests {
         // empty response since do not check contents only successful response
         let empty_response = "<tds:GetSystemDateAndTimeResponse xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\"></tds:GetSystemDateAndTimeResponse>";
         let response = format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body>{}</SOAP-ENV:Body></SOAP-ENV:Envelope>", empty_response);
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body>{}</SOAP-ENV:Body></SOAP-ENV:Envelope>",
+            empty_response
+        );
         let url = "test_inner_is_device_responding-url".to_string();
         configure_post(
             &mut mock,

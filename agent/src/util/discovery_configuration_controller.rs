@@ -15,15 +15,15 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::discovery_handler_manager::{
-    discovery_handler_registry::DiscoveryHandlerRegistry, DiscoveryError,
+    DiscoveryError, discovery_handler_registry::DiscoveryHandlerRegistry,
 };
 
 use kube::api::ObjectMeta;
 use kube::{Resource, ResourceExt};
 use kube_runtime::{
+    Controller,
     controller::Action,
     reflector::{ObjectRef, Store},
-    Controller,
 };
 use thiserror::Error;
 

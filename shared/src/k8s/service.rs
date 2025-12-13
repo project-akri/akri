@@ -1,9 +1,9 @@
 use super::{
     super::akri::API_NAMESPACE,
+    ERROR_NOT_FOUND, OwnershipInfo,
     pod::{
         AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID,
     },
-    OwnershipInfo, ERROR_NOT_FOUND,
 };
 use either::Either;
 use k8s_openapi::api::core::v1::{Service, ServiceSpec};
@@ -385,8 +385,7 @@ pub async fn update_service(
 ) -> Result<(), anyhow::Error> {
     trace!(
         "update_service enter name:{} namespace: {}",
-        &name,
-        &namespace
+        &name, &namespace
     );
     let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
 
@@ -716,24 +715,26 @@ mod svcspec_tests {
                     .unwrap()
                     .api_version
             );
-            assert!(svc
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .controller
-                .unwrap());
-            assert!(svc
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .block_owner_deletion
-                .unwrap());
+            assert!(
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .controller
+                    .unwrap()
+            );
+            assert!(
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .block_owner_deletion
+                    .unwrap()
+            );
 
             // Validate the existing selector unchanged
             assert_eq!(

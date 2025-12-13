@@ -1,6 +1,6 @@
 use super::{
-    super::akri::API_NAMESPACE, OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND,
-    NODE_SELECTOR_OP_IN, OBJECT_NAME_FIELD, RESOURCE_REQUIREMENTS_KEY,
+    super::akri::API_NAMESPACE, ERROR_CONFLICT, ERROR_NOT_FOUND, NODE_SELECTOR_OP_IN,
+    OBJECT_NAME_FIELD, OwnershipInfo, RESOURCE_REQUIREMENTS_KEY,
 };
 use either::Either;
 use k8s_openapi::api::core::v1::{
@@ -62,8 +62,7 @@ pub async fn find_pods_with_selector(
 ) -> Result<ObjectList<Pod>, anyhow::Error> {
     trace!(
         "find_pods_with_selector with label_selector={:?} field_selector={:?}",
-        &label_selector,
-        &field_selector
+        &label_selector, &field_selector
     );
     let pods: Api<Pod> = Api::all(kube_client);
     let pod_list_params = ListParams {
@@ -694,24 +693,26 @@ mod broker_podspec_tests {
                     .unwrap()
                     .api_version
             );
-            assert!(pod
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .controller
-                .unwrap());
-            assert!(pod
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .block_owner_deletion
-                .unwrap());
+            assert!(
+                pod.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .controller
+                    .unwrap()
+            );
+            assert!(
+                pod.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .block_owner_deletion
+                    .unwrap()
+            );
 
             // Validate existing and new affinity exist
             assert_eq!(

@@ -1,8 +1,8 @@
 use super::super::FRAME_COUNT_METRIC;
 use super::camera::{
+    NotifyRequest, NotifyResponse,
     camera_client::CameraClient,
     camera_server::{Camera, CameraServer},
-    NotifyRequest, NotifyResponse,
 };
 use log::{info, trace};
 use rscam::Camera as RsCamera;
