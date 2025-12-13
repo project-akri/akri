@@ -119,10 +119,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         let mut properties = HashMap::new();
                         let mut device_specs = Vec::new();
                         for (i, (_, node)) in paths.into_iter().enumerate() {
-                            let property_suffix = discovery_handler_config
-                                .group_recursive
-                                .then(|| format!("_{i}"))
-                                .unwrap_or_default();
+                            let property_suffix = if discovery_handler_config.group_recursive {
+                                format!("_{i}")
+                            } else {
+                                Default::default()
+                            };
+
                             if let Some(devnode) = node {
                                 properties.insert(
                                     super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
