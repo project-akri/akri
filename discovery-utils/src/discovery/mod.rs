@@ -319,11 +319,14 @@ pub mod server {
                 discovery_handler_temp_dir.path().to_str().unwrap(),
             )
             .await
-            { Err(e) => {
-                assert!((*e).to_string().contains("invalid socket address syntax"))
-            } _ => {
-                panic!("should be invalid address error")
-            }}
+            {
+                Err(e) => {
+                    assert!((*e).to_string().contains("invalid socket address syntax"))
+                }
+                _ => {
+                    panic!("should be invalid address error")
+                }
+            }
         }
     }
 }

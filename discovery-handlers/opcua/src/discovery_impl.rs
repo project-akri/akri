@@ -56,41 +56,44 @@ fn get_discovery_urls(
     tcp_stream: impl TcpStream,
 ) -> Vec<String> {
     let mut discovery_urls: Vec<String> = Vec::new();
-    lds_urls.iter().for_each(|url| {
-        match test_tcp_connection(url, &tcp_stream) { Err(e) => {
-            error!(
+    lds_urls
+        .iter()
+        .for_each(|url| match test_tcp_connection(url, &tcp_stream) {
+            Err(e) => {
+                error!(
                 "get_discovery_urls - failed to make tcp connection with url {} with error {:?}",
                 url, e
             );
-        } _ => {
-            match discovery_handler_client.find_servers(url) {
-                Ok(applications) => {
-                    trace!(
-                        "get_discovery_urls - Server at {} responded with {} Applications",
-                        url,
-                        applications.len()
-                    );
-                    let mut servers_discovery_urls: Vec<String> = applications
-                        .iter()
-                        .filter_map(|application| {
-                            get_discovery_url_from_application_description(
-                                application,
-                                filter_list.as_ref(),
-                                url,
-                            )
-                        })
-                        .collect::<Vec<String>>();
-                    discovery_urls.append(&mut servers_discovery_urls);
-                }
-                Err(err) => {
-                    trace!(
+            }
+            _ => {
+                match discovery_handler_client.find_servers(url) {
+                    Ok(applications) => {
+                        trace!(
+                            "get_discovery_urls - Server at {} responded with {} Applications",
+                            url,
+                            applications.len()
+                        );
+                        let mut servers_discovery_urls: Vec<String> = applications
+                            .iter()
+                            .filter_map(|application| {
+                                get_discovery_url_from_application_description(
+                                    application,
+                                    filter_list.as_ref(),
+                                    url,
+                                )
+                            })
+                            .collect::<Vec<String>>();
+                        discovery_urls.append(&mut servers_discovery_urls);
+                    }
+                    Err(err) => {
+                        trace!(
                         "get_discovery_urls - cannot find servers on discovery server. Error {:?}",
                         err
                     );
-                }
-            };
-        }}
-    });
+                    }
+                };
+            }
+        });
     // Remove duplicates in the case that a server was registered with more than one LDS
     discovery_urls.dedup();
     discovery_urls
