@@ -10,8 +10,8 @@ use akri_shared::{
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Node, NodeStatus};
 use kube::api::Api;
-use kube_runtime::watcher::{watcher, Config, Event};
-use kube_runtime::WatchStreamExt;
+use kube::runtime::watcher::{watcher, Config, Event};
+use kube::runtime::WatchStreamExt;
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::str::FromStr;
