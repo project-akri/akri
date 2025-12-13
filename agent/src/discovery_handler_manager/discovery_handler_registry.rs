@@ -68,7 +68,7 @@ impl DiscoveredDevice {
         let mut id_to_digest = id_to_digest.to_string();
         // For local devices, include node hostname in id_to_digest so instances have unique names
         if !shared {
-            id_to_digest = format!("{}{}", id_to_digest, node_name);
+            id_to_digest = format!("{id_to_digest}{node_name}");
         }
         let mut digest = String::new();
         let mut hasher = VarBlake2b::new(3).unwrap();
@@ -76,7 +76,7 @@ impl DiscoveredDevice {
         hasher.finalize_variable(|var| {
             digest = var
                 .iter()
-                .map(|num| format!("{:02x}", num))
+                .map(|num| format!("{num:02x}"))
                 .collect::<Vec<String>>()
                 .join("")
         });
@@ -102,7 +102,7 @@ impl From<DiscoveredDevice> for crate::device_manager::cdi::Device {
                 env: dev
                     .properties
                     .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
+                    .map(|(k, v)| format!("{k}={v}"))
                     .collect(),
                 device_nodes: dev.device_specs.into_iter().map_into().collect(),
                 mounts: dev.mounts.into_iter().map_into().collect(),
@@ -200,7 +200,7 @@ impl DiscoveryHandlerRequest for DHRequestImpl {
         if extra_device_properties != *current {
             let edit = extra_device_properties
                 .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
+                .map(|(k, v)| format!("{k}={v}"))
                 .collect();
             *current = extra_device_properties;
             self.notifier
@@ -298,7 +298,7 @@ impl DHRequestImpl {
                             .read()
                             .await
                             .iter()
-                            .map(|(k, v)| format!("{}={}", k, v))
+                            .map(|(k, v)| format!("{k}={v}"))
                             .collect(),
                         ..Default::default()
                     }],
@@ -371,7 +371,7 @@ async fn handle_request(
     cdi_sender: Arc<Mutex<watch::Sender<HashMap<String, crate::device_manager::cdi::Kind>>>>,
     local_config_sender: mpsc::Sender<ObjectRef<Configuration>>,
 ) {
-    let cdi_kind = format!("{}/{}", AKRI_PREFIX, key);
+    let cdi_kind = format!("{AKRI_PREFIX}/{key}");
     loop {
         match req_notifier.changed().await {
             Ok(_) => {
@@ -379,7 +379,7 @@ async fn handle_request(
                 cdi_sender.lock().await.send_modify(|kinds| {
                     kinds.insert(cdi_kind.clone(), kind);
                 });
-                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                trace!("Ask for reconciliation of {namespace}::{key}");
                 let res = local_config_sender
                     .send(ObjectRef::<Configuration>::new(key).within(namespace))
                     .await;
@@ -391,7 +391,7 @@ async fn handle_request(
                 }
             }
             Err(_) => {
-                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                trace!("Ask for reconciliation of {namespace}::{key}");
                 let _ = local_config_sender
                     .send(ObjectRef::<Configuration>::new(key).within(namespace))
                     .await;
@@ -431,8 +431,8 @@ impl DiscoveryHandlerRegistry for DHRegistryImpl {
                     termination_notifier: terminated.clone(),
                 };
                 let dh_futures = handlers
-                    .iter()
-                    .map(|(_, handler)| dh_req.query(handler.clone()));
+                    .values()
+                    .map(|handler| dh_req.query(handler.clone()));
                 let dh_streams: Vec<watch::Receiver<Vec<Arc<DiscoveredDevice>>>> =
                     try_join_all(dh_futures).await?;
                 dh_req.endpoints = RwLock::new(dh_streams);

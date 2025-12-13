@@ -63,10 +63,7 @@ fn get_format(env_var_query: &impl EnvVarQuery, format_options: Vec<String>) -> 
     let format_to_find = match env_var_query.get_env_var(FORMAT) {
         Ok(format) => format,
         Err(_) => {
-            trace!(
-                "get_format - format not set ... trying to use {:?}",
-                DEFAULT_FORMAT
-            );
+            trace!("get_format - format not set ... trying to use {DEFAULT_FORMAT:?}");
             DEFAULT_FORMAT.to_string()
         }
     };
@@ -79,11 +76,11 @@ fn get_format(env_var_query: &impl EnvVarQuery, format_options: Vec<String>) -> 
             );
             format_options[0].clone()
         } else {
-            trace!("get_format - using default {:?} format", DEFAULT_FORMAT);
+            trace!("get_format - using default {DEFAULT_FORMAT:?} format");
             DEFAULT_FORMAT.to_string()
         }
     } else {
-        trace!("get_format - using {:?} format", format_to_find);
+        trace!("get_format - using {format_to_find:?} format");
         format_to_find
     }
 }
@@ -109,7 +106,7 @@ fn get_interval(env_var_query: &impl EnvVarQuery, interval_info: rscam::Interval
         );
         interval_options[0]
     } else {
-        trace!("get_interval - using {:?} interval", interval_to_validate);
+        trace!("get_interval - using {interval_to_validate:?} interval");
         interval_to_validate
     }
 }
@@ -158,10 +155,7 @@ fn get_resolution(
         );
         resolution_options[0]
     } else {
-        trace!(
-            "get_resolution - using resolution {:?}",
-            resolution_to_validate
-        );
+        trace!("get_resolution - using resolution {resolution_to_validate:?}");
         resolution_to_validate
     }
 }

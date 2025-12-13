@@ -41,7 +41,7 @@ pub mod discovery_handler {
             Ok(pod_ip) => {
                 trace!("run_discovery_handler - registering with Agent with IP endpoint");
                 use_uds = false;
-                format!("{}:{}", pod_ip, DISCOVERY_PORT)
+                format!("{pod_ip}:{DISCOVERY_PORT}")
             }
             Err(_) => {
                 trace!("run_discovery_handler - registering with Agent with uds endpoint");
@@ -86,8 +86,7 @@ pub mod discovery_handler {
     {
         let discovery_handler_config: T = serde_yaml::from_str(discovery_details).map_err(|e| {
             anyhow::format_err!(
-                "Configuration discovery details improperly configured with error {:?}",
-                e
+                "Configuration discovery details improperly configured with error {e:?}"
             )
         })?;
         Ok(discovery_handler_config)

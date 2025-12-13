@@ -28,7 +28,7 @@ pub async fn run_metrics_server() -> Result<(), Box<dyn std::error::Error + Send
         Ok(p) => p.parse::<u16>()?,
         Err(_) => 8080,
     };
-    info!("starting metrics server on port {} at /metrics", port);
+    info!("starting metrics server on port {port} at /metrics");
     let metrics_route = warp::path!("metrics").and_then(metrics_handler);
     warp::serve(metrics_route).run(([0, 0, 0, 0], port)).await;
     Ok(())

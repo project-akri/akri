@@ -84,7 +84,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: OpcuaDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
-                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{e}")))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let discovery_method = discovery_handler_config.opcua_discovery_method.clone();
@@ -116,10 +116,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     .into_iter()
                     .map(|discovery_url| {
                         let mut properties = std::collections::HashMap::new();
-                        trace!(
-                            "discover - found OPC UA server at DiscoveryURL {}",
-                            discovery_url
-                        );
+                        trace!("discover - found OPC UA server at DiscoveryURL {discovery_url}");
                         properties
                             .insert(OPCUA_DISCOVERY_URL_LABEL.to_string(), discovery_url.clone());
                         Device {
@@ -151,8 +148,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .await
                     {
                         error!(
-                            "discover - for OPC UA failed to send discovery response with error {}",
-                            e
+                            "discover - for OPC UA failed to send discovery response with error {e}"
                         );
                         if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();

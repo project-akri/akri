@@ -59,7 +59,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: DebugEchoDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
-                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{e}")))?;
         let descriptions = discovery_handler_config.descriptions;
         let mut offline = fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH)
             .unwrap_or_default()
@@ -95,8 +95,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .await
                     {
                         error!(
-                            "discover - for debugEcho failed to send discovery response with error {}",
-                            e
+                            "discover - for debugEcho failed to send discovery response with error {e}"
                         );
                         if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();
@@ -130,8 +129,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                     {
                         // TODO: consider re-registering here
                         error!(
-                            "discover - for debugEcho failed to send discovery response with error {}",
-                            e
+                            "discover - for debugEcho failed to send discovery response with error {e}"
                         );
                         if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();

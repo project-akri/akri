@@ -66,7 +66,7 @@ impl NodeWatcher {
         loop {
             let event = match informer.try_next().await {
                 Err(e) => {
-                    error!("Error during watch: {}", e);
+                    error!("Error during watch: {e}");
                     continue;
                 }
                 Ok(None) => break,
@@ -107,7 +107,7 @@ impl NodeWatcher {
         match event {
             Event::Applied(node) => {
                 let node_name = node.metadata.name.clone().unwrap();
-                info!("handle_node - Added or modified: {}", node_name);
+                info!("handle_node - Added or modified: {node_name}");
                 if self.is_node_ready(&node) {
                     self.known_nodes.insert(node_name, NodeState::Running);
                 } else if let std::collections::hash_map::Entry::Vacant(e) =
@@ -210,10 +210,7 @@ impl NodeWatcher {
         vanished_node_name: &str,
         kube_interface: &impl KubeInterface,
     ) -> anyhow::Result<()> {
-        trace!(
-            "handle_node_disappearance - enter vanished_node_name={:?}",
-            vanished_node_name,
-        );
+        trace!("handle_node_disappearance - enter vanished_node_name={vanished_node_name:?}",);
 
         let instances = kube_interface.get_instances().await?;
         trace!(
@@ -223,7 +220,7 @@ impl NodeWatcher {
         for instance in instances.items {
             let instance_name = instance.metadata.name.clone().unwrap();
             let instance_namespace = instance.metadata.namespace.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("Namespace not found for instance: {}", instance_name)
+                anyhow::anyhow!("Namespace not found for instance: {instance_name}")
             })?;
 
             trace!(
@@ -570,7 +567,7 @@ mod tests {
     }
 }"#;
     fn listify_node(node_json: &str) -> String {
-        format!("{}\n{}\n{}", LIST_PREFIX, node_json, LIST_SUFFIX)
+        format!("{LIST_PREFIX}\n{node_json}\n{LIST_SUFFIX}")
     }
 
     #[tokio::test]
@@ -634,8 +631,7 @@ mod tests {
                             }
                         })
                         .collect::<Vec<String>>()
-                        .first()
-                        .is_none()
+                        .is_empty()
             })
             .returning(move |_, _, _| Ok(()));
 
@@ -666,10 +662,7 @@ mod tests {
         ];
 
         for (node_file, result) in tests.iter() {
-            trace!(
-                "Testing {} should reflect node is ready={}",
-                node_file, result
-            );
+            trace!("Testing {node_file} should reflect node is ready={result}");
 
             let node_json = file::read_file_to_string(node_file);
             let kube_object_node: Node = serde_json::from_str(&node_json).unwrap();

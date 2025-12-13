@@ -54,7 +54,7 @@ impl OwnershipInfo {
     pub fn get_api_version(&self) -> String {
         match self.object_type {
             OwnershipType::Instance | OwnershipType::Configuration => {
-                format!("{}/{}", API_NAMESPACE, API_VERSION)
+                format!("{API_NAMESPACE}/{API_VERSION}")
             }
             OwnershipType::Pod | OwnershipType::Service => "core/v1".to_string(),
         }
@@ -612,15 +612,14 @@ pub async fn try_delete_instance(
             .await
         {
             Ok(()) => {
-                log::trace!("try_delete_instance - deleted Instance {}", instance_name);
+                log::trace!("try_delete_instance - deleted Instance {instance_name}");
                 break;
             }
             Err(e) => {
                 if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>() {
                     if ae.code == ERROR_NOT_FOUND {
                         log::trace!(
-                            "try_delete_instance - discovered Instance {} already deleted",
-                            instance_name
+                            "try_delete_instance - discovered Instance {instance_name} already deleted"
                         );
                         break;
                     }
@@ -702,7 +701,7 @@ pub mod test_ownership {
             uid.to_string(),
         );
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Configuration", &ownership.get_kind());
@@ -718,7 +717,7 @@ pub mod test_ownership {
         let ownership =
             OwnershipInfo::new(OwnershipType::Instance, name.to_string(), uid.to_string());
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Instance", &ownership.get_kind());

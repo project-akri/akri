@@ -479,7 +479,7 @@ mod broker_jobspec_tests {
                 .kind
         );
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             job.metadata
                 .owner_references
                 .as_ref()

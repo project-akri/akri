@@ -35,10 +35,7 @@ pub fn do_parse_and_find(
 ) -> Result<Vec<DeviceProperties>, anyhow::Error> {
     let udev_filters = parse_udev_rule(udev_rule_string)?;
     let devices = find_devices(enumerator, udev_filters)?;
-    trace!(
-        "do_parse_and_find - returning discovered devices with devpaths: {:?}",
-        devices
-    );
+    trace!("do_parse_and_find - returning discovered devices with devpaths: {devices:?}");
     Ok(devices)
 }
 
@@ -51,10 +48,7 @@ pub fn do_parse_and_find(
 /// will be ignored.
 /// Udev discovery is only interested in match fields, so all action fields, such as TEST, are ignored
 fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, anyhow::Error> {
-    info!(
-        "parse_udev_rule - enter for udev rule string {}",
-        udev_rule_string
-    );
+    info!("parse_udev_rule - enter for udev rule string {udev_rule_string}");
     let mut udev_filters: Vec<UdevFilter> = Vec::new();
 
     // So long as parse succeeds, subsequent unwraps will not fails, since they are following the
@@ -114,7 +108,7 @@ fn find_devices(
     udev_filters: Vec<UdevFilter>,
 ) -> std::io::Result<Vec<DeviceProperties>> {
     let mut enumerator = enumerator;
-    trace!("find_devices - enter with udev_filters {:?}", udev_filters);
+    trace!("find_devices - enter with udev_filters {udev_filters:?}");
 
     // Enumerator scans sys devices for its filters. Only certain filters can be applied to it.
     // Divide device fields by type of filter than can be applied to Enumerator, if any
@@ -171,10 +165,7 @@ fn find_devices(
 
 /// This adds equality filters to the Enumerator
 fn filter_by_match_udev_filters(enumerator: &mut impl Enumerator, udev_filters: Vec<&UdevFilter>) {
-    trace!(
-        "enumerator_match_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+    trace!("enumerator_match_udev_filters - enter with udev_filters {udev_filters:?}");
     for udev_filter in udev_filters {
         match udev_filter.field.as_rule() {
             Rule::devpath => {
@@ -229,10 +220,7 @@ fn filter_by_nomatch_udev_filters(
     enumerator: &mut impl Enumerator,
     udev_filters: Vec<&UdevFilter>,
 ) {
-    trace!(
-        "enumerator_nomatch_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+    trace!("enumerator_nomatch_udev_filters - enter with udev_filters {udev_filters:?}");
     for udev_filter in udev_filters {
         match udev_filter.field.as_rule() {
             Rule::attribute => {
@@ -266,10 +254,7 @@ fn filter_by_remaining_udev_filters(
     devices: Vec<impl DeviceExt>,
     udev_filters: Vec<&UdevFilter>,
 ) -> Vec<impl DeviceExt> {
-    trace!(
-        "filter_by_remaining_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+    trace!("filter_by_remaining_udev_filters - enter with udev_filters {udev_filters:?}");
     let mut mutable_devices = devices;
     for udev_filter in udev_filters {
         let value_regex = Regex::new(&udev_filter.value).unwrap();

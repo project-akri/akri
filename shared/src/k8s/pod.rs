@@ -101,13 +101,13 @@ pub fn create_broker_app_name(
         // node-specific content.  To ensure uniqueness of the Pod/Job we are creating,
         // prepend the node name here.
         match node_to_run_broker_on {
-            Some(n) => format!("{}-{}-{}", n, normalized_instance_name, app_name_suffix),
-            None => format!("{}-{}", normalized_instance_name, app_name_suffix),
+            Some(n) => format!("{n}-{normalized_instance_name}-{app_name_suffix}"),
+            None => format!("{normalized_instance_name}-{app_name_suffix}"),
         }
     } else {
         // If the device capability is NOT shared, the instance name will contain
         // node-specific content, which guarantees uniqueness.
-        format!("{}-{}", normalized_instance_name, app_name_suffix)
+        format!("{normalized_instance_name}-{app_name_suffix}")
     }
 }
 
@@ -684,7 +684,7 @@ mod broker_podspec_tests {
                     .kind
             );
             assert_eq!(
-                &format!("{}/{}", API_NAMESPACE, API_VERSION),
+                &format!("{API_NAMESPACE}/{API_VERSION}"),
                 &pod.metadata
                     .clone()
                     .owner_references

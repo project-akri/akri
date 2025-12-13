@@ -76,16 +76,16 @@ impl NetworkEndpoint {
                 msg = stream.try_next() => match msg {
                     Ok(Some(msg)) => msg,
                     Ok(None) => {
-                        error!("Discovery Handler {} closed the stream unexpectedly", uid);
+                        error!("Discovery Handler {uid} closed the stream unexpectedly");
                         return
                     },
                     Err(e) => {
-                        error!("Received error on gRPC stream for {}: {}", uid, e);
+                        error!("Received error on gRPC stream for {uid}: {e}");
                         return
                     },
                 },
             };
-            trace!("Received new message from discovery handler: {:?}", msg);
+            trace!("Received new message from discovery handler: {msg:?}");
             let devices = msg
                 .devices
                 .into_iter()
@@ -203,8 +203,7 @@ pub async fn run_registration_server(
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("internal_run_registration_server - entered");
     trace!(
-        "internal_run_registration_server - registration server listening on socket {}",
-        socket_path
+        "internal_run_registration_server - registration server listening on socket {socket_path}"
     );
 
     #[cfg(any(test, feature = "agent-full"))]
@@ -234,8 +233,7 @@ pub async fn run_registration_server(
         .serve_with_incoming(incoming)
         .await?;
     trace!(
-        "internal_run_registration_server - gracefully shutdown ... deleting socket {}",
-        socket_path
+        "internal_run_registration_server - gracefully shutdown ... deleting socket {socket_path}"
     );
     std::fs::remove_file(socket_path).unwrap_or(());
     Ok(())

@@ -72,8 +72,8 @@ impl Display for DeviceUsage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeviceUsage::Unused => write!(f, ""),
-            DeviceUsage::Node(node) => write!(f, "{}", node),
-            DeviceUsage::Configuration { vdev, node } => write!(f, "C:{}:{}", vdev, node),
+            DeviceUsage::Node(node) => write!(f, "{node}"),
+            DeviceUsage::Configuration { vdev, node } => write!(f, "C:{vdev}:{node}"),
         }
     }
 }
@@ -247,7 +247,7 @@ impl InstanceDevicePlugin {
         .map_err(|e| match e {
             kube::Error::Api(ae) => match ae.code {
                 409 => {
-                    trace!("Conflict on apply {:?}", ae);
+                    trace!("Conflict on apply {ae:?}");
                     DevicePluginError::SlotInUse
                 }
                 _ => DevicePluginError::Other(ae.into()),
@@ -321,7 +321,7 @@ fn instance_device_usage_to_device(
         .into_iter()
         .enumerate()
         .map(|(id, dev)| super::v1beta1::Device {
-            id: format!("{}-{}", device_name, id),
+            id: format!("{device_name}-{id}"),
             health: match dev {
                 DeviceUsage::Unused => "Healthy",
                 DeviceUsage::Configuration { .. } => "Unhealthy",
@@ -334,7 +334,7 @@ fn instance_device_usage_to_device(
             topology: None,
         })
         .collect();
-    trace!("Sending devices to kubelet: {:?}", devices);
+    trace!("Sending devices to kubelet: {devices:?}");
     Ok(ListAndWatchResponse { devices })
 }
 
@@ -401,7 +401,7 @@ impl InternalDevicePlugin for InstanceDevicePlugin {
                 self.claim_slot(Some(id), DeviceUsage::Node(self.node_name.to_owned()))
                     .await
                     .map_err(|e| {
-                        error!("Unable to claim slot: {:?}", e);
+                        error!("Unable to claim slot: {e:?}");
                         tonic::Status::unknown("Unable to claim slot")
                     })?;
             }
@@ -419,7 +419,7 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
     let instance_hash = device
         .name
         .split('-')
-        .last()
+        .next_back()
         .unwrap_or_default()
         .to_uppercase();
 
@@ -440,7 +440,7 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
 
     let suffixed_envs = envs
         .clone()
-        .map(|(k, v)| (format!("{}_{}", k, instance_hash), v));
+        .map(|(k, v)| (format!("{k}_{instance_hash}"), v));
 
     ContainerAllocateResponse {
         envs: envs.chain(suffixed_envs).collect(),
@@ -570,7 +570,7 @@ impl ConfigurationDevicePlugin {
                                 possible_slot += 1;
                             }
                             slots.insert(
-                                format!("{}-{}", config_name, possible_slot),
+                                format!("{config_name}-{possible_slot}"),
                                 ConfigurationSlot::DeviceFree(instance_name.clone()),
                             );
                         }
@@ -793,7 +793,7 @@ impl DevicePluginManager {
                     .enumerate()
                     .filter_map(|(i, u)| match u {
                         DeviceUsage::Node(n) if *n == self.node_name => {
-                            Some(format!("{}{}-{}", DP_SLOT_PREFIX, instance, i))
+                            Some(format!("{DP_SLOT_PREFIX}{instance}-{i}"))
                         }
                         DeviceUsage::Configuration { vdev, node } if *node == self.node_name => {
                             Some(vdev.to_string())

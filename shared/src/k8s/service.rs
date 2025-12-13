@@ -72,10 +72,10 @@ pub fn create_service_app_name(
     if node_specific_svc {
         // If this is the node specific service, use the insrtance name which
         // contains node-specific content.
-        format!("{}-{}", normalized_instance_name, svc_suffix)
+        format!("{normalized_instance_name}-{svc_suffix}")
     } else {
         // If this is NOT the node specific service, use the capability name.
-        format!("{}-{}", configuration_name, svc_suffix)
+        format!("{configuration_name}-{svc_suffix}")
     }
 }
 
@@ -399,14 +399,11 @@ pub async fn update_service(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_service kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("update_service kube_client.request returned kube error: {ae:?}");
             Err(anyhow::anyhow!(ae))
         }
         Err(e) => {
-            log::trace!("update_service kube_client.request error: {:?}", e);
+            log::trace!("update_service kube_client.request error: {e:?}");
             Err(anyhow::anyhow!(e))
         }
     }

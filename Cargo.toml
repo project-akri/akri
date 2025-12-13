@@ -28,5 +28,5 @@ edition = "2024"
 license = "Apache-2.0"
 homepage = "https://docs.akri.sh/"
 repository = "https://github.com/project-akri/akri"
-rust-version = "1.85"
+rust-version = "1.88"
 authors = ["The Akri Team"]

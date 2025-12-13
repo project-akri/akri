@@ -104,7 +104,7 @@ impl<T: Clone + 'static + Send + Sync> DevicePlugin for DevicePluginImpl<T> {
         &self,
         requests: Request<AllocateRequest>,
     ) -> Result<tonic::Response<AllocateResponse>, tonic::Status> {
-        trace!("kubelet called allocate {:?}", requests);
+        trace!("kubelet called allocate {requests:?}");
         self.inner.allocate(requests).await
     }
 
@@ -156,10 +156,7 @@ pub(super) async fn serve_and_register_plugin<T: Clone + 'static + Send + Sync>(
         .unwrap()
         .to_string();
 
-    info!(
-        "serve - creating a device plugin server that will listen at: {}",
-        socket_path
-    );
+    info!("serve - creating a device plugin server that will listen at: {socket_path}");
     tokio::fs::create_dir_all(Path::new(&socket_path[..]).parent().unwrap())
         .await
         .expect("Failed to create dir at socket path");
@@ -183,10 +180,7 @@ pub(super) async fn serve_and_register_plugin<T: Clone + 'static + Send + Sync>(
             .serve_with_incoming_shutdown(incoming, task_plugin.stopped())
             .await
             .unwrap();
-        trace!(
-            "serve - gracefully shutdown ... deleting socket {}",
-            socket_to_delete
-        );
+        trace!("serve - gracefully shutdown ... deleting socket {socket_to_delete}");
         // Socket may already be deleted in the case of the kubelet restart
         std::fs::remove_file(socket_to_delete).unwrap_or(());
     });
@@ -205,16 +199,13 @@ async fn register_plugin(
 ) -> anyhow::Result<()> {
     use anyhow::Context;
 
-    let capability_id: String = format!("akri.sh/{}", device_plugin_name);
+    let capability_id: String = format!("akri.sh/{device_plugin_name}");
 
     akri_shared::uds::unix_stream::try_connect(&socket_path)
         .await
         .with_context(|| format!("while trying to connect to {socket_path}"))?;
 
-    info!(
-        "register - entered for Instance {} and socket_name: {}",
-        capability_id, device_endpoint
-    );
+    info!("register - entered for Instance {capability_id} and socket_name: {device_endpoint}");
     let op = DevicePluginOptions {
         pre_start_required: false,
         get_preferred_allocation_available: false,
@@ -240,10 +231,7 @@ async fn register_plugin(
         resource_name: capability_id.to_string(),
         options: Some(op),
     });
-    trace!(
-        "register - before call to register with the kubelet at socket {}",
-        KUBELET_SOCKET
-    );
+    trace!("register - before call to register with the kubelet at socket {KUBELET_SOCKET}");
 
     // If fail to register with the kubelet, terminate device plugin
     registration_client.register(register_request).await?;

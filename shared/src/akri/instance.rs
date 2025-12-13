@@ -133,14 +133,11 @@ pub async fn get_instances(kube_client: &Client) -> Result<InstanceList, anyhow:
             Ok(instances_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "get_instances kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("get_instances kube_client.request returned kube error: {ae:?}");
             Err(ae.into())
         }
         Err(e) => {
-            log::trace!("get_instances kube_client.request error: {:?}", e);
+            log::trace!("get_instances kube_client.request error: {e:?}");
             Err(e.into())
         }
     }
@@ -172,7 +169,7 @@ pub async fn find_instance(
     log::trace!("find_instance enter");
     let instances_client: Api<Instance> = Api::namespaced(kube_client.clone(), namespace);
 
-    log::trace!("find_instance getting instance with name {}", name);
+    log::trace!("find_instance getting instance with name {name}");
 
     match instances_client.get(name).await {
         Ok(instance_retrieved) => {
@@ -181,14 +178,11 @@ pub async fn find_instance(
         }
         Err(e) => match e {
             kube::Error::Api(ae) => {
-                log::trace!(
-                    "find_instance kube_client.request returned kube error: {:?}",
-                    ae
-                );
+                log::trace!("find_instance kube_client.request returned kube error: {ae:?}");
                 Err(anyhow::anyhow!(ae))
             }
             _ => {
-                log::trace!("find_instance kube_client.request error: {:?}", e);
+                log::trace!("find_instance kube_client.request error: {e:?}");
                 Err(anyhow::anyhow!(e))
             }
         },
@@ -240,7 +234,7 @@ pub async fn create_instance(
     instance.metadata = ObjectMeta {
         name: Some(name.to_string()),
         owner_references: Some(vec![OwnerReference {
-            api_version: format!("{}/{}", API_NAMESPACE, API_VERSION),
+            api_version: format!("{API_NAMESPACE}/{API_VERSION}"),
             kind: "Configuration".to_string(),
             controller: Some(true),
             block_owner_deletion: Some(true),
@@ -258,14 +252,11 @@ pub async fn create_instance(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "create_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("create_instance kube_client.request returned kube error: {ae:?}");
             Err(ae.into())
         }
         Err(e) => {
-            log::trace!("create_instance kube_client.request error: {:?}", e);
+            log::trace!("create_instance kube_client.request error: {e:?}");
             Err(e.into())
         }
     }
@@ -304,14 +295,11 @@ pub async fn delete_instance(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "delete_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("delete_instance kube_client.request returned kube error: {ae:?}");
             Err(ae.into())
         }
         Err(e) => {
-            log::trace!("delete_instance kube_client.request error: {:?}", e);
+            log::trace!("delete_instance kube_client.request error: {e:?}");
             Err(e.into())
         }
     }
@@ -367,14 +355,11 @@ pub async fn update_instance(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("update_instance kube_client.request returned kube error: {ae:?}");
             Err(ae.into())
         }
         Err(e) => {
-            log::trace!("update_instance kube_client.request error: {:?}", e);
+            log::trace!("update_instance kube_client.request error: {e:?}");
             Err(e.into())
         }
     }
@@ -451,8 +436,7 @@ pub mod device_usage {
                 DeviceUsageKind::Free => {
                     if !node_name.is_empty() {
                         return Err(anyhow::anyhow!(
-                            "Invalid input parameter, node name: {} provided for free node usage",
-                            node_name
+                            "Invalid input parameter, node name: {node_name} provided for free node usage"
                         ));
                     };
                 }

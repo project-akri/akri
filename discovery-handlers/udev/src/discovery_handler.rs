@@ -86,12 +86,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
-                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{e}")))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let udev_rules = discovery_handler_config.udev_rules.clone();
             loop {
-                trace!("discover - for udev rules {:?}", udev_rules);
+                trace!("discover - for udev rules {udev_rules:?}");
                 // Before each iteration, check if receiver has dropped
                 if discovered_devices_sender.is_closed() {
                     error!("discover - channel closed ... attempting to re-register with Agent");
@@ -112,10 +112,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         }
                     }
                 });
-                trace!(
-                    "discover - mapping and returning devices at devpaths {:?}",
-                    devpaths
-                );
+                trace!("discover - mapping and returning devices at devpaths {devpaths:?}");
                 let discovered_devices = devpaths
                     .into_iter()
                     .map(|(id, paths)| {
@@ -124,7 +121,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         for (i, (_, node)) in paths.into_iter().enumerate() {
                             let property_suffix = discovery_handler_config
                                 .group_recursive
-                                .then(|| format!("_{}", i))
+                                .then(|| format!("_{i}"))
                                 .unwrap_or_default();
                             if let Some(devnode) = node {
                                 properties.insert(
@@ -172,8 +169,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .await
                     {
                         error!(
-                            "discover - for udev failed to send discovery response with error {}",
-                            e
+                            "discover - for udev failed to send discovery response with error {e}"
                         );
                         if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();

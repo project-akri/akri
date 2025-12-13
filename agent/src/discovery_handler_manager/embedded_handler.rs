@@ -42,11 +42,11 @@ impl EmbeddedHandlerEndpoint {
                 msg = stream.try_next() =>  match msg {
                     Ok(Some(msg)) => msg,
                     Ok(None) => {
-                        error!("Discovery Handler {} closed the stream unexpectedly", uid);
+                        error!("Discovery Handler {uid} closed the stream unexpectedly");
                         return
                     },
                     Err(e) => {
-                        error!("Received error on gRPC stream for {}: {}", uid, e);
+                        error!("Received error on gRPC stream for {uid}: {e}");
                         return
                     },
                 },

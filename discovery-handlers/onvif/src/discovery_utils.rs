@@ -122,10 +122,7 @@ impl HttpRequest {
             Ok(xml_as_tree) => xml_as_tree,
             Err(e) => return Err(Error::new(ErrorKind::InvalidData, e).into()),
         };
-        trace!(
-            "handle_request_body - response as xmltree: {:?}",
-            xml_as_tree
-        );
+        trace!("handle_request_body - response as xmltree: {xml_as_tree:?}");
         Ok(xml_as_tree)
     }
 }
@@ -182,7 +179,7 @@ impl Http for HttpRequest {
 
 /// Creates a SOAP mime action
 fn get_action(wsdl: &str, function: &str) -> String {
-    format!("action=\"{}/{}\"", wsdl, function)
+    format!("action=\"{wsdl}/{function}\"")
 }
 
 /// Gets the ip and mac address for a given ONVIF camera
@@ -206,8 +203,7 @@ async fn inner_get_device_ip_and_mac_address(
         Ok(xml) => xml,
         Err(e) => {
             return Err(anyhow::format_err!(
-                "failed to get network interfaces from device: {:?}",
-                e
+                "failed to get network interfaces from device: {e:?}"
             ));
         }
     };
@@ -235,12 +231,9 @@ async fn inner_get_device_ip_and_mac_address(
                 "Failed to get ONVIF ip address: unexpected type"
             ));
         }
-        Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: {}", e)),
+        Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF ip address: {e}")),
     };
-    trace!(
-        "inner_get_device_ip_and_mac_address - network interfaces (ip address): {:?}",
-        ip_address
-    );
+    trace!("inner_get_device_ip_and_mac_address - network interfaces (ip address): {ip_address:?}");
     let mac_address = match sxd_xpath::evaluate_xpath(
         &network_interfaces_doc,
         "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='Info']/*[local-name()='HwAddress']/text()",
@@ -265,15 +258,11 @@ async fn inner_get_device_ip_and_mac_address(
             ));
         }
         Err(e) => {
-            return Err(anyhow::format_err!(
-                "Failed to get ONVIF mac address: {}",
-                e
-            ));
+            return Err(anyhow::format_err!("Failed to get ONVIF mac address: {e}"));
         }
     };
     trace!(
-        "inner_get_device_ip_and_mac_address - network interfaces (mac address): {:?}",
-        mac_address
+        "inner_get_device_ip_and_mac_address - network interfaces (mac address): {mac_address:?}"
     );
     Ok((ip_address, mac_address))
 }
@@ -312,13 +301,12 @@ fn get_network_interfaces_message(username_token: &Option<UsernameToken>) -> Str
     xmlns:soap="http://www.w3.org/2003/05/soap-envelope" 
     xmlns:wsdl="http://www.onvif.org/ver10/device/wsdl">
     <soap:Header>
-    {}
+    {security_header}
     </soap:Header>
     <soap:Body>
         <wsdl:GetNetworkInterfaces/>
     </soap:Body>
-</soap:Envelope>"#,
-        security_header
+</soap:Envelope>"#
     )
 }
 
@@ -339,29 +327,25 @@ async fn inner_get_device_service_uri(
         Ok(xml) => xml,
         Err(e) => {
             return Err(anyhow::format_err!(
-                "failed to get services from device: {:?}",
-                e
+                "failed to get services from device: {e:?}"
             ));
         }
     };
     let services_doc = services_xml.as_document();
     let service_xpath_query = format!(
-        "//*[local-name()='GetServicesResponse']/*[local-name()='Service' and *[local-name()='Namespace']/text() ='{}']/*[local-name()='XAddr']/text()",
-        service
+        "//*[local-name()='GetServicesResponse']/*[local-name()='Service' and *[local-name()='Namespace']/text() ='{service}']/*[local-name()='XAddr']/text()"
     );
     let requested_device_service_uri =
         match sxd_xpath::evaluate_xpath(&services_doc, service_xpath_query.as_str()) {
             Ok(uri) => uri.string(),
             Err(e) => {
                 return Err(anyhow::format_err!(
-                    "failed to get servuce uri from resoinse: {:?}",
-                    e
+                    "failed to get servuce uri from resoinse: {e:?}"
                 ));
             }
         };
     trace!(
-        "inner_get_device_service_uri - service ({}) uris: {:?}",
-        service, requested_device_service_uri
+        "inner_get_device_service_uri - service ({service}) uris: {requested_device_service_uri:?}"
     );
     Ok(requested_device_service_uri)
 }
@@ -385,8 +369,7 @@ async fn inner_get_device_profiles(
         Ok(xml) => xml,
         Err(e) => {
             return Err(anyhow::format_err!(
-                "failed to get profiles from device: {:?}",
-                e
+                "failed to get profiles from device: {e:?}"
             ));
         }
     };
@@ -405,9 +388,9 @@ async fn inner_get_device_profiles(
                 "Failed to get ONVIF profiles: unexpected type"
             ));
         }
-        Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF profiles: {}", e)),
+        Err(e) => return Err(anyhow::format_err!("Failed to get ONVIF profiles: {e}")),
     };
-    trace!("inner_get_device_profiles - profiles: {:?}", profiles);
+    trace!("inner_get_device_profiles - profiles: {profiles:?}");
     Ok(profiles)
 }
 
@@ -425,8 +408,7 @@ async fn inner_get_device_profile_streaming_uri(
         Ok(xml) => xml,
         Err(e) => {
             return Err(anyhow::format_err!(
-                "failed to get streaming uri from device: {:?}",
-                e
+                "failed to get streaming uri from device: {e:?}"
             ));
         }
     };
@@ -438,8 +420,7 @@ async fn inner_get_device_profile_streaming_uri(
         Ok(stream) => stream.string(),
         Err(e) => {
             return Err(anyhow::format_err!(
-                "failed to get service uri from response: {:?}",
-                e
+                "failed to get service uri from response: {e:?}"
             ));
         }
     };
@@ -470,11 +451,10 @@ fn get_stream_uri_message(profile: &str) -> String {
                 <sch:Protocol>RTSP</sch:Protocol>
             </sch:Transport>
         </wsdl:StreamSetup>
-        <wsdl:ProfileToken>{}</wsdl:ProfileToken>
+        <wsdl:ProfileToken>{profile}</wsdl:ProfileToken>
         </wsdl:GetStreamUri>
     </soap:Body>
-</soap:Envelope>;"#,
-        profile
+</soap:Envelope>;"#
     )
 }
 
@@ -509,7 +489,7 @@ mod tests {
         let inner_mime = mime.to_string();
         let inner_msg = msg.to_string();
         let inner_output_xml = output_xml.to_string();
-        trace!("mock.expect_post url:{}, mime:{}, msg:{}", url, mime, msg);
+        trace!("mock.expect_post url:{url}, mime:{mime}, msg:{msg}");
         mock.expect_post()
             .times(1)
             .withf(move |actual_url, actual_mime, actual_msg| {
@@ -640,11 +620,10 @@ mod tests {
 
         for (i, expected_uri) in expected_result.iter().enumerate().take(3) {
             let mut mock = MockHttp::new();
-            let profile = format!("00{}", i).to_string();
+            let profile = format!("00{i}").to_string();
             let message = get_stream_uri_message(&profile);
             let response = format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body><trt:GetStreamUriResponse><trt:MediaUri><tt:Uri>rtsp://192.168.{}.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream</tt:Uri><tt:InvalidAfterConnect>false</tt:InvalidAfterConnect><tt:InvalidAfterReboot>false</tt:InvalidAfterReboot><tt:Timeout>PT10S</tt:Timeout></trt:MediaUri></trt:GetStreamUriResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>",
-                i
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body><trt:GetStreamUriResponse><trt:MediaUri><tt:Uri>rtsp://192.168.{i}.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream</tt:Uri><tt:InvalidAfterConnect>false</tt:InvalidAfterConnect><tt:InvalidAfterReboot>false</tt:InvalidAfterReboot><tt:Timeout>PT10S</tt:Timeout></trt:MediaUri></trt:GetStreamUriResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>"
             );
             configure_post(
                 &mut mock,
@@ -674,8 +653,7 @@ mod tests {
         // empty response since do not check contents only successful response
         let empty_response = "<tds:GetSystemDateAndTimeResponse xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\"></tds:GetSystemDateAndTimeResponse>";
         let response = format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body>{}</SOAP-ENV:Body></SOAP-ENV:Envelope>",
-            empty_response
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:SOAP-ENC=\"http://www.w3.org/2003/05/soap-encoding\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xs=\"http://www.w3.org/2000/10/XMLSchema\" xmlns:wsse=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd\" xmlns:wsa5=\"http://www.w3.org/2005/08/addressing\" xmlns:xop=\"http://www.w3.org/2004/08/xop/include\" xmlns:wsa=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:tt=\"http://www.onvif.org/ver10/schema\" xmlns:ns1=\"http://www.w3.org/2005/05/xmlmime\" xmlns:wstop=\"http://docs.oasis-open.org/wsn/t-1\" xmlns:ns7=\"http://docs.oasis-open.org/wsrf/r-2\" xmlns:ns2=\"http://docs.oasis-open.org/wsrf/bf-2\" xmlns:dndl=\"http://www.onvif.org/ver10/network/wsdl/DiscoveryLookupBinding\" xmlns:dnrd=\"http://www.onvif.org/ver10/network/wsdl/RemoteDiscoveryBinding\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" xmlns:dn=\"http://www.onvif.org/ver10/network/wsdl\" xmlns:ns10=\"http://www.onvif.org/ver10/replay/wsdl\" xmlns:ns11=\"http://www.onvif.org/ver10/search/wsdl\" xmlns:ns13=\"http://www.onvif.org/ver20/analytics/wsdl/RuleEngineBinding\" xmlns:ns14=\"http://www.onvif.org/ver20/analytics/wsdl/AnalyticsEngineBinding\" xmlns:tan=\"http://www.onvif.org/ver20/analytics/wsdl\" xmlns:ns15=\"http://www.onvif.org/ver10/events/wsdl/PullPointSubscriptionBinding\" xmlns:ns16=\"http://www.onvif.org/ver10/events/wsdl/EventBinding\" xmlns:tev=\"http://www.onvif.org/ver10/events/wsdl\" xmlns:ns17=\"http://www.onvif.org/ver10/events/wsdl/SubscriptionManagerBinding\" xmlns:ns18=\"http://www.onvif.org/ver10/events/wsdl/NotificationProducerBinding\" xmlns:ns19=\"http://www.onvif.org/ver10/events/wsdl/NotificationConsumerBinding\" xmlns:ns20=\"http://www.onvif.org/ver10/events/wsdl/PullPointBinding\" xmlns:ns21=\"http://www.onvif.org/ver10/events/wsdl/CreatePullPointBinding\" xmlns:ns22=\"http://www.onvif.org/ver10/events/wsdl/PausableSubscriptionManagerBinding\" xmlns:wsnt=\"http://docs.oasis-open.org/wsn/b-2\" xmlns:ns3=\"http://www.onvif.org/ver10/analyticsdevice/wsdl\" xmlns:ns4=\"http://www.onvif.org/ver10/deviceIO/wsdl\" xmlns:ns5=\"http://www.onvif.org/ver10/display/wsdl\" xmlns:ns8=\"http://www.onvif.org/ver10/receiver/wsdl\" xmlns:ns9=\"http://www.onvif.org/ver10/recording/wsdl\" xmlns:tds=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:timg=\"http://www.onvif.org/ver20/imaging/wsdl\" xmlns:tptz=\"http://www.onvif.org/ver20/ptz/wsdl\" xmlns:trt=\"http://www.onvif.org/ver10/media/wsdl\" xmlns:trt2=\"http://www.onvif.org/ver20/media/wsdl\" xmlns:ter=\"http://www.onvif.org/ver10/error\" xmlns:tns1=\"http://www.onvif.org/ver10/topics\" xmlns:tnsn=\"http://www.eventextension.com/2011/event/topics\"><SOAP-ENV:Header></SOAP-ENV:Header><SOAP-ENV:Body>{empty_response}</SOAP-ENV:Body></SOAP-ENV:Envelope>"
         );
         let url = "test_inner_is_device_responding-url".to_string();
         configure_post(

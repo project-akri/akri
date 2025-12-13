@@ -247,10 +247,7 @@ pub mod util {
             .filter_map(|r| match r {
                 Ok(uri) => Some(uri),
                 Err(e) => {
-                    trace!(
-                        "device not responding to date/time request with error {}",
-                        e
-                    );
+                    trace!("device not responding to date/time request with error {e}");
                     None
                 }
             })
@@ -698,10 +695,7 @@ pub mod util {
         const MULTI_PORT: u16 = 3702;
         let multi_socket_addr = SocketAddr::new(IpAddr::V4(MULTI_IPV4_ADDR), MULTI_PORT);
 
-        trace!(
-            "get_discovery_response_socket - binding to: {:?}",
-            local_socket_addr
-        );
+        trace!("get_discovery_response_socket - binding to: {local_socket_addr:?}");
         let socket = UdpSocket::bind(local_socket_addr).await?;
         trace!(
             "get_discovery_response_socket - joining multicast: {:?} {:?}",
@@ -741,32 +735,25 @@ pub mod util {
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {
                         trace!(
-                            "simple_onvif_discover - recv_from error ... continue collecting responses {:?}",
-                            e
+                            "simple_onvif_discover - recv_from error ... continue collecting responses {e:?}"
                         );
                     }
                     _ => {
-                        error!("simple_onvif_discover - recv_from error: {:?}", e);
+                        error!("simple_onvif_discover - recv_from error: {e:?}");
                         return Err(anyhow::anyhow!(e));
                     }
                 },
             }
         }
 
-        trace!(
-            "simple_onvif_discover - uris discovered by udp broadcast {:?}",
-            broadcast_responses
-        );
+        trace!("simple_onvif_discover - uris discovered by udp broadcast {broadcast_responses:?}");
         let filtered_uris = broadcast_responses
             .into_iter()
             .flat_map(|r| get_scope_filtered_uris_from_discovery_response(&r, scopes_filters))
             .collect::<HashMap<String, String>>();
-        trace!(
-            "simple_onvif_discover - uris after filtering by scopes {:?}",
-            filtered_uris
-        );
+        trace!("simple_onvif_discover - uris after filtering by scopes {filtered_uris:?}");
         let devices = get_responsive_uris(filtered_uris, &OnvifQueryImpl::default()).await;
-        info!("simple_onvif_discover - devices: {:?}", devices);
+        info!("simple_onvif_discover - devices: {devices:?}");
         Ok(devices)
     }
 
@@ -811,7 +798,7 @@ pub mod util {
             });
 
             let wait_for_call_millis = timeout.as_secs() * 1000 + 200;
-            trace!("wait for {} milliseconds", wait_for_call_millis);
+            trace!("wait for {wait_for_call_millis} milliseconds");
             std::thread::sleep(Duration::from_millis(wait_for_call_millis));
             // validate that this ends in 2 seconds or less
             trace!("duration to test: {}", duration.lock().unwrap().as_millis());
