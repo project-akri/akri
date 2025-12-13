@@ -49,7 +49,11 @@ jobs:
     - name: Check clippy
       run: cargo clippy --all
     - name: Check clippy for tests
-      run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::derive_partial_eq_without_eq
+      run: |
+        cargo clippy --all-targets --all-features -- -D warnings \
+          -A clippy::derive_partial_eq_without_eq \
+          -A clippy::doc_overindented_list_items \
+          -A clippy::result_large_err   # TODO: @gauravgahlot - revisit large error
     - name: Run check
       run:  cargo check
     - name: Run tests

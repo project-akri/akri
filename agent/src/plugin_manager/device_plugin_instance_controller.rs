@@ -724,8 +724,8 @@ fn config_device_usage_to_device(
     })
 }
 
-/// This module implements a controller for Instance resources that will ensure device plugins are correctly created with the correct health status
-
+/// This module implements a controller for Instance resources that will ensure
+/// device plugins are correctly created with the correct health status
 pub struct DevicePluginManager {
     instance_plugins: Mutex<HashMap<String, Arc<InstanceDevicePlugin>>>,
     configuration_plugins: Mutex<HashMap<String, Arc<ConfigurationDevicePlugin>>>,
