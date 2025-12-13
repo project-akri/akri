@@ -151,9 +151,9 @@ pub struct ConfigurationSpec {
     pub broker_properties: HashMap<String, String>,
 }
 
-fn immutable_dh_info(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+fn immutable_dh_info(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema: schemars::schema::SchemaObject =
-        <DiscoveryHandlerInfo>::json_schema(gen).into();
+        <DiscoveryHandlerInfo>::json_schema(r#gen).into();
     schema.extensions.insert(
         "x-kubernetes-validations".to_owned(),
         serde_json::from_str(r#"[{"message": "Value is immutable", "rule": "self == oldSelf"}]"#)

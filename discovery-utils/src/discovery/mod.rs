@@ -313,17 +313,17 @@ pub mod server {
                 .prefix("discovery-handlers")
                 .tempdir()
                 .unwrap();
-            if let Err(e) = internal_run_discovery_server(
+            match internal_run_discovery_server(
                 discovery_handler,
                 "random",
                 discovery_handler_temp_dir.path().to_str().unwrap(),
             )
             .await
-            {
+            { Err(e) => {
                 assert!((*e).to_string().contains("invalid socket address syntax"))
-            } else {
+            } _ => {
                 panic!("should be invalid address error")
-            }
+            }}
         }
     }
 }

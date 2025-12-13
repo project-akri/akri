@@ -89,8 +89,8 @@ pub struct InstanceSpec {
     pub device_usage: HashMap<String, String>,
 }
 
-fn ssa_nodes_set(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let mut schema: schemars::schema::SchemaObject = <Vec<String>>::json_schema(gen).into();
+fn ssa_nodes_set(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema: schemars::schema::SchemaObject = <Vec<String>>::json_schema(r#gen).into();
     schema.extensions.insert(
         "x-kubernetes-list-type".to_owned(),
         serde_json::Value::String("set".to_owned()),
@@ -98,9 +98,9 @@ fn ssa_nodes_set(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::
     schema.into()
 }
 
-fn ssa_usage_granular(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+fn ssa_usage_granular(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
     let mut schema: schemars::schema::SchemaObject =
-        <HashMap<String, String>>::json_schema(gen).into();
+        <HashMap<String, String>>::json_schema(r#gen).into();
     schema.extensions.insert(
         "x-kubernetes-map-type".to_owned(),
         serde_json::Value::String("granular".to_owned()),

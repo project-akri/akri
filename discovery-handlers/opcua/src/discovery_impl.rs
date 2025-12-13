@@ -57,12 +57,12 @@ fn get_discovery_urls(
 ) -> Vec<String> {
     let mut discovery_urls: Vec<String> = Vec::new();
     lds_urls.iter().for_each(|url| {
-        if let Err(e) = test_tcp_connection(url, &tcp_stream) {
+        match test_tcp_connection(url, &tcp_stream) { Err(e) => {
             error!(
                 "get_discovery_urls - failed to make tcp connection with url {} with error {:?}",
                 url, e
             );
-        } else {
+        } _ => {
             match discovery_handler_client.find_servers(url) {
                 Ok(applications) => {
                     trace!(
@@ -89,7 +89,7 @@ fn get_discovery_urls(
                     );
                 }
             };
-        }
+        }}
     });
     // Remove duplicates in the case that a server was registered with more than one LDS
     discovery_urls.dedup();
