@@ -16,7 +16,7 @@ impl UsernameToken {
     }
 
     fn generate_token(username: &str, password: &str, nonce: &str, created: &str) -> UsernameToken {
-        let concat = format!("{}{}{}", nonce, created, password);
+        let concat = format!("{nonce}{created}{password}");
         let digest = {
             let mut hasher = sha1::Sha1::new();
             hasher.update(concat.as_bytes());

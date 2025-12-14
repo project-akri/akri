@@ -11,20 +11,20 @@ use itertools::Itertools;
 use kube::api::{Patch, PatchParams};
 use kube::core::{NotUsed, Object, ObjectMeta, TypeMeta};
 use kube::{Resource, ResourceExt};
+use kube_runtime::Controller;
 use kube_runtime::controller::Action;
 use kube_runtime::reflector::Store;
-use kube_runtime::Controller;
 use thiserror::Error;
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, watch};
 use tokio::task::JoinHandle;
 use tonic::Request;
 
-use crate::device_manager::{cdi, DeviceManager};
+use crate::device_manager::{DeviceManager, cdi};
 use crate::plugin_manager::v1beta1::ContainerAllocateResponse;
 use crate::util::stopper::Stopper;
 
 use super::device_plugin_runner::{
-    serve_and_register_plugin, DeviceUsageStream, InternalDevicePlugin,
+    DeviceUsageStream, InternalDevicePlugin, serve_and_register_plugin,
 };
 use super::v1beta1::{AllocateRequest, AllocateResponse, ListAndWatchResponse};
 
@@ -72,8 +72,8 @@ impl Display for DeviceUsage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeviceUsage::Unused => write!(f, ""),
-            DeviceUsage::Node(node) => write!(f, "{}", node),
-            DeviceUsage::Configuration { vdev, node } => write!(f, "C:{}:{}", vdev, node),
+            DeviceUsage::Node(node) => write!(f, "{node}"),
+            DeviceUsage::Configuration { vdev, node } => write!(f, "C:{vdev}:{node}"),
         }
     }
 }
@@ -247,7 +247,7 @@ impl InstanceDevicePlugin {
         .map_err(|e| match e {
             kube::Error::Api(ae) => match ae.code {
                 409 => {
-                    trace!("Conflict on apply {:?}", ae);
+                    trace!("Conflict on apply {ae:?}");
                     DevicePluginError::SlotInUse
                 }
                 _ => DevicePluginError::Other(ae.into()),
@@ -321,7 +321,7 @@ fn instance_device_usage_to_device(
         .into_iter()
         .enumerate()
         .map(|(id, dev)| super::v1beta1::Device {
-            id: format!("{}-{}", device_name, id),
+            id: format!("{device_name}-{id}"),
             health: match dev {
                 DeviceUsage::Unused => "Healthy",
                 DeviceUsage::Configuration { .. } => "Unhealthy",
@@ -334,7 +334,7 @@ fn instance_device_usage_to_device(
             topology: None,
         })
         .collect();
-    trace!("Sending devices to kubelet: {:?}", devices);
+    trace!("Sending devices to kubelet: {devices:?}");
     Ok(ListAndWatchResponse { devices })
 }
 
@@ -401,7 +401,7 @@ impl InternalDevicePlugin for InstanceDevicePlugin {
                 self.claim_slot(Some(id), DeviceUsage::Node(self.node_name.to_owned()))
                     .await
                     .map_err(|e| {
-                        error!("Unable to claim slot: {:?}", e);
+                        error!("Unable to claim slot: {e:?}");
                         tonic::Status::unknown("Unable to claim slot")
                     })?;
             }
@@ -419,7 +419,7 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
     let instance_hash = device
         .name
         .split('-')
-        .last()
+        .next_back()
         .unwrap_or_default()
         .to_uppercase();
 
@@ -440,7 +440,7 @@ fn cdi_device_to_car(device: &cdi::Device) -> ContainerAllocateResponse {
 
     let suffixed_envs = envs
         .clone()
-        .map(|(k, v)| (format!("{}_{}", k, instance_hash), v));
+        .map(|(k, v)| (format!("{k}_{instance_hash}"), v));
 
     ContainerAllocateResponse {
         envs: envs.chain(suffixed_envs).collect(),
@@ -570,7 +570,7 @@ impl ConfigurationDevicePlugin {
                                 possible_slot += 1;
                             }
                             slots.insert(
-                                format!("{}-{}", config_name, possible_slot),
+                                format!("{config_name}-{possible_slot}"),
                                 ConfigurationSlot::DeviceFree(instance_name.clone()),
                             );
                         }
@@ -724,8 +724,8 @@ fn config_device_usage_to_device(
     })
 }
 
-/// This module implements a controller for Instance resources that will ensure device plugins are correctly created with the correct health status
-
+/// This module implements a controller for Instance resources that will ensure
+/// device plugins are correctly created with the correct health status
 pub struct DevicePluginManager {
     instance_plugins: Mutex<HashMap<String, Arc<InstanceDevicePlugin>>>,
     configuration_plugins: Mutex<HashMap<String, Arc<ConfigurationDevicePlugin>>>,
@@ -793,7 +793,7 @@ impl DevicePluginManager {
                     .enumerate()
                     .filter_map(|(i, u)| match u {
                         DeviceUsage::Node(n) if *n == self.node_name => {
-                            Some(format!("{}{}-{}", DP_SLOT_PREFIX, instance, i))
+                            Some(format!("{DP_SLOT_PREFIX}{instance}-{i}"))
                         }
                         DeviceUsage::Configuration { vdev, node } if *node == self.node_name => {
                             Some(vdev.to_string())
@@ -1033,10 +1033,12 @@ mod tests {
         )
         .unwrap();
 
-        assert!(plugin
-            .update_slots(&HashMap::from([("slot-1".to_owned(), "node-a".to_owned())]))
-            .await
-            .is_ok(),);
+        assert!(
+            plugin
+                .update_slots(&HashMap::from([("slot-1".to_owned(), "node-a".to_owned())]))
+                .await
+                .is_ok(),
+        );
 
         assert_eq!(
             plugin.slots_status.lock().await.borrow()[1],
@@ -1413,22 +1415,26 @@ mod tests {
             stopper: stopper.clone(),
         });
 
-        assert!(instance_plugin
-            .allocate(Request::new(AllocateRequest {
-                container_requests: vec![ContainerAllocateRequest {
-                    devices_i_ds: vec!["instance-a-0".to_owned()],
-                }]
-            }))
-            .await
-            .is_err());
-        assert!(instance_plugin
-            .allocate(Request::new(AllocateRequest {
-                container_requests: vec![ContainerAllocateRequest {
-                    devices_i_ds: vec!["instance-a-3".to_owned()],
-                }]
-            }))
-            .await
-            .is_ok());
+        assert!(
+            instance_plugin
+                .allocate(Request::new(AllocateRequest {
+                    container_requests: vec![ContainerAllocateRequest {
+                        devices_i_ds: vec!["instance-a-0".to_owned()],
+                    }]
+                }))
+                .await
+                .is_err()
+        );
+        assert!(
+            instance_plugin
+                .allocate(Request::new(AllocateRequest {
+                    container_requests: vec![ContainerAllocateRequest {
+                        devices_i_ds: vec!["instance-a-3".to_owned()],
+                    }]
+                }))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]

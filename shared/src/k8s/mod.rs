@@ -1,10 +1,9 @@
 use super::akri::{
-    configuration,
+    API_NAMESPACE, API_VERSION, configuration,
     configuration::{Configuration, ConfigurationList},
     instance,
     instance::{Instance, InstanceList, InstanceSpec},
-    retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-    API_NAMESPACE, API_VERSION,
+    retry::{MAX_INSTANCE_UPDATE_TRIES, random_delay},
 };
 use async_trait::async_trait;
 use k8s_openapi::api::batch::v1::Job;
@@ -55,7 +54,7 @@ impl OwnershipInfo {
     pub fn get_api_version(&self) -> String {
         match self.object_type {
             OwnershipType::Instance | OwnershipType::Configuration => {
-                format!("{}/{}", API_NAMESPACE, API_VERSION)
+                format!("{API_NAMESPACE}/{API_VERSION}")
             }
             OwnershipType::Pod | OwnershipType::Service => "core/v1".to_string(),
         }
@@ -613,22 +612,22 @@ pub async fn try_delete_instance(
             .await
         {
             Ok(()) => {
-                log::trace!("try_delete_instance - deleted Instance {}", instance_name);
+                log::trace!("try_delete_instance - deleted Instance {instance_name}");
                 break;
             }
             Err(e) => {
                 if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>() {
                     if ae.code == ERROR_NOT_FOUND {
                         log::trace!(
-                            "try_delete_instance - discovered Instance {} already deleted",
-                            instance_name
+                            "try_delete_instance - discovered Instance {instance_name} already deleted"
                         );
                         break;
                     }
                 }
                 log::error!(
                     "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
-                    instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                    instance_name,
+                    MAX_INSTANCE_UPDATE_TRIES - x - 1
                 );
                 if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                     return Err(e);
@@ -702,7 +701,7 @@ pub mod test_ownership {
             uid.to_string(),
         );
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Configuration", &ownership.get_kind());
@@ -718,7 +717,7 @@ pub mod test_ownership {
         let ownership =
             OwnershipInfo::new(OwnershipType::Instance, name.to_string(), uid.to_string());
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Instance", &ownership.get_kind());

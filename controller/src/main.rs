@@ -2,7 +2,7 @@
 extern crate lazy_static;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use akri_shared::akri::{API_NAMESPACE, metrics::run_metrics_server};
 use async_std::sync::Mutex;
 use prometheus::IntGaugeVec;
 use std::sync::Arc;
@@ -19,19 +19,13 @@ lazy_static! {
 /// This is the entry point for the controller.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    println!("{} Controller start", API_NAMESPACE);
+    println!("{API_NAMESPACE} Controller start");
 
-    println!(
-        "{} KUBERNETES_PORT found ... env_logger::init",
-        API_NAMESPACE
-    );
+    println!("{API_NAMESPACE} KUBERNETES_PORT found ... env_logger::init");
     env_logger::try_init()?;
-    println!(
-        "{} KUBERNETES_PORT found ... env_logger::init finished",
-        API_NAMESPACE
-    );
+    println!("{API_NAMESPACE} KUBERNETES_PORT found ... env_logger::init finished");
 
-    log::info!("{} Controller logging started", API_NAMESPACE);
+    log::info!("{API_NAMESPACE} Controller logging started");
 
     let synchronization = Arc::new(Mutex::new(()));
     let instance_watch_synchronization = synchronization.clone();
@@ -73,6 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     futures::future::try_join_all(tasks).await?;
 
-    log::info!("{} Controller end", API_NAMESPACE);
+    log::info!("{API_NAMESPACE} Controller end");
     Ok(())
 }

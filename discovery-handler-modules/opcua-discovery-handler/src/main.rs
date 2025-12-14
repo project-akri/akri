@@ -1,7 +1,7 @@
 use akri_discovery_utils::discovery::discovery_handler::{
-    run_discovery_handler, REGISTER_AGAIN_CHANNEL_CAPACITY,
+    REGISTER_AGAIN_CHANNEL_CAPACITY, run_discovery_handler,
 };
-use akri_opcua::{discovery_handler::DiscoveryHandlerImpl, DISCOVERY_HANDLER_NAME, SHARED};
+use akri_opcua::{DISCOVERY_HANDLER_NAME, SHARED, discovery_handler::DiscoveryHandlerImpl};
 use log::info;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {

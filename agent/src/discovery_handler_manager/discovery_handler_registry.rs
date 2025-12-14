@@ -24,22 +24,22 @@ use akri_discovery_utils::discovery::v0::{ByteData, Device, DiscoverRequest};
 use akri_shared::akri::configuration::{Configuration, DiscoveryProperty};
 use akri_shared::akri::instance::Instance;
 
-use akri_shared::akri::instance::InstanceSpec;
 use akri_shared::akri::AKRI_PREFIX;
+use akri_shared::akri::instance::InstanceSpec;
 use async_trait::async_trait;
-use blake2::digest::{Update, VariableOutput};
 use blake2::VarBlake2b;
+use blake2::digest::{Update, VariableOutput};
+use futures::FutureExt;
 use futures::future::select_all;
 use futures::future::try_join_all;
-use futures::FutureExt;
 use itertools::Itertools;
 use kube::core::ObjectMeta;
 use kube_runtime::reflector::ObjectRef;
 use tokio::select;
+use tokio::sync::RwLock;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
-use tokio::sync::RwLock;
-use tokio::sync::{broadcast, Mutex, Notify};
+use tokio::sync::{Mutex, Notify, broadcast};
 
 use super::discovery_property_solver::PropertySolver;
 use super::{DiscoveryError, DiscoveryManagerKubeInterface};
@@ -68,7 +68,7 @@ impl DiscoveredDevice {
         let mut id_to_digest = id_to_digest.to_string();
         // For local devices, include node hostname in id_to_digest so instances have unique names
         if !shared {
-            id_to_digest = format!("{}{}", id_to_digest, node_name);
+            id_to_digest = format!("{id_to_digest}{node_name}");
         }
         let mut digest = String::new();
         let mut hasher = VarBlake2b::new(3).unwrap();
@@ -76,7 +76,7 @@ impl DiscoveredDevice {
         hasher.finalize_variable(|var| {
             digest = var
                 .iter()
-                .map(|num| format!("{:02x}", num))
+                .map(|num| format!("{num:02x}"))
                 .collect::<Vec<String>>()
                 .join("")
         });
@@ -102,7 +102,7 @@ impl From<DiscoveredDevice> for crate::device_manager::cdi::Device {
                 env: dev
                     .properties
                     .into_iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
+                    .map(|(k, v)| format!("{k}={v}"))
                     .collect(),
                 device_nodes: dev.device_specs.into_iter().map_into().collect(),
                 mounts: dev.mounts.into_iter().map_into().collect(),
@@ -200,7 +200,7 @@ impl DiscoveryHandlerRequest for DHRequestImpl {
         if extra_device_properties != *current {
             let edit = extra_device_properties
                 .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
+                .map(|(k, v)| format!("{k}={v}"))
                 .collect();
             *current = extra_device_properties;
             self.notifier
@@ -298,7 +298,7 @@ impl DHRequestImpl {
                             .read()
                             .await
                             .iter()
-                            .map(|(k, v)| format!("{}={}", k, v))
+                            .map(|(k, v)| format!("{k}={v}"))
                             .collect(),
                         ..Default::default()
                     }],
@@ -371,7 +371,7 @@ async fn handle_request(
     cdi_sender: Arc<Mutex<watch::Sender<HashMap<String, crate::device_manager::cdi::Kind>>>>,
     local_config_sender: mpsc::Sender<ObjectRef<Configuration>>,
 ) {
-    let cdi_kind = format!("{}/{}", AKRI_PREFIX, key);
+    let cdi_kind = format!("{AKRI_PREFIX}/{key}");
     loop {
         match req_notifier.changed().await {
             Ok(_) => {
@@ -379,7 +379,7 @@ async fn handle_request(
                 cdi_sender.lock().await.send_modify(|kinds| {
                     kinds.insert(cdi_kind.clone(), kind);
                 });
-                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                trace!("Ask for reconciliation of {namespace}::{key}");
                 let res = local_config_sender
                     .send(ObjectRef::<Configuration>::new(key).within(namespace))
                     .await;
@@ -391,7 +391,7 @@ async fn handle_request(
                 }
             }
             Err(_) => {
-                trace!("Ask for reconciliation of {}::{}", namespace, key);
+                trace!("Ask for reconciliation of {namespace}::{key}");
                 let _ = local_config_sender
                     .send(ObjectRef::<Configuration>::new(key).within(namespace))
                     .await;
@@ -431,8 +431,8 @@ impl DiscoveryHandlerRegistry for DHRegistryImpl {
                     termination_notifier: terminated.clone(),
                 };
                 let dh_futures = handlers
-                    .iter()
-                    .map(|(_, handler)| dh_req.query(handler.clone()));
+                    .values()
+                    .map(|handler| dh_req.query(handler.clone()));
                 let dh_streams: Vec<watch::Receiver<Vec<Arc<DiscoveredDevice>>>> =
                     try_join_all(dh_futures).await?;
                 dh_req.endpoints = RwLock::new(dh_streams);
@@ -781,14 +781,16 @@ mod tests {
         });
         endpoint.expect_is_closed().return_const(true);
         dh_reg.register_endpoint(Arc::new(endpoint)).await;
-        assert!(dh_reg
-            .handlers
-            .read()
-            .await
-            .get("mock_handler")
-            .unwrap()
-            .get("mock_handler_local")
-            .is_some());
+        assert!(
+            dh_reg
+                .handlers
+                .read()
+                .await
+                .get("mock_handler")
+                .unwrap()
+                .get("mock_handler_local")
+                .is_some()
+        );
 
         let mut endpoint = MockDiscoveryHandlerEndpoint::new();
         let (close_2, closed) = tokio::sync::oneshot::channel::<()>();
@@ -804,33 +806,39 @@ mod tests {
         endpoint.expect_is_closed().once().return_const(false);
         endpoint.expect_is_closed().once().return_const(true);
         dh_reg.register_endpoint(Arc::new(endpoint)).await;
-        assert!(dh_reg
-            .handlers
-            .read()
-            .await
-            .get("mock_handler")
-            .unwrap()
-            .get("mock_handler_local_2")
-            .is_some());
+        assert!(
+            dh_reg
+                .handlers
+                .read()
+                .await
+                .get("mock_handler")
+                .unwrap()
+                .get("mock_handler_local_2")
+                .is_some()
+        );
 
         close_1.send(()).unwrap();
         tokio::time::sleep(Duration::from_millis(500)).await;
-        assert!(dh_reg
-            .handlers
-            .read()
-            .await
-            .get("mock_handler")
-            .unwrap()
-            .get("mock_handler_local")
-            .is_none());
-        assert!(dh_reg
-            .handlers
-            .read()
-            .await
-            .get("mock_handler")
-            .unwrap()
-            .get("mock_handler_local_2")
-            .is_some());
+        assert!(
+            dh_reg
+                .handlers
+                .read()
+                .await
+                .get("mock_handler")
+                .unwrap()
+                .get("mock_handler_local")
+                .is_none()
+        );
+        assert!(
+            dh_reg
+                .handlers
+                .read()
+                .await
+                .get("mock_handler")
+                .unwrap()
+                .get("mock_handler_local_2")
+                .is_some()
+        );
 
         close_2.send(()).unwrap();
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -864,18 +872,22 @@ mod tests {
         assert!(dh_reg.get_request("my-config").await.is_some());
         assert!(dh_reg.get_request("my-other-config").await.is_none());
 
-        assert!(tokio::time::timeout(
-            Duration::from_millis(500),
-            request.termination_notifier.notified()
-        )
-        .await
-        .is_err());
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(500),
+                request.termination_notifier.notified()
+            )
+            .await
+            .is_err()
+        );
         let notif = request.termination_notifier.notified();
 
         dh_reg.terminate_request("my-config").await;
-        assert!(tokio::time::timeout(Duration::from_millis(500), notif)
-            .await
-            .is_ok());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(500), notif)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -885,21 +897,23 @@ mod tests {
         let kube_client = Arc::new(MockDiscoveryManagerKubeInterface::new());
         let dh_reg = DHRegistryImpl::new(kube_client.clone(), cdi_notifier, configuration_notifier);
 
-        assert!(dh_reg
-            .new_request(
-                "my-config",
-                "mock_handler",
-                "discovery details",
-                &[],
-                HashMap::from([]),
-                "namespace"
-            )
-            .await
-            .is_err_and(|e| {
-                matches!(e,
-                    DiscoveryError::NoHandler(s) if s == *"mock_handler"
+        assert!(
+            dh_reg
+                .new_request(
+                    "my-config",
+                    "mock_handler",
+                    "discovery details",
+                    &[],
+                    HashMap::from([]),
+                    "namespace"
                 )
-            }));
+                .await
+                .is_err_and(|e| {
+                    matches!(e,
+                        DiscoveryError::NoHandler(s) if s == *"mock_handler"
+                    )
+                })
+        );
 
         let dev_senders = Arc::new(std::sync::Mutex::new(vec![]));
 
@@ -938,17 +952,19 @@ mod tests {
         });
         dh_reg.register_endpoint(Arc::new(endpoint)).await;
 
-        assert!(dh_reg
-            .new_request(
-                "my-config",
-                "mock_handler",
-                "discovery details",
-                &[],
-                HashMap::from([]),
-                "namespace"
-            )
-            .await
-            .is_ok());
+        assert!(
+            dh_reg
+                .new_request(
+                    "my-config",
+                    "mock_handler",
+                    "discovery details",
+                    &[],
+                    HashMap::from([]),
+                    "namespace"
+                )
+                .await
+                .is_ok()
+        );
 
         assert!(cdi_rec.borrow_and_update().is_empty());
         assert_eq!(config_rec.try_recv(), Err(mpsc::error::TryRecvError::Empty));

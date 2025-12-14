@@ -1,9 +1,9 @@
 use super::{
     super::akri::API_NAMESPACE,
+    ERROR_NOT_FOUND, OwnershipInfo,
     pod::{
         AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID,
     },
-    OwnershipInfo, ERROR_NOT_FOUND,
 };
 use either::Either;
 use k8s_openapi::api::core::v1::{Service, ServiceSpec};
@@ -72,10 +72,10 @@ pub fn create_service_app_name(
     if node_specific_svc {
         // If this is the node specific service, use the insrtance name which
         // contains node-specific content.
-        format!("{}-{}", normalized_instance_name, svc_suffix)
+        format!("{normalized_instance_name}-{svc_suffix}")
     } else {
         // If this is NOT the node specific service, use the capability name.
-        format!("{}-{}", configuration_name, svc_suffix)
+        format!("{configuration_name}-{svc_suffix}")
     }
 }
 
@@ -385,8 +385,7 @@ pub async fn update_service(
 ) -> Result<(), anyhow::Error> {
     trace!(
         "update_service enter name:{} namespace: {}",
-        &name,
-        &namespace
+        &name, &namespace
     );
     let svcs: Api<Service> = Api::namespaced(kube_client, namespace);
 
@@ -400,14 +399,11 @@ pub async fn update_service(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_service kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("update_service kube_client.request returned kube error: {ae:?}");
             Err(anyhow::anyhow!(ae))
         }
         Err(e) => {
-            log::trace!("update_service kube_client.request error: {:?}", e);
+            log::trace!("update_service kube_client.request error: {e:?}");
             Err(anyhow::anyhow!(e))
         }
     }
@@ -716,24 +712,26 @@ mod svcspec_tests {
                     .unwrap()
                     .api_version
             );
-            assert!(svc
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .controller
-                .unwrap());
-            assert!(svc
-                .metadata
-                .clone()
-                .owner_references
-                .unwrap()
-                .first()
-                .unwrap()
-                .block_owner_deletion
-                .unwrap());
+            assert!(
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .controller
+                    .unwrap()
+            );
+            assert!(
+                svc.metadata
+                    .clone()
+                    .owner_references
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .block_owner_deletion
+                    .unwrap()
+            );
 
             // Validate the existing selector unchanged
             assert_eq!(

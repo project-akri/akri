@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{cdi, DeviceManager};
+use super::{DeviceManager, cdi};
 use tokio::sync::watch;
 
 pub struct InMemoryManager {
@@ -24,7 +24,7 @@ impl DeviceManager for InMemoryManager {
         let state = self.state.borrow();
         let cdi_kind = state.get(kind)?;
         let mut device = cdi_kind.devices.iter().find(|dev| dev.name == id)?.clone();
-        device.name = format!("{}-{}", kind, id);
+        device.name = format!("{kind}-{id}");
         device.annotations.extend(
             cdi_kind
                 .annotations

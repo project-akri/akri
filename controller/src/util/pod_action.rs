@@ -79,8 +79,7 @@ impl PodActionInfo {
         if let Some(start_time) = &self.status_start_time {
             // If this pod has a start_time in its status, calculate when the grace period would end
             log::trace!(
-                "time_choice_for_non_running_pods - checking for time after start_time ({:?})",
-                start_time
+                "time_choice_for_non_running_pods - checking for time after start_time ({start_time:?})"
             );
             let time_limit = &start_time
                 .0
@@ -95,8 +94,7 @@ impl PodActionInfo {
             // If "now" is less than the grace period, the pod deserves more time
             give_it_more_time = now < *time_limit;
             log::trace!(
-                "time_choice_for_non_running_pods - give_it_more_time: ({:?})",
-                give_it_more_time
+                "time_choice_for_non_running_pods - give_it_more_time: ({give_it_more_time:?})"
             );
         } else {
             // If the pod has no start_time, give it more time
@@ -106,8 +104,7 @@ impl PodActionInfo {
             );
             give_it_more_time = true;
             log::trace!(
-                "time_choice_for_non_running_pods - give_it_more_time: ({:?})",
-                give_it_more_time
+                "time_choice_for_non_running_pods - give_it_more_time: ({give_it_more_time:?})"
             );
         }
 

@@ -1,20 +1,21 @@
 use akri_shared::{
     akri::{
         configuration::Configuration,
-        retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
+        retry::{MAX_INSTANCE_UPDATE_TRIES, random_delay},
     },
     k8s,
     k8s::{
+        KubeInterface, OwnershipInfo, OwnershipType,
         pod::{AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME},
-        service, KubeInterface, OwnershipInfo, OwnershipType,
+        service,
     },
 };
 use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
 use kube::api::Api;
-use kube_runtime::watcher::{watcher, Config, Event};
-use kube_runtime::WatchStreamExt;
+use kube::runtime::WatchStreamExt;
+use kube::runtime::watcher::{Config, Event, watcher};
 use log::{error, info, trace};
 use std::{collections::HashMap, sync::Arc};
 
@@ -139,7 +140,7 @@ impl BrokerPodWatcher {
         loop {
             let event = match informer.try_next().await {
                 Err(e) => {
-                    error!("Error during watch: {}", e);
+                    error!("Error during watch: {e}");
                     continue;
                 }
                 Ok(None) => return Err(anyhow::anyhow!("Watch stream ended")),
@@ -175,7 +176,7 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
         first_event: &mut bool,
     ) -> anyhow::Result<()> {
-        trace!("handle_pod - enter [event: {:?}]", event);
+        trace!("handle_pod - enter [event: {event:?}]");
         match event {
             Event::Applied(pod) => {
                 info!(
@@ -188,7 +189,7 @@ impl BrokerPodWatcher {
                     "Unknown" | "Pending" => {
                         self.known_pods.insert(
                             pod.metadata.name.clone().ok_or_else(|| {
-                                anyhow::format_err!("Pod {:?} does not have name", pod)
+                                anyhow::format_err!("Pod {pod:?} does not have name")
                             })?,
                             PodState::Pending,
                         );
@@ -213,10 +214,7 @@ impl BrokerPodWatcher {
             }
             Event::Restarted(pods) => {
                 if *first_event {
-                    info!(
-                        "handle_pod - pod watcher [re]started. Pods are : {:?}",
-                        pods
-                    );
+                    info!("handle_pod - pod watcher [re]started. Pods are : {pods:?}");
                 } else {
                     return Err(anyhow::anyhow!(
                         "Pod watcher restarted - throwing error to restart controller"
@@ -240,7 +238,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {pod:?} does not have name"))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_running_pod_if_needed - last_known_state: {:?}",
@@ -270,7 +268,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {pod:?} does not have name"))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_ended_pod_if_needed - last_known_state: {:?}",
@@ -300,7 +298,7 @@ impl BrokerPodWatcher {
             .metadata
             .name
             .clone()
-            .ok_or_else(|| anyhow::format_err!("Pod {:?} does not have name", pod))?;
+            .ok_or_else(|| anyhow::format_err!("Pod {pod:?} does not have name"))?;
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
         trace!(
             "handle_deleted_pod_if_needed - last_known_state: {:?}",
@@ -401,11 +399,8 @@ impl BrokerPodWatcher {
         };
 
         // Clean up instance service if there are no pods anymore
-        let selector = format!("{}={}", label, value);
-        trace!(
-            "find_pods_and_cleanup_svc_if_unsupported - find_pods_with_label({})",
-            selector
-        );
+        let selector = format!("{label}={value}");
+        trace!("find_pods_and_cleanup_svc_if_unsupported - find_pods_with_label({selector})");
         let pods = kube_interface.find_pods_with_label(&selector).await?;
         trace!(
             "find_pods_and_cleanup_svc_if_unsupported - found {} pods",
@@ -446,10 +441,7 @@ impl BrokerPodWatcher {
                 },
                 _ => true,
             }).count();
-        trace!(
-            "cleanup_svc_if_unsupported - num_non_terminating_pods: {}",
-            num_non_terminating_pods
-        );
+        trace!("cleanup_svc_if_unsupported - num_non_terminating_pods: {num_non_terminating_pods}");
 
         if num_non_terminating_pods == 0 {
             trace!(
@@ -512,7 +504,7 @@ impl BrokerPodWatcher {
             .metadata
             .uid
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {}", instance_name))?;
+            .ok_or_else(|| anyhow::anyhow!("UID not found for instance: {instance_name}"))?;
         self.add_instance_and_configuration_services(
             &instance_name,
             instance_uid,
@@ -542,19 +534,18 @@ impl BrokerPodWatcher {
     ) -> anyhow::Result<()> {
         trace!(
             "create_or_update_service - instance={:?} with ownership:{:?}",
-            instance_name,
-            &ownership
+            instance_name, &ownership
         );
 
         let mut create_new_service = true;
         if let Ok(existing_svcs) = kube_interface
-            .find_services(&format!("{}={}", label_name, label_value))
+            .find_services(&format!("{label_name}={label_value}"))
             .await
         {
             for existing_svc in existing_svcs {
                 let mut existing_svc = existing_svc.clone();
                 let svc_name = existing_svc.metadata.name.clone().ok_or_else(|| {
-                    anyhow::format_err!("Service {:?} does not have name", existing_svc)
+                    anyhow::format_err!("Service {existing_svc:?} does not have name")
                 })?;
                 let svc_namespace = existing_svc.metadata.namespace.as_ref().unwrap().clone();
                 trace!(
@@ -562,7 +553,10 @@ impl BrokerPodWatcher {
                     &svc_name
                 );
                 service::update_ownership(&mut existing_svc, ownership.clone(), true)?;
-                trace!("create_or_update_service - calling service::update_service name:{} namespace: {}", &svc_name, &svc_namespace);
+                trace!(
+                    "create_or_update_service - calling service::update_service name:{} namespace: {}",
+                    &svc_name, &svc_namespace
+                );
                 kube_interface
                     .update_service(&existing_svc, &svc_name, &svc_namespace)
                     .await?;
@@ -580,10 +574,7 @@ impl BrokerPodWatcher {
                 service_spec,
                 is_instance_service,
             )?;
-            trace!(
-                "create_or_update_service - New instance svc spec={:?}",
-                new_instance_svc
-            );
+            trace!("create_or_update_service - New instance svc spec={new_instance_svc:?}");
 
             kube_interface
                 .create_service(&new_instance_svc, namespace)
@@ -603,10 +594,7 @@ impl BrokerPodWatcher {
         configuration: &Configuration,
         kube_interface: &impl KubeInterface,
     ) -> anyhow::Result<()> {
-        trace!(
-            "add_instance_and_configuration_services - instance={:?}",
-            instance_name
-        );
+        trace!("add_instance_and_configuration_services - instance={instance_name:?}");
         if let Some(instance_service_spec) = &configuration.spec.instance_service_spec {
             let ownership = OwnershipInfo::new(
                 OwnershipType::Instance,
@@ -642,7 +630,7 @@ impl BrokerPodWatcher {
 
         if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
             let configuration_uid = configuration.metadata.uid.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("UID not found for configuration: {}", configuration_name)
+                anyhow::anyhow!("UID not found for configuration: {configuration_name}")
             })?;
             let ownership = OwnershipInfo::new(
                 OwnershipType::Configuration,
@@ -692,7 +680,7 @@ mod tests {
         let pods_json = file::read_file_to_string(result_file);
         let phase_adjusted_json = pods_json.replace(
             "\"phase\": \"Running\"",
-            &format!("\"phase\": \"{}\"", specified_phase),
+            &format!("\"phase\": \"{specified_phase}\""),
         );
         let pods: PodList = serde_json::from_str(&phase_adjusted_json).unwrap();
         pods
@@ -789,23 +777,27 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut pod_watcher = BrokerPodWatcher::new();
         let mut first_event = true;
-        assert!(pod_watcher
-            .handle_pod(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_ok());
+        assert!(
+            pod_watcher
+                .handle_pod(
+                    Event::Restarted(Vec::new()),
+                    &MockKubeInterface::new(),
+                    &mut first_event
+                )
+                .await
+                .is_ok()
+        );
         first_event = false;
-        assert!(pod_watcher
-            .handle_pod(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .handle_pod(
+                    Event::Restarted(Vec::new()),
+                    &MockKubeInterface::new(),
+                    &mut first_event
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1348,9 +1340,11 @@ mod tests {
         let orig_pod = pod_list.items.first().unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(orig_pod)
-            .is_ok());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(orig_pod)
+                .is_ok()
+        );
 
         let mut instanceless_pod = orig_pod.clone();
         instanceless_pod
@@ -1359,9 +1353,11 @@ mod tests {
             .as_mut()
             .unwrap()
             .remove(AKRI_INSTANCE_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&instanceless_pod)
-            .is_err());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(&instanceless_pod)
+                .is_err()
+        );
 
         let mut configurationless_pod = orig_pod.clone();
         configurationless_pod
@@ -1370,9 +1366,11 @@ mod tests {
             .as_mut()
             .unwrap()
             .remove(AKRI_CONFIGURATION_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&configurationless_pod)
-            .is_err());
+        assert!(
+            pod_watcher
+                .get_instance_and_configuration_from_pod(&configurationless_pod)
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1444,20 +1442,22 @@ mod tests {
             "object_uid".to_string(),
         );
 
-        assert!(pod_watcher
-            .create_or_update_service(
-                "config-a-b494b6",
-                "config-a",
-                "config-a-namespace",
-                AKRI_INSTANCE_LABEL_NAME,
-                "config-a-b494b6",
-                ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
-                true,
-                &mock
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .create_or_update_service(
+                    "config-a-b494b6",
+                    "config-a",
+                    "config-a-namespace",
+                    AKRI_INSTANCE_LABEL_NAME,
+                    "config-a-b494b6",
+                    ownership,
+                    &config.spec.instance_service_spec.unwrap().clone(),
+                    true,
+                    &mock
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1528,20 +1528,22 @@ mod tests {
             "object_uid".to_string(),
         );
 
-        assert!(pod_watcher
-            .create_or_update_service(
-                "config-a-b494b6",
-                "config-a",
-                "config-a-namespace",
-                AKRI_INSTANCE_LABEL_NAME,
-                "config-a-b494b6",
-                ownership,
-                &config.spec.instance_service_spec.unwrap().clone(),
-                true,
-                &mock
-            )
-            .await
-            .is_err());
+        assert!(
+            pod_watcher
+                .create_or_update_service(
+                    "config-a-b494b6",
+                    "config-a",
+                    "config-a-namespace",
+                    AKRI_INSTANCE_LABEL_NAME,
+                    "config-a-b494b6",
+                    ownership,
+                    &config.spec.instance_service_spec.unwrap().clone(),
+                    true,
+                    &mock
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[derive(Clone)]

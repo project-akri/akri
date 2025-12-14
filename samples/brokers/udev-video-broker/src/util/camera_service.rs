@@ -1,8 +1,8 @@
 use super::super::FRAME_COUNT_METRIC;
 use super::camera::{
+    NotifyRequest, NotifyResponse,
     camera_client::CameraClient,
     camera_server::{Camera, CameraServer},
-    NotifyRequest, NotifyResponse,
 };
 use log::{info, trace};
 use rscam::Camera as RsCamera;
@@ -51,11 +51,11 @@ pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), Strin
     };
     let service = CameraServer::new(camera_service);
 
-    let addr_str = format!("{}:{}", CAMERA_SERVICE_SERVER_ADDRESS, CAMERA_SERVICE_PORT);
+    let addr_str = format!("{CAMERA_SERVICE_SERVER_ADDRESS}:{CAMERA_SERVICE_PORT}");
     let addr: SocketAddr = match addr_str.parse() {
         Ok(sock) => sock,
         Err(e) => {
-            return Err(format!("Unable to parse socket: {:?}", e));
+            return Err(format!("Unable to parse socket: {e:?}"));
         }
     };
 
@@ -87,17 +87,15 @@ pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), Strin
         < start_plus_10)
         && !connected
     {
-        let client_addr_str = format!(
-            "http://{}:{}",
-            CAMERA_SERVICE_TEST_LOCALHOST, CAMERA_SERVICE_PORT
-        );
+        let client_addr_str =
+            format!("http://{CAMERA_SERVICE_TEST_LOCALHOST}:{CAMERA_SERVICE_PORT}");
         connected = match CameraClient::connect(client_addr_str).await {
             Ok(_) => {
                 trace!("Connected to server, stop polling");
                 true
             }
             Err(e) => {
-                trace!("Unable to connect to server, continue polling: {:?}", e);
+                trace!("Unable to connect to server, continue polling: {e:?}");
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 false
             }

@@ -251,7 +251,7 @@ mod tests {
             "[{}]",
             entries
                 .iter()
-                .map(|(k, _v)| format!(r#""{}""#, k))
+                .map(|(k, _v)| format!(r#""{k}""#))
                 .collect::<Vec<_>>()
                 .join(", ")
         );

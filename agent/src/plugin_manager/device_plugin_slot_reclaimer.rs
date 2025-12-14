@@ -42,10 +42,7 @@ async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
     let mut podresources_client = podresources::PodResourcesListerClient::new(channel);
 
     let list_request = tonic::Request::new(ListPodResourcesRequest {});
-    trace!(
-        "register - before call to register with the kubelet at socket {}",
-        KUBELET_SOCKET
-    );
+    trace!("register - before call to register with the kubelet at socket {KUBELET_SOCKET}");
 
     // Get the list of allocated device ids from kubelet
     let resources = podresources_client
@@ -83,7 +80,7 @@ pub async fn start_reclaimer(dp_manager: Arc<DevicePluginManager>) {
                 if let Some(at) = stalled_slots.get(slot_to_reclaim) {
                     if reclaim_iteration_start.saturating_duration_since(*at) >= SLOT_GRACE_PERIOD {
                         // Slot is stalled for more than grace period, free it
-                        trace!("freeing slot: {}", slot_to_reclaim);
+                        trace!("freeing slot: {slot_to_reclaim}");
                         if dp_manager
                             .free_slot(slot_to_reclaim.to_string())
                             .await

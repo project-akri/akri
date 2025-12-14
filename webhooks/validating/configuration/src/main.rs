@@ -1,4 +1,4 @@
-use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, post, web};
 use akri_shared::akri::configuration::Configuration;
 use clap::Arg;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
@@ -7,7 +7,7 @@ use openapi::models::{
     V1AdmissionReview as AdmissionReview, V1Status as Status,
 };
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn get_builder(key: &str, crt: &str) -> SslAcceptorBuilder {
     let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -28,10 +28,9 @@ fn check(
         serde_json::Value::Object(o) => {
             for (key, value) in o {
                 if let Err(e) = check(value, &deserialized[key]) {
-                    return Err(None.ok_or(format!(
-                        "input key ({:?}) not equal to parsed: ({:?})",
-                        key, e
-                    ))?);
+                    return Err(
+                        None.ok_or(format!("input key ({key:?}) not equal to parsed: ({e:?})"))?
+                    );
                 }
             }
             Ok(())
@@ -40,8 +39,7 @@ fn check(
             for (pos, _e) in s.iter().enumerate() {
                 if let Err(e) = check(&s[pos], &deserialized[pos]) {
                     return Err(None.ok_or(format!(
-                        "input index ({:?}) not equal to parsed: ({:?})",
-                        pos, e
+                        "input index ({pos:?}) not equal to parsed: ({e:?})"
                     ))?);
                 }
             }
@@ -50,47 +48,43 @@ fn check(
         serde_json::Value::String(s) => match deserialized {
             serde_json::Value::String(ds) => {
                 if s != ds {
-                    Err(None.ok_or(format!("input ({:?}) not equal to parsed ({:?})", s, ds))?)
+                    Err(None.ok_or(format!("input ({s:?}) not equal to parsed ({ds:?})"))?)
                 } else {
                     Ok(())
                 }
             }
             _ => Err(None.ok_or(format!(
-                "input ({:?}) not equal to parsed ({:?})",
-                s, deserialized
+                "input ({s:?}) not equal to parsed ({deserialized:?})"
             ))?),
         },
         serde_json::Value::Bool(b) => match deserialized {
             serde_json::Value::Bool(db) => {
                 if b != db {
-                    Err(None.ok_or(format!("input ({:?}) not equal to parsed ({:?})", b, db))?)
+                    Err(None.ok_or(format!("input ({b:?}) not equal to parsed ({db:?})"))?)
                 } else {
                     Ok(())
                 }
             }
             _ => Err(None.ok_or(format!(
-                "input ({:?}) not equal to parsed ({:?})",
-                b, deserialized
+                "input ({b:?}) not equal to parsed ({deserialized:?})"
             ))?),
         },
         serde_json::Value::Number(n) => match deserialized {
             serde_json::Value::Number(dn) => {
                 if n != dn {
-                    Err(None.ok_or(format!("input ({:?}) not equal to parsed ({:?})", n, dn))?)
+                    Err(None.ok_or(format!("input ({n:?}) not equal to parsed ({dn:?})"))?)
                 } else {
                     Ok(())
                 }
             }
             _ => Err(None.ok_or(format!(
-                "input ({:?}) not equal to parsed ({:?})",
-                n, deserialized
+                "input ({n:?}) not equal to parsed ({deserialized:?})"
             ))?),
         },
         serde_json::Value::Null => match deserialized {
             serde_json::Value::Null => Ok(()),
             _ => Err(None.ok_or(format!(
-                "input (Null) not equal to parsed ({:?})",
-                deserialized
+                "input (Null) not equal to parsed ({deserialized:?})"
             ))?),
         },
     }
@@ -119,15 +113,9 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                 serde_json::from_str(y.as_str()).expect("Could not parse as Akri Configuration");
             let reserialized = serde_json::to_string(&config).unwrap();
             let deserialized: Value = serde_json::from_str(&reserialized).expect("untyped JSON");
-            println!(
-                "validate_configuration - deserialized Configuration: {:?}",
-                deserialized
-            );
+            println!("validate_configuration - deserialized Configuration: {deserialized:?}");
             let val: Value = filter_configuration(raw.clone());
-            println!(
-                "validate_configuration - expected deserialized format: {:?}",
-                val
-            );
+            println!("validate_configuration - expected deserialized format: {val:?}");
 
             // Do they match?
             match check(&val, &deserialized) {
@@ -234,8 +222,8 @@ async fn main() -> std::io::Result<()> {
         .get_one::<u16>("port")
         .expect("valid port [0-65535]");
 
-    let endpoint = format!("0.0.0.0:{}", port);
-    println!("Started Webhook server: {}", endpoint);
+    let endpoint = format!("0.0.0.0:{port}");
+    println!("Started Webhook server: {endpoint}");
 
     let builder = get_builder(key_file, crt_file);
     HttpServer::new(|| App::new().service(validate))
@@ -610,7 +598,7 @@ mod tests {
 
     fn get_invalid_admission_review_with_broker_job_and_pod_spec() -> String {
         let invalid_setting_both_broker_job_and_pod =
-            format!("{},\n{}", VALID_BROKER_JOB_SPEC, VALID_BROKER_POD_SPEC);
+            format!("{VALID_BROKER_JOB_SPEC},\n{VALID_BROKER_POD_SPEC}");
         ADMISSION_REVIEW.replace(
             BROKER_SPEC_INSERTION_KEYWORD,
             &invalid_setting_both_broker_job_and_pod,
