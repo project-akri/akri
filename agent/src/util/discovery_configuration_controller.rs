@@ -19,12 +19,12 @@ use crate::discovery_handler_manager::{
 };
 
 use kube::api::ObjectMeta;
-use kube::{Resource, ResourceExt};
-use kube_runtime::{
+use kube::runtime::{
     Controller,
     controller::Action,
     reflector::{ObjectRef, Store},
 };
+use kube::{Resource, ResourceExt};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -315,7 +315,7 @@ mod tests {
             },
         });
 
-        let (store, _) = kube_runtime::reflector::store();
+        let (store, _) = kube::runtime::reflector::store();
 
         let ctx = Arc::new(ControllerContext {
             instances_cache: store,
@@ -478,7 +478,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_reconcile_nothing_to_do() {
-        let (store, _) = kube_runtime::reflector::store();
+        let (store, _) = kube::runtime::reflector::store();
         let mut client = MockDiscoveryConfigurationKubeClient::default();
         let api = MockApi::new();
         client
@@ -531,8 +531,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_reconcile_no_request_existing_instances() {
-        let (store, mut writer) = kube_runtime::reflector::store();
-        writer.apply_watcher_event(&kube_runtime::watcher::Event::Restarted(vec![
+        let (store, mut writer) = kube::runtime::reflector::store();
+        writer.apply_watcher_event(&kube::runtime::watcher::Event::Restarted(vec![
             Instance {
                 metadata: ObjectMeta {
                     namespace: Some("namespace-a".to_string()),

@@ -34,7 +34,7 @@ use futures::future::select_all;
 use futures::future::try_join_all;
 use itertools::Itertools;
 use kube::core::ObjectMeta;
-use kube_runtime::reflector::ObjectRef;
+use kube::runtime::reflector::ObjectRef;
 use tokio::select;
 use tokio::sync::RwLock;
 use tokio::sync::mpsc;

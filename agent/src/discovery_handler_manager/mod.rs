@@ -9,7 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 use akri_shared::{akri::configuration::Configuration, k8s::api::IntoApi};
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
-use kube_runtime::reflector::ObjectRef;
+use kube::runtime::reflector::ObjectRef;
 use thiserror::Error;
 use tokio::sync::{mpsc, watch};
 
