@@ -32,6 +32,12 @@ pub struct UdevDiscoveryDetails {
     #[serde(default)]
     pub group_recursive: bool,
 
+    #[serde(default)]
+    pub kubevirt_resource_name: Option<String>,
+
+    #[serde(default)]
+    pub hid_interface_protocol: Option<String>,
+
     #[serde(default = "default_permissions")]
     #[serde(deserialize_with = "validate_permissions")]
     pub permissions: String,
@@ -115,6 +121,15 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                 trace!("discover - mapping and returning devices at devpaths {devpaths:?}");
                 let discovered_devices = devpaths
                     .into_iter()
+                    .filter(|(id, _)| {
+                        if let Some(ref hid_proto) = discovery_handler_config.hid_interface_protocol {
+                            let matches = super::usb_utils::has_hid_boot_interface(id, hid_proto);
+                            trace!("discover - HID filter proto={hid_proto} devpath={id} matches={matches}");
+                            matches
+                        } else {
+                            true
+                        }
+                    })
                     .map(|(id, paths)| {
                         let mut properties = HashMap::new();
                         let mut device_specs = Vec::new();
@@ -130,6 +145,25 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                                     super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
                                     devnode.clone(),
                                 );
+                                if let Some((bus, device)) = super::usb_utils::extract_usb_address(&devnode) {
+                                    properties.insert(
+                                        super::USB_BUS_LABEL_ID.to_string() + &property_suffix,
+                                        bus.clone(),
+                                    );
+                                    properties.insert(
+                                        super::USB_DEVICE_LABEL_ID.to_string() + &property_suffix,
+                                        device.clone(),
+                                    );
+                                    // KubeVirt splits on ":" — format must be "bus:device" (no leading zeros).
+                                    if let Some(ref resource_name) = discovery_handler_config.kubevirt_resource_name {
+                                        let env_var = super::usb_utils::to_kubevirt_resource_env_var(resource_name);
+                                        properties.insert(
+                                            env_var.clone(),
+                                            format!("{bus}:{device}"),
+                                        );
+                                        trace!("discover - KubeVirt USB: {env_var}={bus}:{device} path={devnode}");
+                                    }
+                                }
                                 device_specs.push(DeviceSpec {
                                     container_path: devnode.clone(),
                                     host_path: devnode,
@@ -206,7 +240,7 @@ mod tests {
         assert!(udev_dh_config.udev_rules.is_empty());
         let serialized = serde_json::to_string(&udev_dh_config).unwrap();
         let expected_deserialized =
-            r#"{"udevRules":[],"groupRecursive":false,"permissions":"rwm"}"#;
+            r#"{"udevRules":[],"groupRecursive":false,"kubevirtResourceName":null,"hidInterfaceProtocol":null,"permissions":"rwm"}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
