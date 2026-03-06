@@ -27,49 +27,6 @@ pub fn to_kubevirt_resource_env_var(resource_name: &str) -> String {
     format!("USB_RESOURCE_{}", transformed)
 }
 
-pub fn has_hid_boot_interface(sysfs_devpath: &str, hid_protocol: &str) -> bool {
-    use std::fs;
-    use std::path::Path;
-
-    let sysfs_path = format!("/sys{}", sysfs_devpath);
-    let dev_dir = Path::new(&sysfs_path);
-
-    let Ok(entries) = fs::read_dir(dev_dir) else {
-        return false;
-    };
-
-    for entry in entries.flatten() {
-        let intf_path = entry.path();
-        let name = intf_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if !name.contains(':') {
-            continue;
-        }
-
-        let Ok(class) = fs::read_to_string(intf_path.join("bInterfaceClass")) else {
-            continue;
-        };
-        if class.trim() != "03" {
-            continue;
-        }
-
-        let Ok(subclass) = fs::read_to_string(intf_path.join("bInterfaceSubClass")) else {
-            continue;
-        };
-        if subclass.trim() != "01" {
-            continue;
-        }
-
-        let Ok(protocol) = fs::read_to_string(intf_path.join("bInterfaceProtocol")) else {
-            continue;
-        };
-        if protocol.trim() == hid_protocol {
-            return true;
-        }
-    }
-
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,11 +80,6 @@ mod tests {
             to_kubevirt_resource_env_var("example.com/my-device"),
             "USB_RESOURCE_EXAMPLE_COM_MY-DEVICE"
         );
-    }
-
-    #[test]
-    fn test_has_hid_boot_interface_not_usb() {
-        assert!(!has_hid_boot_interface("/devices/nonexistent/path", "01"));
     }
 
     #[test]
