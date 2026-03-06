@@ -152,11 +152,25 @@ fn find_devices(
 
     let device_devpaths: Vec<DeviceProperties> = final_devices
         .into_iter()
-        .map(|device| {
-            (
-                get_devpath(&device).to_str().unwrap().to_string(),
-                get_devnode(&device).map(|devnode| devnode.to_str().unwrap().to_string()),
-            )
+        .filter_map(|device| {
+            if let Some(devnode) = get_devnode(&device) {
+                Some((
+                    get_devpath(&device).to_str().unwrap().to_string(),
+                    Some(devnode.to_str().unwrap().to_string()),
+                ))
+            } else {
+                let mut current = device.mockable_parent();
+                while let Some(parent) = current {
+                    if let Some(node) = parent.mockable_devnode() {
+                        return Some((
+                            parent.mockable_devpath().to_str().unwrap().to_string(),
+                            Some(node.to_str().unwrap().to_string()),
+                        ));
+                    }
+                    current = parent.mockable_parent();
+                }
+                None
+            }
         })
         .collect();
 
