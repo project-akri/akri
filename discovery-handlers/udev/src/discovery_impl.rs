@@ -159,6 +159,7 @@ fn find_devices(
                     Some(devnode.to_str().unwrap().to_string()),
                 ))
             } else {
+                let devpath = get_devpath(&device).to_str().unwrap().to_string();
                 let mut current = device.mockable_parent();
                 while let Some(parent) = current {
                     if let Some(node) = parent.mockable_devnode() {
@@ -169,7 +170,7 @@ fn find_devices(
                     }
                     current = parent.mockable_parent();
                 }
-                None
+                Some((devpath, None))
             }
         })
         .collect();

@@ -16,10 +16,12 @@ pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 /// Name of environment variable that is set in udev brokers. Contains devpath for udev device
 /// the broker should connect to.
 pub const UDEV_DEVPATH_LABEL_ID: &str = "UDEV_DEVPATH";
-/// Name of environment variable for USB bus number (KubeVirt integration)
-pub const USB_BUS_LABEL_ID: &str = "USB_BUS";
-/// Name of environment variable for USB device number (KubeVirt integration)
-pub const USB_DEVICE_LABEL_ID: &str = "USB_DEVICE";
+/// Prefix for USB resource ENV variable (e.g. USB_RESOURCE_AKRI_SH_UDEV_USB_GENERIC)
+pub const USB_RESOURCE_PREFIX: &str = "USB_RESOURCE";
+/// Key used to pass the Kubernetes Device Plugin resource name
+pub const DEVICE_PLUGIN_RESOURCE_PROPERTY_KEY: &str = "devicePluginResourceName";
+/// Key used to enable VFIO PCI passthrough DeviceSpec injection.
+pub const VFIO_PASSTHROUGH_PROPERTY_KEY: &str = "vfioPassthrough";
 /// Name that udev discovery handlers use when registering with the Agent
 pub const DISCOVERY_HANDLER_NAME: &str = "udev";
 /// Defines whether this discovery handler discovers local devices on nodes rather than ones visible to multiple nodes
