@@ -144,9 +144,9 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                                     devnode.clone(),
                                 );
 
-                                if let Some((bus, device)) = super::usb_utils::extract_usb_address(&devnode) {
-                                    if let Some(ref resource_name) = device_plugin_resource_name {
-                                        let env_var = super::usb_utils::to_usb_resource_env_var(resource_name);
+                                if let Some(ref resource_name) = device_plugin_resource_name {
+                                    if let Some((bus, device)) = super::device_utils::extract_usb_address(&devnode) {
+                                        let env_var = super::device_utils::to_usb_resource_env_var(resource_name);
                                         let value = format!("{}:{}", bus, device);
                                         trace!("discover - USB resource: {}={} path={}", env_var, value, devnode);
                                         properties.insert(env_var + &property_suffix, value);
@@ -165,26 +165,26 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), id.clone());
 
                         let is_usb_device = id.split('/').any(|s| s.starts_with("usb"));
-                        if !is_usb_device {
-                            if let Some(ref resource_name) = device_plugin_resource_name {
-                                if let Some(pci_addr) = super::usb_utils::extract_pci_address(&id) {
-                                    let env_var = super::usb_utils::to_pci_resource_env_var(resource_name);
+                        if let Some(ref resource_name) = device_plugin_resource_name {
+                            if !is_usb_device {
+                                if let Some(pci_addr) = super::device_utils::extract_pci_address(&id) {
+                                    let env_var = super::device_utils::to_pci_resource_env_var(resource_name);
                                     trace!("discover - PCI resource: {}={} path={}", env_var, pci_addr, id);
                                     properties.insert(env_var, pci_addr);
 
                                     if vfio_passthrough {
-                                        if let Some(iommu_group) = super::usb_utils::read_iommu_group(&id) {
+                                        if let Some(iommu_group) = super::device_utils::read_iommu_group(&id) {
                                             let vfio_group = format!("/dev/vfio/{}", iommu_group);
                                             trace!("discover - PCI VFIO group: {} path={}", vfio_group, id);
                                             device_specs.push(DeviceSpec {
                                                 container_path: vfio_group.clone(),
                                                 host_path: vfio_group,
-                                                permissions: "rw".to_string(),
+                                                permissions: "rwm".to_string(),
                                             });
                                             device_specs.push(DeviceSpec {
                                                 container_path: "/dev/vfio/vfio".to_string(),
                                                 host_path: "/dev/vfio/vfio".to_string(),
-                                                permissions: "rw".to_string(),
+                                                permissions: "rwm".to_string(),
                                             });
                                         } else {
                                             trace!("discover - PCI device {} has no IOMMU group (not vfio-pci bound?), skipping vfio DeviceSpec", id);
