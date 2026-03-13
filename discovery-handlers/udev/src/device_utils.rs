@@ -9,11 +9,11 @@ fn transform_resource_name(resource_name: &str) -> String {
 }
 
 pub fn to_usb_resource_env_var(resource_name: &str) -> String {
-    format!("USB_RESOURCE_{}", transform_resource_name(resource_name))
+    format!("{}_{}", super::USB_RESOURCE_PREFIX, transform_resource_name(resource_name))
 }
 
 pub fn to_pci_resource_env_var(resource_name: &str) -> String {
-    format!("PCI_RESOURCE_{}", transform_resource_name(resource_name))
+    format!("{}_{}", super::PCI_RESOURCE_PREFIX, transform_resource_name(resource_name))
 }
 
 pub fn extract_usb_address(devnode: &str) -> Option<(String, String)> {

@@ -7,7 +7,7 @@ extern crate serde_derive;
 
 pub mod discovery_handler;
 mod discovery_impl;
-pub mod usb_utils;
+pub mod device_utils;
 mod wrappers;
 
 /// Name of environment variable that is set in udev brokers. Contains devnode for udev device
@@ -18,6 +18,8 @@ pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 pub const UDEV_DEVPATH_LABEL_ID: &str = "UDEV_DEVPATH";
 /// Prefix for USB resource ENV variable (e.g. USB_RESOURCE_AKRI_SH_UDEV_USB_GENERIC)
 pub const USB_RESOURCE_PREFIX: &str = "USB_RESOURCE";
+/// Prefix for PCI resource ENV variable (e.g. PCI_RESOURCE_AKRI_SH_UDEV_GPU_T400E)
+pub const PCI_RESOURCE_PREFIX: &str = "PCI_RESOURCE";
 /// Key used to pass the Kubernetes Device Plugin resource name
 pub const DEVICE_PLUGIN_RESOURCE_PROPERTY_KEY: &str = "devicePluginResourceName";
 /// Key used to enable VFIO PCI passthrough DeviceSpec injection.
