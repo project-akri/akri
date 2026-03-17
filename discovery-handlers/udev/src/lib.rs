@@ -5,9 +5,9 @@ extern crate udev;
 #[macro_use]
 extern crate serde_derive;
 
+pub mod device_utils;
 pub mod discovery_handler;
 mod discovery_impl;
-pub mod device_utils;
 mod wrappers;
 
 /// Name of environment variable that is set in udev brokers. Contains devnode for udev device
