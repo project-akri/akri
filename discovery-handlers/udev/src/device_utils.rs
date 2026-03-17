@@ -9,28 +9,36 @@ fn transform_resource_name(resource_name: &str) -> String {
 }
 
 pub fn to_usb_resource_env_var(resource_name: &str) -> String {
-    format!("{}_{}", super::USB_RESOURCE_PREFIX, transform_resource_name(resource_name))
+    format!(
+        "{}_{}",
+        super::USB_RESOURCE_PREFIX,
+        transform_resource_name(resource_name)
+    )
 }
 
 pub fn to_pci_resource_env_var(resource_name: &str) -> String {
-    format!("{}_{}", super::PCI_RESOURCE_PREFIX, transform_resource_name(resource_name))
+    format!(
+        "{}_{}",
+        super::PCI_RESOURCE_PREFIX,
+        transform_resource_name(resource_name)
+    )
 }
 
 pub fn extract_usb_address(devnode: &str) -> Option<(String, String)> {
     if !devnode.starts_with("/dev/bus/usb/") {
         return None;
     }
-    
+
     let parts: Vec<&str> = devnode.split('/').collect();
     if parts.len() >= 2 {
         let bus = parts[parts.len() - 2];
         let device = parts[parts.len() - 1];
-        
+
         if let (Ok(bus_num), Ok(dev_num)) = (bus.parse::<u32>(), device.parse::<u32>()) {
             return Some((bus_num.to_string(), dev_num.to_string()));
         }
     }
-    
+
     None
 }
 
@@ -52,21 +60,19 @@ pub fn extract_pci_address(sysfs_path: &str) -> Option<String> {
     sysfs_path
         .split('/')
         .filter(|s| is_pci_address(s))
-        .last()
+        .next_back()
         .map(|s| s.to_string())
 }
 
 pub fn read_iommu_group(devpath: &str) -> Option<String> {
-    let full_path = format!("/sys{}", devpath);
+    let full_path = format!("/sys{devpath}");
     let iommu_link = std::path::Path::new(&full_path).join("iommu_group");
-    std::fs::read_link(&iommu_link)
-        .ok()
-        .and_then(|target| {
-            target
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string())
-        })
+    std::fs::read_link(&iommu_link).ok().and_then(|target| {
+        target
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|s| s.to_string())
+    })
 }
 
 #[cfg(test)]
@@ -125,12 +131,12 @@ mod tests {
             extract_usb_address("/dev/bus/usb/001/010"),
             Some(("1".to_string(), "10".to_string()))
         );
-        
+
         assert_eq!(
             extract_usb_address("/dev/bus/usb/002/005"),
             Some(("2".to_string(), "5".to_string()))
         );
-        
+
         assert_eq!(
             extract_usb_address("/dev/bus/usb/003/127"),
             Some(("3".to_string(), "127".to_string()))
@@ -142,10 +148,10 @@ mod tests {
         assert_eq!(extract_usb_address("/dev/video0"), None);
         assert_eq!(extract_usb_address("/dev/sda"), None);
         assert_eq!(extract_usb_address("/dev/ttyUSB0"), None);
-        
+
         assert_eq!(extract_usb_address("/dev/bus/usb/"), None);
         assert_eq!(extract_usb_address("/dev/bus/usb/abc/def"), None);
-        
+
         assert_eq!(extract_usb_address(""), None);
         assert_eq!(extract_usb_address("/"), None);
     }
