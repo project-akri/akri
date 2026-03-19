@@ -59,6 +59,14 @@ jobs:
       with:
         persist-credentials: false
 
+    # Security: Checkout the trusted version.sh from main branch to prevent script injection
+    - if: startsWith(github.event_name, 'pull_request')
+      name: Checkout version.sh from main branch
+      run: |
+        git fetch origin main
+        git checkout origin/main -- version.sh
+        chmod +x version.sh
+
     # Only run version check for PRs. If PR does NOT have "same version" label, then ensure that
     # version.txt is different from what is in main.
     - if: startsWith(github.event_name, 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'same version')

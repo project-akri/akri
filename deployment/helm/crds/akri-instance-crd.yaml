@@ -6,7 +6,6 @@ metadata:
 spec:
   group: akri.sh
   names:
-    categories: []
     kind: Instance
     plural: instances
     shortNames:

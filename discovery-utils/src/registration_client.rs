@@ -1,11 +1,11 @@
 use super::discovery::v0::{
-    registration_client::RegistrationClient, RegisterDiscoveryHandlerRequest,
+    RegisterDiscoveryHandlerRequest, registration_client::RegistrationClient,
 };
 use log::{info, trace};
 use std::convert::TryFrom;
 use tonic::{
-    transport::{Endpoint, Uri},
     Request,
+    transport::{Endpoint, Uri},
 };
 
 pub async fn register_discovery_handler(

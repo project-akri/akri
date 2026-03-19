@@ -30,7 +30,7 @@ jobs:
           })
 
   build:
-    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '/version')
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/version') && (github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER')
     runs-on: ubuntu-latest
 
     steps:
@@ -57,7 +57,14 @@ jobs:
       with:
         repository: ${{ fromJSON(steps.get-pr.outputs.result).head.repo.full_name }}
         ref: ${{ fromJSON(steps.get-pr.outputs.result).head.ref }}
-    
+
+    # Security: Checkout the trusted version.sh from main branch to prevent script injection
+    - name: Checkout version.sh from main branch
+      run: |
+        git fetch origin main
+        git checkout origin/main -- version.sh
+        chmod +x version.sh
+
     - name: Update version minor
       if: contains(github.event.comment.body, '/version minor')
       run: |

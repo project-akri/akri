@@ -12,8 +12,8 @@ pub mod discovery_handler {
     use super::{
         server::run_discovery_server,
         v0::{
-            discovery_handler_server::DiscoveryHandler,
-            register_discovery_handler_request::EndpointType, RegisterDiscoveryHandlerRequest,
+            RegisterDiscoveryHandlerRequest, discovery_handler_server::DiscoveryHandler,
+            register_discovery_handler_request::EndpointType,
         },
     };
     use log::trace;
@@ -41,7 +41,7 @@ pub mod discovery_handler {
             Ok(pod_ip) => {
                 trace!("run_discovery_handler - registering with Agent with IP endpoint");
                 use_uds = false;
-                format!("{}:{}", pod_ip, DISCOVERY_PORT)
+                format!("{pod_ip}:{DISCOVERY_PORT}")
             }
             Err(_) => {
                 trace!("run_discovery_handler - registering with Agent with uds endpoint");
@@ -86,8 +86,7 @@ pub mod discovery_handler {
     {
         let discovery_handler_config: T = serde_yaml::from_str(discovery_details).map_err(|e| {
             anyhow::format_err!(
-                "Configuration discovery details improperly configured with error {:?}",
-                e
+                "Configuration discovery details improperly configured with error {e:?}"
             )
         })?;
         Ok(discovery_handler_config)
@@ -97,7 +96,7 @@ pub mod discovery_handler {
 #[cfg(any(feature = "mock-discovery-handler", test))]
 pub mod mock_discovery_handler {
     use super::v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DiscoverRequest, DiscoverResponse,
+        Device, DiscoverRequest, DiscoverResponse, discovery_handler_server::DiscoveryHandler,
     };
     use akri_shared::uds::unix_stream;
     use async_trait::async_trait;
@@ -257,10 +256,10 @@ pub mod server {
     pub mod tests {
         use super::super::{
             mock_discovery_handler::{
-                get_mock_discovery_handler_dir_and_endpoint, run_mock_discovery_handler,
-                MockDiscoveryHandler,
+                MockDiscoveryHandler, get_mock_discovery_handler_dir_and_endpoint,
+                run_mock_discovery_handler,
             },
-            v0::{discovery_handler_client::DiscoveryHandlerClient, DiscoverRequest},
+            v0::{DiscoverRequest, discovery_handler_client::DiscoveryHandlerClient},
         };
         use super::*;
         use std::collections::HashMap;
@@ -268,8 +267,8 @@ pub mod server {
         use tempfile::Builder;
         use tokio::net::UnixStream;
         use tonic::{
-            transport::{Endpoint, Uri},
             Request,
+            transport::{Endpoint, Uri},
         };
 
         #[tokio::test]
@@ -313,16 +312,19 @@ pub mod server {
                 .prefix("discovery-handlers")
                 .tempdir()
                 .unwrap();
-            if let Err(e) = internal_run_discovery_server(
+            match internal_run_discovery_server(
                 discovery_handler,
                 "random",
                 discovery_handler_temp_dir.path().to_str().unwrap(),
             )
             .await
             {
-                assert!((*e).to_string().contains("invalid socket address syntax"))
-            } else {
-                panic!("should be invalid address error")
+                Err(e) => {
+                    assert!((*e).to_string().contains("invalid socket address syntax"))
+                }
+                _ => {
+                    panic!("should be invalid address error")
+                }
             }
         }
     }

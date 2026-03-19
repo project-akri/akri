@@ -256,11 +256,11 @@ pub mod registration_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    http::Request<tonic::body::BoxBody>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    >,
                 >,
-            >,
             <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
                 Into<StdError> + Send + Sync,
         {
@@ -360,11 +360,11 @@ pub mod device_plugin_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    http::Request<tonic::body::BoxBody>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    >,
                 >,
-            >,
             <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
                 Into<StdError> + Send + Sync,
         {
@@ -495,7 +495,7 @@ pub mod device_plugin_client {
                 .insert(GrpcMethod::new("v1beta1.DevicePlugin", "Allocate"));
             self.inner.unary(req, path, codec).await
         }
-        /// PreStartContainer is called, if indicated by Device Plugin during registeration phase,
+        /// PreStartContainer is called, if indicated by Device Plugin during registration phase,
         /// before each container start. Device plugin can run device specific operations
         /// such as resetting the device before making devices available to the container
         pub async fn pre_start_container(
@@ -730,7 +730,7 @@ pub mod device_plugin_server {
             &self,
             request: tonic::Request<super::AllocateRequest>,
         ) -> std::result::Result<tonic::Response<super::AllocateResponse>, tonic::Status>;
-        /// PreStartContainer is called, if indicated by Device Plugin during registeration phase,
+        /// PreStartContainer is called, if indicated by Device Plugin during registration phase,
         /// before each container start. Device plugin can run device specific operations
         /// such as resetting the device before making devices available to the container
         async fn pre_start_container(

@@ -1,10 +1,9 @@
 use super::akri::{
-    configuration,
+    API_NAMESPACE, API_VERSION, configuration,
     configuration::{Configuration, ConfigurationList},
     instance,
     instance::{Instance, InstanceList, InstanceSpec},
-    retry::{random_delay, MAX_INSTANCE_UPDATE_TRIES},
-    API_NAMESPACE, API_VERSION,
+    retry::{MAX_INSTANCE_UPDATE_TRIES, random_delay},
 };
 use async_trait::async_trait;
 use k8s_openapi::api::batch::v1::Job;
@@ -55,7 +54,7 @@ impl OwnershipInfo {
     pub fn get_api_version(&self) -> String {
         match self.object_type {
             OwnershipType::Instance | OwnershipType::Configuration => {
-                format!("{}/{}", API_NAMESPACE, API_VERSION)
+                format!("{API_NAMESPACE}/{API_VERSION}")
             }
             OwnershipType::Pod | OwnershipType::Service => "core/v1".to_string(),
         }
@@ -170,7 +169,7 @@ impl KubeInterface for KubeImpl {
         self.client.clone()
     }
 
-    /// Get Kuberenetes node for specified name
+    /// Get Kubernetes node for specified name
     ///
     /// Example:
     ///
@@ -188,7 +187,7 @@ impl KubeInterface for KubeImpl {
         node::find_node(name, self.get_kube_client()).await
     }
 
-    /// Get Kuberenetes pods with specified label selector
+    /// Get Kubernetes pods with specified label selector
     ///
     /// Example:
     ///
@@ -205,7 +204,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_label(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
-    /// Get Kuberenetes pods with specified field selector
+    /// Get Kubernetes pods with specified field selector
     ///
     /// Example:
     ///
@@ -222,7 +221,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_field(&self, selector: &str) -> Result<ObjectList<Pod>, anyhow::Error> {
         pod::find_pods_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
-    /// Create Kuberenetes pod
+    /// Create Kubernetes pod
     ///
     /// Example:
     ///
@@ -258,7 +257,7 @@ impl KubeInterface for KubeImpl {
         pod::remove_pod(pod_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Find Kuberenetes Jobs with specified label selector
+    /// Find Kubernetes Jobs with specified label selector
     ///
     /// Example:
     ///
@@ -275,7 +274,7 @@ impl KubeInterface for KubeImpl {
     async fn find_jobs_with_label(&self, selector: &str) -> Result<ObjectList<Job>, anyhow::Error> {
         job::find_jobs_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
-    /// Find Kuberenetes Jobs with specified field selector
+    /// Find Kubernetes Jobs with specified field selector
     ///
     /// Example:
     ///
@@ -293,7 +292,7 @@ impl KubeInterface for KubeImpl {
         job::find_jobs_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
 
-    /// Create Kuberenetes job
+    /// Create Kubernetes job
     ///
     /// Example:
     ///
@@ -329,7 +328,7 @@ impl KubeInterface for KubeImpl {
         job::remove_job(job_to_remove, namespace, self.get_kube_client()).await
     }
 
-    /// Get Kuberenetes services with specified label selector
+    /// Get Kubernetes services with specified label selector
     ///
     /// Example:
     ///
@@ -613,22 +612,22 @@ pub async fn try_delete_instance(
             .await
         {
             Ok(()) => {
-                log::trace!("try_delete_instance - deleted Instance {}", instance_name);
+                log::trace!("try_delete_instance - deleted Instance {instance_name}");
                 break;
             }
             Err(e) => {
                 if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>() {
                     if ae.code == ERROR_NOT_FOUND {
                         log::trace!(
-                            "try_delete_instance - discovered Instance {} already deleted",
-                            instance_name
+                            "try_delete_instance - discovered Instance {instance_name} already deleted"
                         );
                         break;
                     }
                 }
                 log::error!(
                     "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
-                    instance_name, MAX_INSTANCE_UPDATE_TRIES - x - 1
+                    instance_name,
+                    MAX_INSTANCE_UPDATE_TRIES - x - 1
                 );
                 if x == MAX_INSTANCE_UPDATE_TRIES - 1 {
                     return Err(e);
@@ -702,7 +701,7 @@ pub mod test_ownership {
             uid.to_string(),
         );
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Configuration", &ownership.get_kind());
@@ -718,7 +717,7 @@ pub mod test_ownership {
         let ownership =
             OwnershipInfo::new(OwnershipType::Instance, name.to_string(), uid.to_string());
         assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
+            format!("{API_NAMESPACE}/{API_VERSION}"),
             ownership.get_api_version()
         );
         assert_eq!("Instance", &ownership.get_kind());

@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use either::Either;
 use kube::{
+    Error, Resource, ResourceExt,
     api::{Patch, PatchParams},
     core::{ObjectList, ObjectMeta, PartialObjectMetaExt, Status},
-    Error, Resource, ResourceExt,
 };
 use mockall::automock;
 use serde::de::DeserializeOwned;
@@ -31,12 +31,12 @@ pub trait Api<T: Clone + Send + Sync + Resource>: Send + Sync {
         self.set_finalizers(
             &obj.name_any(),
             Some(vec![finalizer.to_string()]),
-            &format!("{}-fin", finalizer),
+            &format!("{finalizer}-fin"),
         )
         .await
     }
     async fn remove_finalizer(&self, obj: &T, finalizer: &str) -> Result<(), Error> {
-        self.set_finalizers(&obj.name_any(), None, &format!("{}-fin", finalizer))
+        self.set_finalizers(&obj.name_any(), None, &format!("{finalizer}-fin"))
             .await
     }
     async fn set_finalizers(

@@ -1,9 +1,9 @@
 use akri_debug_echo::{
-    discovery_handler::DiscoveryHandlerImpl, DEBUG_ECHO_INSTANCES_SHARED_LABEL,
-    DISCOVERY_HANDLER_NAME,
+    DEBUG_ECHO_INSTANCES_SHARED_LABEL, DISCOVERY_HANDLER_NAME,
+    discovery_handler::DiscoveryHandlerImpl,
 };
 use akri_discovery_utils::discovery::discovery_handler::{
-    run_discovery_handler, REGISTER_AGAIN_CHANNEL_CAPACITY,
+    REGISTER_AGAIN_CHANNEL_CAPACITY, run_discovery_handler,
 };
 use log::info;
 #[tokio::main]

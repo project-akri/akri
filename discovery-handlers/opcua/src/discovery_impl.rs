@@ -1,9 +1,9 @@
 use super::wrappers::{
-    opcua_client_wrapper::{create_opcua_discovery_client, OpcuaClient},
+    opcua_client_wrapper::{OpcuaClient, create_opcua_discovery_client},
     tcp_stream_wrapper::{TcpStream, TcpStreamImpl},
 };
 use ::url::Url;
-use akri_discovery_utils::filtering::{should_include, FilterList};
+use akri_discovery_utils::filtering::{FilterList, should_include};
 use anyhow::Context;
 use log::{error, info, trace};
 use opcua::client::prelude::*;
@@ -31,10 +31,7 @@ pub fn do_standard_discovery(
     discovery_urls: Vec<String>,
     filter_list: Option<FilterList>,
 ) -> Vec<String> {
-    info!(
-        "do_standard_discovery - for DiscoveryUrls {:?}",
-        discovery_urls
-    );
+    info!("do_standard_discovery - for DiscoveryUrls {discovery_urls:?}");
     let mut discovery_handler_client = create_opcua_discovery_client();
     let tcp_stream = TcpStreamImpl {};
     get_discovery_urls(
@@ -56,41 +53,42 @@ fn get_discovery_urls(
     tcp_stream: impl TcpStream,
 ) -> Vec<String> {
     let mut discovery_urls: Vec<String> = Vec::new();
-    lds_urls.iter().for_each(|url| {
-        if let Err(e) = test_tcp_connection(url, &tcp_stream) {
-            error!(
-                "get_discovery_urls - failed to make tcp connection with url {} with error {:?}",
-                url, e
+    lds_urls
+        .iter()
+        .for_each(|url| match test_tcp_connection(url, &tcp_stream) {
+            Err(e) => {
+                error!(
+                "get_discovery_urls - failed to make tcp connection with url {url} with error {e:?}"
             );
-        } else {
-            match discovery_handler_client.find_servers(url) {
-                Ok(applications) => {
-                    trace!(
-                        "get_discovery_urls - Server at {} responded with {} Applications",
-                        url,
-                        applications.len()
+            }
+            _ => {
+                match discovery_handler_client.find_servers(url) {
+                    Ok(applications) => {
+                        trace!(
+                            "get_discovery_urls - Server at {} responded with {} Applications",
+                            url,
+                            applications.len()
+                        );
+                        let mut servers_discovery_urls: Vec<String> = applications
+                            .iter()
+                            .filter_map(|application| {
+                                get_discovery_url_from_application_description(
+                                    application,
+                                    filter_list.as_ref(),
+                                    url,
+                                )
+                            })
+                            .collect::<Vec<String>>();
+                        discovery_urls.append(&mut servers_discovery_urls);
+                    }
+                    Err(err) => {
+                        trace!(
+                        "get_discovery_urls - cannot find servers on discovery server. Error {err:?}"
                     );
-                    let mut servers_discovery_urls: Vec<String> = applications
-                        .iter()
-                        .filter_map(|application| {
-                            get_discovery_url_from_application_description(
-                                application,
-                                filter_list.as_ref(),
-                                url,
-                            )
-                        })
-                        .collect::<Vec<String>>();
-                    discovery_urls.append(&mut servers_discovery_urls);
-                }
-                Err(err) => {
-                    trace!(
-                        "get_discovery_urls - cannot find servers on discovery server. Error {:?}",
-                        err
-                    );
-                }
-            };
-        }
-    });
+                    }
+                };
+            }
+        });
     // Remove duplicates in the case that a server was registered with more than one LDS
     discovery_urls.dedup();
     discovery_urls
@@ -106,7 +104,7 @@ fn test_tcp_connection(url: &str, tcp_stream: &impl TcpStream) -> Result<(), any
         Duration::from_secs(TCP_CONNECTION_TEST_TIMEOUT_SECS),
     ) {
         Ok(_stream) => Ok(()),
-        Err(e) => Err(anyhow::format_err!("{:?}", e)),
+        Err(e) => Err(anyhow::format_err!("{e:?}")),
     }
 }
 
@@ -134,14 +132,13 @@ fn get_discovery_url_from_application_description(
     } else if !should_include(filter_list, server.application_name.text.as_ref()) {
         trace!(
             "get_discovery_url_from_application - Application {} has been filtered out by application name",
-            server.application_name.text.to_string()
+            server.application_name.text
         );
         None
     } else if let Some(ref server_discovery_urls) = server.discovery_urls {
         // TODO: could two different DiscoveryUrls be registered as localhost:<port> on different lds's?
         trace!(
-            "get_discovery_url_from_application - server has {:?} DiscoveryUrls",
-            server_discovery_urls
+            "get_discovery_url_from_application - server has {server_discovery_urls:?} DiscoveryUrls"
         );
         // Pass the tcp DiscoveryURL by default, since it supports application authentication and
         // is more frequently utilized in OPC UA else pass first one
@@ -157,8 +154,7 @@ fn get_discovery_url_from_application_description(
             Ok(discovery_url) => Some(discovery_url),
             Err(e) => {
                 trace!(
-                    "get_discovery_url_from_application - failed to resolve discovery url with error {:?}",
-                    e
+                    "get_discovery_url_from_application - failed to resolve discovery url with error {e:?}"
                 );
                 None
             }
@@ -177,8 +173,7 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
     let url = Url::parse(url).map_err(|_| anyhow::format_err!("could not parse url"))?;
     if url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
-            "format of OPC UA url {} is not valid",
-            url
+            "format of OPC UA url {url} is not valid"
         ));
     }
     let host = url.host_str().unwrap();
@@ -187,7 +182,7 @@ fn get_socket_addr(url: &str) -> Result<SocketAddr, anyhow::Error> {
         .ok_or_else(|| anyhow::format_err!("provided discoveryURL is missing port"))?;
 
     // Convert host and port to socket address
-    let addr_str = format!("{}:{}", host, port);
+    let addr_str = format!("{host}:{port}");
     let addrs = addr_str.to_socket_addrs();
     let addr = addrs.unwrap().next().unwrap();
     Ok(addr)
@@ -203,15 +198,14 @@ fn get_discovery_url_ip(
         .with_context(|| "could not parse url {discovery_url_str}")?;
     if discovery_url.scheme() != OPC_TCP_SCHEME {
         return Err(anyhow::format_err!(
-            "format of OPC UA url {} is not valid",
-            discovery_url
+            "format of OPC UA url {discovery_url} is not valid"
         ));
     }
     let mut path = discovery_url.path().to_string();
     let host = discovery_url.host_str().unwrap();
     let port = discovery_url.port().unwrap_or(DEFAULT_OPC_UA_SERVER_PORT);
 
-    let addr_str = format!("{}:{}", host, port);
+    let addr_str = format!("{host}:{port}");
 
     // check if the hostname can be resolved to socket address
     match addr_str.to_socket_addrs() {
@@ -221,13 +215,12 @@ fn get_discovery_url_ip(
                 path.remove(0);
             }
             let url = if ip_url.path() == "" || ip_url.path() == "/" {
-                format!("{}{}", ip_url, path)
+                format!("{ip_url}{path}")
             } else {
                 ip_url_str.to_string()
             };
             trace!(
-                "get_discovery_url_ip - cannot resolve the application url from server, using ip address instead of hostname: {}",
-                url
+                "get_discovery_url_ip - cannot resolve the application url from server, using ip address instead of hostname: {url}"
             );
             Ok(url)
         }
@@ -426,13 +419,15 @@ mod tests {
     fn test_get_server_endpoints_invalid_url() {
         let mut mock_client = MockOpcuaClient::new();
         let mock_tcp_stream = MockTcpStream::new();
-        assert!(get_discovery_urls(
-            &mut mock_client,
-            vec!["tcp://127.0.0.1:4855/".to_string()],
-            None,
-            mock_tcp_stream
+        assert!(
+            get_discovery_urls(
+                &mut mock_client,
+                vec!["tcp://127.0.0.1:4855/".to_string()],
+                None,
+                mock_tcp_stream
+            )
+            .is_empty()
         )
-        .is_empty())
     }
 
     #[test]

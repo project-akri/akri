@@ -2,7 +2,7 @@ mod util;
 #[macro_use]
 extern crate lazy_static;
 use akri_shared::{
-    akri::{metrics::run_metrics_server, API_NAMESPACE},
+    akri::{API_NAMESPACE, metrics::run_metrics_server},
     os::env_var::{ActualEnvVarQuery, EnvVarQuery},
 };
 use log::{info, trace};
@@ -22,13 +22,10 @@ pub const UDEV_DEVNODE_LABEL_ID_PATTERN: &str = "UDEV_DEVNODE_[A-F0-9]{6,6}$";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    println!("{} udev_broker ... env_logger::init", API_NAMESPACE);
+    println!("{API_NAMESPACE} udev_broker ... env_logger::init");
     env_logger::try_init().unwrap();
-    println!(
-        "{} udev_broker ... env_logger::init finished",
-        API_NAMESPACE
-    );
-    info!("{} Udev Broker logging started", API_NAMESPACE);
+    println!("{API_NAMESPACE} udev_broker ... env_logger::init finished");
+    info!("{API_NAMESPACE} Udev Broker logging started");
 
     tokio::spawn(async move {
         run_metrics_server().await.unwrap();
@@ -71,9 +68,9 @@ fn get_video_devnode(env_var_query: &impl EnvVarQuery) -> String {
         .collect::<Vec<String>>();
     let device_devnode = device_devnodes
         .first()
-        .expect("devnode not set in envrionment variable");
+        .expect("devnode not set in environment variable");
 
-    trace!("get_video_devnode - found devnode {}", device_devnode);
+    trace!("get_video_devnode - found devnode {device_devnode}");
     device_devnode.to_string()
 }
 

@@ -28,8 +28,8 @@ tokio = { version = "1.0", features = ["time", "net", "sync"] }
 tokio-stream = { version =  "0.1", features = ["net"] }
 tonic = { version = "0.10", features = ["tls"] }
 uuid = { version = "0.8.1", features = ["v4"] }
-yaserde = "0.7.1"
-yaserde_derive = "0.7.1"
+yaserde = "0.11.2"
+yaserde_derive = "0.11.2"
 
 [dev-dependencies]
 env_logger = "0.11.8"

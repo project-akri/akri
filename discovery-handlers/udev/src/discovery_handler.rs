@@ -1,18 +1,18 @@
 use super::{
-    discovery_impl::{do_parse_and_find, insert_device_with_relatives, DeviceProperties},
+    discovery_impl::{DeviceProperties, do_parse_and_find, insert_device_with_relatives},
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
-    discovery_handler::{deserialize_discovery_details, DISCOVERED_DEVICES_CHANNEL_CAPACITY},
-    v0::{
-        discovery_handler_server::DiscoveryHandler, Device, DeviceSpec, DiscoverRequest,
-        DiscoverResponse,
-    },
     DiscoverStream,
+    discovery_handler::{DISCOVERED_DEVICES_CHANNEL_CAPACITY, deserialize_discovery_details},
+    v0::{
+        Device, DeviceSpec, DiscoverRequest, DiscoverResponse,
+        discovery_handler_server::DiscoveryHandler,
+    },
 };
 use async_trait::async_trait;
 use log::{error, info, trace};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -86,12 +86,12 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             mpsc::channel(DISCOVERED_DEVICES_CHANNEL_CAPACITY);
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
-                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{}", e)))?;
+                .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{e}")))?;
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let udev_rules = discovery_handler_config.udev_rules.clone();
             loop {
-                trace!("discover - for udev rules {:?}", udev_rules);
+                trace!("discover - for udev rules {udev_rules:?}");
                 // Before each iteration, check if receiver has dropped
                 if discovered_devices_sender.is_closed() {
                     error!("discover - channel closed ... attempting to re-register with Agent");
@@ -112,20 +112,19 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         }
                     }
                 });
-                trace!(
-                    "discover - mapping and returning devices at devpaths {:?}",
-                    devpaths
-                );
+                trace!("discover - mapping and returning devices at devpaths {devpaths:?}");
                 let discovered_devices = devpaths
                     .into_iter()
                     .map(|(id, paths)| {
                         let mut properties = HashMap::new();
                         let mut device_specs = Vec::new();
                         for (i, (_, node)) in paths.into_iter().enumerate() {
-                            let property_suffix = discovery_handler_config
-                                .group_recursive
-                                .then(|| format!("_{}", i))
-                                .unwrap_or_default();
+                            let property_suffix = if discovery_handler_config.group_recursive {
+                                format!("_{i}")
+                            } else {
+                                Default::default()
+                            };
+
                             if let Some(devnode) = node {
                                 properties.insert(
                                     super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
@@ -172,8 +171,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         .await
                     {
                         error!(
-                            "discover - for udev failed to send discovery response with error {}",
-                            e
+                            "discover - for udev failed to send discovery response with error {e}"
                         );
                         if let Some(sender) = register_sender {
                             sender.send(()).await.unwrap();

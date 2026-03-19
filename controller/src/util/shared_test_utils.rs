@@ -22,7 +22,7 @@ pub mod config_for_tests {
         result_file: &'static str,
         result_error: bool,
     ) {
-        trace!("mock.expect_find_instance instance_name:{}", instance_name);
+        trace!("mock.expect_find_instance instance_name:{instance_name}");
         mock.expect_find_instance()
             .times(1)
             .withf(move |name, namespace| name == instance_name && namespace == instance_namespace)
@@ -58,7 +58,7 @@ pub mod config_for_tests {
     }
 }"#;
     fn listify_kube_object(node_json: &str) -> String {
-        format!("{}\n{}\n{}", LIST_PREFIX, node_json, LIST_SUFFIX)
+        format!("{LIST_PREFIX}\n{node_json}\n{LIST_SUFFIX}")
     }
 
     pub fn configure_get_instances(
@@ -87,10 +87,7 @@ pub mod config_for_tests {
         result_error: bool,
     ) {
         trace!(
-            "mock.expect_update_instance name:{} namespace:{} error:{}",
-            instance_name,
-            instance_namespace,
-            result_error
+            "mock.expect_update_instance name:{instance_name} namespace:{instance_namespace} error:{result_error}"
         );
         mock.expect_update_instance()
             .times(1)
@@ -116,7 +113,7 @@ pub mod config_for_tests {
         result_file: &'static str,
         result_error: bool,
     ) {
-        trace!("mock.expect_find_configuration config_name:{}", config_name);
+        trace!("mock.expect_find_configuration config_name:{config_name}");
         mock.expect_find_configuration()
             .times(1)
             .withf(move |name, namespace| name == config_name && namespace == config_namespace)
@@ -137,7 +134,7 @@ pub mod config_for_tests {
         result_file: &'static str,
         result_error: bool,
     ) {
-        trace!("mock.expect_find_services svc_selector:{}", svc_selector);
+        trace!("mock.expect_find_services svc_selector:{svc_selector}");
         mock.expect_find_services()
             .times(1)
             .withf(move |selector| selector == svc_selector)
@@ -160,10 +157,7 @@ pub mod config_for_tests {
     ) {
         trace!(
             "mock.expect_create_service name:{}, namespace:{}, [{}={}]",
-            &svc_name,
-            &namespace,
-            &label_id,
-            &label_value
+            &svc_name, &namespace, &label_id, &label_value
         );
         mock.expect_create_service()
             .withf(move |svc_to_create, ns| {
@@ -186,11 +180,7 @@ pub mod config_for_tests {
         svc_name: &'static str,
         svc_namespace: &'static str,
     ) {
-        trace!(
-            "mock.expect_remove_service svc_name:{}, svc_namespace={}",
-            svc_name,
-            svc_namespace
-        );
+        trace!("mock.expect_remove_service svc_name:{svc_name}, svc_namespace={svc_namespace}");
         mock.expect_remove_service()
             .times(1)
             .withf(move |svc_to_remove, namespace| {
@@ -206,10 +196,7 @@ pub mod config_for_tests {
         result_error: bool,
     ) {
         trace!(
-            "mock.expect_update_service name:{} namespace:{} error:{}",
-            svc_name,
-            svc_namespace,
-            result_error,
+            "mock.expect_update_service name:{svc_name} namespace:{svc_namespace} error:{result_error}",
         );
         mock.expect_update_service()
             .times(1)
@@ -229,10 +216,7 @@ pub mod config_for_tests {
         result_file: &'static str,
         result_error: bool,
     ) {
-        trace!(
-            "mock.expect_find_pods_with_label pod_selector:{}",
-            pod_selector
-        );
+        trace!("mock.expect_find_pods_with_label pod_selector:{pod_selector}");
         mock.expect_find_pods_with_label()
             .times(1)
             .withf(move |selector| selector == pod_selector)
@@ -255,7 +239,7 @@ pub mod config_for_tests {
         label_value: &'static str,
         error: bool,
     ) {
-        trace!("mock.expect_create_pod pod_name:{}", pod_name);
+        trace!("mock.expect_create_pod pod_name:{pod_name}");
         mock.expect_create_pod()
             .times(1)
             .withf(move |pod_to_create, namespace| {
@@ -281,11 +265,7 @@ pub mod config_for_tests {
         pod_name: &'static str,
         pod_namespace: &'static str,
     ) {
-        trace!(
-            "mock.expect_remove_pod pod_name:{} pod_namespace:{}",
-            pod_name,
-            pod_namespace
-        );
+        trace!("mock.expect_remove_pod pod_name:{pod_name} pod_namespace:{pod_namespace}");
         mock.expect_remove_pod()
             .times(1)
             .withf(move |pod_to_remove, namespace| {

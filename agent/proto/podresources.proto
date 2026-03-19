@@ -12,7 +12,7 @@ service PodResourcesLister {
 
 message AllocatableResourcesRequest {}
 
-// AllocatableResourcesResponses contains informations about all the devices known by the kubelet
+// AllocatableResourcesResponses contains information about all the devices known by the kubelet
 message AllocatableResourcesResponse {
     repeated ContainerDevices devices = 1;
     repeated int64 cpu_ids = 2;
