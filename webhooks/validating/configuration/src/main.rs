@@ -211,12 +211,11 @@ fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_j
                     Ok(())
                 }
                 Err(e) => {
-                    println!("Error parsing UdevDiscoveryDetails: {}", e);
-                    println!("JSON was: {}", details);
+                    println!("Error parsing UdevDiscoveryDetails: {e}");
+                    println!("JSON was: {details}");
                     // Return a proper error message when parsing fails
                     Err(serde_json::Error::custom(format!(
-                        "Could not parse as Udev DiscoveryDetails: {}",
-                        e
+                        "Could not parse as Udev DiscoveryDetails: {e}"
                     )))
                 }
             }
@@ -1242,11 +1241,9 @@ mod tests {
         let config = create_test_config(r#"{"udevRules": []}"#);
         let result = validate_udev_discovery_details(&config);
         // This may now return an error if permissions is a required field in UdevDiscoveryDetails
-        if result.is_err() {
+        if let Err(e) = result {
             assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
+                e.to_string()
                     .contains("Could not parse as Udev DiscoveryDetails")
             );
         } else {
@@ -1260,11 +1257,9 @@ mod tests {
         // Empty JSON object might now fail if required fields are missing
         let config = create_test_config("{}");
         let result = validate_udev_discovery_details(&config);
-        if result.is_err() {
+        if let Err(e) = result {
             assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
+                e.to_string()
                     .contains("Could not parse as Udev DiscoveryDetails")
             );
         } else {

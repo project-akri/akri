@@ -616,13 +616,13 @@ pub async fn try_delete_instance(
                 break;
             }
             Err(e) => {
-                if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>() {
-                    if ae.code == ERROR_NOT_FOUND {
-                        log::trace!(
-                            "try_delete_instance - discovered Instance {instance_name} already deleted"
-                        );
-                        break;
-                    }
+                if let Some(ae) = e.downcast_ref::<kube::error::ErrorResponse>()
+                    && ae.code == ERROR_NOT_FOUND
+                {
+                    log::trace!(
+                        "try_delete_instance - discovered Instance {instance_name} already deleted"
+                    );
+                    break;
                 }
                 log::error!(
                     "try_delete_instance - tried to delete Instance {} but still exists. {} retries left.",
