@@ -278,7 +278,7 @@ The v0.10.4 release contains the following changes:
 1. **Enable mounting connectivity information for multiple devices/instances in a Pod** (https://github.com/project-akri/akri/pull/560 , https://github.com/project-akri/akri/pull/561). Previously, Akri could only mount one device property per discovery handler to a Pod as all devices of the same discovery handler had the same environment variable name. This release fixes this issue by appending the instance hash to the environment variable name and slot ID to the annotation key name. This is a **breaking change** as it changes the way brokers look up properties.
 2. **Enable udev discovery handler to discover multiple node devices** (https://github.com/project-akri/akri/pull/564). Akri now allows udev discovery handler to group devices that share a parent/child relation.
 3. **Mount udev devpath in Akri brokers** (https://github.com/project-akri/akri/pull/534). This enables discovering udev devices without a devnode by using devpath instead. This is a **breaking change** in the udev discovery handler as it changes the way Akri creates instance ids for udev devices.
-4. **Mount udev devices through DeviceSpec instead of Mounts** (https://github.com/project-akri/akri/pull/576). This switches from using Mounts to using DeviceSpec for device nodes, and exposes the desired permissions to non priviledged containers.
+4. **Mount udev devices through DeviceSpec instead of Mounts** (https://github.com/project-akri/akri/pull/576). This switches from using Mounts to using DeviceSpec for device nodes, and exposes the desired permissions to non privileged containers.
 
 **Fixes, features, and optimizations**
 - feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536)

@@ -47,7 +47,7 @@ class CameraFeed:
             frame = self.queue.get(True, None)
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-    # Loops, creating gRPC client and grabing frame from camera serving specified url.
+    # Loops, creating gRPC client and grabbing frame from camera serving specified url.
     def get_frames(self):
         logging.info("Starting get_frames(%s)" % self.url)
         while not self.stop_event.wait(0.01):

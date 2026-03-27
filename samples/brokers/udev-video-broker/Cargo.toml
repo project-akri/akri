@@ -10,7 +10,7 @@ rust-version.workspace = true
 
 [dependencies]
 akri-shared = { path = "../../../shared" }
-env_logger = "0.10.0"
+env_logger = "0.11.8"
 lazy_static = "1.4"
 log = "0.4.3"
 prometheus = { version = "0.12.0", features = ["process"] }

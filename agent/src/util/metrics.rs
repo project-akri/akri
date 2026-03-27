@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use prometheus::{opts, register_int_counter_vec, HistogramVec, IntCounterVec, IntGaugeVec};
+use prometheus::{HistogramVec, IntCounterVec, IntGaugeVec, opts, register_int_counter_vec};
 
 // Discovery request response time bucket (in seconds)
 const DISCOVERY_RESPONSE_TIME_BUCKETS: &[f64; 9] =

@@ -66,20 +66,16 @@ spec:
                                   optional:
                                     type: boolean
                             oneOf:
-                              - properties:
-                                required: ["secretKeyRef"]
-                              - properties:
-                                required: ["configMapKeyRef"]
+                              - required: ["secretKeyRef"]
+                              - required: ["configMapKeyRef"]
                         oneOf:
-                          - properties:
-                            required: ["value"]
-                          - properties:
-                            required: ["valueFrom"]
+                          - required: ["value"]
+                          - required: ["valueFrom"]
                 capacity:
                   type: integer
                 brokerSpec: # {{BrokerSpec}}
                   type: object
-                  properties: 
+                  properties:
                     brokerJobSpec: # {{JobSpec}}
                       x-kubernetes-preserve-unknown-fields: true
                       type: object

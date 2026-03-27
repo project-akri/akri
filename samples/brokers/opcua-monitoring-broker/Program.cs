@@ -361,7 +361,7 @@ namespace OpcuaNodeMonitoring
         // Browse server address space 
         private void DoBrowse()
         {
-            // TODO: Posibly extend this to search for NodeID of a Node given a display name
+            // TODO: Possibly extend this to search for NodeID of a Node given a display name
             ExitCodeValue = ExitCode.ErrorBrowseNamespace;
             ReferenceDescriptionCollection references;
             Byte[] continuationPoint;

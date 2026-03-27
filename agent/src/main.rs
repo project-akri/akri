@@ -8,7 +8,7 @@ mod discovery_handler_manager;
 mod plugin_manager;
 mod util;
 
-use akri_shared::akri::{metrics::run_metrics_server, API_NAMESPACE};
+use akri_shared::akri::{API_NAMESPACE, metrics::run_metrics_server};
 use log::{info, trace};
 use std::{
     collections::HashMap,
@@ -21,17 +21,11 @@ use std::{
 #[cfg(unix)]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    println!("{} Agent start", API_NAMESPACE);
+    println!("{API_NAMESPACE} Agent start");
 
-    println!(
-        "{} KUBERNETES_PORT found ... env_logger::init",
-        API_NAMESPACE
-    );
+    println!("{API_NAMESPACE} KUBERNETES_PORT found ... env_logger::init");
     env_logger::try_init()?;
-    trace!(
-        "{} KUBERNETES_PORT found ... env_logger::init finished",
-        API_NAMESPACE
-    );
+    trace!("{API_NAMESPACE} KUBERNETES_PORT found ... env_logger::init finished");
 
     let mut tasks = Vec::new();
     let node_name = env::var("AGENT_NODE_NAME")?;
@@ -101,6 +95,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     }
 
     futures::future::try_join_all(tasks).await?;
-    info!("{} Agent end", API_NAMESPACE);
+    info!("{API_NAMESPACE} Agent end");
     Ok(())
 }

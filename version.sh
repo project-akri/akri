@@ -10,7 +10,7 @@ check_file_version()
     
     CORRECT_VERSION=$(cat $FILE | grep "$LINE_PATTERN" | grep "$VERSION_STRING")
     if [ "$CORRECT_VERSION" == "" ]; then
-    echo "    Needs upate: $FILE"
+    echo "    Needs update: $FILE"
     echo "        To ensure all files match version.txt, run: version.sh -u -s"
     return 1
     else
@@ -29,7 +29,7 @@ check_twoline_version()
     
     CORRECT_VERSION=$(grep "$LINE1_PATTERN" -A 1 $FILE | grep "$VERSION_STRING")
     if [ "$CORRECT_VERSION" == "" ]; then
-    echo "    Needs upate: $FILE"
+    echo "    Needs update: $FILE"
     echo "        To ensure all files match version.txt, run: version.sh -u -s"
     return 1
     else

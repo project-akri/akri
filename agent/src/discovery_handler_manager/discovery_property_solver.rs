@@ -223,9 +223,11 @@ mod tests {
             .return_once(|_| Box::new(mock_secret_api));
 
         // solve_value_from_secret should return error if key in secret not found
-        assert!(solve_value_from_secret(&selector, &mock_kube_client)
-            .await
-            .is_err());
+        assert!(
+            solve_value_from_secret(&selector, &mock_kube_client)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

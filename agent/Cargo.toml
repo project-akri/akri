@@ -21,17 +21,17 @@ anyhow = "1.0.38"
 async-stream = "0.3"
 async-trait = "0.1.0"
 blake2 = "0.9.0"
-env_logger = "0.10.0"
+env_logger = "0.11.8"
 futures = { version = "0.3.1", package = "futures" }
 hyper = "0.14.2"
 itertools = "0.12.0"
-k8s-openapi = { version = "0.20.0", default-features = false, features = ["schemars", "v1_23"] }
-kube = { version = "0.87.1",  features = ["derive"] }
-kube-runtime = { version = "0.87.1", features = ["unstable-runtime-reconcile-on"] }
+k8s-openapi = { version = "0.22.0", default-features = false, features = ["schemars", "v1_25"] }
+kube = { version = "0.91.0",  features = ["derive", "runtime"] }
+kube-runtime = { version = "0.91.0", features = ["unstable-runtime-reconcile-on"] }
 lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.3.1"
-prometheus = { version = "0.12.0", features = ["process"] }
+prometheus = { version = "0.13.4", features = ["process"] }
 prost = "0.12"
 serde = "1.0.104"
 serde_derive = "1.0.104"
@@ -54,7 +54,7 @@ akri-discovery-utils = { path = "../discovery-utils", features = ["mock-discover
 akri-onvif = { path = "../discovery-handlers/onvif" }
 akri-opcua = { path = "../discovery-handlers/opcua" }
 akri-udev = { path = "../discovery-handlers/udev"}
-env_logger = "0.10.0"
+env_logger = "0.11.8"
 mock_instant = { version = "0.2", features = ["sync"] }
 mockall = "0.12"
 serde_yaml = "0.9"

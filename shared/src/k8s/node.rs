@@ -19,7 +19,7 @@ use log::trace;
 /// # }
 /// ```
 pub async fn find_node(name: &str, kube_client: Client) -> Result<Node, anyhow::Error> {
-    trace!("find_node with name={}", name);
+    trace!("find_node with name={name}");
     let nodes: Api<Node> = Api::all(kube_client);
     trace!("find_node PRE nodes.get(...).await?");
     let result = nodes.get(name).await;
