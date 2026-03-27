@@ -76,7 +76,7 @@ pub struct Device {
 /// - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.
 /// - PreStartContainer allows kubelet to pass reinitialized devices to containers.
 /// - PreStartContainer allows Device Plugin to run device specific operations on
-///   the Devices requested
+///    the Devices requested
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PreStartContainerRequest {
@@ -126,11 +126,11 @@ pub struct ContainerPreferredAllocationResponse {
     pub device_i_ds: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// - Allocate is expected to be called during pod creation since allocation
-///   failures for any container would result in pod startup failure.
+///    failures for any container would result in pod startup failure.
 /// - Allocate allows kubelet to exposes additional artifacts in a pod's
-///   environment as directed by the plugin.
+///    environment as directed by the plugin.
 /// - Allocate allows Device Plugin to run device specific operations on
-///   the Devices requested
+///    the Devices requested
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AllocateRequest {
