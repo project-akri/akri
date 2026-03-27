@@ -136,7 +136,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
                         }),
                         uid: rqst.uid.to_owned(),
                         warnings: None,
-                    }
+                    };
                 }
             }
 
@@ -1170,10 +1170,12 @@ mod tests {
         let config = create_test_config(r#"{"something":"else"}"#);
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not parse as Udev DiscoveryDetails"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails")
+        );
     }
 
     #[test]
@@ -1182,10 +1184,12 @@ mod tests {
         let config = create_test_config(r#"{"rules": ["missing closing bracket"}"#);
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not parse as Udev DiscoveryDetails"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails")
+        );
     }
 
     #[test]
@@ -1226,7 +1230,9 @@ mod tests {
 
     #[test]
     fn test_validate_udev_valid_permission_rwm() {
-        let config = create_test_config(r#"{"groupRecursive": false, "udevRules": ["KERNEL=='video[0-9]*'"], "permissions": "rwm"}"#);
+        let config = create_test_config(
+            r#"{"groupRecursive": false, "udevRules": ["KERNEL=='video[0-9]*'"], "permissions": "rwm"}"#,
+        );
         assert!(validate_udev_discovery_details(&config).is_ok());
     }
 
@@ -1237,10 +1243,12 @@ mod tests {
         let result = validate_udev_discovery_details(&config);
         // This may now return an error if permissions is a required field in UdevDiscoveryDetails
         if result.is_err() {
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("Could not parse as Udev DiscoveryDetails"));
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Could not parse as Udev DiscoveryDetails")
+            );
         } else {
             // If it parsed successfully, then UdevDiscoveryDetails must have a default for permissions
             assert!(result.is_ok());
@@ -1253,10 +1261,12 @@ mod tests {
         let config = create_test_config("{}");
         let result = validate_udev_discovery_details(&config);
         if result.is_err() {
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("Could not parse as Udev DiscoveryDetails"));
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Could not parse as Udev DiscoveryDetails")
+            );
         } else {
             // If it parsed successfully, then UdevDiscoveryDetails must have defaults for all fields
             assert!(result.is_ok());
@@ -1268,10 +1278,12 @@ mod tests {
         let config = create_test_config(r#"{"udevRules": [], "permissions": "rwx"}"#);
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not parse as Udev DiscoveryDetails"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails")
+        );
     }
 
     #[test]
@@ -1279,10 +1291,12 @@ mod tests {
         let config = create_test_config(r#"{"udevRules": [], "permissions": ""}"#);
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not parse as Udev DiscoveryDetails"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails")
+        );
     }
 
     #[test]
@@ -1290,10 +1304,12 @@ mod tests {
         let config = create_test_config(r#"{"udev_rules": [], "permissions": "x"}"#);
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not parse as Udev DiscoveryDetails"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Could not parse as Udev DiscoveryDetails")
+        );
     }
 
     #[test]
