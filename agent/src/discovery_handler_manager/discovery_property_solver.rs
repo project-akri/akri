@@ -56,27 +56,26 @@ async fn solve_value_from_config_map(
         .get(config_map_name)
         .await?;
 
-    if config_map.is_none() {
+    let Some(config_map): Option<ConfigMap> = config_map else {
         if optional {
             return Ok(None);
         } else {
             return Err(DiscoveryError::UnsolvableProperty("ConfigMap"));
         }
+    };
+    if let Some(data) = config_map.data
+        && let Some(v) = data.get(config_map_key)
+    {
+        return Ok(Some(ByteData {
+            vec: Some(v.as_bytes().to_vec()),
+        }));
     }
-    let config_map: ConfigMap = config_map.unwrap();
-    if let Some(data) = config_map.data {
-        if let Some(v) = data.get(config_map_key) {
-            return Ok(Some(ByteData {
-                vec: Some(v.as_bytes().to_vec()),
-            }));
-        }
-    }
-    if let Some(binary_data) = config_map.binary_data {
-        if let Some(v) = binary_data.get(config_map_key) {
-            return Ok(Some(ByteData {
-                vec: Some(v.0.clone()),
-            }));
-        }
+    if let Some(binary_data) = config_map.binary_data
+        && let Some(v) = binary_data.get(config_map_key)
+    {
+        return Ok(Some(ByteData {
+            vec: Some(v.0.clone()),
+        }));
     }
 
     // config_map key/value not found
@@ -97,22 +96,21 @@ async fn solve_value_from_secret(
     let secret_key = &secret_key_selector.key;
 
     let secret = client.namespaced(secret_namespace).get(secret_name).await?;
-    if secret.is_none() {
+    let Some(secret): Option<Secret> = secret else {
         if optional {
             return Ok(None);
         } else {
             return Err(DiscoveryError::UnsolvableProperty("Secret"));
         }
-    }
-    let secret: Secret = secret.unwrap();
+    };
     // All key-value pairs in the stringData field are internally merged into the data field
     // we don't need to check string_data.
-    if let Some(data) = secret.data {
-        if let Some(v) = data.get(secret_key) {
-            return Ok(Some(ByteData {
-                vec: Some(v.0.clone()),
-            }));
-        }
+    if let Some(data) = secret.data
+        && let Some(v) = data.get(secret_key)
+    {
+        return Ok(Some(ByteData {
+            vec: Some(v.0.clone()),
+        }));
     }
 
     // secret key/value not found

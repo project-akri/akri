@@ -154,17 +154,11 @@ impl BrokerPodWatcher {
 
     /// Gets Pods phase and returns "Unknown" if no phase exists
     fn get_pod_phase(&mut self, pod: &Pod) -> String {
-        if pod.status.is_some() {
-            pod.status
-                .as_ref()
-                .unwrap()
-                .phase
-                .as_ref()
-                .unwrap_or(&"Unknown".to_string())
-                .to_string()
-        } else {
-            "Unknown".to_string()
-        }
+        pod.status
+            .as_ref()
+            .and_then(|s| s.phase.as_ref())
+            .map(|p| p.to_string())
+            .unwrap_or_else(|| "Unknown".to_string())
     }
 
     /// This takes an event off the Pod stream.  If a Pod is newly Running, ensure that

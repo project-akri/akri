@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use prometheus::{HistogramVec, IntCounterVec, IntGaugeVec, opts, register_int_counter_vec};
 
 // Discovery request response time bucket (in seconds)
+#[allow(dead_code)]
 const DISCOVERY_RESPONSE_TIME_BUCKETS: &[f64; 9] =
     &[0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 60.0];
 

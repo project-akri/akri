@@ -1,0 +1,19 @@
+[project]
+name = "akri"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Marcel Bindseil",email = "marcelbindseil@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pytest (>=8.3.5,<9.0.0)",
+    "kubernetes (>=32.0.1,<33.0.0)",
+    "pyyaml (>=6.0.2,<7.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

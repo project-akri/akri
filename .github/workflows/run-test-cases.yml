@@ -171,7 +171,7 @@ jobs:
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for k3s to become ready"; sleep 10; done
 
-      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'K3s'))
+      - if: (startsWith(github.event_name, 'pull_request')) && (startsWith(matrix.kube.runtime, 'k3s'))
         name: Import local agent and controller to K3s
         working-directory: /tmp/images
         run: |

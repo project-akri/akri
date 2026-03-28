@@ -1,0 +1,39 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "brokers", "brokers", "{DF34A9C8-87A9-9338-5075-D37782952607}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "onvif-video-broker", "samples\brokers\onvif-video-broker\onvif-video-broker.csproj", "{4904093D-5FA2-6F06-0FCE-F3647411CD0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "opcua-monitoring-broker", "samples\brokers\opcua-monitoring-broker\opcua-monitoring-broker.csproj", "{1E5A3E34-E860-DD44-E465-DC138A0529C9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4904093D-5FA2-6F06-0FCE-F3647411CD0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4904093D-5FA2-6F06-0FCE-F3647411CD0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4904093D-5FA2-6F06-0FCE-F3647411CD0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4904093D-5FA2-6F06-0FCE-F3647411CD0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1E5A3E34-E860-DD44-E465-DC138A0529C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E5A3E34-E860-DD44-E465-DC138A0529C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E5A3E34-E860-DD44-E465-DC138A0529C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E5A3E34-E860-DD44-E465-DC138A0529C9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DF34A9C8-87A9-9338-5075-D37782952607} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{4904093D-5FA2-6F06-0FCE-F3647411CD0E} = {DF34A9C8-87A9-9338-5075-D37782952607}
+		{1E5A3E34-E860-DD44-E465-DC138A0529C9} = {DF34A9C8-87A9-9338-5075-D37782952607}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {25B40193-6807-4C63-A79D-001205059134}
+	EndGlobalSection
+EndGlobal

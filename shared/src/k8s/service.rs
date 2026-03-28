@@ -221,22 +221,10 @@ pub fn update_ownership(
     if replace_references || svc_to_update.metadata.owner_references.is_none() {
         // Replace all existing ownerReferences with specified ownership
         svc_to_update.metadata.owner_references = Some(vec![ownership_ref]);
-    } else {
+    } else if let Some(refs) = svc_to_update.metadata.owner_references.as_mut() {
         // Add ownership to list IFF the UID doesn't already exist
-        if !svc_to_update
-            .metadata
-            .owner_references
-            .as_ref()
-            .unwrap()
-            .iter()
-            .any(|x| x.uid == ownership.get_uid())
-        {
-            svc_to_update
-                .metadata
-                .owner_references
-                .as_mut()
-                .unwrap()
-                .push(ownership_ref);
+        if !refs.iter().any(|x| x.uid == ownership.get_uid()) {
+            refs.push(ownership_ref);
         }
     }
     Ok(())
