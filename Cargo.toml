@@ -8,7 +8,6 @@ members = [
     "shared", 
     "agent", 
     "controller", 
-    "samples/brokers/udev-video-broker", 
     "webhooks/validating/configuration",
     "discovery-utils", 
     "discovery-handlers/debug-echo", 
