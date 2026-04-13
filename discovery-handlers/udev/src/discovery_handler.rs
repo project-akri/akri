@@ -92,7 +92,7 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
             .get(super::DEVICE_PLUGIN_RESOURCE_PROPERTY_KEY)
             .and_then(|b| b.vec.as_ref())
             .and_then(|v| std::str::from_utf8(v).ok())
-            .map(|s| s.to_string());
+            .map(|s| s.trim().to_string());
         let vfio_passthrough: bool = discover_request
             .discovery_properties
             .get(super::VFIO_PASSTHROUGH_PROPERTY_KEY)
