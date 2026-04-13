@@ -18,7 +18,7 @@
     </PackageReference>
     <PackageReference Include="prometheus-net.AspNetCore" Version="5.0.1" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
-    <PackageReference Include="OpenCvSharp4" Version="4.5.3.20210817" />
+    <PackageReference Include="OpenCvSharp4" Version="4.5.3.20211225" />
   </ItemGroup>
 
   <ItemGroup>
