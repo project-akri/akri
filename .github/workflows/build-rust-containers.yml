@@ -114,7 +114,6 @@ jobs:
           - label: udev-discovery-handler
           - label: opcua-discovery-handler
           - label: onvif-discovery-handler
-          - label: udev-video-broker
     
     steps:
     - name: Checkout the head commit of the branch

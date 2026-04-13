@@ -57,10 +57,9 @@ include build/intermediate-containers.mk
 
 # Akri container defines
 include build/akri-containers.mk
-include build/samples.mk
 
 .PHONY: all
-all: akri samples opencv-base
+all: akri opencv-base
 
 .PHONY: push
 push: PUSH = 1
