@@ -312,6 +312,7 @@ impl InstanceDevicePlugin {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn instance_device_usage_to_device(
     device_name: &str,
     node_name: &str,
@@ -707,6 +708,7 @@ impl InternalDevicePlugin for ConfigurationDevicePlugin {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn config_device_usage_to_device(
     _device_name: &str,
     _node_name: &str,
@@ -829,11 +831,11 @@ pub async fn reconcile(
         || instance.metadata.deletion_timestamp.is_some()
     {
         let mut cps = ctx.configuration_plugins.lock().await;
-        if let Some(cp) = cps.get(&instance.spec.configuration_name) {
-            if cp.remove_plugin(&instance.name_any()).await {
-                cp.stop();
-                cps.remove(&instance.spec.configuration_name);
-            }
+        if let Some(cp) = cps.get(&instance.spec.configuration_name)
+            && cp.remove_plugin(&instance.name_any()).await
+        {
+            cp.stop();
+            cps.remove(&instance.spec.configuration_name);
         }
         if let Some(plugin) = ctx
             .instance_plugins
