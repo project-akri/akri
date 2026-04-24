@@ -11,6 +11,8 @@ spec:
     shortNames:
       - akrii
     singular: instance
+    categories:
+      - all
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -84,4 +86,3 @@ spec:
       served: true
       storage: true
       subresources: {}
-
