@@ -87,6 +87,19 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
         let discovery_handler_config: UdevDiscoveryDetails =
             deserialize_discovery_details(&discover_request.discovery_details)
                 .map_err(|e| tonic::Status::new(tonic::Code::InvalidArgument, format!("{e}")))?;
+        let device_plugin_resource_name: Option<String> = discover_request
+            .discovery_properties
+            .get(super::DEVICE_PLUGIN_RESOURCE_PROPERTY_KEY)
+            .and_then(|b| b.vec.as_ref())
+            .and_then(|v| std::str::from_utf8(v).ok())
+            .map(|s| s.trim().to_string());
+        let vfio_passthrough: bool = discover_request
+            .discovery_properties
+            .get(super::VFIO_PASSTHROUGH_PROPERTY_KEY)
+            .and_then(|b| b.vec.as_ref())
+            .and_then(|v| std::str::from_utf8(v).ok())
+            .map(|s| s.trim().eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
         let mut previously_discovered_devices: Vec<Device> = Vec::new();
         tokio::spawn(async move {
             let udev_rules = discovery_handler_config.udev_rules.clone();
@@ -130,6 +143,16 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                                     super::UDEV_DEVNODE_LABEL_ID.to_string() + &property_suffix,
                                     devnode.clone(),
                                 );
+
+                                if let Some(ref resource_name) = device_plugin_resource_name {
+                                    if let Some((bus, device)) = super::device_utils::extract_usb_address(&devnode) {
+                                        let env_var = super::device_utils::to_usb_resource_env_var(resource_name);
+                                        let value = format!("{bus}:{device}");
+                                        trace!("discover - USB resource: {env_var}={value} path={devnode}");
+                                        properties.insert(env_var + &property_suffix, value);
+                                    }
+                                }
+
                                 device_specs.push(DeviceSpec {
                                     container_path: devnode.clone(),
                                     host_path: devnode,
@@ -140,6 +163,36 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
 
                         //id is the sysfs path of the most top level device so we only need this one
                         properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), id.clone());
+
+                        let is_usb_device = id.split('/').any(|s| s.starts_with("usb"));
+                        if let Some(ref resource_name) = device_plugin_resource_name {
+                            if !is_usb_device {
+                                if let Some(pci_addr) = super::device_utils::extract_pci_address(&id) {
+                                    let env_var = super::device_utils::to_pci_resource_env_var(resource_name);
+                                    trace!("discover - PCI resource: {env_var}={pci_addr} path={id}");
+                                    properties.insert(env_var, pci_addr);
+
+                                    if vfio_passthrough {
+                                        if let Some(iommu_group) = super::device_utils::read_iommu_group(&id) {
+                                            let vfio_group = format!("/dev/vfio/{iommu_group}");
+                                            trace!("discover - PCI VFIO group: {vfio_group} path={id}");
+                                            device_specs.push(DeviceSpec {
+                                                container_path: vfio_group.clone(),
+                                                host_path: vfio_group,
+                                                permissions: "rwm".to_string(),
+                                            });
+                                            device_specs.push(DeviceSpec {
+                                                container_path: "/dev/vfio/vfio".to_string(),
+                                                host_path: "/dev/vfio/vfio".to_string(),
+                                                permissions: "rwm".to_string(),
+                                            });
+                                        } else {
+                                            trace!("discover - PCI device {id} has no IOMMU group (not vfio-pci bound?), skipping vfio DeviceSpec");
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         // TODO: use device spec
                         Device {
