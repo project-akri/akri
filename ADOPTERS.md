@@ -6,4 +6,4 @@ To add your organization to this list, feel free to PR the additions to this pag
 
 | **Organization** | **Reference or Description of Usage** |
 |------------------|---------------------------------------|
-|                  |                                       |
+| [Philips](https://www.philips.com) | Using Akri to dynamically discover and manage mice, keyboards, and USB storage devices at the edge. |
