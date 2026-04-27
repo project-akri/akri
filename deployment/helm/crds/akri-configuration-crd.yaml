@@ -111,3 +111,5 @@ spec:
     kind: Configuration
     shortNames:
       - akric
+    categories:
+      - all
