@@ -3,6 +3,9 @@ kind: Configuration
 metadata:
   name: akri-udev-dev-null
 spec:
-  discoveryHandler: 
+  discoveryHandler:
     name: udev
-    discoveryDetails: '{"udevRules":["KERNEL==\"null\""],"permissions":"rwm"}'
+    discoveryDetails: |+
+      udevRules:
+        - KERNEL=="null"
+      permissions: rwm
