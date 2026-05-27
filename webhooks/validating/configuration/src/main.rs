@@ -539,9 +539,14 @@ mod tests {
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
-    // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerSpec.brokerPodSpec.containers[*].resources
-    // Invalid: .request.object.spec.brokerSpec.brokerPodSpec.resources
+    // Contains a field unknown to PodSpec — it gets dropped on typed
+    // deserialization, the round-trip mismatch is detected, and the
+    // Configuration is rejected.
+    //
+    // The previous fixture misplaced `resources` at the PodSpec level. Since
+    // k8s 1.32 added pod-level resources (PodLevelResources alpha), that
+    // pattern is no longer schema-invalid; a synthetic unknown field is used
+    // instead.
     const INVALID_BROKER_POD_SPEC: &str = r#"
     "brokerPodSpec": {
         "containers": [
@@ -550,11 +555,7 @@ mod tests {
                 "name": "name"
             }
         ],
-        "resources": {
-            "limits": {
-                "{{PLACEHOLDER}}": "1"
-            }
-        },
+        "akriUnknownPodField": "this_field_does_not_exist",
         "imagePullSecrets": [
             {
                 "name": "name"
@@ -588,9 +589,11 @@ mod tests {
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
-    // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.containers[*].resources
-    // Invalid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.resources
+    // Contains a field unknown to PodSpec inside the Job template — it gets
+    // dropped on typed deserialization, the round-trip mismatch is detected,
+    // and the Configuration is rejected. See INVALID_BROKER_POD_SPEC for the
+    // history (the prior fixture relied on pod-level `resources` being
+    // schema-invalid, which is no longer true as of k8s 1.32).
     const INVALID_BROKER_JOB_SPEC: &str = r#"
     "brokerJobSpec": {
         "template": {
@@ -606,11 +609,7 @@ mod tests {
                         }
                     }
                 ],
-                "resources": {
-                    "limits": {
-                        "{{PLACEHOLDER}}": "1"
-                    }
-                },
+                "akriUnknownPodField": "this_field_does_not_exist",
                 "imagePullSecrets": [
                     {
                         "name": "name"
