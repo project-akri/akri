@@ -124,7 +124,7 @@ async fn handle_instance(
 ) -> anyhow::Result<()> {
     trace!("handle_instance - enter");
     match event {
-        Event::Applied(instance) => {
+        Event::Apply(instance) => {
             info!(
                 "handle_instance - added or modified Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
@@ -134,14 +134,14 @@ async fn handle_instance(
             // inspection in future, delineation may be useful.
             handle_instance_change(&instance, &InstanceAction::Add, kube_interface).await?;
         }
-        Event::Deleted(instance) => {
+        Event::Delete(instance) => {
             info!(
                 "handle_instance - deleted Akri Instance {:?}: {:?}",
                 instance.metadata.name, instance.spec
             );
             handle_instance_change(&instance, &InstanceAction::Remove, kube_interface).await?;
         }
-        Event::Restarted(_instances) => {
+        Event::Init => {
             if *first_event {
                 info!("handle_instance - watcher started");
             } else {
@@ -150,6 +150,7 @@ async fn handle_instance(
                 ));
             }
         }
+        _ => {}
     }
     *first_event = false;
     Ok(())
@@ -866,8 +867,8 @@ mod handle_instance_tests {
         let instance: Instance = serde_json::from_str(&instance_json).unwrap();
         handle_instance(
             match action {
-                InstanceAction::Add | InstanceAction::Update => Event::Applied(instance),
-                InstanceAction::Remove => Event::Deleted(instance),
+                InstanceAction::Add | InstanceAction::Update => Event::Apply(instance),
+                InstanceAction::Remove => Event::Delete(instance),
             },
             mock,
             &mut false,
@@ -883,23 +884,15 @@ mod handle_instance_tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut first_event = true;
         assert!(
-            handle_instance(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_ok()
+            handle_instance(Event::Init, &MockKubeInterface::new(), &mut first_event)
+                .await
+                .is_ok()
         );
         first_event = false;
         assert!(
-            handle_instance(
-                Event::Restarted(Vec::new()),
-                &MockKubeInterface::new(),
-                &mut first_event
-            )
-            .await
-            .is_err()
+            handle_instance(Event::Init, &MockKubeInterface::new(), &mut first_event)
+                .await
+                .is_err()
         );
     }
 

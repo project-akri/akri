@@ -82,7 +82,7 @@ impl NodeWatcher {
     /// This takes an event off the Node stream and if a Node is no longer
     /// available, it calls handle_node_disappearance.
     ///
-    /// Nodes are constantly updated.  Cleanup  work for our services only
+    /// Nodes are constantly updated. Cleanup work for our services only
     /// needs to be called once.
     ///
     /// To achieve this, store each Node's state as either Known (Node has
@@ -90,7 +90,7 @@ impl NodeWatcher {
     /// and InstanceCleaned (previously Running Node has been seen as not
     /// Running).
     ///
-    /// When a Node is in the Known state, it is not Running.  If it has
+    /// When a Node is in the Known state, it is not Running. If it has
     /// never been seen as Running, it is likely being created and there is
     /// no need to clean any Instance.
     ///
@@ -105,7 +105,7 @@ impl NodeWatcher {
     ) -> anyhow::Result<()> {
         trace!("handle_node - enter");
         match event {
-            Event::Applied(node) => {
+            Event::Apply(node) => {
                 let node_name = node.metadata.name.clone().unwrap();
                 info!("handle_node - Added or modified: {node_name}");
                 if self.is_node_ready(&node) {
@@ -120,12 +120,12 @@ impl NodeWatcher {
                         .await?;
                 }
             }
-            Event::Deleted(node) => {
+            Event::Delete(node) => {
                 info!("handle_node - Deleted: {:?}", &node.metadata.name);
                 self.call_handle_node_disappearance_if_needed(&node, kube_interface)
                     .await?;
             }
-            Event::Restarted(_nodes) => {
+            Event::Init => {
                 if *first_event {
                     info!("handle_node - watcher started");
                 } else {
@@ -134,6 +134,7 @@ impl NodeWatcher {
                     ));
                 }
             }
+            _ => {}
         };
         *first_event = false;
         Ok(())
@@ -382,22 +383,14 @@ mod tests {
         let mut first_event = true;
         assert!(
             pod_watcher
-                .handle_node(
-                    Event::Restarted(Vec::new()),
-                    &MockKubeInterface::new(),
-                    &mut first_event
-                )
+                .handle_node(Event::Init, &MockKubeInterface::new(), &mut first_event)
                 .await
                 .is_ok()
         );
         first_event = false;
         assert!(
             pod_watcher
-                .handle_node(
-                    Event::Restarted(Vec::new()),
-                    &MockKubeInterface::new(),
-                    &mut first_event
-                )
+                .handle_node(Event::Init, &MockKubeInterface::new(), &mut first_event)
                 .await
                 .is_err()
         );
@@ -410,7 +403,7 @@ mod tests {
         let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
+            .handle_node(Event::Apply(node), &MockKubeInterface::new(), &mut false)
             .await
             .unwrap();
 
@@ -430,7 +423,7 @@ mod tests {
         let node: Node = serde_json::from_str(&node_json).unwrap();
         let mut node_watcher = NodeWatcher::new();
         node_watcher
-            .handle_node(Event::Applied(node), &MockKubeInterface::new(), &mut false)
+            .handle_node(Event::Apply(node), &MockKubeInterface::new(), &mut false)
             .await
             .unwrap();
 
@@ -476,7 +469,7 @@ mod tests {
             .known_nodes
             .insert(node.metadata.name.clone().unwrap(), NodeState::Running);
         node_watcher
-            .handle_node(Event::Applied(node), &mock, &mut false)
+            .handle_node(Event::Apply(node), &mock, &mut false)
             .await
             .unwrap();
 
@@ -498,7 +491,7 @@ mod tests {
 
         let mock = MockKubeInterface::new();
         node_watcher
-            .handle_node(Event::Applied(node), &mock, &mut false)
+            .handle_node(Event::Apply(node), &mock, &mut false)
             .await
             .unwrap();
 
@@ -542,7 +535,7 @@ mod tests {
         );
 
         node_watcher
-            .handle_node(Event::Deleted(node), &mock, &mut false)
+            .handle_node(Event::Delete(node), &mock, &mut false)
             .await
             .unwrap();
 

@@ -172,7 +172,7 @@ impl BrokerPodWatcher {
     ) -> anyhow::Result<()> {
         trace!("handle_pod - enter [event: {event:?}]");
         match event {
-            Event::Applied(pod) => {
+            Event::Apply(pod) => {
                 info!(
                     "handle_pod - pod {:?} added or modified",
                     &pod.metadata.name
@@ -201,20 +201,21 @@ impl BrokerPodWatcher {
                     }
                 }
             }
-            Event::Deleted(pod) => {
+            Event::Delete(pod) => {
                 info!("handle_pod - Deleted: {:?}", &pod.metadata.name);
                 self.handle_deleted_pod_if_needed(&pod, kube_interface)
                     .await?;
             }
-            Event::Restarted(pods) => {
+            Event::Init => {
                 if *first_event {
-                    info!("handle_pod - pod watcher [re]started. Pods are : {pods:?}");
+                    info!("handle_pod - pod watcher [re]started");
                 } else {
                     return Err(anyhow::anyhow!(
                         "Pod watcher restarted - throwing error to restart controller"
                     ));
                 }
             }
+            _ => {}
         };
         *first_event = false;
         Ok(())
@@ -773,22 +774,14 @@ mod tests {
         let mut first_event = true;
         assert!(
             pod_watcher
-                .handle_pod(
-                    Event::Restarted(Vec::new()),
-                    &MockKubeInterface::new(),
-                    &mut first_event
-                )
+                .handle_pod(Event::Init, &MockKubeInterface::new(), &mut first_event)
                 .await
                 .is_ok()
         );
         first_event = false;
         assert!(
             pod_watcher
-                .handle_pod(
-                    Event::Restarted(Vec::new()),
-                    &MockKubeInterface::new(),
-                    &mut first_event
-                )
+                .handle_pod(Event::Init, &MockKubeInterface::new(), &mut first_event)
                 .await
                 .is_err()
         );
@@ -806,11 +799,11 @@ mod tests {
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
             trace!(
-                "test_handle_pod_added_unready phase:{}, Event::Applied",
+                "test_handle_pod_added_unready phase:{}, Event::Apply",
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
+                .handle_pod(Event::Apply(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -837,11 +830,11 @@ mod tests {
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
             trace!(
-                "test_handle_pod_modified_unready phase:{}, Event::Applied",
+                "test_handle_pod_modified_unready phase:{}, Event::Apply",
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
+                .handle_pod(Event::Apply(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -897,7 +890,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock, &mut false)
+            .handle_pod(Event::Apply(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -952,7 +945,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock, &mut false)
+            .handle_pod(Event::Apply(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -1011,7 +1004,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock, &mut false)
+            .handle_pod(Event::Apply(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -1070,7 +1063,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Deleted(pod), &mock, &mut false)
+            .handle_pod(Event::Delete(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -1129,7 +1122,7 @@ mod tests {
         );
 
         pod_watcher
-            .handle_pod(Event::Applied(pod), &mock, &mut false)
+            .handle_pod(Event::Apply(pod), &mock, &mut false)
             .await
             .unwrap();
         trace!(
@@ -1156,11 +1149,11 @@ mod tests {
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
             trace!(
-                "test_handle_pod_added_unready phase:{}, Event::Applied",
+                "test_handle_pod_added_unready phase:{}, Event::Apply",
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
+                .handle_pod(Event::Apply(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
@@ -1177,11 +1170,11 @@ mod tests {
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
             trace!(
-                "test_handle_pod_added_unready phase:{}, Event::Applied",
+                "test_handle_pod_added_unready phase:{}, Event::Apply",
                 &phase
             );
             pod_watcher
-                .handle_pod(Event::Applied(pod), &MockKubeInterface::new(), &mut false)
+                .handle_pod(Event::Apply(pod), &MockKubeInterface::new(), &mut false)
                 .await
                 .unwrap();
             trace!(
