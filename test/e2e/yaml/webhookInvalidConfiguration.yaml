@@ -21,7 +21,7 @@ spec:
       # The original fixture relied on `resources` at the PodSpec level being
       # schema-invalid; that's no longer true as of k8s 1.32 (PodLevelResources
       # alpha), so a synthetic unknown field is used instead.
-      akriUnknownPodField: this_field_does_not_exist
+      xUnknownSyntheticField: this_field_does_not_exist
       containers:
         - name: test-broker
           image: "nginx:stable-alpine"

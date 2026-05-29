@@ -134,7 +134,7 @@ impl NodeWatcher {
                     ));
                 }
             }
-            _ => {}
+            Event::InitApply(_) | Event::InitDone => {}
         };
         *first_event = false;
         Ok(())
