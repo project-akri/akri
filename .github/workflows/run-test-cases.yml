@@ -240,7 +240,7 @@ jobs:
           # Need to load to containerd with ctr
           # -n allows kubernetes to see the image
           sudo find -name "*.tar" -type f -exec ctr -n=k8s.io image import {} \;
-          sudo crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock images
+          sudo ctr -n=k8s.io images ls
 
       - if: startsWith(matrix.kube.runtime, 'microk8s')
         name: Install MicroK8s
