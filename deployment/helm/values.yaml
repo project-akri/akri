@@ -868,7 +868,7 @@ webhookConfiguration:
     # reference is the webhook-certgen image reference
     reference: registry.k8s.io/ingress-nginx/kube-webhook-certgen
     # tag is the webhook-certgen image tag
-    tag: v1.1.1
+    tag: v1.6.9
     # pullPolicy is the webhook-certgen pull policy
     pullPolicy: IfNotPresent
   # onlyOnControlPlane dictates whether the Akri Webhook will only run on nodes with 
