@@ -25,6 +25,7 @@ pub type InstanceList = ObjectList<Instance>;
     kind = "Instance",
     namespaced,
     shortname = "akrii",
+    category = "all",
     printcolumn = r#"{
         "name": "Config",
         "type": "string",
