@@ -16,9 +16,12 @@ spec:
       descriptions: ["foo", "bar"]
   brokerSpec:
     brokerPodSpec:
-      resources:
-        limits:
-          "{{PLACEHOLDER}}": "1"
+      # Unknown field on PodSpec — dropped on typed round-trip, causing the
+      # webhook to detect a mismatch and reject the Configuration.
+      # The original fixture relied on `resources` at the PodSpec level being
+      # schema-invalid; that's no longer true as of k8s 1.32 (PodLevelResources
+      # alpha), so a synthetic unknown field is used instead.
+      xUnknownSyntheticField: this_field_does_not_exist
       containers:
         - name: test-broker
           image: "nginx:stable-alpine"

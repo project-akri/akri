@@ -539,9 +539,14 @@ mod tests {
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
-    // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerSpec.brokerPodSpec.containers[*].resources
-    // Invalid: .request.object.spec.brokerSpec.brokerPodSpec.resources
+    // Contains a field unknown to PodSpec — it gets dropped on typed
+    // deserialization, the round-trip mismatch is detected, and the
+    // Configuration is rejected.
+    //
+    // The previous fixture misplaced `resources` at the PodSpec level. Since
+    // k8s 1.32 added pod-level resources (PodLevelResources alpha), that
+    // pattern is no longer schema-invalid; a synthetic unknown field is used
+    // instead.
     const INVALID_BROKER_POD_SPEC: &str = r#"
     "brokerPodSpec": {
         "containers": [
@@ -550,11 +555,7 @@ mod tests {
                 "name": "name"
             }
         ],
-        "resources": {
-            "limits": {
-                "{{PLACEHOLDER}}": "1"
-            }
-        },
+        "xUnknownSyntheticField": "this_field_does_not_exist",
         "imagePullSecrets": [
             {
                 "name": "name"
@@ -588,9 +589,11 @@ mod tests {
 
     // Valid JSON but invalid akri.sh/v0/Configuration when inserted into
     // brokerSpec of ADMISSION_REVIEW OR EXTENDED_ADMISSION_REVIEW constants.
-    // Misplaced `resources`
-    //   Valid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.containers[*].resources
-    // Invalid: .request.object.spec.brokerSpec.brokerJobSpec.template.spec.resources
+    // Contains a field unknown to PodSpec inside the Job template — it gets
+    // dropped on typed deserialization, the round-trip mismatch is detected,
+    // and the Configuration is rejected. See INVALID_BROKER_POD_SPEC for the
+    // history (the prior fixture relied on pod-level `resources` being
+    // schema-invalid, which is no longer true as of k8s 1.32).
     const INVALID_BROKER_JOB_SPEC: &str = r#"
     "brokerJobSpec": {
         "template": {
@@ -606,11 +609,7 @@ mod tests {
                         }
                     }
                 ],
-                "resources": {
-                    "limits": {
-                        "{{PLACEHOLDER}}": "1"
-                    }
-                },
+                "xUnknownSyntheticField": "this_field_does_not_exist",
                 "imagePullSecrets": [
                     {
                         "name": "name"
@@ -867,6 +866,29 @@ mod tests {
         let rqst = valid.request.expect("v1.AdmissionRequest JSON");
         let resp = validate_configuration(&rqst);
         assert!(resp.allowed);
+    }
+
+    // Canary: the INVALID_BROKER_*_SPEC fixtures and the e2e
+    // test/e2e/yaml/webhookInvalidConfiguration.yaml rely on PodSpec silently
+    // dropping unknown fields on deserialization. If that contract changes
+    // (e.g. k8s-openapi starts using `deny_unknown_fields`, or upstream adds
+    // a field colliding with `xUnknownSyntheticField`), this test will fail
+    // loudly — and the fixture tests below would otherwise start passing for
+    // the wrong reason.
+    #[test]
+    fn test_pod_spec_drops_unknown_fields() {
+        use k8s_openapi::api::core::v1::PodSpec;
+        let raw = serde_json::json!({
+            "containers": [{"image": "x", "name": "x"}],
+            "xUnknownSyntheticField": "should-be-dropped"
+        });
+        let pod_spec: PodSpec = serde_json::from_value(raw).expect("PodSpec parses");
+        let round_tripped = serde_json::to_value(&pod_spec).expect("PodSpec serializes");
+        assert!(
+            round_tripped.get("xUnknownSyntheticField").is_none(),
+            "PodSpec deserialization should drop unknown fields; \
+             see INVALID_BROKER_POD_SPEC / INVALID_BROKER_JOB_SPEC fixtures"
+        );
     }
 
     #[test]

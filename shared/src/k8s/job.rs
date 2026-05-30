@@ -306,6 +306,7 @@ mod broker_jobspec_tests {
             resources: Some(ResourceRequirements {
                 limits: Some(placeholder_limits1),
                 requests: Some(placeholder_requests1),
+                claims: None,
             }),
             ..Default::default()
         };
