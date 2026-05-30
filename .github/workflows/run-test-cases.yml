@@ -85,29 +85,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TEMPORARY: matrix narrowed to the failing entry only while we debug
-        # the kubeadm-1.33 cert-Job hang. RESTORE the full nine-entry matrix
-        # before merging this PR. The full matrix is preserved below in a
-        # commented block — uncomment to revert.
         kube:
+          - runtime: microk8s
+            version: 1.30/stable
+          - runtime: microk8s
+            version: 1.31/stable
+          - runtime: microk8s
+            version: 1.33/stable
+          - runtime: k3s
+            version: v1.30.6+k3s1
+          - runtime: k3s
+            version: v1.31.2+k3s1
+          - runtime: k3s
+            version: v1.33.12+k3s1
+          - runtime: k8s
+            version: 1.30.6
+          - runtime: k8s
+            version: 1.31.2
           - runtime: k8s
             version: 1.33.12
-          # - runtime: microk8s
-          #   version: 1.30/stable
-          # - runtime: microk8s
-          #   version: 1.31/stable
-          # - runtime: microk8s
-          #   version: 1.33/stable
-          # - runtime: k3s
-          #   version: v1.30.6+k3s1
-          # - runtime: k3s
-          #   version: v1.31.2+k3s1
-          # - runtime: k3s
-          #   version: v1.33.12+k3s1
-          # - runtime: k8s
-          #   version: 1.30.6
-          # - runtime: k8s
-          #   version: 1.31.2
 
     steps:
       - name: Checkout the head commit of the branch
@@ -265,23 +261,6 @@ jobs:
         run: |
           case "${{ github.event_name }}" in "push");; "release") extra_param="--release";; *) extra_param="--use-local";; esac
           /opt/poetry/bin/poetry run pytest -v --distribution ${{ matrix.kube.runtime}}  --test-version $(cat ../../version.txt) $extra_param
-
-      # Dump cluster state on failure so the next CI run carries enough
-      # evidence to diagnose the hang at its actual source (Pod events,
-      # describe output, recent system events) rather than only the helm
-      # debug summary which can't see inside the Pod.
-      - name: Dump cluster state on failure
-        if: failure()
-        run: |
-          echo "=== Nodes ==="
-          kubectl get nodes -o wide || true
-          echo "=== All Pods ==="
-          kubectl get pods -A -o wide || true
-          echo "=== Pods in helm release namespace ==="
-          kubectl describe pod -A -l app.kubernetes.io/component=admission-webhook || true
-          kubectl describe pod -A -l app.kubernetes.io/instance=akri || true
-          echo "=== Recent events (cluster-wide) ==="
-          kubectl get events -A --sort-by=.lastTimestamp | tail -100 || true
 
       - name: Sanitize logs artifact name
         id: sanitize-artifact-name
