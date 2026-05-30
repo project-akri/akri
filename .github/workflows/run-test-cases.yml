@@ -223,6 +223,17 @@ jobs:
           
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
 
+          # Node Ready only signals the kubelet is happy; on kubeadm with an
+          # external CNI manifest, the kube-system and kube-flannel pods may
+          # still be starting. Wait for those before running tests, otherwise
+          # the first Pod (e.g. the Helm pre-install cert Job) can race
+          # kube-proxy / DNS setup and hang trying to reach the apiserver
+          # service VIP. k3s and microk8s do not have this race.
+          echo "Waiting for kube-system pods to be Ready..."
+          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=180s
+          echo "Waiting for kube-flannel pods to be Ready..."
+          kubectl wait --for=condition=Ready pods --all -n kube-flannel --timeout=180s
+
       - if: startsWith(matrix.kube.runtime, 'k8s')
         name: Output Kubelet, Containerd, Docker Logs
         run: |
@@ -281,6 +292,23 @@ jobs:
         run: |
           case "${{ github.event_name }}" in "push");; "release") extra_param="--release";; *) extra_param="--use-local";; esac
           /opt/poetry/bin/poetry run pytest -v --distribution ${{ matrix.kube.runtime}}  --test-version $(cat ../../version.txt) $extra_param
+
+      # Dump cluster state on failure so the next CI run carries enough
+      # evidence to diagnose the hang at its actual source (Pod events,
+      # describe output, recent system events) rather than only the helm
+      # debug summary which can't see inside the Pod.
+      - name: Dump cluster state on failure
+        if: failure()
+        run: |
+          echo "=== Nodes ==="
+          kubectl get nodes -o wide || true
+          echo "=== All Pods ==="
+          kubectl get pods -A -o wide || true
+          echo "=== Pods in helm release namespace ==="
+          kubectl describe pod -A -l app.kubernetes.io/component=admission-webhook || true
+          kubectl describe pod -A -l app.kubernetes.io/instance=akri || true
+          echo "=== Recent events (cluster-wide) ==="
+          kubectl get events -A --sort-by=.lastTimestamp | tail -100 || true
 
       - name: Sanitize logs artifact name
         id: sanitize-artifact-name
