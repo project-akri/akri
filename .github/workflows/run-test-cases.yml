@@ -184,7 +184,20 @@ jobs:
           containerd config default | sudo tee /etc/containerd/config.toml
           sudo sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
           sudo systemctl restart containerd
-          sudo swapoff -a              
+
+          # Install the standard CNI plugin set into /opt/cni/bin. The
+          # `containerd.io` deb does not ship CNI plugins, and the
+          # `kubernetes-cni` deb (which used to come in as a `kubelet` dep)
+          # no longer reliably populates /opt/cni/bin on Ubuntu 24.04 +
+          # kubelet 1.33. Without `loopback`, `bridge`, etc. on disk the
+          # pod sandbox setup fails on every pod (including CoreDNS and any
+          # Helm pre-install Job). k3s and microk8s bundle their own
+          # plugins, so this only matters on the kubeadm path.
+          CNI_PLUGINS_VERSION=v1.5.1
+          sudo mkdir -p /opt/cni/bin
+          curl -fsSL "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | sudo tar -C /opt/cni/bin -xz
+
+          sudo swapoff -a
           sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
           mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
