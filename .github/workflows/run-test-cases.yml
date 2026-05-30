@@ -164,7 +164,15 @@ jobs:
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --batch --dearmor -o /usr/share/keyrings/docker.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
           sudo apt-get update
-          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-* kubeadm=${{ matrix.kube.version }}-* kubectl=${{ matrix.kube.version }}-* containerd.io
+          # Pin to the upstream Kubernetes apt repo's `-1.1` revision suffix.
+          # The previous wildcard (`-*`) could resolve to Microsoft's
+          # `packages.microsoft.com/ubuntu/24.04/prod` build (named e.g.
+          # `1.33.12-ubuntu24.04u2`) when both repos publish the same patch
+          # version. Microsoft's deb has only libc6/libssl3 as Depends and
+          # does not pull in `kubernetes-cni`, so /opt/cni/bin ends up empty
+          # and every pod sandbox fails to create. pkgs.k8s.io's convention
+          # for every minor stream is `<version>-1.1`.
+          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-1.1 kubeadm=${{ matrix.kube.version }}-1.1 kubectl=${{ matrix.kube.version }}-1.1 containerd.io
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
@@ -184,19 +192,6 @@ jobs:
           containerd config default | sudo tee /etc/containerd/config.toml
           sudo sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
           sudo systemctl restart containerd
-
-          # Install the standard CNI plugin set into /opt/cni/bin. The
-          # `containerd.io` deb does not ship CNI plugins, and the
-          # `kubernetes-cni` deb (which used to come in as a `kubelet` dep)
-          # no longer reliably populates /opt/cni/bin on Ubuntu 24.04 +
-          # kubelet 1.33. Without `loopback`, `bridge`, etc. on disk the
-          # pod sandbox setup fails on every pod (including CoreDNS and any
-          # Helm pre-install Job). k3s and microk8s bundle their own
-          # plugins, so this only matters on the kubeadm path.
-          CNI_PLUGINS_VERSION=v1.5.1
-          sudo mkdir -p /opt/cni/bin
-          curl -fsSL "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-amd64-${CNI_PLUGINS_VERSION}.tgz" | sudo tar -C /opt/cni/bin -xz
-
           sudo swapoff -a
           sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
           mkdir -p $HOME/.kube
@@ -211,17 +206,6 @@ jobs:
           kubectl taint nodes --all node-role.kubernetes.io/control-plane-
           
           until kubectl get node ${HOSTNAME,,} -o jsonpath='{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status}' | grep 'Ready=True'; do echo "waiting for kubernetes to become ready"; sleep 10; done
-
-          # Node Ready only signals the kubelet is happy; on kubeadm with an
-          # external CNI manifest, the kube-system and kube-flannel pods may
-          # still be starting. Wait for those before running tests, otherwise
-          # the first Pod (e.g. the Helm pre-install cert Job) can race
-          # kube-proxy / DNS setup and hang trying to reach the apiserver
-          # service VIP. k3s and microk8s do not have this race.
-          echo "Waiting for kube-system pods to be Ready..."
-          kubectl wait --for=condition=Ready pods --all -n kube-system --timeout=180s
-          echo "Waiting for kube-flannel pods to be Ready..."
-          kubectl wait --for=condition=Ready pods --all -n kube-flannel --timeout=180s
 
       - if: startsWith(matrix.kube.runtime, 'k8s')
         name: Output Kubelet, Containerd, Docker Logs
