@@ -59,10 +59,12 @@ jobs:
         ref: ${{ fromJSON(steps.get-pr.outputs.result).head.ref }}
 
     # Security: Checkout the trusted version.sh from main branch to prevent script injection
+    # Note: origin may point to a fork, so fetch from the upstream repo explicitly
     - name: Checkout version.sh from main branch
       run: |
-        git fetch origin main
-        git checkout origin/main -- version.sh
+        git remote add upstream https://github.com/${{ github.repository }}.git || true
+        git fetch upstream main
+        git checkout upstream/main -- version.sh
         chmod +x version.sh
 
     - name: Update version minor
@@ -100,6 +102,8 @@ jobs:
       run: |
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
+        # Restore the PR's version.sh so the security checkout doesn't get committed
+        git checkout HEAD -- version.sh
         git pull
         git add .
         git commit -m "Update ${{ env.BUMP_TYPE }} version" --signoff
