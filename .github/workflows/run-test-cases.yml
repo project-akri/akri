@@ -47,63 +47,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build only the components consumed by the e2e suite. The full
+      # `make akri` target also builds agent-full, onvif-discovery, and
+      # opcua-discovery, none of which any test under test/e2e exercises.
       - name: Build local containers for PR tests
         if: startsWith(github.event_name, 'pull_request')
         env:
           PREFIX: ghcr.io/project-akri/akri
           LABEL_PREFIX: pr
         run: |
-          make akri LOAD=1
+          make akri-agent akri-controller akri-webhook-configuration \
+               akri-debug-echo-discovery-handler akri-udev-discovery-handler \
+               LOAD=1
           docker save ${PREFIX}/agent:${LABEL_PREFIX} > agent.tar
           docker save ${PREFIX}/controller:${LABEL_PREFIX} > controller.tar
           docker save ${PREFIX}/webhook-configuration:${LABEL_PREFIX} > webhook-configuration.tar
           docker save ${PREFIX}/debug-echo-discovery:${LABEL_PREFIX} > debug-echo-discovery.tar
           docker save ${PREFIX}/udev-discovery:${LABEL_PREFIX} > udev-discovery.tar
-          docker save ${PREFIX}/opcua-discovery:${LABEL_PREFIX} > opcua-discovery.tar
-          docker save ${PREFIX}/onvif-discovery:${LABEL_PREFIX} > onvif-discovery.tar
 
-      - name: Upload Agent container as artifact
+      - name: Upload container artifacts
         if: startsWith(github.event_name, 'pull_request')
         uses: actions/upload-artifact@v4
         with:
-          name: agent.tar
-          path: agent.tar
-      - name: Upload Controller container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: controller.tar
-          path: controller.tar
-      - name: Upload Webhook-Configuration container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: webhook-configuration.tar
-          path: webhook-configuration.tar
-      - name: Upload DebugEcho discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-echo-discovery.tar
-          path: debug-echo-discovery.tar
-      - name: Upload UDEV discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: udev-discovery.tar
-          path: udev-discovery.tar
-      - name: Upload ONVIF discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: onvif-discovery.tar
-          path: onvif-discovery.tar
-      - name: Upload OPCUA discovery container as artifact
-        if: startsWith(github.event_name, 'pull_request')
-        uses: actions/upload-artifact@v4
-        with:
-          name: opcua-discovery.tar
-          path: opcua-discovery.tar
+          name: akri-containers
+          path: |
+            agent.tar
+            controller.tar
+            webhook-configuration.tar
+            debug-echo-discovery.tar
+            udev-discovery.tar
 
   test-cases:
     needs: build-containers
@@ -115,23 +87,23 @@ jobs:
       matrix:
         kube:
           - runtime: microk8s
-            version: 1.29/stable
+            version: 1.33/stable
           - runtime: microk8s
-            version: 1.30/stable
+            version: 1.34/stable
           - runtime: microk8s
-            version: 1.31/stable
+            version: 1.36/stable
           - runtime: k3s
-            version: v1.29.10+k3s1
+            version: v1.33.12+k3s1
           - runtime: k3s
-            version: v1.30.6+k3s1
+            version: v1.34.8+k3s1
           - runtime: k3s
-            version: v1.31.2+k3s1
+            version: v1.36.1+k3s1
           - runtime: k8s
-            version: 1.29.10
+            version: 1.33.12
           - runtime: k8s
-            version: 1.30.6
+            version: 1.34.8
           - runtime: k8s
-            version: 1.31.2
+            version: 1.36.1
 
     steps:
       - name: Checkout the head commit of the branch
@@ -188,7 +160,15 @@ jobs:
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --batch --dearmor -o /usr/share/keyrings/docker.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
           sudo apt-get update
-          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-* kubeadm=${{ matrix.kube.version }}-* kubectl=${{ matrix.kube.version }}-* containerd.io
+          # Pin to the upstream Kubernetes apt repo's `-1.1` revision suffix.
+          # The previous wildcard (`-*`) could resolve to Microsoft's
+          # `packages.microsoft.com/ubuntu/24.04/prod` build (named e.g.
+          # `1.33.12-ubuntu24.04u2`) when both repos publish the same patch
+          # version. Microsoft's deb has only libc6/libssl3 as Depends and
+          # does not pull in `kubernetes-cni`, so /opt/cni/bin ends up empty
+          # and every pod sandbox fails to create. pkgs.k8s.io's convention
+          # for every minor stream is `<version>-1.1`.
+          sudo apt-get install -o Dpkg::Options::="--force-overwrite" -y --allow-downgrades kubelet=${{ matrix.kube.version }}-1.1 kubeadm=${{ matrix.kube.version }}-1.1 kubectl=${{ matrix.kube.version }}-1.1 containerd.io
           kubectl version && echo "kubectl return code: $?" || echo "kubectl return code: $?"
           kubeadm version && echo "kubeadm return code: $?" || echo "kubeadm return code: $?"
           kubelet --version && echo "kubelet return code: $?" || echo "kubelet return code: $?"
@@ -208,7 +188,7 @@ jobs:
           containerd config default | sudo tee /etc/containerd/config.toml
           sudo sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
           sudo systemctl restart containerd
-          sudo swapoff -a              
+          sudo swapoff -a
           sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
           mkdir -p $HOME/.kube
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -240,7 +220,7 @@ jobs:
           # Need to load to containerd with ctr
           # -n allows kubernetes to see the image
           sudo find -name "*.tar" -type f -exec ctr -n=k8s.io image import {} \;
-          sudo crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock images
+          sudo ctr -n=k8s.io images ls
 
       - if: startsWith(matrix.kube.runtime, 'microk8s')
         name: Install MicroK8s
