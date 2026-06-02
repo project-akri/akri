@@ -7,7 +7,6 @@ This is a small contribution that helps the project gain momentum and support.
 
 | **Organization**                   | **Reference or Description of Usage**                                                               |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [Philips](https://www.philips.com) | Using Akri to dynamically discover and manage mice, keyboards, and USB storage devices at the edge. |
 
 ## Adding Your Organization
 
@@ -50,15 +49,4 @@ Use this template in the [Adopters List](#adopters-list) section:
 
 ## Adopters List
 
-### Philips
-
-- **Description**: Loom is the IGT Ecosystem Platform — a non-medical software platform that orchestrates healthcare applications in hospital environments.
-  It integrates seamlessly with Philips interventional imaging systems and hospital IT infrastructure while maintaining strict data privacy boundaries.
-- **Usage**: Using Akri to dynamically discover and manage mice, keyboards, and USB storage devices at the edge.
-- **Links**:
-  - [Website](https://www.philips.com)
-  - Repository: Hosted under a private Philips internal organization and is not publicly accessible.
-- **Contacts**:
-  - GitHub: @jackliu2024
-  - Kubernetes Slack: @jackliu
 
