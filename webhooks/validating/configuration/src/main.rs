@@ -2,7 +2,7 @@ use actix_web::{App, HttpResponse, HttpServer, Responder, post, web};
 use akri_shared::akri::configuration::Configuration;
 use akri_udev::discovery_handler::UdevDiscoveryDetails;
 use clap::Arg;
-use k8s_openapi::{apimachinery::pkg::runtime::RawExtension, serde::de::Error};
+use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use openapi::models::{
     V1AdmissionRequest as AdmissionRequest, V1AdmissionResponse as AdmissionResponse,
     V1AdmissionReview as AdmissionReview, V1Status as Status,
@@ -190,7 +190,7 @@ fn validate_configuration(rqst: &AdmissionRequest) -> AdmissionResponse {
     }
 }
 
-fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_json::Error> {
+fn validate_udev_discovery_details(config: &Configuration) -> Result<(), String> {
     match &config.spec.discovery_handler.discovery_details {
         details if details.is_empty() => {
             println!("Discovery details are empty");
@@ -204,7 +204,7 @@ fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_j
             }
 
             // Try to parse the discovery details as UdevDiscoveryDetails
-            match serde_json::from_str::<UdevDiscoveryDetails>(details) {
+            match serde_yaml::from_str::<UdevDiscoveryDetails>(details) {
                 Ok(_) => {
                     // The UdevDiscoveryDetails struct already has a custom deserializer for permissions
                     // If we got here, that means the JSON was parsed successfully and permissions were validated
@@ -214,9 +214,7 @@ fn validate_udev_discovery_details(config: &Configuration) -> Result<(), serde_j
                     println!("Error parsing UdevDiscoveryDetails: {e}");
                     println!("JSON was: {details}");
                     // Return a proper error message when parsing fails
-                    Err(serde_json::Error::custom(format!(
-                        "Could not parse as Udev DiscoveryDetails: {e}"
-                    )))
+                    Err(format!("Could not parse as Udev DiscoveryDetails: {e}"))
                 }
             }
         }
@@ -1336,8 +1334,10 @@ mod tests {
         let result = validate_udev_discovery_details(&config);
         assert!(result.is_err());
         let error_message = result.unwrap_err().to_string();
-        assert!(error_message.starts_with("Could not parse as Udev DiscoveryDetails:"));
-        assert!(error_message.contains("expected"));
+        assert_eq!(
+            error_message,
+            "Could not parse as Udev DiscoveryDetails: missing field `udevRules`"
+        );
     }
 
     fn run_validate_configuration_discovery_properties(

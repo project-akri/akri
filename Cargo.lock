@@ -4507,6 +4507,7 @@ dependencies = [
  "openapi",
  "openssl",
  "serde_json",
+ "serde_yaml",
 ]
 
 [[package]]

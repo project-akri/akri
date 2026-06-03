@@ -3,7 +3,10 @@ kind: Configuration
 metadata:
   name: akri-udev-grouped
 spec:
-  discoveryHandler: 
+  discoveryHandler:
     name: udev
-    discoveryDetails: '{{"groupRecursive":true,"udevRules":["ENV{{ID_PATH}}==\"{}\""],"permissions":"rwm"}}'
-    # discoveryDetails: '{"udevRules":["ENV{{ID_PATH}}==\"{}\""],"permissions":"rwm"}'
+    discoveryDetails: |+
+      groupRecursive: true
+      udevRules:
+        - ENV{{ID_PATH}}=="{}"
+      permissions: rwm
