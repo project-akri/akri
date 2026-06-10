@@ -36,7 +36,12 @@ async fn get_used_slots() -> Result<HashSet<String>, anyhow::Error> {
     let channel = Endpoint::try_from("http://[::1]:50051")
         .unwrap()
         .connect_with_connector(service_fn(move |_: Uri| {
-            UnixStream::connect(kubelet_socket_closure.clone())
+            let kubelet_socket_closure = kubelet_socket_closure.clone();
+            async move {
+                UnixStream::connect(kubelet_socket_closure)
+                    .await
+                    .map(hyper_util::rt::TokioIo::new)
+            }
         }))
         .await?;
     let mut podresources_client = podresources::PodResourcesListerClient::new(channel);
