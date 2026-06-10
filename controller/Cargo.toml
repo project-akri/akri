@@ -19,7 +19,7 @@ k8s-openapi = { version = "0.25.0", default-features = false, features = ["schem
 kube = { version = "1.0.0", features = ["client", "derive", "runtime"] }
 lazy_static = "1.4"
 log = "0.4"
-prometheus = { version = "0.13.4", features = ["process"] }
+prometheus = { version = "0.14.0", features = ["process"] }
 tokio = { version = "1.0.2", features = ["full"] }
 
 [dev-dependencies]
