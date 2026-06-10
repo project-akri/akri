@@ -1444,8 +1444,7 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "171fefbc92fe4a4de27e0698d6a5b392d6a0e333506bc49133760b3bcf948733"
+source = "git+https://github.com/project-akri/h2?branch=patch-authority#d1554fef2e9eed121bdfdf6424e121b94ed3c3d5"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -4741,8 +4740,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "h2"
-version = "0.3.26"
-source = "git+https://github.com/project-akri/h2?branch=patch-authority#1bf9857fbc66d6898a68ac77070ffc95963b6c22"
