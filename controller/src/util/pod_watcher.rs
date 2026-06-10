@@ -10,7 +10,6 @@ use akri_shared::{
         service,
     },
 };
-use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{Pod, ServiceSpec};
 use kube::api::Api;
@@ -18,6 +17,7 @@ use kube::runtime::WatchStreamExt;
 use kube::runtime::watcher::{Config, Event, watcher};
 use log::{error, info, trace};
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 
 type PodSlice = [Pod];
 
