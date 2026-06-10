@@ -6,11 +6,18 @@ use std::{
     task::{Context, Poll},
 };
 
+use hyper_util::rt::TokioIo;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tonic::transport::server::Connected;
 
 #[derive(Debug)]
-pub struct UnixStream(pub tokio::net::UnixStream);
+pub struct UnixStream(tokio::net::UnixStream);
+
+impl UnixStream {
+    pub fn new(stream: tokio::net::UnixStream) -> Self {
+        Self(stream)
+    }
+}
 
 impl Connected for UnixStream {
     type ConnectInfo = UdsConnectInfo;
@@ -75,7 +82,14 @@ pub async fn try_connect(socket_path: &str) -> anyhow::Result<()> {
     loop {
         let path_connector = tower::service_fn({
             let socket_path = socket_path.to_string();
-            move |_: tonic::transport::Uri| tokio::net::UnixStream::connect(socket_path.clone())
+            move |_: tonic::transport::Uri| {
+                let socket_path = socket_path.clone();
+                async move {
+                    tokio::net::UnixStream::connect(socket_path)
+                        .await
+                        .map(TokioIo::new)
+                }
+            }
         });
 
         if let Err(e) = endpoint.connect_with_connector(path_connector).await {

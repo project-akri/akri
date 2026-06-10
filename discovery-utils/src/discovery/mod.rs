@@ -231,7 +231,7 @@ pub mod server {
 
                 async_stream::stream! {
                     loop {
-                        let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                        let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream::new(st)).await;
                         yield item;
                     }
                 }
@@ -285,7 +285,12 @@ pub mod server {
             let channel = Endpoint::try_from("http://[::1]:50051")
                 .unwrap()
                 .connect_with_connector(tower::service_fn(move |_: Uri| {
-                    UnixStream::connect(discovery_handler_socket.clone())
+                    let discovery_handler_socket = discovery_handler_socket.clone();
+                    async move {
+                        UnixStream::connect(discovery_handler_socket)
+                            .await
+                            .map(hyper_util::rt::TokioIo::new)
+                    }
                 }))
                 .await
                 .unwrap();

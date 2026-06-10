@@ -1,6 +1,7 @@
 use super::discovery::v0::{
     RegisterDiscoveryHandlerRequest, registration_client::RegistrationClient,
 };
+use hyper_util::rt::TokioIo;
 use log::{info, trace};
 use std::convert::TryFrom;
 use tonic::{
@@ -18,8 +19,10 @@ pub async fn register_discovery_handler(
         // be in valid format even it's not used, the scheme part is used
         // to specific what scheme to use, such as http or https
         if let Ok(channel) = Endpoint::try_from("http://[::1]:50051")?
-            .connect_with_connector(tower::service_fn(move |_: Uri| {
+            .connect_with_connector(tower::service_fn(move |_: Uri| async move {
                 tokio::net::UnixStream::connect(super::get_registration_socket())
+                    .await
+                    .map(TokioIo::new)
             }))
             .await
         {

@@ -49,9 +49,16 @@ impl NetworkEndpoint {
                 Ok(DiscoveryHandlerClient::new(
                     tonic::transport::Endpoint::try_from("http://[::1]:50051")
                         .unwrap()
-                        .connect_with_connector(tower::service_fn(move |_: hyper::Uri| {
-                            tokio::net::UnixStream::connect(socket.clone())
-                        }))
+                        .connect_with_connector(tower::service_fn(
+                            move |_: tonic::transport::Uri| {
+                                let socket = socket.clone();
+                                async move {
+                                    tokio::net::UnixStream::connect(socket)
+                                        .await
+                                        .map(hyper_util::rt::TokioIo::new)
+                                }
+                            },
+                        ))
                         .await?,
                 ))
             }
@@ -216,7 +223,7 @@ pub async fn run_registration_server(
 
         async_stream::stream! {
             loop {
-                let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream::new(st)).await;
                 yield item;
             }
         }

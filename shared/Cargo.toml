@@ -12,6 +12,7 @@ rust-version.workspace = true
 anyhow = "1.0.38"
 async-trait = "0.1.0"
 either = "1.13"
+hyper-util = { version = "0.1", features = ["tokio"] }
 k8s-openapi = { version = "0.25.0", default-features = false, features = ["schemars", "v1_33"] }
 kube = { version = "1.0.0",  features = ["derive" ] }
 log = "0.4"
@@ -24,8 +25,8 @@ serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.9"
 tokio = { version = "1.0.1", features = ["full"] }
-tonic = "0.10"
-tower = "0.4.8"
+tonic = "0.13"
+tower = { version = "0.4.8", features = ["util"] }
 warp = "0.3.6"
 
 [dev-dependencies]

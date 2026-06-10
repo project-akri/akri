@@ -170,7 +170,7 @@ pub(super) async fn serve_and_register_plugin<T: Clone + 'static + Send + Sync>(
 
             async_stream::stream! {
                 loop {
-                    let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream(st)).await;
+                    let item = uds.accept().map_ok(|(st, _)| unix_stream::UnixStream::new(st)).await;
                     yield item;
                 }
             }
@@ -219,7 +219,12 @@ async fn register_plugin(
     let channel = Endpoint::try_from("http://[::1]:50051")
         .unwrap()
         .connect_with_connector(service_fn(move |_: Uri| {
-            UnixStream::connect(kubelet_socket_closure.clone())
+            let kubelet_socket_closure = kubelet_socket_closure.clone();
+            async move {
+                UnixStream::connect(kubelet_socket_closure)
+                    .await
+                    .map(hyper_util::rt::TokioIo::new)
+            }
         }))
         .await
         .with_context(|| format!("while trying to connect to {KUBELET_SOCKET}"))?;
