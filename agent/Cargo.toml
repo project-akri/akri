@@ -32,8 +32,8 @@ kube-runtime = { version = "1.0.0", features = ["unstable-runtime-reconcile-on"]
 lazy_static = "1.4"
 log = "0.4"
 mockall_double = "0.3.1"
-prometheus = { version = "0.13.4", features = ["process"] }
 prost = "0.13"
+prometheus = { version = "0.14.0", features = ["process"] }
 serde = "1.0.104"
 serde_derive = "1.0.104"
 serde_json = "1.0.45"
