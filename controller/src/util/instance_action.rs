@@ -7,7 +7,6 @@ use akri_shared::{
         pod::{AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
     },
 };
-use async_std::sync::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::batch::v1::JobSpec;
 use k8s_openapi::api::core::v1::{Pod, PodSpec};
@@ -17,6 +16,7 @@ use kube::runtime::watcher::{Config, Event, watcher};
 use log::{error, info, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 /// Length of time a Pod can be pending before we give up and retry
 pub const PENDING_POD_GRACE_PERIOD_MINUTES: i64 = 5;
 /// Length of time a Pod can be in an error state before we retry
