@@ -34,7 +34,7 @@ service DiscoveryHandler {
 }
 
 message ByteData {
-    optional bytes vec = 1;
+    bytes vec = 1;
 }
 
 message DiscoverRequest {
