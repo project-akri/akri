@@ -110,10 +110,15 @@ One note on the Agent: by default it's "slim" and embeds no discovery handlers, 
 why you deploy handlers as separate DaemonSets (you'll see `<handler>.discovery.enabled`
 below). If you'd rather embed the handlers in the Agent itself, that's the separate
 *agent-full* build — run `AGENT_FEATURES="agent-full onvif-feat opcua-feat udev-feat" make
-akri-agent-full`, which produces its own `PREFIX/agent-full:LABEL` image (so you'd point
-`agent.image.repository` at `…/agent-full`). Watch out: plain `make akri-agent` always builds
-the slim Agent regardless of `AGENT_FEATURES` — see `build/akri-containers.mk:9` for the
-single-command alternative.
+akri-agent-full`, which produces its own `PREFIX/agent-full:LABEL` image. To *deploy* that
+image, flip the chart's dedicated toggle rather than overriding the ordinary repository:
+`--set agent.full=true` makes the template select `agent.image.fullRepository` instead of
+`agent.image.repository`, and also gives the DaemonSet the `hostNetwork` that embedded ONVIF
+discovery needs — so point `agent.image.fullRepository` (not `agent.image.repository`) at
+your `…/agent-full` image. Watch out: plain `make akri-agent` always builds the slim Agent
+regardless of `AGENT_FEATURES` — the generic `akri-%` rule in `build/akri-containers.mk` never
+passes the feature flags, so the full image comes only from the dedicated `akri-agent-full`
+target.
 
 ## A cluster to run on
 
