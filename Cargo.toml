@@ -1,7 +1,9 @@
 [patch.crates-io]
 # Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help
 # with supply chain integrity.
-h2 = { git = 'https://github.com/project-akri/h2', branch = 'patch-authority'}
+# rev below is the tip of the `patch-authority` branch, pinned by commit so a future
+# `cargo update` can't silently move the patch (which is how it previously went stale).
+h2 = { git = 'https://github.com/project-akri/h2', rev = 'e01e8842a37bc3590228e9ab408fc1710018c031'}
 
 [workspace]
 members = [

@@ -4744,5 +4744,5 @@ dependencies = [
 
 [[patch.unused]]
 name = "h2"
-version = "0.3.26"
-source = "git+https://github.com/project-akri/h2?branch=patch-authority#1bf9857fbc66d6898a68ac77070ffc95963b6c22"
+version = "0.4.15"
+source = "git+https://github.com/project-akri/h2?rev=e01e8842a37bc3590228e9ab408fc1710018c031#e01e8842a37bc3590228e9ab408fc1710018c031"
