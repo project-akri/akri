@@ -41,4 +41,4 @@ do
 done
 
 sudo microk8s.kubectl apply \
---filename=https://raw.githubusercontent.com/project-akri/akri/main/deployment/samples/akri-video-streaming-app.yaml
+--filename=https://raw.githubusercontent.com/project-akri/examples/main/apps/video-streaming-app/deployment.yaml
