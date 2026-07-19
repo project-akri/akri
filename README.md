@@ -83,7 +83,7 @@ To see what else is in store for Akri, reference our [roadmap](https://docs.akri
 
 ## Community, Contributing, and Support
 
-You can reach the Akri community via the [#akri](https://kubernetes.slack.com/messages/akri) channel in [Kubernetes Slack](https://kubernetes.slack.com) or join our [community calls](https://hackmd.io/@akri/S1GKJidJd) on the first Tuesday of the month at 9:00 AM PT.
+You can reach the Akri community via the [#akri](https://kubernetes.slack.com/messages/akri) channel in [Kubernetes Slack](https://kubernetes.slack.com) and/or join our [community calls](https://hackmd.io/@akri/S1GKJidJd) on the first Tuesday of the month from 8:00 AM to 9:00 AM PT.
 
 Akri welcomes contributions, whether by [creating new issues](https://github.com/project-akri/akri/issues/new/choose) or pull requests.
 See our [contributing document](https://docs.akri.sh/community/contributing) on how to get started!
