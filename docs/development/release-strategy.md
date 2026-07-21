@@ -204,7 +204,8 @@ repo-wide:
   and features like `BEGIN_COMMIT_OVERRIDE` / `Release-As:` only work reliably with it.
 - **Releasable units**: release-please only opens/updates a Release PR when it sees
   `feat`, `fix`, or `deps` commits since the last release; `chore`/`build`/`ci` alone won't
-  trigger a release (they still appear in the changelog).
+  trigger a release (and, being marked `hidden` in `changelog-sections`, they don't appear
+  in the changelog either).
 
 ### 6.1 Changelog format (release-please default = Keep-a-Changelog)
 Use release-please's **default changelog type**, which "groups by commit type and links to
@@ -240,7 +241,6 @@ needs no external template engine. Customize only the section mapping so Akri's 
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "simple",
   "include-component-in-tag": false,     // tags are v<version>, not <component>-v<version>
-  "tag-separator": "-",
   "bump-minor-pre-major": true,          // pre-1.0: breaking => minor, feat => patch-ish
   "bump-patch-for-minor-pre-major": true,
   "changelog-sections": [ /* see §6.1 */ ],
@@ -252,8 +252,7 @@ needs no external template engine. Customize only the section mapping so Akri's 
         { "type": "yaml", "path": "deployment/helm/Chart.yaml", "jsonpath": "$.appVersion" }
       ]
     }
-  },
-  "plugins": ["cargo-workspace"]
+  }
 }
 ```
 `.release-please-manifest.json` (bootstrap with the current version so history isn't re-parsed):
@@ -263,6 +262,11 @@ needs no external template engine. Customize only the section mapping so Akri's 
 > Tag format matters: our pipelines expect `vX.Y.Z`. `include-component-in-tag: false`
 > yields `v0.13.26`. Confirm the git-tag string the container/helm `type=semver` metadata
 > steps consume still matches.
+>
+> ⚠️ `Cargo.lock` is **not** updated by this `simple`-type config, so the first Release PR
+> desyncs `Cargo.toml` vs `Cargo.lock`. Before the first real release, adopt `release-type:
+> rust` + the `cargo-workspace` plugin (§5.1) or a deterministic `cargo update --workspace`
+> step — validated via the first-run checklist.
 
 ### 7.2 Workflow + the mandatory GitHub App token
 A GitHub Release created with the default `GITHUB_TOKEN` **will not** emit a `release:
