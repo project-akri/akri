@@ -25,14 +25,14 @@ real publish. Companion to [release-strategy.md](./release-strategy.md).
 - [ ] `CHANGELOG.md` → correct entries, grouped sections, only commits **since `v0.13.26`**
       (not the whole history).
 - [ ] **`Cargo.lock` ⭐ — the 14 workspace crates (`agent`, `controller`, `akri-shared`, …)
-      show the new version.** This is the known risk of the `simple` release type.
+      show the new version** (committed by the `release-please-lockfile.yml` sync workflow).
 
 ### If `Cargo.lock` was NOT updated
-`simple` type doesn't touch the lockfile. Pick one and re-run:
-- **Preferred:** switch to `rust` type + `cargo-workspace` plugin (strategy §5.1) so
-  release-please maintains `Cargo.toml` + `Cargo.lock` natively; re-open the Release PR.
-- **Fallback:** add a step in the release job (post-merge, pre-tag) that runs
-  `cargo update --workspace` and commits `Cargo.lock`.
+The `release-please-lockfile.yml` workflow should have committed a refreshed `Cargo.lock` to
+the Release PR (via `cargo update --workspace`). If it didn't:
+- confirm the workflow ran on the Release PR (needs the App token and a `release-please--*` head branch);
+- check its logs for a `cargo update` error;
+- as a manual fallback, run `cargo update --workspace` locally and push to the PR branch.
 
 ## 3. CI on the Release PR
 - [ ] All checks green — **critically a build that uses `--locked`/`--frozen`** (proves the

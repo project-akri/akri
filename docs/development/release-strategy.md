@@ -263,10 +263,12 @@ needs no external template engine. Customize only the section mapping so Akri's 
 > yields `v0.13.26`. Confirm the git-tag string the container/helm `type=semver` metadata
 > steps consume still matches.
 >
-> ⚠️ `Cargo.lock` is **not** updated by this `simple`-type config, so the first Release PR
-> desyncs `Cargo.toml` vs `Cargo.lock`. Before the first real release, adopt `release-type:
-> rust` + the `cargo-workspace` plugin (§5.1) or a deterministic `cargo update --workspace`
-> step — validated via the first-run checklist.
+> ⚠️ `Cargo.lock` is **not** updated by the `simple` release type. The
+> `.github/workflows/release-please-lockfile.yml` workflow closes this gap: it runs
+> `cargo update --workspace` on the Release PR and commits the refreshed `Cargo.lock`, so the
+> tagged commit stays consistent. (Akri's crates use `version.workspace = true`, so
+> `release-type: rust` + `cargo-workspace` is *not* a clean fit — hence the lockfile-sync
+> workflow.)
 
 ### 7.2 Workflow + the mandatory GitHub App token
 A GitHub Release created with the default `GITHUB_TOKEN` **will not** emit a `release:
