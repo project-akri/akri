@@ -15,14 +15,14 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::discovery_handler_manager::{
-    DiscoveryError, discovery_handler_registry::DiscoveryHandlerRegistry,
+    discovery_handler_registry::DiscoveryHandlerRegistry, DiscoveryError,
 };
 
 use kube::api::ObjectMeta;
 use kube::runtime::{
-    Controller,
     controller::Action,
     reflector::{ObjectRef, Store},
+    Controller,
 };
 use kube::{Resource, ResourceExt};
 use thiserror::Error;
@@ -490,6 +490,10 @@ mod tests {
         let mut request = MockDiscoveryHandlerRequest::new();
         request
             .expect_set_extra_device_properties()
+            .with(eq(HashMap::from([(
+                "BROKER_PROPERTY".to_string(),
+                "updated-value".to_string(),
+            )])))
             .returning(|_| {});
         request.expect_get_instances().returning(|| Ok(vec![]));
         registry
@@ -522,7 +526,10 @@ mod tests {
                 broker_spec: None,
                 instance_service_spec: None,
                 configuration_service_spec: None,
-                broker_properties: Default::default(),
+                broker_properties: HashMap::from([(
+                    "BROKER_PROPERTY".to_string(),
+                    "updated-value".to_string(),
+                )]),
             },
         });
 
