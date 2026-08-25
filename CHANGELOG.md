@@ -1,16 +1,132 @@
+# v0.14.0
+
+## Announcing Akri v0.14.0!
+
+Akri v0.14.0 is a pre-release of Akri, and the first release since v0.13.8. It is a large modernization release: the Kubernetes and Rust stacks are brought current (`kube-rs` 1.0, `tonic` 0.13, Rust 1.88), the supported Kubernetes baseline moves to **≥ 1.33**, several RUSTSEC advisories are cleared, and the sample brokers/apps have moved to the [`project-akri/examples`](https://github.com/project-akri/examples) repository.
+
+To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
+[contributing](https://docs.akri.sh/community/contributing) today!
+
+## New Features
+
+The v0.14.0 release contains the following changes:
+
+**Features**
+
+- feat: Toleration support for agent, controller, and webhook (https://github.com/project-akri/akri/pull/742)
+- feat: Device-plugin ENV variables (https://github.com/project-akri/akri/pull/788)
+- feat: Accept YAML `udev` `discoveryDetails` in the validating webhook (https://github.com/project-akri/akri/pull/802)
+- feat: Device mount-permission check in the webhook (https://github.com/project-akri/akri/pull/753)
+- feat: Configurable device mount permissions in the udev handler (https://github.com/project-akri/akri/pull/737)
+- feat: Improved device-plugin registration error messages (https://github.com/project-akri/akri/pull/754)
+
+**Dependencies & toolchain**
+
+- `kube-rs` 0.91 → 1.0 (https://github.com/project-akri/akri/pull/815, https://github.com/project-akri/akri/pull/777); `tonic` 0.10 → 0.13 (https://github.com/project-akri/akri/pull/823); `prost` 0.12 → 0.13; `hyper` 0.14 → 1.0; `rustls` 0.21 → 0.23
+- `prometheus` 0.13.4 → 0.14.0 (https://github.com/project-akri/akri/pull/822); removed `async-std` (https://github.com/project-akri/akri/pull/824) and `humantime` (https://github.com/project-akri/akri/pull/756)
+- Rust toolchain 1.82 → 1.88 (https://github.com/project-akri/akri/pull/763, https://github.com/project-akri/akri/pull/777)
+- Bumped `hyper-http-proxy` → 1.2.0 to drop the unmaintained `rustls-pemfile` (https://github.com/project-akri/akri/pull/840)
+- Refreshed the pinned `h2` patch, now pinned by commit (https://github.com/project-akri/akri/pull/827)
+
+**Security**
+
+- Cleared RUSTSEC-2024-0437 (https://github.com/project-akri/akri/pull/822), RUSTSEC-2026-0098 / -0099 / -0104 (https://github.com/project-akri/akri/pull/823), RUSTSEC-2025-0052 (https://github.com/project-akri/akri/pull/824), and RUSTSEC-2025-0134 (https://github.com/project-akri/akri/pull/840)
+
+**Bug fixes**
+
+- fix: correct the `kube::runtime` import path (https://github.com/project-akri/akri/pull/782)
+- fix: use the right platform in the container build (https://github.com/project-akri/akri/pull/781)
+
+**Platform & CRDs**
+
+- CI matrix advanced to Kubernetes 1.33 / 1.34 / 1.36 (https://github.com/project-akri/akri/pull/817, https://github.com/project-akri/akri/pull/716)
+- CRDs now appear in `kubectl get all` (https://github.com/project-akri/akri/pull/800, https://github.com/project-akri/akri/pull/816)
+- ArgoCD-safe CRD sync: strip null values (https://github.com/project-akri/akri/pull/766), preserve `name` / `namespace` (https://github.com/project-akri/akri/pull/761)
+
+**Helm / packaging**
+
+- Fix `brokerJob` `image.tag` typo (https://github.com/project-akri/akri/pull/769), webhook `nodeSelector` indentation (https://github.com/project-akri/akri/pull/749), and `imagePullPolicy` for broker pods (https://github.com/project-akri/akri/pull/752)
+
+**Repository & CI**
+
+- Sample brokers/apps moved to `project-akri/examples` (https://github.com/project-akri/akri/pull/790, https://github.com/project-akri/akri/pull/832, https://github.com/project-akri/akri/pull/792)
+- `update-versions` no longer overwrites a PR's `version.sh` (https://github.com/project-akri/akri/pull/819); versioning / check-script hardening (https://github.com/project-akri/akri/pull/784)
+- GitHub Actions in CI bumped to latest (https://github.com/project-akri/akri/pull/751)
+- Maintainer updates (https://github.com/project-akri/akri/pull/774, https://github.com/project-akri/akri/pull/729, https://github.com/project-akri/akri/pull/741, https://github.com/project-akri/akri/pull/759); CoC contact (https://github.com/project-akri/akri/pull/789)
+- Docs: developer guide (https://github.com/project-akri/akri/pull/833), refreshed badges/supported versions/handler list (https://github.com/project-akri/akri/pull/825),
+  community-call time (https://github.com/project-akri/akri/pull/828), adopters list (https://github.com/project-akri/akri/pull/798, https://github.com/project-akri/akri/pull/820), repo-wide typo fixes (https://github.com/project-akri/akri/pull/773)
+
+View the [full change log](https://github.com/project-akri/akri/compare/v0.13.8...v0.14.0).
+
+## Breaking Changes
+
+- **Kubernetes baseline raised from ≥ 1.16 to ≥ 1.33** (`k8s-openapi` pinned to `v1_33`); validated on 1.33 / 1.34 / 1.36.
+- **Embedder / API surface updated**: `kube-rs` 1.0, `tonic` 0.13, `prost` 0.13, `hyper` 1.0, `rustls` 0.23 — projects embedding Akri crates must update accordingly.
+- **MSRV raised to Rust 1.88.**
+- **Sample brokers/apps moved to `project-akri/examples`**: pinned `ghcr.io/project-akri/akri/<sample>:latest-dev` image references no longer resolve — switch to the examples-repo images/paths.
+
+## Known Issues
+
+- `RUSTSEC-2024-0421` (`idna`) and `RUSTSEC-2024-0388` (`derivative`) remain — both are pulled solely via the frozen `opcua` 0.12 crate. Deferred to a later release and tracked in [#841](https://github.com/project-akri/akri/issues/841) (`opcua` → `async-opcua` migration).
+- `RUSTSEC-2026-0258` (`h2` unbounded empty DATA frames) is present via the pinned `h2` patch fork; awaiting an upstream fix.
+
+## Validated With
+
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | 1.36.1        |
+| Kubernetes   | 1.34.8        |
+| Kubernetes   | 1.33.12       |
+| K3s          | v1.36.1+k3s1  |
+| K3s          | v1.34.8+k3s1  |
+| K3s          | v1.33.12+k3s1 |
+| MicroK8s     | 1.36/stable   |
+| MicroK8s     | 1.34/stable   |
+| MicroK8s     | 1.33/stable   |
+
+## What's next?
+
+Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
+
+## Thanks 👏
+
+Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
+prosper.
+
+**⭐ Contributors to v0.14.0 ⭐**
+
+- @gauravgahlot
+- @kate-goldenring
+- @yujinkim-msft
+- @ananos
+- @diconico07
+- @koendelaat
+- @twz123
+- @lilustga
+- @pavanvishnusai
+- @dineshbodala
+- @revanthkoganti
+- @AkashKumar7902
+- @erickuiper
+- @jackliu2024
+- @fwmarcel
+- @bindsi
+
 # v0.13.8
 
 ## Announcing Akri v0.13.8!
+
 Akri v0.13.8 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.13.8 release contains the following changes:
 
-
 **Fixes, features, and optimizations**
+
 - feat: Refactor the agent (https://github.com/project-akri/akri/pull/684)
 - fix: Add proto build flag to allow option proto fields (https://github.com/project-akri/akri/pull/698)
 - opt: Refactor agent followup (https://github.com/project-akri/akri/pull/700)
@@ -24,6 +140,7 @@ The v0.13.8 release contains the following changes:
 View the [full change log](https://github.com/project-akri/akri/compare/v0.12.20...v.0.13.8)
 
 ## Breaking Changes
+
 - Agent refactoring: this release comes with many new improvements to the Akri agent!
   - In order to prevent deletion of existing Instances on Configuration update, the agent now only looks for updates to the capacity and broker capacities.
   - Agent no longer needs access to the CRI socket for slot reconciliation.
@@ -32,40 +149,42 @@ View the [full change log](https://github.com/project-akri/akri/compare/v0.12.20
 
 ## Known Issues
 
-
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.31.2 |
-| Kubernetes | v1.30.6 |
-| Kubernetes | v1.29.10 |
-| K3s | v1.31.2+k3s1 |
-| K3s | v1.30.6+k3s1 |
-| K3s | v1.29.10+k3s1 |
-| MicroK8s | 1.31/stable |
-| MicroK8s | 1.30/stable |
-| MicroK8s | 1.29/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.31.2       |
+| Kubernetes   | v1.30.6       |
+| Kubernetes   | v1.29.10      |
+| K3s          | v1.31.2+k3s1  |
+| K3s          | v1.30.6+k3s1  |
+| K3s          | v1.29.10+k3s1 |
+| MicroK8s     | 1.31/stable   |
+| MicroK8s     | 1.30/stable   |
+| MicroK8s     | 1.29/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
 prosper.
 
 **⭐ Contributors to v0.13.8 ⭐**
+
 - @CeerDecy
 - @melinda-mytra
 - @diconico07
 - @kate-goldenring
 - @yujinkim-msft
 
-
 (Please send us (`@Yu Jin Kim`) a direct message on
-  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+[Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -76,6 +195,7 @@ helm install akri akri-helm-charts/akri --version 0.13.8 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.13.8/CHANGELOG.md) for more information on what changed
 in this and previous releases.
 
@@ -84,15 +204,18 @@ in this and previous releases.
 # v0.12.20
 
 ## Announcing Akri v0.12.20!
+
 Akri v0.12.20 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.12.20 release contains the following changes:
 
 **Fixes, features, and optimizations**
+
 - opt: Upgrade tonic and prost (https://github.com/project-akri/akri/pull/593)
 - opt: Bump to rust toolchain 1.73 (https://github.com/project-akri/akri/pull/679)
 - fix: Fix build tags (https://github.com/project-akri/akri/pull/680)
@@ -106,51 +229,56 @@ The v0.12.20 release contains the following changes:
 - fix: Update warp dependency to fix security alerts (https://github.com/project-akri/akri/pull/666)
 - opt: Add securityContext to controller helm chart (https://github.com/project-akri/akri/pull/664)
 
-
 View the [full change log](https://github.com/project-akri/akri/compare/v0.12.9...v0.12.20)
 
 ## Breaking Changes
+
 None
 
 ## Known Issues
+
 - If you are using an older version of Ubuntu (version < 23.04), you will need to install the new protobuf compiler manually.
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.28.1 |
-| Kubernetes | v1.27.5 |
-| Kubernetes | v1.26.8 |
-| Kubernetes | v1.25.13 |
-| K3s | v1.28.1+k3s1 |
-| K3s | v1.27.5+k3s1 |
-| K3s | v1.26.8+k3s1 |
-| K3s | v1.25.13+k3s1 |
-| MicroK8s | 1.28/stable |
-| MicroK8s | 1.27/stable |
-| MicroK8s | 1.26/stable |
-| MicroK8s | 1.25/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.28.1       |
+| Kubernetes   | v1.27.5       |
+| Kubernetes   | v1.26.8       |
+| Kubernetes   | v1.25.13      |
+| K3s          | v1.28.1+k3s1  |
+| K3s          | v1.27.5+k3s1  |
+| K3s          | v1.26.8+k3s1  |
+| K3s          | v1.25.13+k3s1 |
+| MicroK8s     | 1.28/stable   |
+| MicroK8s     | 1.27/stable   |
+| MicroK8s     | 1.26/stable   |
+| MicroK8s     | 1.25/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
 prosper.
 
 **⭐ Contributors to v0.12.20 ⭐**
+
 - @johnsonshih
 - @diconico07
-- @ammmze 
+- @ammmze
 - @kate-goldenring
-- @jbpaux 
-- @bfjelds 
+- @jbpaux
+- @bfjelds
 
 (Please send us (`@Kate Goldenring` or `@Yu Jin Kim`) a direct message on
-  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+[Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -161,26 +289,29 @@ helm install akri akri-helm-charts/akri --version 0.12.20 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.12.20/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
 
 # v0.12.9
 
 ## Announcing Akri v0.12.9!
+
 Akri v0.12.9 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.12.9 release contains the following changes:
 
-1. **Configuration-level resource support** (https://github.com/project-akri/akri/pull/627). This implements the [proposal](https://github.com/project-akri/akri-docs/blob/main/proposals/configuration-level-resources.md#configuration-level-resources) of exposing resources at the Configuration level. This allows users to select resources to use at the configuration-level without having know the instance ID beforehand. 
-2. **Support discoveryProperties in the Configuration** (https://github.com/project-akri/akri/pull/619). This implements the [proposal](https://github.com/project-akri/akri-docs/pull/61) for allowing users to specify credential data through the discoveryProperties section in the configuration. The Agent can read these properties and pass them to the discovery handlers for discovering authenticated devices. This provides a native K8s experience by supporting K8s Secrets and K8s configMaps. 
+1. **Configuration-level resource support** (https://github.com/project-akri/akri/pull/627). This implements the [proposal](https://github.com/project-akri/akri-docs/blob/main/proposals/configuration-level-resources.md#configuration-level-resources) of exposing resources at the Configuration level. This allows users to select resources to use at the configuration-level without having know the instance ID beforehand.
+2. **Support discoveryProperties in the Configuration** (https://github.com/project-akri/akri/pull/619). This implements the [proposal](https://github.com/project-akri/akri-docs/pull/61) for allowing users to specify credential data through the discoveryProperties section in the configuration. The Agent can read these properties and pass them to the discovery handlers for discovering authenticated devices. This provides a native K8s experience by supporting K8s Secrets and K8s configMaps.
 3. **Enable ONVIF discovery handler and broker to discover and access authenticated devices** (https://github.com/project-akri/akri/pull/638, https://github.com/project-akri/akri/pull/646). This allows the ONVIF discovery handler to discover IP cameras and other ONVIF devices that require authentication. Once authenticated devices are discovered using the credential data passed through, the broker can also access the data from these devices using the device UUID to look up credentials from the credential directories and authenticate the device.
 
 **Fixes, features, and optimizations**
+
 - opt: Improve udev testability and tests (https://github.com/project-akri/akri/pull/582)
 - opt: Generate a self-signed certificate for webhook if none given in Helm (https://github.com/project-akri/akri/pull/588)
 - fix: Update env_logger and clap to fix RUSTSEC-2021-0145 (https://github.com/project-akri/akri/pull/590)
@@ -201,41 +332,45 @@ The v0.12.9 release contains the following changes:
 - fix: Correct Agent's behavior on Instance deletion (https://github.com/project-akri/akri/pull/654)
 - fix: Update dependencies of sample applications to fix security vulnerability (https://github.com/project-akri/akri/pull/660)
 
-
 View the [full change log](https://github.com/project-akri/akri/compare/v0.10.4...v.0.12.9)
 
 ## Breaking Changes
+
 1. With [the ONVIF discovery handler using UUID_serviceUrl as the device ID](https://github.com/project-akri/akri/pull/630) this changes the hash ID in the Akri instance of the discovered camera. Now, the ONVIF discovery handler always exposes the device UUID in device properties.
-2. With [the IP/MAC address filtering in device properties becoming optional](https://github.com/project-akri/akri/pull/640), the ONVIF discovery handler only expose the IP/MAC addresses when it is able to get them from the device. Retrieving the IP/MAC address requires credentials, so if none are provided, the discovery handler reports the devices without exposing the IP/MAC addresses in properties. 
+2. With [the IP/MAC address filtering in device properties becoming optional](https://github.com/project-akri/akri/pull/640), the ONVIF discovery handler only expose the IP/MAC addresses when it is able to get them from the device. Retrieving the IP/MAC address requires credentials, so if none are provided, the discovery handler reports the devices without exposing the IP/MAC addresses in properties.
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.28.1 |
-| Kubernetes | v1.27.5 |
-| Kubernetes | v1.26.8 |
-| Kubernetes | v1.25.13 |
-| K3s | v1.28.1+k3s1 |
-| K3s | v1.27.5+k3s1 |
-| K3s | v1.26.8+k3s1 |
-| K3s | v1.25.13+k3s1 |
-| MicroK8s | 1.28/stable |
-| MicroK8s | 1.27/stable |
-| MicroK8s | 1.26/stable |
-| MicroK8s | 1.25/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.28.1       |
+| Kubernetes   | v1.27.5       |
+| Kubernetes   | v1.26.8       |
+| Kubernetes   | v1.25.13      |
+| K3s          | v1.28.1+k3s1  |
+| K3s          | v1.27.5+k3s1  |
+| K3s          | v1.26.8+k3s1  |
+| K3s          | v1.25.13+k3s1 |
+| MicroK8s     | 1.28/stable   |
+| MicroK8s     | 1.27/stable   |
+| MicroK8s     | 1.26/stable   |
+| MicroK8s     | 1.25/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
 prosper.
 
 **⭐ Contributors to v0.12.9 ⭐**
+
 - @johnsonshih
 - @diconico07
 - @jbpaux
@@ -246,9 +381,10 @@ prosper.
 - @ag17sep
 
 (Please send us (`@Kate Goldenring` or `@Yu Jin Kim`) a direct message on
-  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+[Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -259,20 +395,21 @@ helm install akri akri-helm-charts/akri --version 0.12.9 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.12.9/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
-
 
 # v0.10.4
 
 ## Announcing Akri v0.10.4!
+
 Akri v0.10.4 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.10.4 release contains the following changes:
 
 1. **Enable mounting connectivity information for multiple devices/instances in a Pod** (https://github.com/project-akri/akri/pull/560 , https://github.com/project-akri/akri/pull/561). Previously, Akri could only mount one device property per discovery handler to a Pod as all devices of the same discovery handler had the same environment variable name. This release fixes this issue by appending the instance hash to the environment variable name and slot ID to the annotation key name. This is a **breaking change** as it changes the way brokers look up properties.
@@ -281,6 +418,7 @@ The v0.10.4 release contains the following changes:
 4. **Mount udev devices through DeviceSpec instead of Mounts** (https://github.com/project-akri/akri/pull/576). This switches from using Mounts to using DeviceSpec for device nodes, and exposes the desired permissions to non privileged containers.
 
 **Fixes, features, and optimizations**
+
 - feat: Add nodeSelectors for Akri agent (https://github.com/project-akri/akri/pull/536)
 - fix: Fix wrong indentation on udev-configuration.yaml for securityContext (https://github.com/project-akri/akri/pull/538)
 - fix: ListAndWatch only sends device if the list has changed (https://github.com/project-akri/akri/pull/540)
@@ -300,41 +438,45 @@ The v0.10.4 release contains the following changes:
 - opt: Upgrade Rust CI actions to maintained ones (https://github.com/project-akri/akri/pull/581)
 - opt: Update warp dependency to fix RUSTSEC-2023-0028 (https://github.com/project-akri/akri/pull/585)
 
-
 View the [full change log](https://github.com/project-akri/akri/compare/v0.8.23...v0.10.4)
 
 ## Breaking Changes
+
 1. With [enable mounting connectivity information for multiple devices/instances in a Pod](https://github.com/project-akri/akri/pull/561), Akri now changes the name of the device properties from `DEVICE_DESCRIPTION` to `DEVICE_DESCRIPTION_INSTANCE_HASH` to allow multiple device properties of the same discovery handler to be injected to the same broker. For example, a broker can look up the Akri instance `akri-debug-echo-foo-8120fe` by the environment variable `DEBUG_ECHO_DESCRIPTION_8120FE` instead of `DEBUG_ECHO_DESCRIPTION`.
 2. With [Mount udev devpath in Akri broker](https://github.com/project-akri/akri/pull/534), Akri changes the way it creates udev Akri instance id from using the **hash of devnode** to using the **hash of devpath**
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.26.3 |
-| Kubernetes | v1.25.8 |
-| Kubernetes | v1.24.12 |
-| Kubernetes | v1.23.15 |
-| K3s | v1.26.3+k3s1 |
-| K3s | v1.25.8+k3s1 |
-| K3s | v1.24.12+k3s1 |
-| K3s | v1.23.15+k3s1 |
-| MicroK8s | 1.26/stable |
-| MicroK8s | 1.25/stable |
-| MicroK8s | 1.24/stable |
-| MicroK8s | 1.23/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.26.3       |
+| Kubernetes   | v1.25.8       |
+| Kubernetes   | v1.24.12      |
+| Kubernetes   | v1.23.15      |
+| K3s          | v1.26.3+k3s1  |
+| K3s          | v1.25.8+k3s1  |
+| K3s          | v1.24.12+k3s1 |
+| K3s          | v1.23.15+k3s1 |
+| MicroK8s     | 1.26/stable   |
+| MicroK8s     | 1.25/stable   |
+| MicroK8s     | 1.24/stable   |
+| MicroK8s     | 1.23/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
 prosper.
 
 **⭐ Contributors to v0.10.4 ⭐**
+
 - @harrison-tin
 - @adithyaj
 - @kate-goldenring
@@ -345,9 +487,10 @@ prosper.
 - @koutselakismanos
 
 (Please send us (`@Kate Goldenring` or `@Adithya J`) a direct message on
-  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+[Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -358,19 +501,21 @@ helm install akri akri-helm-charts/akri --version 0.10.4 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.10.4/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
 
 # v0.8.23
 
 ## Announcing Akri v0.8.23!
+
 Akri v0.8.23 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.8.23 release contains the following changes:
 
 1. Akri uses containerd as the default container runtime.
@@ -378,6 +523,7 @@ The v0.8.23 release contains the following changes:
 3. Support for latest kubernetes versions.
 
 **Fixes, features, and optimizations**
+
 - opt: Update OPCUA to 0.11.0 to remove vulnerabilities (https://github.com/project-akri/akri/pull/528)
 - feat: GitHub Action to auto-version update (https://github.com/project-akri/akri/pull/510)
 - fix: Fixed Kubernetes tests to run on active branches (https://github.com/project-akri/akri/pull/513)
@@ -389,38 +535,43 @@ The v0.8.23 release contains the following changes:
 View the [full change log](https://github.com/project-akri/akri/compare/v0.8.4...v0.8.23)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.25.1 |
-| Kubernetes | v1.24.5 |
-| Kubernetes | v1.23.11 |
-| Kubernetes | v1.22.14 |
-| Kubernetes | v1.21.14 |
-| K3s | v1.25.2+k3s1 |
-| K3s | v1.24.6+k3s1 |
-| K3s | v1.23.12+k3s1 |
-| K3s | v1.22.6+k3s1 |
-| K3s | v1.21.5+k3s1 |
-| MicroK8s | 1.24/stable |
-| MicroK8s | 1.23/stable |
-| MicroK8s | 1.22/stable |
-| MicroK8s | 1.21/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.25.1       |
+| Kubernetes   | v1.24.5       |
+| Kubernetes   | v1.23.11      |
+| Kubernetes   | v1.22.14      |
+| Kubernetes   | v1.21.14      |
+| K3s          | v1.25.2+k3s1  |
+| K3s          | v1.24.6+k3s1  |
+| K3s          | v1.23.12+k3s1 |
+| K3s          | v1.22.6+k3s1  |
+| K3s          | v1.21.5+k3s1  |
+| MicroK8s     | 1.24/stable   |
+| MicroK8s     | 1.23/stable   |
+| MicroK8s     | 1.22/stable   |
+| MicroK8s     | 1.21/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
 prosper.
 
 **⭐ Contributors to v0.8.4 ⭐**
+
 - @adithyaj
 - @bfjelds
 - @bitmeal
@@ -431,9 +582,10 @@ prosper.
 - @romoh
 
 (Please send us (`@Kate Goldenring` or `@Adithya J`) a direct message on
-  [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
+[Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -444,28 +596,31 @@ helm install akri akri-helm-charts/akri --version 0.8.23 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.8.23/CHANGELOG.md) for more information on what changed
 in this and previous releases.
-
 
 ## Previous Releases:
 
 # v0.8.4
 
 ## Announcing Akri v0.8.4!
+
 Akri v0.8.4 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
-The v0.8.4 release contains the following major changes: 
+
+The v0.8.4 release contains the following major changes:
 
 1. **Support for Kubernetes Job brokers** (https://github.com/project-akri/akri/pull/437). Now Akri has support for deploying Jobs to devices discovered by the Akri Agent. Previously, Akri only supported deploying Pods that were not intended to terminate (and would be restarted if they did). Adding Jobs enables more device use scenarios. More background can be found in the [Jobs proposal](https://github.com/project-akri/akri-docs/blob/main/proposals/job-brokers.md). This is a **breaking change** as it required changes to Akri's Configuration CRD.
-2. Fix to re-enable **applying multiple Configurations that use the same Discovery Handler** (https://github.com/project-akri/akri/pull/432). This adds back functionality that was removed in `v0.6.5` when enabling Akri's new extensibility model. 
-3. Akri depends on `crictl` to track whether Pods deployed by the Akri Controller are still running. This release adds new functionality (https://github.com/project-akri/akri/pull/418) such that **crictl is pre-installed in the Agent container**  so that it does not need to be installed on each node.
+2. Fix to re-enable **applying multiple Configurations that use the same Discovery Handler** (https://github.com/project-akri/akri/pull/432). This adds back functionality that was removed in `v0.6.5` when enabling Akri's new extensibility model.
+3. Akri depends on `crictl` to track whether Pods deployed by the Akri Controller are still running. This release adds new functionality (https://github.com/project-akri/akri/pull/418) such that **crictl is pre-installed in the Agent container** so that it does not need to be installed on each node.
 
 **Fixes, features, and optimizations**
+
 - fix: Make debug echo capacity configurable (https://github.com/project-akri/akri/pull/419)
 - fix: Return okay if get 404 when trying to delete an Instance (https://github.com/project-akri/akri/pull/420)
 - opt: Update .NET dependencies, removing vulnerabilities and reducing size (https://github.com/project-akri/akri/pull/422)
@@ -476,6 +631,7 @@ The v0.8.4 release contains the following major changes:
 View the [full change log](https://github.com/project-akri/akri/compare/v0.7.0...v0.8.4)
 
 ## Breaking Changes
+
 Akri's Configuration CRD has been updated to support Job brokers. If Akri has previously been installed on a cluster, delete the previous Configuration CRD before installing the latest version of Akri:
 
 ```sh
@@ -483,42 +639,46 @@ kubectl delete crd configurations.akri.sh
 ```
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.21.0 |
-| Kubernetes | v1.20.1 |
-| Kubernetes | v1.19.4 |
-| Kubernetes | v1.18.12 |
-| Kubernetes | v1.17.14 |
-| Kubernetes | v1.16.15 |
-| K3s | v1.22.6+k3s1 |
-| K3s | v1.21.5+k3s1 |
-| K3s | v1.20.6+k3s1 |
-| K3s | v1.19.10+k3s1 |
-| K3s | v1.18.9+k3s1 |
-| K3s | v1.17.17+k3s1 |
-| K3s | v1.16.14+k3s1 |
-| MicroK8s | 1.23/stable |
-| MicroK8s | 1.22/stable |
-| MicroK8s | 1.21/stable |
-| MicroK8s | 1.20/stable |
-| MicroK8s | 1.19/stable |
-| MicroK8s | 1.18/stable |
-| MicroK8s | 1.17/stable |
-| MicroK8s | 1.16/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.21.0       |
+| Kubernetes   | v1.20.1       |
+| Kubernetes   | v1.19.4       |
+| Kubernetes   | v1.18.12      |
+| Kubernetes   | v1.17.14      |
+| Kubernetes   | v1.16.15      |
+| K3s          | v1.22.6+k3s1  |
+| K3s          | v1.21.5+k3s1  |
+| K3s          | v1.20.6+k3s1  |
+| K3s          | v1.19.10+k3s1 |
+| K3s          | v1.18.9+k3s1  |
+| K3s          | v1.17.17+k3s1 |
+| K3s          | v1.16.14+k3s1 |
+| MicroK8s     | 1.23/stable   |
+| MicroK8s     | 1.22/stable   |
+| MicroK8s     | 1.21/stable   |
+| MicroK8s     | 1.20/stable   |
+| MicroK8s     | 1.19/stable   |
+| MicroK8s     | 1.18/stable   |
+| MicroK8s     | 1.17/stable   |
+| MicroK8s     | 1.16/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks 👏
+
 Thank you everyone in the community who helped Akri get to this release! Your interest and contributions help Akri
-prosper. 
+prosper.
 
 **⭐ Contributors to v0.8.4 ⭐**
+
 - @bfjelds
 - @kate-goldenring
 - @romoh
@@ -528,6 +688,7 @@ prosper.
   [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -538,23 +699,27 @@ helm install akri akri-helm-charts/akri --version 0.8.4 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.8.4/CHANGELOG.md) for more information on what changed
 in this and previous releases.
 
 # v0.7.0
 
 ## Announcing Akri v0.7.0!
+
 Akri v0.7.0 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start
 [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.7.0 release marks the first release of Akri in a new `project-akri` GitHub organization. While no
 breaking changes were introduced, Akri's minor version was bumped to clearly mark this transition of Akri to a [Cloud
-Native Computing Foundation (CNCF) Sandbox project](https://www.cncf.io/sandbox-projects/). 
+Native Computing Foundation (CNCF) Sandbox project](https://www.cncf.io/sandbox-projects/).
 
 This release also introduces:
+
 - [Open governance](https://github.com/opengovernance/opengovernance.dev)
   [documentation](https://github.com/project-akri/akri/blob/v0.7.0/GOVERNANCE.md)
 - The switch from MIT to Apache 2 license (https://github.com/project-akri/akri/pull/401)
@@ -567,9 +732,11 @@ This release also introduces:
 View the [full change log](https://github.com/project-akri/akri/compare/v0.6.19...v0.7.0)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
+
 A [Rust security issue](https://github.com/project-akri/akri/issues/398) was raised on the `time` crate, which is used
 ultimately by Akri's `k8s-openapi`, `kube-rs` and `opcua-client` dependencies via `chrono`. It appears that the version
 of `time` that `chrono` is using is [not
@@ -578,35 +745,38 @@ vulnerable](https://github.com/kube-rs/kube-rs/issues/650#issuecomment-940435726
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.21.0 |
-| Kubernetes | v1.20.1 |
-| Kubernetes | v1.19.4 |
-| Kubernetes | v1.18.12 |
-| Kubernetes | v1.17.14 |
-| Kubernetes | v1.16.15 |
-| K3s | v1.21.5+k3s1 |
-| K3s | v1.20.6+k3s1 |
-| K3s | v1.19.10+k3s1 |
-| K3s | v1.18.9+k3s1 |
-| K3s | v1.17.17+k3s1 |
-| K3s | v1.16.14+k3s1 |
-| MicroK8s | 1.21/stable |
-| MicroK8s | 1.20/stable |
-| MicroK8s | 1.19/stable |
-| MicroK8s | 1.18/stable |
-| MicroK8s | 1.17/stable |
-| MicroK8s | 1.16/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.21.0       |
+| Kubernetes   | v1.20.1       |
+| Kubernetes   | v1.19.4       |
+| Kubernetes   | v1.18.12      |
+| Kubernetes   | v1.17.14      |
+| Kubernetes   | v1.16.15      |
+| K3s          | v1.21.5+k3s1  |
+| K3s          | v1.20.6+k3s1  |
+| K3s          | v1.19.10+k3s1 |
+| K3s          | v1.18.9+k3s1  |
+| K3s          | v1.17.17+k3s1 |
+| K3s          | v1.16.14+k3s1 |
+| MicroK8s     | 1.21/stable   |
+| MicroK8s     | 1.20/stable   |
+| MicroK8s     | 1.19/stable   |
+| MicroK8s     | 1.18/stable   |
+| MicroK8s     | 1.17/stable   |
+| MicroK8s     | 1.16/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks
+
 Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri
-prosper. 
+prosper.
 
 **Contributors to v0.7.0**
+
 - @bfjelds
 - @kate-goldenring
 - @romoh
@@ -615,6 +785,7 @@ prosper.
   [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on
 how to install Akri.
 
@@ -625,69 +796,78 @@ helm install akri akri-helm-charts/akri --version 0.7.0 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.7.0/CHANGELOG.md) for more information on what changed
 in this and previous releases.
 
 # v0.6.19
 
 ## Announcing Akri v0.6.19!
+
 Akri v0.6.19 is a pre-release of Akri.
 
 To find out more about Akri, check out our [documentation](https://docs.akri.sh/) and start [contributing](https://docs.akri.sh/community/contributing) today!
 
 ## New Features
+
 The v0.6.19 release features **ONVIF Discovery Handler and broker optimizations**, long-awaited runtime and Kubernetes **dependency updates**, and moves Akri's documentation to a [**docs repository**](https://github.com/project-akri/akri-docs).
 
 **Fixes, features, and optimizations**
-* opt: Updated Akri's runtime (`tokio`) and Kubernetes dependencies (`kube-rs` and `k8s-openapi`), along with the major versions of all other dependencies where possible. (https://github.com/project-akri/akri/pull/361)
-* opt: ONVIF Discovery handler optimized to be more performant (https://github.com/project-akri/akri/pull/351)
-* opt: Reduced size of ONVIF broker by decreasing size of OpenCV container (https://github.com/project-akri/akri/pull/353)
-* feat: Removed documentation from repository (https://github.com/project-akri/akri/pull/360) and placed in [`project-akri/akri-docs`](https://github.com/project-akri/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository. 
-* feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/project-akri/akri/pull/363)
-* fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/project-akri/akri/pull/385)
-* fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/project-akri/akri/pull/393)
-* fix: Use `kube-rs` resource `watcher` instead of `Api::watch` (https://github.com/project-akri/akri/pull/378)
-* fix: Prevent re-creation instances when only Configuration metadata or status changes (https://github.com/project-akri/akri/pull/373)
-* feat: Enable configuring Prometheus metrics port for local runs (https://github.com/project-akri/akri/pull/377)
+
+- opt: Updated Akri's runtime (`tokio`) and Kubernetes dependencies (`kube-rs` and `k8s-openapi`), along with the major versions of all other dependencies where possible. (https://github.com/project-akri/akri/pull/361)
+- opt: ONVIF Discovery handler optimized to be more performant (https://github.com/project-akri/akri/pull/351)
+- opt: Reduced size of ONVIF broker by decreasing size of OpenCV container (https://github.com/project-akri/akri/pull/353)
+- feat: Removed documentation from repository (https://github.com/project-akri/akri/pull/360) and placed in [`project-akri/akri-docs`](https://github.com/project-akri/akri-docs). Created documentation [site](https://docs.akri.sh/) that points to documentation repository.
+- feat: Workflow to mark inactive issues/PRs as stale and eventually close them (https://github.com/project-akri/akri/pull/363)
+- fix: Make Discovery Handlers check channel health each discovery loop (https://github.com/project-akri/akri/pull/385)
+- fix: Handle multicast response duplicates in ONVIF Discovery Handler (https://github.com/project-akri/akri/pull/393)
+- fix: Use `kube-rs` resource `watcher` instead of `Api::watch` (https://github.com/project-akri/akri/pull/378)
+- fix: Prevent re-creation instances when only Configuration metadata or status changes (https://github.com/project-akri/akri/pull/373)
+- feat: Enable configuring Prometheus metrics port for local runs (https://github.com/project-akri/akri/pull/377)
 
 View the [full change log](https://github.com/project-akri/akri/compare/v0.6.5...v0.6.19)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
+
 ONVIF discovery does not work in development versions `v0.6.17` and `v0.6.18` due to (https://github.com/project-akri/akri/pull/382). Issue was resolved for `v0.6.19` and beyond in (https://github.com/project-akri/akri/pull/393).
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.21.0 |
-| Kubernetes | v1.20.1 |
-| Kubernetes | v1.19.4 |
-| Kubernetes | v1.18.12 |
-| Kubernetes | v1.17.14 |
-| Kubernetes | v1.16.15 |
-| K3s | v1.21.5+k3s1 |
-| K3s | v1.20.6+k3s1 |
-| K3s | v1.19.10+k3s1 |
-| K3s | v1.18.9+k3s1 |
-| K3s | v1.17.17+k3s1 |
-| K3s | v1.16.14+k3s1 |
-| MicroK8s | 1.21/stable |
-| MicroK8s | 1.20/stable |
-| MicroK8s | 1.19/stable |
-| MicroK8s | 1.18/stable |
-| MicroK8s | 1.17/stable |
-| MicroK8s | 1.16/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.21.0       |
+| Kubernetes   | v1.20.1       |
+| Kubernetes   | v1.19.4       |
+| Kubernetes   | v1.18.12      |
+| Kubernetes   | v1.17.14      |
+| Kubernetes   | v1.16.15      |
+| K3s          | v1.21.5+k3s1  |
+| K3s          | v1.20.6+k3s1  |
+| K3s          | v1.19.10+k3s1 |
+| K3s          | v1.18.9+k3s1  |
+| K3s          | v1.17.17+k3s1 |
+| K3s          | v1.16.14+k3s1 |
+| MicroK8s     | 1.21/stable   |
+| MicroK8s     | 1.20/stable   |
+| MicroK8s     | 1.19/stable   |
+| MicroK8s     | 1.18/stable   |
+| MicroK8s     | 1.17/stable   |
+| MicroK8s     | 1.16/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://docs.akri.sh/community/roadmap) to see the features we are looking forward to!
 
 ## Thanks
-Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri prosper. 
+
+Thank you everyone in the community who helped Akri get to this release! You're interest and contributions help Akri prosper.
 
 **Contributors to v0.6.19**
+
 - @ammmze
 - @bfjelds
 - @kate-goldenring
@@ -696,6 +876,7 @@ Thank you everyone in the community who helped Akri get to this release! You're 
 - (Please let us know via [Slack](https://kubernetes.slack.com/messages/akri) if we left you out!)
 
 ## Installation
+
 Akri is packaged as a Helm chart. Check out our [installation doc](https://docs.akri.sh/user-guide/getting-started) on how to install Akri.
 
 ```
@@ -705,201 +886,231 @@ helm install akri akri-helm-charts/akri --version 0.6.19 \
 ```
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.6.19/CHANGELOG.md) for more information on what changed in this and previous releases.
 
 # v0.6.5
 
 ## Announcing Akri v0.6.5!
+
 Akri v0.6.5 is a pre-release of Akri.
 
 To find out more about Akri, check out our [README](https://github.com/project-akri/akri/blob/v0.6.5/README.md) and start [contributing](https://github.com/project-akri/akri/blob/v0.6.5/docs/contributing.md) today!
 
 ## New Features
+
 The v0.6.5 release introduces Akri's Logo, new features such as a new extensibility model for Discovery Handlers and a Configuration validating webhook, DevOps improvements, and more.
 
 **New Discovery Handler extensibility model**
-* feat: Discovery Handlers now live behind a [gRPC interface](https://github.com/project-akri/akri/blob/v0.6.5/discovery-utils/proto/discovery.proto) (https://github.com/project-akri/akri/pull/252), so Discovery Handlers can be written in any language without forking Akri and working within its code. See the [Discovery Handler development document] to get started creating a Discovery Handler. 
-* feat: Support of both default "slim" and old "full" Agent images (https://github.com/project-akri/akri/pull/279). Prior to this release, the Agent contained udev, ONVIF, and OPC UA Discovery Handlers. As of this release, Akri is moving towards a default of having no embedded Discovery Handlers in the Agent; rather, the desired Discovery Handlers can be deployed separately using Akri's Helm chart. This decreases the attack surface of the Agent and will keep it from exponential growth as new Discovery Handlers are continually supported. Discovery Handlers written in Rust can be conditionally compiled into the Agent -- reference [the development documentation for more details](https://github.com/project-akri/akri/blob/v0.6.5/docs/development.md#local-builds-and-tests). For the time being, Akri will continue to support a an Agent image with udev, ONVIF, and OPC UA Discovery Handlers. It will be used if `agent.full=true` is set when installing Akri's Helm chart.
-* feat: Updates to Akri's Helm charts with templates for Akri's Discovery Handlers and renaming of values to better fit the new model.
+
+- feat: Discovery Handlers now live behind a [gRPC interface](https://github.com/project-akri/akri/blob/v0.6.5/discovery-utils/proto/discovery.proto) (https://github.com/project-akri/akri/pull/252), so Discovery Handlers can be written in any language without forking Akri and working within its code. See the [Discovery Handler development document] to get started creating a Discovery Handler.
+- feat: Support of both default "slim" and old "full" Agent images (https://github.com/project-akri/akri/pull/279). Prior to this release, the Agent contained udev, ONVIF, and OPC UA Discovery Handlers. As of this release, Akri is moving towards a default of having no embedded Discovery Handlers in the Agent; rather, the desired Discovery Handlers can be deployed separately using Akri's Helm chart. This decreases the attack surface of the Agent and will keep it from exponential growth as new Discovery Handlers are continually supported. Discovery Handlers written in Rust can be conditionally compiled into the Agent -- reference [the development documentation for more details](https://github.com/project-akri/akri/blob/v0.6.5/docs/development.md#local-builds-and-tests). For the time being, Akri will continue to support a an Agent image with udev, ONVIF, and OPC UA Discovery Handlers. It will be used if `agent.full=true` is set when installing Akri's Helm chart.
+- feat: Updates to Akri's Helm charts with templates for Akri's Discovery Handlers and renaming of values to better fit the new model.
 
 DevOps improvements
-* feat: Workflow to auto-update dependencies (https://github.com/project-akri/akri/pull/224)
-* feat: Security audit workflow (https://github.com/project-akri/akri/pull/264)
-* feat: Workflow for canceling previously running workflows on PRs, reducing environmental footprint and queuing of GitHub Actions (https://github.com/project-akri/akri/pull/284) 
-* feat: Build all rust components in one workflow instead of previous strategy for a workflow for each build (https://github.com/project-akri/akri/pull/270)
-* fix: More exhaustive linting of Akri Helm charts (https://github.com/project-akri/akri/pull/306)
+
+- feat: Workflow to auto-update dependencies (https://github.com/project-akri/akri/pull/224)
+- feat: Security audit workflow (https://github.com/project-akri/akri/pull/264)
+- feat: Workflow for canceling previously running workflows on PRs, reducing environmental footprint and queuing of GitHub Actions (https://github.com/project-akri/akri/pull/284)
+- feat: Build all rust components in one workflow instead of previous strategy for a workflow for each build (https://github.com/project-akri/akri/pull/270)
+- fix: More exhaustive linting of Akri Helm charts (https://github.com/project-akri/akri/pull/306)
 
 Other enhancements
-* feat: [**Webhook for validating Configurations**](https://github.com/project-akri/akri/blob/v0.6.5/webhooks/validating/configuration/README.md) (https://github.com/project-akri/akri/pull/206)
-* feat: Support for Akri monitoring via Prometheus (https://github.com/project-akri/akri/pull/190)
 
-Misc 
-* feat: **Akri Logo** (https://github.com/project-akri/akri/pull/149)
-* fix: Allow overwriting Controller's `nodeSelectors` (https://github.com/project-akri/akri/pull/194)
-* fix: Updated `mockall` version (https://github.com/project-akri/akri/pull/214)
-* fix: Changed default image `PullPolicy` from `Always` to Kubernetes default (`IfNotPresent`) (https://github.com/project-akri/akri/pull/207)
-* fix: Improved video streaming application (for udev demo) that polls for new service creation (https://github.com/project-akri/akri/pull/173)
-* fix: Patched anomaly detection application (for OPC UA demo) to show values from all brokers (https://github.com/project-akri/akri/pull/229)
-* feat: Timestamped labels for local container builds (https://github.com/project-akri/akri/pull/234)
-* fix: Removed udev directory mount from Agent DaemonSet (https://github.com/project-akri/akri/pull/304)
-* fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/project-akri/akri/pull/288)
-* feat: Support for specifying environment variables broker Pods via a Configuration's `brokerProperties`.
-* fix: Default memory and CPU resource requests and limits for Akri containers (https://github.com/project-akri/akri/pull/305) 
+- feat: [**Webhook for validating Configurations**](https://github.com/project-akri/akri/blob/v0.6.5/webhooks/validating/configuration/README.md) (https://github.com/project-akri/akri/pull/206)
+- feat: Support for Akri monitoring via Prometheus (https://github.com/project-akri/akri/pull/190)
+
+Misc
+
+- feat: **Akri Logo** (https://github.com/project-akri/akri/pull/149)
+- fix: Allow overwriting Controller's `nodeSelectors` (https://github.com/project-akri/akri/pull/194)
+- fix: Updated `mockall` version (https://github.com/project-akri/akri/pull/214)
+- fix: Changed default image `PullPolicy` from `Always` to Kubernetes default (`IfNotPresent`) (https://github.com/project-akri/akri/pull/207)
+- fix: Improved video streaming application (for udev demo) that polls for new service creation (https://github.com/project-akri/akri/pull/173)
+- fix: Patched anomaly detection application (for OPC UA demo) to show values from all brokers (https://github.com/project-akri/akri/pull/229)
+- feat: Timestamped labels for local container builds (https://github.com/project-akri/akri/pull/234)
+- fix: Removed udev directory mount from Agent DaemonSet (https://github.com/project-akri/akri/pull/304)
+- fix: Modified Debug Echo Discovery Handler to specify `Device.properties` and added check to e2e tests (https://github.com/project-akri/akri/pull/288)
+- feat: Support for specifying environment variables broker Pods via a Configuration's `brokerProperties`.
+- fix: Default memory and CPU resource requests and limits for Akri containers (https://github.com/project-akri/akri/pull/305)
 
 View the [full change log](https://github.com/project-akri/akri/compare/v0.1.5...v0.6.5)
 
 ## Breaking Changes
+
 Akri's Configuration and Instance CRDs were modified. The old version of the CRDs should be deleted with `kubectl delete instances.akri.sh configurations.akri.sh`, and the new ones will be applied with a new Akri Helm installation.
-* Akri's Configuration CRD's `protocol` field was replaced with `discoveryHandler` in order to fit Akri's new Discovery Handler extensibility model and make the Configuration no longer strongly tied to Discovery Handlers. It's unused `units` field was removed and `properties` was renamed `brokerProperties` to be more descriptive. 
-* Akri's Instance CRD's unused `rbac` field was removed and `metadate` was renamed `brokerProperties` to be more descriptive and aligned with the Configuration CRD.
+
+- Akri's Configuration CRD's `protocol` field was replaced with `discoveryHandler` in order to fit Akri's new Discovery Handler extensibility model and make the Configuration no longer strongly tied to Discovery Handlers. It's unused `units` field was removed and `properties` was renamed `brokerProperties` to be more descriptive.
+- Akri's Instance CRD's unused `rbac` field was removed and `metadate` was renamed `brokerProperties` to be more descriptive and aligned with the Configuration CRD.
 
 Significant changes were made to Akri's Helm chart. Consult the latest user guide and Configurations documentation.
 
 By default, the Agent contains no Discovery Handlers. To deploy Discovery Handlers, they must be explicitly enabled in Akri's Helm chart.
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.21.0 |
-| Kubernetes | v1.20.1 |
-| Kubernetes | v1.19.4 |
-| Kubernetes | v1.18.12 |
-| Kubernetes | v1.17.14 |
-| Kubernetes | v1.16.15 |
-| K3s | v1.20.6+k3s1 |
-| K3s | v1.19.10+k3s1 |
-| K3s | v1.18.9+k3s1 |
-| K3s | v1.17.17+k3s1 |
-| K3s | v1.16.14+k3s1 |
-| MicroK8s | 1.21/stable |
-| MicroK8s | 1.20/stable |
-| MicroK8s | 1.19/stable |
-| MicroK8s | 1.18/stable |
-| MicroK8s | 1.17/stable |
-| MicroK8s | 1.16/stable |
+| Distribution | Version       |
+| ------------ | ------------- |
+| Kubernetes   | v1.21.0       |
+| Kubernetes   | v1.20.1       |
+| Kubernetes   | v1.19.4       |
+| Kubernetes   | v1.18.12      |
+| Kubernetes   | v1.17.14      |
+| Kubernetes   | v1.16.15      |
+| K3s          | v1.20.6+k3s1  |
+| K3s          | v1.19.10+k3s1 |
+| K3s          | v1.18.9+k3s1  |
+| K3s          | v1.17.17+k3s1 |
+| K3s          | v1.16.14+k3s1 |
+| MicroK8s     | 1.21/stable   |
+| MicroK8s     | 1.20/stable   |
+| MicroK8s     | 1.19/stable   |
+| MicroK8s     | 1.18/stable   |
+| MicroK8s     | 1.17/stable   |
+| MicroK8s     | 1.16/stable   |
 
 ## What's next?
+
 Check out our [roadmap](https://github.com/project-akri/akri/blob/v0.6.5/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.6.5/CHANGELOG.md) for more information on what changed in this and previous releases.
+
 # v0.1.5
 
 ## Announcing Akri v0.1.5!
+
 Akri v0.1.5 is a pre-release of Akri.
 
 To find out more about Akri, check out our [README](https://github.com/project-akri/akri/blob/v0.1.5/README.md) and start [contributing](https://github.com/project-akri/akri/blob/v0.1.5/docs/contributing.md) today!
 
 ## New Features
+
 The v0.1.5 release introduces support for OPC UA discovery along with:
 
-* End to end demo for discovering and utilizing OPC UA servers
-* Sample anomaly detection application for OPC UA demo
-* Sample OPC UA broker
-* OPC UA certificate generator
+- End to end demo for discovering and utilizing OPC UA servers
+- Sample anomaly detection application for OPC UA demo
+- Sample OPC UA broker
+- OPC UA certificate generator
 
 View the [full change log](https://github.com/project-akri/akri/compare/v0.0.44...v0.1.5)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
+
 N/A
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.20.1 |
-| Kubernetes | v1.19.4 |
-| Kubernetes | v1.18.12 |
-| Kubernetes | v1.17.14 |
-| Kubernetes | v1.16.15 |
-| K3s | v1.20.0+k3s2 |
-| K3s | v1.19.4+k3s1 |
-| K3s | v1.18.9+k3s1 |
-| MicroK8s | 1.20/stable |
-| MicroK8s | 1.19/stable |
-| MicroK8s | 1.18/stable |
+| Distribution | Version      |
+| ------------ | ------------ |
+| Kubernetes   | v1.20.1      |
+| Kubernetes   | v1.19.4      |
+| Kubernetes   | v1.18.12     |
+| Kubernetes   | v1.17.14     |
+| Kubernetes   | v1.16.15     |
+| K3s          | v1.20.0+k3s2 |
+| K3s          | v1.19.4+k3s1 |
+| K3s          | v1.18.9+k3s1 |
+| MicroK8s     | 1.20/stable  |
+| MicroK8s     | 1.19/stable  |
+| MicroK8s     | 1.18/stable  |
 
 ## What's next?
+
 Check out our [roadmap](https://github.com/project-akri/akri/blob/v0.1.5/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.1.5/CHANGELOG.md) for more information on what changed in this and previous releases.
 
 # v0.0.44
 
 ## Announcing Akri v0.0.44!
+
 Akri v0.0.44 is a pre-release of Akri.
 
 To find out more about Akri, check out our [README](https://github.com/project-akri/akri/blob/v0.0.44/README.md) and start [contributing](https://github.com/project-akri/akri/blob/v0.0.44/docs/contributing.md) today!
 
 ## New Features
+
 The v0.0.44 release introduces a number of significant improvements!
 
-* Enable Akri for armv7
-* Create separate Helm charts for releases (akri) and merges (akri-dev)
-* Parameterize Helm for udev beyond simple video scenario
-* Expand udev discovery by supporting filtering by udev rules that look up the device hierarchy such as SUBSYSTEMS, ATTRIBUTES, DRIVERS, KERNELS, and TAGS
-* Parameterize Helm for udev to allow security context
-* Remove requirement for agent to execute in privileged container
+- Enable Akri for armv7
+- Create separate Helm charts for releases (akri) and merges (akri-dev)
+- Parameterize Helm for udev beyond simple video scenario
+- Expand udev discovery by supporting filtering by udev rules that look up the device hierarchy such as SUBSYSTEMS, ATTRIBUTES, DRIVERS, KERNELS, and TAGS
+- Parameterize Helm for udev to allow security context
+- Remove requirement for agent to execute in privileged container
 
 View the [full change log](https://github.com/project-akri/akri/compare/v0.0.35...v0.0.44)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
-* Documented Helm settings are not currently compatible with K3s v1.19.4+k3s1
+
+- Documented Helm settings are not currently compatible with K3s v1.19.4+k3s1
 
 ## Validated With
 
-| Distribution | Version |
-|---|---|
-| Kubernetes | v1.19.4 |
-| K3s | v1.18.9+k3s1 |
-| MicroK8s | 1.18/stable |
+| Distribution | Version      |
+| ------------ | ------------ |
+| Kubernetes   | v1.19.4      |
+| K3s          | v1.18.9+k3s1 |
+| MicroK8s     | 1.18/stable  |
 
 ## What's next?
+
 Check out our [roadmap](https://github.com/project-akri/akri/blob/v0.0.44/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
-See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.0.44/CHANGELOG.md) for more information on what changed in this and previous releases.
 
+See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.0.44/CHANGELOG.md) for more information on what changed in this and previous releases.
 
 # v0.0.35
 
 ## Announcing the Akri v0.0.35 pre-release!
+
 Akri v0.0.35 is the first pre-release of Akri.
 
 To find out more about Akri, check out our [README](https://github.com/project-akri/akri/blob/main/README.md) and start [contributing](https://github.com/project-akri/akri/blob/main/docs/contributing.md) today!
 
 ## New Features
+
 The v0.0.35 release introduces a number of significant features!
 
-* CRDs to allow the discovery and utilization of leaf devices
-* An agent and controller to find, advertise, and utilize leaf devices
-* Discovery for IP cameras using the ONVIF protocol
-* An ONVIF broker to serve the camera frames
-* Discovery for leaf devices exposed through udev
-* A udev camera broker to serve the camera frames
-* A Helm chart to simplify Akri deployment
+- CRDs to allow the discovery and utilization of leaf devices
+- An agent and controller to find, advertise, and utilize leaf devices
+- Discovery for IP cameras using the ONVIF protocol
+- An ONVIF broker to serve the camera frames
+- Discovery for leaf devices exposed through udev
+- A udev camera broker to serve the camera frames
+- A Helm chart to simplify Akri deployment
 
 View the [full change log](https://github.com/project-akri/akri/commits/v0.0.35)
 
 ## Breaking Changes
+
 N/A
 
 ## Known Issues
+
 N/A
 
 ## What's next?
+
 Check out our [roadmap](https://github.com/project-akri/akri/blob/main/docs/roadmap.md) to see the features we are looking forward to!
 
 ## Release history
+
 See [CHANGELOG.md](https://github.com/project-akri/akri/blob/v0.0.35/CHANGELOG.md) for more information on what changed in this and previous releases.
