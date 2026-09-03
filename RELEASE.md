@@ -158,7 +158,10 @@ Publishing the release triggers `build-rust-containers`, `run-helm`, `run-test-c
 
 ## 6. Post-release
 
-- [ ] Reset the auto-bumper to the next development version.
+- [ ] Confirm the monthly dependency-update workflow is healthy. It runs `./version.sh -u -p`
+      whenever it finds updates, so the next patch bump arrives on its own — there is nothing
+      to reset by hand. `version.txt` never carries a `-dev` suffix; the build appends that to
+      non-release image tags.
 - [ ] Move any still-open advisories into a follow-up tracking issue.
 - [ ] Close the release tracking issue.
 
