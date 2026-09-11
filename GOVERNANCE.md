@@ -36,7 +36,7 @@ you can actively engage
   [Slack](https://kubernetes.slack.com/messages/akri)
 
 ### Maintainer
-Maintainers can review and merge pull requests. The [CODEOWNERS](./CODEOWNERS)
+Maintainers can review and merge pull requests. The [CODEOWNERS](.github/CODEOWNERS)
 file defines the current maintainers of the project.
 
 Beyond maintaining Akri's code, maintainers also:
@@ -51,7 +51,7 @@ Regular contributors can **become a maintainer of Akri**. If you frequently find
 yourself doing any combination of commenting on issues, adding thoughts to PRs,
 contributing PRs, writing proposals, attending community meetings, promoting
 discussion on Slack, and so on, you may be a great candidate to become a
-maintainer! Please reach out to one or more [maintainers](./CODEOWNERS) -- we
+maintainer! Please reach out to one or more [maintainers](.github/CODEOWNERS) -- we
 may even ask you first!
 
 #### Emeritus Maintainers
