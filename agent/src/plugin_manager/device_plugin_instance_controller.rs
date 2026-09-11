@@ -478,6 +478,7 @@ enum ConfigurationSlot {
 struct ConfigurationDevicePlugin {
     instances: RwLock<HashMap<String, Arc<InstanceDevicePlugin>>>,
     slots: Arc<RwLock<watch::Sender<HashMap<String, ConfigurationSlot>>>>,
+    allocation_lock: Mutex<()>,
     config_name: String,
     node_name: String,
     stopper: Stopper,
@@ -489,6 +490,7 @@ impl ConfigurationDevicePlugin {
         Self {
             instances: Default::default(),
             slots: Arc::new(RwLock::new(slots)),
+            allocation_lock: Mutex::new(()),
             config_name,
             node_name,
             stopper: Stopper::new(),
@@ -666,12 +668,15 @@ impl InternalDevicePlugin for ConfigurationDevicePlugin {
             "allocate - kubelet called allocate for Configuration {}",
             self.config_name
         );
+        // Serialize Configuration-level allocations so a repeated request cannot
+        // observe a stale DeviceFree entry before the first claim is published.
+        let _allocation_guard = self.allocation_lock.lock().await;
         let mut container_responses: Vec<super::v1beta1::ContainerAllocateResponse> = Vec::new();
         let reqs = requests.into_inner().container_requests;
         for allocate_request in reqs {
             let devices = allocate_request.devices_i_ds;
             for device in devices {
-                let dev = self
+                let slot = self
                     .slots
                     .read()
                     .await
@@ -679,27 +684,43 @@ impl InternalDevicePlugin for ConfigurationDevicePlugin {
                     .get(&device)
                     .ok_or(tonic::Status::unknown("Unable to claim slot"))?
                     .clone();
-                if let ConfigurationSlot::DeviceFree(dev) = dev {
-                    let dp = self
-                        .instances
-                        .read()
-                        .await
-                        .get(&dev)
-                        .ok_or(tonic::Status::unknown("Invalid slot"))?
-                        .clone();
-                    container_responses.push(cdi_device_to_car(&dp.device));
-                    dp.claim_slot(
-                        None,
+                let (instance_name, requested_slot) = match slot {
+                    ConfigurationSlot::DeviceFree(instance_name) => (instance_name, None),
+                    ConfigurationSlot::DeviceUsed { device, slot_id } => (device, Some(slot_id)),
+                };
+                let dp = self
+                    .instances
+                    .read()
+                    .await
+                    .get(&instance_name)
+                    .ok_or(tonic::Status::unknown("Invalid slot"))?
+                    .clone();
+                let slot_id = dp
+                    .claim_slot(
+                        requested_slot,
                         DeviceUsage::Configuration {
                             vdev: device.clone(),
                             node: self.node_name.clone(),
                         },
                     )
                     .await
-                    .or(Err(tonic::Status::unknown("Unavailable slot")))?;
-                } else {
-                    return Err(tonic::Status::unknown("Unable to claim slot"));
-                }
+                    .map_err(|e| {
+                        error!("Unable to claim Configuration slot: {e:?}");
+                        tonic::Status::unknown("Unable to claim slot")
+                    })?;
+
+                // Publish the selected Instance slot before returning to kubelet.
+                // The Instance watcher will converge this entry to the same value.
+                self.slots.read().await.send_modify(|slots| {
+                    slots.insert(
+                        device.clone(),
+                        ConfigurationSlot::DeviceUsed {
+                            device: instance_name,
+                            slot_id,
+                        },
+                    );
+                });
+                container_responses.push(cdi_device_to_car(&dp.device));
             }
         }
         Ok(tonic::Response::new(AllocateResponse {
@@ -1130,6 +1151,7 @@ mod tests {
             Arc::new(ConfigurationDevicePlugin {
                 instances: RwLock::new(HashMap::from([("instance-a".to_owned(), instance_plugin)])),
                 slots: Arc::new(RwLock::new(s)),
+                allocation_lock: Mutex::new(()),
                 config_name: "config-a".to_owned(),
                 node_name: "node-a".to_string(),
                 stopper,
@@ -1278,7 +1300,7 @@ mod tests {
     #[tokio::test]
     async fn test_config_plugin_allocate() {
         let mut kube_client = MockIntoApi::new();
-        kube_client.expect_namespaced().returning(|_| {
+        kube_client.expect_namespaced().times(2).returning(|_| {
             let mut api = MockApi::new();
             api.expect_raw_patch().returning(|_, _, _| {
                 Ok(Instance {
@@ -1331,19 +1353,35 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(500)).await;
 
+        for _ in 0..2 {
+            assert_eq!(
+                config_plugin
+                    .allocate(Request::new(AllocateRequest {
+                        container_requests: vec![ContainerAllocateRequest {
+                            devices_i_ds: vec!["config-a-0".to_owned()],
+                        }],
+                    }))
+                    .await
+                    .unwrap()
+                    .into_inner()
+                    .container_responses
+                    .len(),
+                1
+            );
+        }
+
         assert_eq!(
             config_plugin
-                .allocate(Request::new(AllocateRequest {
-                    container_requests: vec![ContainerAllocateRequest {
-                        devices_i_ds: vec!["config-a-0".to_owned()],
-                    }],
-                }))
+                .slots
+                .read()
                 .await
-                .unwrap()
-                .into_inner()
-                .container_responses
-                .len(),
-            1
+                .borrow()
+                .get("config-a-0")
+                .cloned(),
+            Some(ConfigurationSlot::DeviceUsed {
+                device: "instance-a".to_owned(),
+                slot_id: 3,
+            })
         );
     }
 
