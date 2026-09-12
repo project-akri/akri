@@ -716,10 +716,14 @@ fn config_device_usage_to_device(
 ) -> Result<ListAndWatchResponse, tonic::Status> {
     Ok(ListAndWatchResponse {
         devices: devices
-            .into_keys()
-            .map(|id| super::v1beta1::Device {
+            .into_iter()
+            .map(|(id, slot)| super::v1beta1::Device {
                 id,
-                health: "Healthy".to_string(),
+                health: match slot {
+                    ConfigurationSlot::DeviceFree(_) => "Healthy",
+                    ConfigurationSlot::DeviceUsed { .. } => "Unhealthy",
+                }
+                .to_string(),
                 topology: None,
             })
             .collect(),
@@ -1013,6 +1017,35 @@ mod tests {
             ]
         );
         assert!(construct_slots_vec(&slots, 1).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_device_health_reflects_slot_usage() -> Result<(), tonic::Status> {
+        let devices = HashMap::from([
+            (
+                "config-a-0".to_owned(),
+                ConfigurationSlot::DeviceFree("instance-a".to_owned()),
+            ),
+            (
+                "config-a-1".to_owned(),
+                ConfigurationSlot::DeviceUsed {
+                    device: "instance-a".to_owned(),
+                    slot_id: 1,
+                },
+            ),
+        ]);
+
+        let response = config_device_usage_to_device("config-a", "node-a", devices)?;
+        let health_by_id = response
+            .devices
+            .into_iter()
+            .map(|device| (device.id, device.health))
+            .collect::<HashMap<_, _>>();
+
+        assert_eq!(health_by_id["config-a-0"], "Healthy");
+        assert_eq!(health_by_id["config-a-1"], "Unhealthy");
+
         Ok(())
     }
 
@@ -1542,7 +1575,7 @@ mod tests {
             ListAndWatchResponse {
                 devices: vec![crate::plugin_manager::v1beta1::Device {
                     id: "config-a-0".to_owned(),
-                    health: "Healthy".to_owned(),
+                    health: "Unhealthy".to_owned(),
                     topology: None,
                 }]
             }
