@@ -1,6 +1,6 @@
 <!--  Thank you for contributing to the Akri repo! Before submitting this PR, please make sure:
 1. Read the Contributing Guide before submitting your PR: https://docs.akri.sh/community/contributing
-2. Decide whether you need to add any labels to your PR, such as `same version` if the version should not be changed and your change will trigger the version check workflow. This will cause the workflow to automatically succeed: https://github.com/project-akri/akri/blob/main/.github/workflows/check-versioning.yml
+2. Use a Conventional Commit PR title (e.g. `feat: ...`, `fix: ...`). Versions and the changelog are managed automatically by release-please, so do NOT edit version.txt, Cargo.toml/Chart.yaml versions, or CHANGELOG.md. See docs/development/release-strategy.md
 3. If this PR closes another issue, add 'closes #<issue number>' somewhere in the PR summary. GitHub will automatically close that issue when this PR gets merged. Alternatively, adding 'refs #<issue number>' will not close the issue, but help provide the reviewer more context. -->
 
 **What this PR does / why we need it**:
