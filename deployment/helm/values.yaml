@@ -892,3 +892,9 @@ webhookConfiguration:
     memoryLimit: 100Mi
     # cpuLimit defines the maximum amount of CPU this Pod can consume.
     cpuLimit: 26m
+  # extraArgs allows passing additional CLI arguments to the webhook container.
+  # For example, to enable IPv6 dual-stack support, you can pass:
+  # extraArgs:
+  #   - "--bind-address=::"
+  extraArgs: []
+
