@@ -49,11 +49,4 @@ Use this template in the [Adopters List](#adopters-list) section:
 
 ## Adopters List
 
-### QA Wolf
 
-- **Description**: QA Wolf provides AI-powered end-to-end test automation for web and mobile apps, and runs the tests on its own cloud and on-premises device farm.
-- **Usage**: Akri's udev discovery handler discovers the physical iPhones, iPads and Android phones connected over USB to our on-premises bare-metal Kubernetes nodes. Our own scheduler creates one device pod per Akri Instance and requests the Instance's device plugin resource. Several hundred devices across multiple clusters.
-- **Links**:
-  - [Website](https://www.qawolf.com)
-- **Contacts**:
-  - GitHub: @erkanerol
