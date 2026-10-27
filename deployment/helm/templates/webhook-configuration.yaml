@@ -89,6 +89,9 @@ items:
             - --tls-crt-file=/secrets/tls.crt
             - --tls-key-file=/secrets/tls.key
             - --port=8443
+            {{- if .Values.webhookConfiguration.extraArgs }}
+            {{- toYaml .Values.webhookConfiguration.extraArgs | nindent 12 }}
+            {{- end }}
             volumeMounts:
             - name: secrets
               mountPath: /secrets

@@ -260,6 +260,14 @@ async fn main() -> std::io::Result<()> {
                 .help("TLS private key file"),
         )
         .arg(
+            Arg::new("bind_address")
+                .long("bind-address")
+                .value_parser(clap::value_parser!(std::net::IpAddr))
+                .default_value("0.0.0.0")
+                .required(false)
+                .help("The IP address to bind the webhook server to (e.g., 0.0.0.0 or ::)"),
+        )
+        .arg(
             Arg::new("port")
                 .long("port")
                 .value_parser(clap::value_parser!(u16))
@@ -278,11 +286,15 @@ async fn main() -> std::io::Result<()> {
         .map(|v| v.as_str())
         .expect("TLS private key file");
 
+    let bind_address = matches
+        .get_one::<std::net::IpAddr>("bind_address")
+        .expect("valid bind address");
+
     let port = matches
         .get_one::<u16>("port")
         .expect("valid port [0-65535]");
 
-    let endpoint = format!("0.0.0.0:{port}");
+    let endpoint = format!("{bind_address}:{port}");
     println!("Started Webhook server: {endpoint}");
 
     let builder = get_builder(key_file, crt_file);
