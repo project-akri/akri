@@ -91,8 +91,8 @@ pub mod common {
     #[yaserde(
         prefix = "d",
         namespace = "d: http://schemas.xmlsoap.org/ws/2005/04/discovery",
-        namespace = probe_typews::NETWORK_VIDEO_TRANSMITTER_NAMESPACE_DESCRIPTOR,
-        namespace = probe_typews::DEVICE_NAMESPACE_DESCRIPTOR
+        namespace = "netwsdl: http://www.onvif.org/ver10/network/wsdl",
+        namespace = "devwsdl: http://www.onvif.org/ver10/device/wsdl"
     )]
     pub struct Probe {
         #[yaserde(prefix = "d", rename = "Types")]
@@ -179,7 +179,7 @@ pub mod util {
         /// Get SOAP probe message with a specific message id
         fn get_expected_probe_message(message_id: &str) -> String {
             format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Header xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\"><w:MessageID>{}</w:MessageID><w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To><w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action></s:Header><s:Body xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"><d:Probe><d:Types>netwsdl:NetworkVideoTransmitter</d:Types></d:Probe></s:Body></s:Envelope>",
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\"><s:Header xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\"><w:MessageID>{}</w:MessageID><w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To><w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action></s:Header><s:Body xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"><d:Probe xmlns:devwsdl=\"http://www.onvif.org/ver10/device/wsdl\" xmlns:netwsdl=\"http://www.onvif.org/ver10/network/wsdl\"><d:Types>netwsdl:NetworkVideoTransmitter</d:Types></d:Probe></s:Body></s:Envelope>",
                 &message_id
             )
         }
@@ -191,6 +191,36 @@ pub mod util {
             let uuid_str = format!("uuid:{}", uuid::Uuid::new_v4());
             let expected_msg = get_expected_probe_message(&uuid_str);
             assert_eq!(expected_msg, create_onvif_discovery_message(&uuid_str));
+        }
+
+        /// The probe type is sent as `netwsdl:NetworkVideoTransmitter`. That prefix is a QName in
+        /// text content, so an XML parser accepts the message even when `netwsdl` is never
+        /// declared, but devices resolve the prefix and ignore probes they cannot resolve.
+        #[test]
+        fn test_discovery_message_declares_probe_type_namespace() {
+            let _ = env_logger::builder().is_test(true).try_init();
+
+            let uuid_str = format!("uuid:{}", uuid::Uuid::new_v4());
+            let message = create_onvif_discovery_message(&uuid_str);
+
+            let package = sxd_document::parser::parse(&message)
+                .expect("probe message should be well formed XML");
+            let document = package.as_document();
+            let types =
+                match sxd_xpath::evaluate_xpath(&document, "//*[local-name()='Types']").unwrap() {
+                    sxd_xpath::Value::Nodeset(nodes) => nodes.document_order_first(),
+                    _ => None,
+                }
+                .and_then(|node| node.element())
+                .expect("probe message should contain a Types element");
+
+            assert_eq!(
+                Some("http://www.onvif.org/ver10/network/wsdl"),
+                types.namespace_uri_for_prefix(
+                    probe_types::NETWORK_VIDEO_TRANSMITTER_NAMESPACE_PREFIX
+                ),
+                "prefix used by the probe type must be declared in: {message}"
+            );
         }
     }
 
