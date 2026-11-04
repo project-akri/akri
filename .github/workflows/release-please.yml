@@ -1,0 +1,41 @@
+# Opens/updates the release-please "Release PR" on every push to main, and (once that PR is
+# merged) tags the commit + creates the GitHub Release. The GitHub App token is REQUIRED:
+# a release created with the default GITHUB_TOKEN does NOT emit `release: published`, so the
+# container/Helm publish workflows would not fire. See docs/development/release-strategy.md §7.2.
+#
+# One-time setup before this does anything:
+#   1. Create an org-owned GitHub App ("Akri Release Bot") with repo permissions
+#      contents:write, pull-requests:write, issues:write; install it on project-akri/akri.
+#   2. Add secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY.
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+# The App token (below) carries the scopes; keep the job token minimal.
+permissions: {}
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    if: github.repository == 'project-akri/akri'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Run release-please
+        uses: googleapis/release-please-action@v4
+        with:
+          command: manifest
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

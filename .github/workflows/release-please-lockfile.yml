@@ -1,0 +1,61 @@
+# Keeps Cargo.lock consistent with the version bump on release-please's Release PR.
+#
+# release-please (release-type: simple) bumps the workspace version in Cargo.toml via
+# `extra-files`, but does NOT update the workspace-member versions in Cargo.lock. Left alone,
+# the tagged release commit would have Cargo.toml and Cargo.lock disagree and any
+# `cargo ... --locked` build would fail. This job runs `cargo update --workspace` on the
+# Release PR branch and commits the refreshed Cargo.lock back to it, so the merged/tagged
+# commit stays consistent. See docs/development/release-strategy.md §7.1.
+#
+# Note: Akri's crates use `version.workspace = true`, so release-please's `rust` release type +
+# `cargo-workspace` plugin (which expects explicit per-crate versions) is not a clean fit —
+# hence this lockfile-sync approach on top of the `simple` release type.
+name: release-please lockfile sync
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rp-lockfile-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sync-lockfile:
+    # Only run on release-please's own Release PRs (in-repo branch, so secrets are available).
+    if: ${{ github.repository == 'project-akri/akri' && startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # App token so the pushed lockfile commit re-triggers the PR's CI (e.g. --locked build).
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout the Release PR branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.head_ref }}
+
+      - name: Sync Cargo.lock to the bumped workspace version
+        run: cargo update --workspace
+
+      - name: Commit refreshed Cargo.lock if it changed
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock already in sync — nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          # --signoff to satisfy the repo's DCO check.
+          git commit --signoff -m "chore: sync Cargo.lock with release version"
+          git push
