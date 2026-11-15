@@ -17,6 +17,7 @@ use tokio::sync::mpsc;
 use crate::discovery_handler_manager::{
     DiscoveryError, discovery_handler_registry::DiscoveryHandlerRegistry,
 };
+use crate::util::metrics::INSTANCE_COUNT_METRIC;
 
 use kube::api::ObjectMeta;
 use kube::runtime::{
@@ -86,6 +87,9 @@ pub async fn reconcile(
     let owner_ref = dc.controller_owner_ref(&()).unwrap();
     if dc.metadata.deletion_timestamp.is_some() {
         ctx.dh_registry.terminate_request(&dc.name_any()).await;
+        for is_shared in ["true", "false"] {
+            let _ = INSTANCE_COUNT_METRIC.remove_label_values(&[dc.name_any().as_str(), is_shared]);
+        }
 
         ctx.client
             .namespaced(&namespace)
@@ -161,6 +165,11 @@ pub async fn reconcile(
         }
     }
 
+    let shared_count = discovered_instances
+        .iter()
+        .filter(|i| i.spec.shared)
+        .count();
+    let local_count = discovered_instances.len() - shared_count;
     for instance in discovered_instances {
         ctx.client
             .namespaced(&namespace)
@@ -168,6 +177,12 @@ pub async fn reconcile(
             .await
             .map_err(|e| Error::Other(e.into()))?;
     }
+    INSTANCE_COUNT_METRIC
+        .with_label_values(&[dc.name_any().as_str(), "true"])
+        .set(shared_count as i64);
+    INSTANCE_COUNT_METRIC
+        .with_label_values(&[dc.name_any().as_str(), "false"])
+        .set(local_count as i64);
 
     ctx.error_backoffs.lock().unwrap().remove(&dc.name_any());
     Ok(Action::requeue(SUCCESS_REQUEUE))
@@ -527,6 +542,99 @@ mod tests {
         });
 
         assert!(reconcile(dc, ctx).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_reconcile_sets_instance_count_metric() {
+        let (store, _) = kube::runtime::reflector::store();
+        let mut client = MockDiscoveryConfigurationKubeClient::default();
+        let api = MockApi::new();
+        client
+            .config
+            .expect_namespaced()
+            .return_once(|_| Box::new(api));
+        client.instance.expect_namespaced().returning(|_| {
+            let mut api = MockApi::new();
+            api.expect_apply().returning(|instance, _| Ok(instance));
+            Box::new(api)
+        });
+
+        let discovered = |name: &str, shared: bool| Instance {
+            metadata: ObjectMeta {
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            spec: InstanceSpec {
+                configuration_name: "config-metrics".to_string(),
+                cdi_name: format!("akri.sh/config-metrics={name}"),
+                capacity: 1,
+                broker_properties: HashMap::new(),
+                shared,
+                nodes: vec![],
+                device_usage: Default::default(),
+            },
+        };
+        let instances = vec![
+            discovered("instance-a", true),
+            discovered("instance-b", false),
+            discovered("instance-c", false),
+        ];
+
+        let mut registry = MockDiscoveryHandlerRegistry::new();
+        let mut request = MockDiscoveryHandlerRequest::new();
+        request
+            .expect_set_extra_device_properties()
+            .returning(|_| {});
+        request
+            .expect_get_instances()
+            .returning(move || Ok(instances.clone()));
+        registry
+            .expect_get_request()
+            .return_once(|_| Some(Arc::new(request)));
+
+        let ctx = Arc::new(ControllerContext {
+            instances_cache: store,
+            dh_registry: Arc::new(registry),
+            client: Arc::new(client),
+            agent_identifier: "node-a".to_string(),
+            error_backoffs: Default::default(),
+        });
+
+        let dc = Arc::new(Configuration {
+            metadata: ObjectMeta {
+                name: Some("config-metrics".to_string()),
+                namespace: Some("namespace-a".to_string()),
+                uid: Some("00112233-4455-6677-8899-aabbccddeeff".to_string()),
+                finalizers: Some(vec!["node-a".to_string()]),
+                ..Default::default()
+            },
+            spec: ConfigurationSpec {
+                discovery_handler: DiscoveryHandlerInfo {
+                    name: "debugEcho".to_string(),
+                    discovery_details: String::new(),
+                    discovery_properties: None,
+                },
+                capacity: 1,
+                broker_spec: None,
+                instance_service_spec: None,
+                configuration_service_spec: None,
+                broker_properties: Default::default(),
+            },
+        });
+
+        assert!(reconcile(dc, ctx).await.is_ok());
+        assert_eq!(
+            INSTANCE_COUNT_METRIC
+                .with_label_values(&["config-metrics", "true"])
+                .get(),
+            1
+        );
+        assert_eq!(
+            INSTANCE_COUNT_METRIC
+                .with_label_values(&["config-metrics", "false"])
+                .get(),
+            2
+        );
     }
 
     #[tokio::test]
