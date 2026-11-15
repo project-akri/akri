@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::wrappers::{
     udev_device::{
@@ -555,6 +555,36 @@ pub fn insert_device_with_relatives(
             let _ = devpaths.insert(id, children_devices);
         }
     }
+}
+
+/// Returns the requested udev properties of the device as broker properties named
+/// `UDEV_<PROPERTY>`, e.g. `ID_SERIAL` becomes `UDEV_ID_SERIAL`. Properties the device doesn't
+/// have are left out.
+pub(crate) fn get_exposed_properties(
+    device: &impl DeviceExt,
+    property_names: &[String],
+) -> HashMap<String, String> {
+    property_names
+        .iter()
+        .filter_map(|name| {
+            let value = get_property_value(device, name)?.to_str()?;
+            Some((exposed_property_name(name), value.to_string()))
+        })
+        .collect()
+}
+
+fn exposed_property_name(property_name: &str) -> String {
+    let name: String = property_name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("UDEV_{name}")
 }
 
 #[cfg(test)]
@@ -1453,5 +1483,48 @@ mod discovery_tests {
                 ),
             ])
         );
+    }
+
+    #[test]
+    fn test_get_exposed_properties() {
+        let properties = HashMap::from([
+            (
+                "ID_SERIAL".to_string(),
+                "Silicon_Labs_CP2102_0001".to_string(),
+            ),
+            ("ID_VENDOR_ID".to_string(), "10c4".to_string()),
+            ("ID_MODEL".to_string(), "CP2102".to_string()),
+        ]);
+        let device = create_mock_device(
+            "/devices/pci0000:00/0000:00:14.0/usb1/1-6",
+            "/dev/ttyUSB0",
+            "1-6",
+            properties,
+            HashMap::new(),
+            None,
+            None,
+            None,
+        );
+
+        let exposed = get_exposed_properties(
+            &device,
+            &[
+                "ID_SERIAL".to_string(),
+                "ID_VENDOR_ID".to_string(),
+                "ID_MISSING".to_string(),
+            ],
+        );
+
+        assert_eq!(
+            exposed,
+            HashMap::from([
+                (
+                    "UDEV_ID_SERIAL".to_string(),
+                    "Silicon_Labs_CP2102_0001".to_string()
+                ),
+                ("UDEV_ID_VENDOR_ID".to_string(), "10c4".to_string()),
+            ])
+        );
+        assert_eq!(exposed_property_name("ID_VENDOR.ID"), "UDEV_ID_VENDOR_ID");
     }
 }

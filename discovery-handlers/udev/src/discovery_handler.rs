@@ -1,5 +1,7 @@
 use super::{
-    discovery_impl::{DeviceProperties, do_parse_and_find, insert_device_with_relatives},
+    discovery_impl::{
+        DeviceProperties, do_parse_and_find, get_exposed_properties, insert_device_with_relatives,
+    },
     wrappers::udev_enumerator,
 };
 use akri_discovery_utils::discovery::{
@@ -14,6 +16,7 @@ use async_trait::async_trait;
 use log::{error, info, trace};
 use serde::{Deserialize, Deserializer, de};
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
@@ -35,6 +38,11 @@ pub struct UdevDiscoveryDetails {
     #[serde(default = "default_permissions")]
     #[serde(deserialize_with = "validate_permissions")]
     pub permissions: String,
+
+    /// udev properties of the discovered device, like ID_SERIAL, to pass to brokers as
+    /// UDEV_<PROPERTY> broker properties, so a broker can tell devices apart.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exposed_properties: Vec<String>,
 }
 
 // Validate the permissible set of cgroups `permissions`
@@ -164,6 +172,21 @@ impl DiscoveryHandler for DiscoveryHandlerImpl {
                         //id is the sysfs path of the most top level device so we only need this one
                         properties.insert(super::UDEV_DEVPATH_LABEL_ID.to_string(), id.clone());
 
+                        if !discovery_handler_config.exposed_properties.is_empty() {
+                            match udev::Device::from_syspath(Path::new(&format!("/sys{id}"))) {
+                                Ok(device) => {
+                                    for (key, value) in get_exposed_properties(
+                                        &device,
+                                        &discovery_handler_config.exposed_properties,
+                                    ) {
+                                        // Don't let an exposed property replace UDEV_DEVNODE or UDEV_DEVPATH
+                                        properties.entry(key).or_insert(value);
+                                    }
+                                }
+                                Err(e) => trace!("discover - could not read udev properties of {id}: {e}"),
+                            }
+                        }
+
                         let is_usb_device = id.split('/').any(|s| s.starts_with("usb"));
                         if let Some(ref resource_name) = device_plugin_resource_name {
                             if !is_usb_device {
@@ -274,6 +297,23 @@ mod tests {
         assert_eq!(udev_dh_config.udev_rules.len(), 1);
         assert_eq!(&udev_dh_config.udev_rules[0], "KERNEL==\"video[0-9]*\"");
         assert_eq!(&udev_dh_config.permissions, "rwm");
+        assert!(udev_dh_config.exposed_properties.is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_discovery_details_exposed_properties() {
+        let yaml = r#"
+          udevRules:
+          - 'SUBSYSTEM=="tty"'
+          exposedProperties:
+          - ID_SERIAL
+          - ID_VENDOR_ID
+        "#;
+        let udev_dh_config: UdevDiscoveryDetails = deserialize_discovery_details(yaml).unwrap();
+        assert_eq!(
+            udev_dh_config.exposed_properties,
+            vec!["ID_SERIAL".to_string(), "ID_VENDOR_ID".to_string()]
+        );
     }
 
     #[test]

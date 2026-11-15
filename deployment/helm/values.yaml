@@ -719,6 +719,9 @@ udev:
       # permissions is the list of Cgroups permissions of the device
       # combination of r (read), w (write), m (modify)
       permissions: rwm
+      # exposedProperties is a list of udev properties of each discovered device, like ID_SERIAL,
+      # that are passed to brokers as UDEV_<PROPERTY> broker properties
+      exposedProperties: []
     # capacity is the capacity for any instances created as a result of
     # applying this udev configuration
     capacity: 1
