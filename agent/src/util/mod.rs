@@ -1,5 +1,5 @@
 pub mod discovery_configuration_controller;
 
-mod metrics;
+pub(crate) mod metrics;
 
 pub mod stopper;

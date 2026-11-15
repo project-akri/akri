@@ -19,6 +19,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use akri_discovery_utils::discovery::v0::{ByteData, Device, DiscoverRequest};
 use akri_shared::akri::configuration::{Configuration, DiscoveryProperty};
@@ -44,6 +45,7 @@ use tokio::sync::{Mutex, Notify, broadcast};
 use super::discovery_property_solver::PropertySolver;
 use super::{DiscoveryError, DiscoveryManagerKubeInterface};
 use crate::device_manager::cdi::ContainerEdit;
+use crate::util::metrics::{DISCOVERY_RESPONSE_RESULT_METRIC, DISCOVERY_RESPONSE_TIME_METRIC};
 
 #[cfg(test)]
 use mockall::automock;
@@ -315,7 +317,18 @@ impl DHRequestImpl {
             discovery_details: self.details.clone(),
             discovery_properties: self.solve_discovery_properties().await?,
         };
-        discovery_handler.query(q_sender, query_body).await?;
+        let start = Instant::now();
+        let result = discovery_handler.query(q_sender, query_body).await;
+        DISCOVERY_RESPONSE_RESULT_METRIC
+            .with_label_values(&[
+                self.handler_name.as_str(),
+                if result.is_ok() { "Success" } else { "Fail" },
+            ])
+            .inc();
+        result?;
+        DISCOVERY_RESPONSE_TIME_METRIC
+            .with_label_values(&[self.key.as_str()])
+            .observe(start.elapsed().as_secs_f64());
         Ok(q_receiver)
     }
 
