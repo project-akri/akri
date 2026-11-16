@@ -2,7 +2,9 @@
 pub mod opcua_client_wrapper {
     #[cfg(test)]
     use mockall::{automock, predicate::*};
-    use opcua::client::prelude::*;
+    use opcua::client::{Client, ClientBuilder};
+    use opcua::types::{ApplicationDescription, StatusCode};
+    use tokio::runtime::Handle;
 
     #[cfg_attr(test, automock)]
     pub trait OpcuaClient {
@@ -14,6 +16,7 @@ pub mod opcua_client_wrapper {
 
     pub struct OpcuaClientImpl {
         inner_opcua_client: Client,
+        runtime: Handle,
     }
 
     impl OpcuaClientImpl {
@@ -31,6 +34,10 @@ pub mod opcua_client_wrapper {
                     .session_retry_limit(session_retry_limit)
                     .client()
                     .unwrap(),
+                // Discovery runs on a blocking thread (see `discovery_handler.rs`), which
+                // still has the runtime's handle, so the async client calls can be driven
+                // from here without starting another runtime.
+                runtime: Handle::current(),
             }
         }
     }
@@ -40,7 +47,12 @@ pub mod opcua_client_wrapper {
             &mut self,
             discovery_endpoint_url: &str,
         ) -> Result<Vec<ApplicationDescription>, StatusCode> {
-            self.inner_opcua_client.find_servers(discovery_endpoint_url)
+            self.runtime
+                .block_on(
+                    self.inner_opcua_client
+                        .find_servers(discovery_endpoint_url, None, None),
+                )
+                .map_err(StatusCode::from)
         }
     }
     /// Returns an OPC UA Client that will only be used to connect to OPC UA Server and Local Discovery Servers' DiscoveryEndpoints
