@@ -6,8 +6,9 @@ use ::url::Url;
 use akri_discovery_utils::filtering::{FilterList, should_include};
 use anyhow::Context;
 use log::{error, info, trace};
-use opcua::client::prelude::*;
+use opcua::core::comms::url::OPC_TCP_SCHEME;
 use opcua::core::constants::DEFAULT_OPC_UA_SERVER_PORT;
+use opcua::types::{ApplicationDescription, ApplicationType};
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Duration,
@@ -234,6 +235,7 @@ mod tests {
     };
     use super::*;
     use mockall::Sequence;
+    use opcua::types::{LocalizedText, StatusCode, UAString};
 
     pub fn create_application_description(
         application_uri: &str,
