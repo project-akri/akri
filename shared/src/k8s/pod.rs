@@ -608,7 +608,7 @@ mod broker_podspec_tests {
                 "pod",
             );
 
-            // Validate the metadata name/namesapce
+            // Validate the metadata name/namespace
             assert_eq!(&app_name, &pod.metadata.clone().name.unwrap());
             assert_eq!(&pod_namespace, &pod.metadata.clone().namespace.unwrap());
 
