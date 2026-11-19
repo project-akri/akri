@@ -55,7 +55,7 @@ controller:
     tag:
     # pullPolicy is the Akri Controller pull policy
     pullPolicy: "Always"
-  # ensures container doesn't run with unnecessary priviledges
+  # ensures container doesn't run with unnecessary privileges
   securityContext:
     runAsUser: 1000
     allowPrivilegeEscalation: false

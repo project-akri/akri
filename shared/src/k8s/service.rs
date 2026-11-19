@@ -611,7 +611,7 @@ mod svcspec_tests {
                 *node_specific_svc,
             );
 
-            // Validate the metadata name/namesapce
+            // Validate the metadata name/namespace
             assert_eq!(&app_name, &svc.metadata.clone().name.unwrap());
             assert_eq!(&svc_namespace, &svc.metadata.clone().namespace.unwrap());
 
