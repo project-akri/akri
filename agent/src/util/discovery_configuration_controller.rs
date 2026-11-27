@@ -23,6 +23,7 @@ use kube::runtime::{
     Controller,
     controller::Action,
     reflector::{ObjectRef, Store},
+    watcher,
 };
 use kube::{Resource, ResourceExt};
 use thiserror::Error;
@@ -56,11 +57,39 @@ pub async fn start_controller(
     rec: mpsc::Receiver<ObjectRef<Configuration>>,
 ) {
     let api = ctx.client.all().as_inner();
+    let instance_api: kube::Api<Instance> =
+        IntoApi::<Instance>::all(ctx.client.as_ref()).as_inner();
     let controller = Controller::new(api, Default::default());
 
     controller
         // Reconcile the Configuration when the discovery handler manager signals a change
         .reconcile_on(tokio_stream::wrappers::ReceiverStream::new(rec))
+        // Reconcile the Configuration when one of the Instances it owns is created, modified
+        // or deleted. This way an Instance that disappears while its device is still
+        // discovered (e.g. an apply that landed on an Instance being deleted) is recreated
+        // right away instead of waiting for the next SUCCESS_REQUEUE.
+        // Equivalent to `.owns(...)`, written as `.watches(...)` so that the trigger can be logged.
+        .watches(instance_api, watcher::Config::default(), |instance: Instance| {
+            let namespace = instance.namespace();
+            let configurations: Vec<ObjectRef<Configuration>> = instance
+                .meta()
+                .owner_references
+                .iter()
+                .flatten()
+                .filter_map(|owner| {
+                    ObjectRef::<Configuration>::from_owner_ref(namespace.as_deref(), owner, ())
+                })
+                .collect();
+            for configuration in &configurations {
+                info!(
+                    "Instance {:?}::{} changed, triggering reconcile of Configuration {}",
+                    namespace,
+                    instance.name_any(),
+                    configuration.name
+                );
+            }
+            configurations
+        })
         .run(reconcile, error_policy, ctx)
         .for_each(|_| futures::future::ready(()))
         .await;

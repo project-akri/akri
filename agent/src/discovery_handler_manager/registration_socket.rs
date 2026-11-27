@@ -21,6 +21,11 @@ use super::{
     },
 };
 
+/// A Discovery Handler that just registered may not be accepting connections yet, so a failed connection
+/// is retried before the Discovery Handler is considered offline.
+const CONNECT_RETRIES: u32 = 3;
+const CONNECT_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+
 struct NetworkEndpoint {
     name: String,
     endpoint: String,
@@ -63,6 +68,27 @@ impl NetworkEndpoint {
                 ))
             }
             EndpointType::Network => DiscoveryHandlerClient::connect(self.endpoint.clone()).await,
+        }
+    }
+
+    /// Same as `get_client`, but retries a failed connection up to `CONNECT_RETRIES` times, waiting
+    /// `CONNECT_RETRY_DELAY` between attempts, unless the endpoint gets stopped in the meantime.
+    async fn get_client_with_retry(
+        &self,
+    ) -> Result<DiscoveryHandlerClient<Channel>, tonic::transport::Error> {
+        let mut attempt = 0;
+        loop {
+            match self.get_client().await {
+                Err(e) if attempt < CONNECT_RETRIES && !self.stopped.is_stopped() => {
+                    attempt += 1;
+                    warn!(
+                        "NetworkEndpoint::query - failed to connect to {} discovery handler (attempt {}/{}), retrying in {:?}: {}",
+                        self.name, attempt, CONNECT_RETRIES, CONNECT_RETRY_DELAY, e
+                    );
+                    tokio::time::sleep(CONNECT_RETRY_DELAY).await;
+                }
+                result => return result,
+            }
         }
     }
 
@@ -118,7 +144,7 @@ impl DiscoveryHandlerEndpoint for NetworkEndpoint {
         if self.stopped.is_stopped() {
             return Err(DiscoveryError::UnavailableDiscoveryHandler(self.get_uid()));
         }
-        let stream = match self.get_client().await {
+        let stream = match self.get_client_with_retry().await {
             Ok(mut discovery_handler_client) => {
                 trace!(
                     "NetworkEndpoint::query - connecting to external {} discovery handler over network",
