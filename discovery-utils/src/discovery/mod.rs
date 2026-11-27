@@ -64,6 +64,11 @@ pub mod discovery_handler {
         } else {
             EndpointType::Uds
         };
+        // The Agent connects to the endpoint right after accepting the registration and considers the
+        // Discovery Handler offline if that connection fails, so only register once it accepts connections.
+        if use_uds {
+            akri_shared::uds::unix_stream::try_connect(&endpoint).await?;
+        }
         let register_request = RegisterDiscoveryHandlerRequest {
             name: protocol_name.to_string(),
             endpoint,
